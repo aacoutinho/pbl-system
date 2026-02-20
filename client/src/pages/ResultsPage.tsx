@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, Download, Trophy, UserX, BookOpen, Info, Eye } from "lucide-react";
+import { BarChart3, Download, Trophy, UserX, BookOpen, Info, Eye, FileSpreadsheet } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import React from "react";
@@ -26,19 +26,13 @@ function ResultsContent() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
 
-  // Cross-class: load all classes for professors
   const { data: allClasses } = trpc.classes.listAll.useQuery(undefined, { enabled: isAdmin });
 
-  // Active class for viewing results (default = own class)
   const [viewingClassId, setViewingClassId] = useState<number | null>(null);
   const activeClassId = viewingClassId ?? selectedClassId;
 
-  // Reset viewingClassId when selectedClassId changes
-  useEffect(() => {
-    setViewingClassId(null);
-  }, [selectedClassId]);
+  useEffect(() => { setViewingClassId(null); }, [selectedClassId]);
 
-  // Use sessionsForClass for cross-class, or sessions.list for own class
   const { data: sessionsList, isLoading: sessionsLoading } = trpc.sessions.list.useQuery(
     { classId: activeClassId! },
     { enabled: !!activeClassId && (!viewingClassId || viewingClassId === selectedClassId) }
@@ -54,14 +48,10 @@ function ResultsContent() {
   const [selectedSessionId, setSelectedSessionId] = useState<string>("");
   const [selectedProblem, setSelectedProblem] = useState<string>("");
 
-  // Reset selections when class changes
-  useEffect(() => {
-    setSelectedSessionId("");
-    setSelectedProblem("");
-  }, [activeClassId]);
+  useEffect(() => { setSelectedSessionId(""); setSelectedProblem(""); }, [activeClassId]);
 
   // Peer results
-  const { data: sessionResults, isLoading: resultsLoading } = trpc.results.session.useQuery(
+  const { data: sessionResults } = trpc.results.session.useQuery(
     { sessionId: parseInt(selectedSessionId) },
     { enabled: !!selectedSessionId }
   );
@@ -79,12 +69,6 @@ function ResultsContent() {
   );
 
   // Problem-level results
-  const { data: problemResults, isLoading: problemLoading } = trpc.results.problem.useQuery(
-    { classId: activeClassId!, problemNumber: parseInt(selectedProblem) },
-    { enabled: !!selectedProblem && !!activeClassId }
-  );
-
-  // Problem-level final grades
   const { data: problemFinalResults, isLoading: problemFinalLoading } = trpc.results.problemFinal.useQuery(
     { classId: activeClassId!, problemNumber: parseInt(selectedProblem) },
     { enabled: !!selectedProblem && !!activeClassId }
@@ -111,55 +95,99 @@ function ResultsContent() {
   const viewingOtherClass = viewingClassId && viewingClassId !== selectedClassId;
   const viewingClassName = allClasses?.find(c => c.id === viewingClassId)?.name;
 
-  const exportCSV = (data: Array<Record<string, unknown>>, filename: string) => {
-    if (!data || data.length === 0) return;
-    const headers = Object.keys(data[0]);
-    const csv = [headers.join(","), ...data.map(row => headers.map(h => `"${row[h] ?? ""}"`).join(","))].join("\n");
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  // ─── Export helpers ───
+
+  const downloadCSV = (content: string, filename: string) => {
+    const blob = new Blob(["\uFEFF" + content], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url; a.download = filename; a.click();
     URL.revokeObjectURL(url);
   };
 
-  const exportSessionCSV = () => {
-    if (!finalResults) return;
-    const session = activeSessions?.find(s => s.id === parseInt(selectedSessionId));
-    exportCSV(
-      finalResults.map((r, i) => ({
-        Posição: i + 1,
-        Aluno: r.studentName,
-        Email: r.studentEmail,
-        Papel: r.role,
-        "Nota Pares": r.peerScore.toFixed(1),
-        "Nota Final": r.finalGrade.toFixed(1),
-        "Avaliações Válidas": r.validEvaluations,
-        Ausente: r.absent ? "Sim" : "Não",
-      })),
-      `resultados_${session?.label?.replace(/\s/g, "_") || "sessao"}.csv`
-    );
+  const escapeCSV = (val: unknown): string => {
+    const s = String(val ?? "");
+    if (s.includes(",") || s.includes('"') || s.includes("\n")) {
+      return `"${s.replace(/"/g, '""')}"`;
+    }
+    return s;
   };
 
-  const exportProblemCSV = () => {
+  // Export session results: tutor eval per item + peer avg + final grade
+  const exportSessionResults = () => {
+    if (!finalResults) return;
+    const session = activeSessions?.find(s => s.id === parseInt(selectedSessionId));
+    const sessionLabel = session?.label || "sessao";
+    const presentCount = finalResults.filter(r => !r.absent && r.peerScore > 0).length;
+
+    const lines: string[] = [];
+
+    // Header section: Session info
+    lines.push(`Sessão Tutorial: ${escapeCSV(sessionLabel)}`);
+    lines.push(`Problema: ${session?.problemNumber ?? ""},Sessão: ${session?.sessionNumber ?? ""}`);
+    lines.push("");
+
+    // Tutorial evaluation section
+    if (tutorialEval) {
+      lines.push("AVALIAÇÃO DO TUTORIAL PELO PROFESSOR");
+      lines.push("Critério,Nota (0-1),Peso,Contribuição");
+      lines.push(`Organização,${Number(tutorialEval.organizacao).toFixed(1)},1,${(Number(tutorialEval.organizacao) * 1).toFixed(1)}`);
+      lines.push(`Cooperação,${Number(tutorialEval.cooperacao).toFixed(1)},1,${(Number(tutorialEval.cooperacao) * 1).toFixed(1)}`);
+      lines.push(`Conteúdo,${Number(tutorialEval.conteudo).toFixed(1)},3,${(Number(tutorialEval.conteudo) * 3).toFixed(1)}`);
+      lines.push(`Objetivo,${Number(tutorialEval.objetivo).toFixed(1)},3,${(Number(tutorialEval.objetivo) * 3).toFixed(1)}`);
+      lines.push(`Metas,${Number(tutorialEval.metas).toFixed(1)},2,${(Number(tutorialEval.metas) * 2).toFixed(1)}`);
+      lines.push(`Nota do Tutorial,,,"${tutorialEval.tutorialGrade.toFixed(1)}"`);
+      lines.push(`Alunos Presentes,,,${presentCount}`);
+      lines.push(`Pontuação Total,,,"${(tutorialEval.tutorialGrade * presentCount).toFixed(1)}"`);
+      lines.push("");
+    } else {
+      lines.push("AVALIAÇÃO DO TUTORIAL: Pendente");
+      lines.push("");
+    }
+
+    // Results table
+    lines.push("RESULTADOS DOS ALUNOS");
+    lines.push("Aluno,Papel,Média Pares,Nota Final,Status");
+    for (const r of finalResults) {
+      const status = r.absent ? "Faltou" : "Presente";
+      lines.push(`${escapeCSV(r.studentName)},${r.role},${r.peerScore.toFixed(1)},${r.finalGrade.toFixed(1)},${status}`);
+    }
+
+    downloadCSV(lines.join("\n"), `resultados_${sessionLabel.replace(/\s/g, "_")}.csv`);
+  };
+
+  // Export problem results: all sessions summary
+  const exportProblemResults = () => {
     if (!problemFinalResults) return;
     const sessionsForProblem = activeSessions?.filter(s => s.problemNumber === parseInt(selectedProblem)).sort((a, b) => a.sessionNumber - b.sessionNumber) ?? [];
-    exportCSV(
-      problemFinalResults.map((r, i) => {
-        const row: Record<string, unknown> = {
-          Posição: i + 1,
-          Aluno: r.studentName,
-          Email: r.studentEmail,
-        };
-        sessionsForProblem.forEach((s, idx) => {
-          row[`S${s.sessionNumber} Pares`] = r.peerScores[idx]?.toFixed(1) ?? "0.0";
-          row[`S${s.sessionNumber} Final`] = r.finalGrades[idx]?.toFixed(1) ?? "0.0";
-        });
-        row["Média Pares"] = r.peerAverage.toFixed(1);
-        row["Média Final"] = r.finalAverage.toFixed(1);
-        return row;
-      }),
-      `resultados_problema_${selectedProblem}.csv`
-    );
+
+    const lines: string[] = [];
+
+    lines.push(`Resultados Consolidados - Problema ${selectedProblem}`);
+    lines.push("");
+
+    // Header row
+    const headers = ["Aluno"];
+    for (const s of sessionsForProblem) {
+      headers.push(`S${s.sessionNumber} Média Pares`);
+      headers.push(`S${s.sessionNumber} Nota Final`);
+    }
+    headers.push("Média Pares", "Média Final");
+    lines.push(headers.join(","));
+
+    // Data rows
+    for (const r of problemFinalResults) {
+      const row = [escapeCSV(r.studentName)];
+      for (let idx = 0; idx < sessionsForProblem.length; idx++) {
+        row.push((r.peerScores[idx] ?? 0).toFixed(1));
+        row.push((r.finalGrades[idx] ?? 0).toFixed(1));
+      }
+      row.push(r.peerAverage.toFixed(1));
+      row.push(r.finalAverage.toFixed(1));
+      lines.push(row.join(","));
+    }
+
+    downloadCSV(lines.join("\n"), `resultados_problema_${selectedProblem}.csv`);
   };
 
   return (
@@ -228,8 +256,8 @@ function ResultsContent() {
               </Select>
             </div>
             {finalResults && finalResults.length > 0 && (
-              <Button variant="outline" size="sm" onClick={exportSessionCSV}>
-                <Download className="h-4 w-4 mr-2" />Exportar CSV
+              <Button variant="outline" size="sm" onClick={exportSessionResults}>
+                <FileSpreadsheet className="h-4 w-4 mr-2" />Exportar CSV
               </Button>
             )}
           </div>
@@ -238,24 +266,68 @@ function ResultsContent() {
             <>
               {/* Tutorial evaluation info */}
               {tutorialEval ? (
-                <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800">
-                  <Info className="h-4 w-4 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="font-medium">Avaliação do Tutorial pelo Professor</p>
-                    <p className="mt-1">
-                      Org: {Number(tutorialEval.organizacao).toFixed(1)}×1 + 
-                      Coop: {Number(tutorialEval.cooperacao).toFixed(1)}×1 + 
-                      Cont: {Number(tutorialEval.conteudo).toFixed(1)}×3 + 
-                      Obj: {Number(tutorialEval.objetivo).toFixed(1)}×3 + 
-                      Metas: {Number(tutorialEval.metas).toFixed(1)}×2 = {" "}
-                      <span className="font-bold">{tutorialEval.tutorialGrade.toFixed(1)}</span>
-                    </p>
-                    <p className="mt-1 text-xs">
-                      Alunos presentes: {finalResults?.filter(r => !r.absent && r.peerScore > 0).length ?? 0} | 
-                      Pontuação total: {tutorialEval.tutorialGrade.toFixed(1)} × {finalResults?.filter(r => !r.absent && r.peerScore > 0).length ?? 0} = {((tutorialEval.tutorialGrade) * (finalResults?.filter(r => !r.absent && r.peerScore > 0).length ?? 0)).toFixed(1)} pontos
-                    </p>
-                  </div>
-                </div>
+                <Card className="bg-blue-50/50 border-blue-200">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold text-blue-800 flex items-center gap-2">
+                      <Info className="h-4 w-4" />
+                      Avaliação do Tutorial pelo Professor
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-blue-200 text-left">
+                            <th className="pb-2 pr-4 font-medium text-blue-700">Critério</th>
+                            <th className="pb-2 pr-4 font-medium text-blue-700 text-center">Nota (0-1)</th>
+                            <th className="pb-2 pr-4 font-medium text-blue-700 text-center">Peso</th>
+                            <th className="pb-2 font-medium text-blue-700 text-center">Contribuição</th>
+                          </tr>
+                        </thead>
+                        <tbody className="text-blue-900">
+                          <tr className="border-b border-blue-100">
+                            <td className="py-1.5 pr-4">Organização</td>
+                            <td className="py-1.5 pr-4 text-center">{Number(tutorialEval.organizacao).toFixed(1)}</td>
+                            <td className="py-1.5 pr-4 text-center">×1</td>
+                            <td className="py-1.5 text-center">{(Number(tutorialEval.organizacao) * 1).toFixed(1)}</td>
+                          </tr>
+                          <tr className="border-b border-blue-100">
+                            <td className="py-1.5 pr-4">Cooperação</td>
+                            <td className="py-1.5 pr-4 text-center">{Number(tutorialEval.cooperacao).toFixed(1)}</td>
+                            <td className="py-1.5 pr-4 text-center">×1</td>
+                            <td className="py-1.5 text-center">{(Number(tutorialEval.cooperacao) * 1).toFixed(1)}</td>
+                          </tr>
+                          <tr className="border-b border-blue-100">
+                            <td className="py-1.5 pr-4">Conteúdo</td>
+                            <td className="py-1.5 pr-4 text-center">{Number(tutorialEval.conteudo).toFixed(1)}</td>
+                            <td className="py-1.5 pr-4 text-center">×3</td>
+                            <td className="py-1.5 text-center">{(Number(tutorialEval.conteudo) * 3).toFixed(1)}</td>
+                          </tr>
+                          <tr className="border-b border-blue-100">
+                            <td className="py-1.5 pr-4">Objetivo</td>
+                            <td className="py-1.5 pr-4 text-center">{Number(tutorialEval.objetivo).toFixed(1)}</td>
+                            <td className="py-1.5 pr-4 text-center">×3</td>
+                            <td className="py-1.5 text-center">{(Number(tutorialEval.objetivo) * 3).toFixed(1)}</td>
+                          </tr>
+                          <tr className="border-b border-blue-100">
+                            <td className="py-1.5 pr-4">Metas</td>
+                            <td className="py-1.5 pr-4 text-center">{Number(tutorialEval.metas).toFixed(1)}</td>
+                            <td className="py-1.5 pr-4 text-center">×2</td>
+                            <td className="py-1.5 text-center">{(Number(tutorialEval.metas) * 2).toFixed(1)}</td>
+                          </tr>
+                          <tr className="font-semibold">
+                            <td className="py-2 pr-4" colSpan={3}>Nota do Tutorial</td>
+                            <td className="py-2 text-center text-base">{tutorialEval.tutorialGrade.toFixed(1)}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-blue-200 text-xs text-blue-700 flex gap-6">
+                      <span>Alunos presentes: <strong>{finalResults?.filter(r => !r.absent && r.peerScore > 0).length ?? 0}</strong></span>
+                      <span>Pontuação total: <strong>{((tutorialEval.tutorialGrade) * (finalResults?.filter(r => !r.absent && r.peerScore > 0).length ?? 0)).toFixed(1)}</strong></span>
+                    </div>
+                  </CardContent>
+                </Card>
               ) : (
                 <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
                   <Info className="h-4 w-4 mt-0.5 shrink-0" />
@@ -263,6 +335,7 @@ function ResultsContent() {
                 </div>
               )}
 
+              {/* Results table */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
@@ -270,13 +343,13 @@ function ResultsContent() {
                     Ranking da Sessão
                   </CardTitle>
                   <CardDescription>
-                    {tutorialEval 
+                    {tutorialEval
                       ? "Notas finais calculadas com distribuição proporcional baseada na avaliação do tutorial."
                       : "Mostrando apenas notas da avaliação pelos pares. Avalie o tutorial para ver as notas finais."}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {(resultsLoading || finalLoading) ? (
+                  {finalLoading ? (
                     <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}</div>
                   ) : !finalResults || finalResults.length === 0 ? (
                     <p className="text-center py-8 text-muted-foreground">Nenhuma avaliação encontrada para esta sessão.</p>
@@ -288,9 +361,9 @@ function ResultsContent() {
                             <th className="pb-3 pr-4 font-semibold w-12">#</th>
                             <th className="pb-3 pr-4 font-semibold">Aluno</th>
                             <th className="pb-3 pr-4 font-semibold">Papel</th>
-                            <th className="pb-3 pr-4 font-semibold text-center">Nota Pares</th>
+                            <th className="pb-3 pr-4 font-semibold text-center">Média Pares</th>
                             {tutorialEval && <th className="pb-3 pr-4 font-semibold text-center">Nota Final</th>}
-                            <th className="pb-3 font-semibold text-center">Avaliações</th>
+                            <th className="pb-3 font-semibold text-center">Status</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -321,7 +394,17 @@ function ResultsContent() {
                                   </span>
                                 </td>
                               )}
-                              <td className="py-3 text-center text-muted-foreground">{r.validEvaluations}</td>
+                              <td className="py-3 text-center">
+                                {r.absent ? (
+                                  <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200">
+                                    <UserX className="h-3 w-3 mr-1" />Faltou
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200">
+                                    Presente
+                                  </Badge>
+                                )}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -351,8 +434,8 @@ function ResultsContent() {
               </Select>
             </div>
             {problemFinalResults && problemFinalResults.length > 0 && (
-              <Button variant="outline" size="sm" onClick={exportProblemCSV}>
-                <Download className="h-4 w-4 mr-2" />Exportar CSV
+              <Button variant="outline" size="sm" onClick={exportProblemResults}>
+                <FileSpreadsheet className="h-4 w-4 mr-2" />Exportar CSV
               </Button>
             )}
           </div>
@@ -369,7 +452,7 @@ function ResultsContent() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {(problemLoading || problemFinalLoading) ? (
+                {problemFinalLoading ? (
                   <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}</div>
                 ) : !problemFinalResults || problemFinalResults.length === 0 ? (
                   <p className="text-center py-8 text-muted-foreground">Nenhum resultado encontrado para este problema.</p>
@@ -381,24 +464,13 @@ function ResultsContent() {
                           <th className="pb-3 pr-4 font-semibold w-12">#</th>
                           <th className="pb-3 pr-4 font-semibold">Aluno</th>
                           {activeSessions?.filter(s => s.problemNumber === parseInt(selectedProblem)).sort((a, b) => a.sessionNumber - b.sessionNumber).map(s => (
-                            <th key={s.id} className="pb-3 pr-2 font-semibold text-center" colSpan={2}>
-                              S{s.sessionNumber}
-                            </th>
+                            <React.Fragment key={s.id}>
+                              <th className="pb-3 pr-2 font-semibold text-center text-xs">S{s.sessionNumber}<br/>Pares</th>
+                              <th className="pb-3 pr-2 font-semibold text-center text-xs">S{s.sessionNumber}<br/>Final</th>
+                            </React.Fragment>
                           ))}
                           <th className="pb-3 pr-2 font-semibold text-center">Média Pares</th>
                           <th className="pb-3 font-semibold text-center">Média Final</th>
-                        </tr>
-                        <tr className="border-b text-left text-xs text-muted-foreground">
-                          <th className="pb-2 pr-4"></th>
-                          <th className="pb-2 pr-4"></th>
-                          {activeSessions?.filter(s => s.problemNumber === parseInt(selectedProblem)).sort((a, b) => a.sessionNumber - b.sessionNumber).map(s => (
-                            <React.Fragment key={s.id}>
-                              <th className="pb-2 pr-1 text-center">Pares</th>
-                              <th className="pb-2 pr-2 text-center">Final</th>
-                            </React.Fragment>
-                          ))}
-                          <th className="pb-2 pr-2"></th>
-                          <th className="pb-2"></th>
                         </tr>
                       </thead>
                       <tbody>

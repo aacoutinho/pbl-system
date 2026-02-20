@@ -53,3 +53,7 @@
 - [x] Backend: Allow any professor to view results of all classes (cross-class visibility, default own class)
 - [x] Frontend: Update results page with class selector (default own class, can view others)
 - [x] Tests: CSV parsing and cross-class visibility tests (50 tests passing)
+- [x] Backend: Export route for final results (tutor eval per item + peer avg + final grade)
+- [x] Frontend: Export button with CSV download (session-level and problem-level)
+- [x] Frontend: Clean export format without individual peer scores
+- [x] Tests: Export format validation tests (60 tests passing)
