@@ -30,3 +30,9 @@
 - [x] Frontend: Class selector in sidebar/header for context switching
 - [x] Frontend: Update all pages to filter by selected class
 - [x] Tests: Update tests for multi-class support (22 tests passing)
+- [x] Backend: Add Google OAuth as alternative auth (keep Manus OAuth)
+- [x] Backend: Google OAuth callback handler with JWT session
+- [x] Frontend: Add Google Sign-In button alongside Manus login
+- [x] Frontend: getGoogleLoginUrl helper for Google OAuth flow
+- [x] Config: Google OAuth credentials configured (Client ID + Secret)
+- [x] Tests: All 22 tests passing with Google OAuth integration
