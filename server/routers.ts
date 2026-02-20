@@ -7,6 +7,7 @@ import { z } from "zod";
 import {
   createClass, listClassesByProfessor, updateClass, deleteClass, getClassById, getClassesForStudentEmail,
   listStudentsByClass, createStudent, deleteStudent, getStudentByEmailAndClass, bulkCreateStudents,
+  bulkCreateStudentsWithEnrollment, listAllClasses,
   createSession, listSessionsByClass, getSessionStudents, closeSession, openSession, deleteSession, getSessionById,
   submitEvaluation, getSessionEvaluations, hasStudentSubmitted,
   calculateSessionResults, calculateProblemResults, getDashboardStats,
@@ -61,6 +62,10 @@ export const appRouter = router({
       if (!ctx.user.email) return [];
       return getClassesForStudentEmail(ctx.user.email);
     }),
+    // All classes (for cross-class results visibility)
+    listAll: adminProcedure.query(async () => {
+      return listAllClasses();
+    }),
   }),
 
   // ─── Students ───
@@ -93,6 +98,58 @@ export const appRouter = router({
     delete: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
       await deleteStudent(input.id);
       return { success: true };
+    }),
+    importCSV: adminProcedure.input(z.object({
+      classId: z.number(),
+      csvContent: z.string(),
+      emailDomain: z.string().optional(),
+    })).mutation(async ({ ctx, input }) => {
+      const cls = await getClassById(input.classId);
+      if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma n\u00e3o encontrada" });
+
+      // Parse CSV from SAGRES system (semicolon-separated, ISO-8859-1)
+      const lines = input.csvContent.split("\n");
+      const parsedStudents: { name: string; email: string; enrollment: string }[] = [];
+
+      for (const line of lines) {
+        const cols = line.split(";");
+        // Student rows have a number in col[1] and name in col[4]
+        const num = cols[1]?.trim();
+        if (!num || isNaN(parseInt(num))) continue;
+        const enrollment = cols[3]?.trim();
+        const name = cols[4]?.trim();
+        if (!name || !enrollment) continue;
+        // Skip header row
+        if (name === "Aluno" || enrollment === "Matr\u00edcula") continue;
+
+        // Generate email from name if domain provided
+        let email = "";
+        if (input.emailDomain) {
+          // Generate email: first.last@domain
+          const parts = name.toLowerCase()
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+            .split(/\s+/);
+          if (parts.length >= 2) {
+            email = `${parts[0]}.${parts[parts.length - 1]}@${input.emailDomain}`;
+          } else {
+            email = `${parts[0]}@${input.emailDomain}`;
+          }
+        } else {
+          email = `${enrollment}@placeholder.com`;
+        }
+
+        parsedStudents.push({ name, email, enrollment });
+      }
+
+      if (parsedStudents.length === 0) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Nenhum aluno encontrado no CSV. Verifique se o formato \u00e9 compat\u00edvel com a Folha de Frequ\u00eancia do SAGRES." });
+      }
+
+      await bulkCreateStudentsWithEnrollment(
+        parsedStudents.map(s => ({ ...s, classId: input.classId }))
+      );
+
+      return { success: true, count: parsedStudents.length, students: parsedStudents };
     }),
     me: protectedProcedure.input(z.object({ classId: z.number() })).query(async ({ ctx, input }) => {
       if (!ctx.user.email) return null;
@@ -221,15 +278,15 @@ export const appRouter = router({
     sessionFinal: protectedProcedure.input(z.object({ sessionId: z.number() })).query(async ({ input }) => {
       return calculateFinalGrades(input.sessionId);
     }),
-    problem: adminProcedure.input(z.object({ classId: z.number(), problemNumber: z.number() })).query(async ({ ctx, input }) => {
-      const cls = await getClassById(input.classId);
-      if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+    problem: adminProcedure.input(z.object({ classId: z.number(), problemNumber: z.number() })).query(async ({ input }) => {
       return calculateProblemResults(input.classId, input.problemNumber);
     }),
-    problemFinal: adminProcedure.input(z.object({ classId: z.number(), problemNumber: z.number() })).query(async ({ ctx, input }) => {
-      const cls = await getClassById(input.classId);
-      if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+    problemFinal: adminProcedure.input(z.object({ classId: z.number(), problemNumber: z.number() })).query(async ({ input }) => {
       return calculateProblemFinalGrades(input.classId, input.problemNumber);
+    }),
+    // List sessions for any class (cross-class visibility)
+    sessionsForClass: adminProcedure.input(z.object({ classId: z.number() })).query(async ({ input }) => {
+      return listSessionsByClass(input.classId);
     }),
     dashboard: adminProcedure.query(async ({ ctx }) => {
       return getDashboardStats(ctx.user.id);

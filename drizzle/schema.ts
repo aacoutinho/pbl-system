@@ -33,6 +33,7 @@ export const students = mysqlTable("students", {
   id: int("id").autoincrement().primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
   email: varchar("email", { length: 320 }).notNull(),
+  enrollment: varchar("enrollment", { length: 32 }),
   classId: int("classId").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, (table) => [

@@ -1,15 +1,17 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { useClassContext } from "@/contexts/ClassContext";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, Download, Trophy, UserX, BookOpen, Info } from "lucide-react";
-import { useState, useMemo } from "react";
+import { BarChart3, Download, Trophy, UserX, BookOpen, Info, Eye } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import React from "react";
 
 export default function ResultsPage() {
   return (
@@ -21,12 +23,42 @@ export default function ResultsPage() {
 
 function ResultsContent() {
   const { selectedClassId } = useClassContext();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+
+  // Cross-class: load all classes for professors
+  const { data: allClasses } = trpc.classes.listAll.useQuery(undefined, { enabled: isAdmin });
+
+  // Active class for viewing results (default = own class)
+  const [viewingClassId, setViewingClassId] = useState<number | null>(null);
+  const activeClassId = viewingClassId ?? selectedClassId;
+
+  // Reset viewingClassId when selectedClassId changes
+  useEffect(() => {
+    setViewingClassId(null);
+  }, [selectedClassId]);
+
+  // Use sessionsForClass for cross-class, or sessions.list for own class
   const { data: sessionsList, isLoading: sessionsLoading } = trpc.sessions.list.useQuery(
-    { classId: selectedClassId! },
-    { enabled: !!selectedClassId }
+    { classId: activeClassId! },
+    { enabled: !!activeClassId && (!viewingClassId || viewingClassId === selectedClassId) }
   );
+  const { data: crossSessionsList, isLoading: crossSessionsLoading } = trpc.results.sessionsForClass.useQuery(
+    { classId: viewingClassId! },
+    { enabled: !!viewingClassId && viewingClassId !== selectedClassId }
+  );
+
+  const activeSessions = viewingClassId && viewingClassId !== selectedClassId ? crossSessionsList : sessionsList;
+  const activeSessionsLoading = viewingClassId && viewingClassId !== selectedClassId ? crossSessionsLoading : sessionsLoading;
+
   const [selectedSessionId, setSelectedSessionId] = useState<string>("");
   const [selectedProblem, setSelectedProblem] = useState<string>("");
+
+  // Reset selections when class changes
+  useEffect(() => {
+    setSelectedSessionId("");
+    setSelectedProblem("");
+  }, [activeClassId]);
 
   // Peer results
   const { data: sessionResults, isLoading: resultsLoading } = trpc.results.session.useQuery(
@@ -48,21 +80,21 @@ function ResultsContent() {
 
   // Problem-level results
   const { data: problemResults, isLoading: problemLoading } = trpc.results.problem.useQuery(
-    { classId: selectedClassId!, problemNumber: parseInt(selectedProblem) },
-    { enabled: !!selectedProblem && !!selectedClassId }
+    { classId: activeClassId!, problemNumber: parseInt(selectedProblem) },
+    { enabled: !!selectedProblem && !!activeClassId }
   );
 
   // Problem-level final grades
   const { data: problemFinalResults, isLoading: problemFinalLoading } = trpc.results.problemFinal.useQuery(
-    { classId: selectedClassId!, problemNumber: parseInt(selectedProblem) },
-    { enabled: !!selectedProblem && !!selectedClassId }
+    { classId: activeClassId!, problemNumber: parseInt(selectedProblem) },
+    { enabled: !!selectedProblem && !!activeClassId }
   );
 
   const problems = useMemo(() => {
-    if (!sessionsList) return [];
-    const pSet = new Set(sessionsList.map(s => s.problemNumber));
+    if (!activeSessions) return [];
+    const pSet = new Set(activeSessions.map(s => s.problemNumber));
     return Array.from(pSet).sort((a, b) => a - b);
-  }, [sessionsList]);
+  }, [activeSessions]);
 
   if (!selectedClassId) {
     return (
@@ -75,6 +107,9 @@ function ResultsContent() {
       </div>
     );
   }
+
+  const viewingOtherClass = viewingClassId && viewingClassId !== selectedClassId;
+  const viewingClassName = allClasses?.find(c => c.id === viewingClassId)?.name;
 
   const exportCSV = (data: Array<Record<string, unknown>>, filename: string) => {
     if (!data || data.length === 0) return;
@@ -89,7 +124,7 @@ function ResultsContent() {
 
   const exportSessionCSV = () => {
     if (!finalResults) return;
-    const session = sessionsList?.find(s => s.id === parseInt(selectedSessionId));
+    const session = activeSessions?.find(s => s.id === parseInt(selectedSessionId));
     exportCSV(
       finalResults.map((r, i) => ({
         Posição: i + 1,
@@ -107,7 +142,7 @@ function ResultsContent() {
 
   const exportProblemCSV = () => {
     if (!problemFinalResults) return;
-    const sessionsForProblem = sessionsList?.filter(s => s.problemNumber === parseInt(selectedProblem)).sort((a, b) => a.sessionNumber - b.sessionNumber) ?? [];
+    const sessionsForProblem = activeSessions?.filter(s => s.problemNumber === parseInt(selectedProblem)).sort((a, b) => a.sessionNumber - b.sessionNumber) ?? [];
     exportCSV(
       problemFinalResults.map((r, i) => {
         const row: Record<string, unknown> = {
@@ -134,6 +169,38 @@ function ResultsContent() {
         <p className="text-muted-foreground mt-1">Visualize e exporte as notas calculadas automaticamente.</p>
       </div>
 
+      {/* Cross-class selector for professors */}
+      {isAdmin && allClasses && allClasses.length > 1 && (
+        <Card className="border-dashed">
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center gap-3 flex-wrap">
+              <Eye className="h-4 w-4 text-muted-foreground shrink-0" />
+              <Label className="text-sm whitespace-nowrap">Visualizar turma:</Label>
+              <Select
+                value={String(activeClassId)}
+                onValueChange={(v) => setViewingClassId(parseInt(v))}
+              >
+                <SelectTrigger className="w-72">
+                  <SelectValue placeholder="Selecione uma turma..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {allClasses.map(c => (
+                    <SelectItem key={c.id} value={String(c.id)}>
+                      {c.name} ({c.code}){c.professorUserId === user?.id ? " — Minha turma" : ` — Prof. ${c.professorName || "N/A"}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {viewingOtherClass && (
+                <Badge variant="secondary" className="text-xs">
+                  Visualizando: {viewingClassName}
+                </Badge>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Tabs defaultValue="session" className="space-y-4">
         <TabsList>
           <TabsTrigger value="session">Por Sessão</TabsTrigger>
@@ -150,10 +217,10 @@ function ResultsContent() {
                   <SelectValue placeholder="Escolha uma sessão..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {sessionsLoading ? (
+                  {activeSessionsLoading ? (
                     <SelectItem value="loading" disabled>Carregando...</SelectItem>
                   ) : (
-                    sessionsList?.map(s => (
+                    activeSessions?.map(s => (
                       <SelectItem key={s.id} value={String(s.id)}>{s.label}</SelectItem>
                     ))
                   )}
@@ -238,7 +305,6 @@ function ResultsContent() {
                               </td>
                               <td className="py-3 pr-4">
                                 <p className="font-medium">{r.studentName}</p>
-                                <p className="text-xs text-muted-foreground">{r.studentEmail}</p>
                               </td>
                               <td className="py-3 pr-4">
                                 <RoleBadge role={r.role} />
@@ -314,7 +380,7 @@ function ResultsContent() {
                         <tr className="border-b text-left">
                           <th className="pb-3 pr-4 font-semibold w-12">#</th>
                           <th className="pb-3 pr-4 font-semibold">Aluno</th>
-                          {sessionsList?.filter(s => s.problemNumber === parseInt(selectedProblem)).sort((a, b) => a.sessionNumber - b.sessionNumber).map(s => (
+                          {activeSessions?.filter(s => s.problemNumber === parseInt(selectedProblem)).sort((a, b) => a.sessionNumber - b.sessionNumber).map(s => (
                             <th key={s.id} className="pb-3 pr-2 font-semibold text-center" colSpan={2}>
                               S{s.sessionNumber}
                             </th>
@@ -325,7 +391,7 @@ function ResultsContent() {
                         <tr className="border-b text-left text-xs text-muted-foreground">
                           <th className="pb-2 pr-4"></th>
                           <th className="pb-2 pr-4"></th>
-                          {sessionsList?.filter(s => s.problemNumber === parseInt(selectedProblem)).sort((a, b) => a.sessionNumber - b.sessionNumber).map(s => (
+                          {activeSessions?.filter(s => s.problemNumber === parseInt(selectedProblem)).sort((a, b) => a.sessionNumber - b.sessionNumber).map(s => (
                             <React.Fragment key={s.id}>
                               <th className="pb-2 pr-1 text-center">Pares</th>
                               <th className="pb-2 pr-2 text-center">Final</th>
@@ -400,5 +466,3 @@ function RoleBadge({ role }: { role: string }) {
     </Badge>
   );
 }
-
-import React from "react";

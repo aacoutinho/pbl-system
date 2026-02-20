@@ -641,6 +641,39 @@ export async function calculateProblemFinalGrades(classId: number, problemNumber
   }).sort((a, b) => b.finalAverage - a.finalAverage);
 }
 
+// ─── List all classes (for cross-class visibility) ───
+export async function listAllClasses() {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.select({
+    id: classes.id,
+    name: classes.name,
+    code: classes.code,
+    professorUserId: classes.professorUserId,
+    professorName: users.name,
+    createdAt: classes.createdAt,
+  })
+    .from(classes)
+    .leftJoin(users, eq(classes.professorUserId, users.id))
+    .orderBy(classes.name);
+  return rows;
+}
+
+// ─── Bulk import students with enrollment ───
+export async function bulkCreateStudentsWithEnrollment(data: { name: string; email: string; enrollment?: string; classId: number }[]) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  if (data.length === 0) return;
+  for (const s of data) {
+    const values: any = { name: s.name, email: s.email, classId: s.classId };
+    if (s.enrollment) values.enrollment = s.enrollment;
+    const updateSet: any = { name: s.name };
+    if (s.enrollment) updateSet.enrollment = s.enrollment;
+    await db.insert(students).values(values).onDuplicateKeyUpdate({ set: updateSet });
+  }
+  return listStudentsByClass(data[0].classId);
+}
+
 // ─── Dashboard stats (scoped to professor's classes) ───
 export async function getDashboardStats(professorUserId: number) {
   const db = await getDb();

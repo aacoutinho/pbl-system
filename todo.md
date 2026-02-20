@@ -45,3 +45,11 @@
 - [x] Frontend: Display final grades (nota de desempenho) in results page
 - [x] Frontend: Show tutorial grade breakdown in session results
 - [x] Tests: Tutorial evaluation and final grade calculation tests (36 tests passing)
+- [x] Backend: CSV parser for SAGRES Folha de Frequência format (semicolon-separated, ISO-8859-1)
+- [x] Backend: Bulk import students with enrollment number from CSV
+- [x] Backend: Auto-generate emails from student names + configurable domain
+- [x] Frontend: CSV file upload with preview table before import
+- [x] Frontend: Email domain input for auto-generation
+- [x] Backend: Allow any professor to view results of all classes (cross-class visibility, default own class)
+- [x] Frontend: Update results page with class selector (default own class, can view others)
+- [x] Tests: CSV parsing and cross-class visibility tests (50 tests passing)

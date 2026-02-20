@@ -9,8 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, Trash2, Upload, Users, BookOpen } from "lucide-react";
-import { useState } from "react";
+import { Plus, Trash2, Upload, Users, BookOpen, FileSpreadsheet, Check, AlertCircle } from "lucide-react";
+import { useState, useRef, useCallback } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function StudentsPage() {
@@ -37,6 +37,17 @@ function StudentsContent() {
     onSuccess: () => { utils.students.list.invalidate(); toast.success("Alunos importados com sucesso"); },
     onError: (e) => toast.error(e.message),
   });
+  const importCSVMutation = trpc.students.importCSV.useMutation({
+    onSuccess: (data) => {
+      utils.students.list.invalidate();
+      toast.success(`${data.count} alunos importados com sucesso`);
+      setShowCSVImport(false);
+      setCsvPreview(null);
+      setCsvContent("");
+      setEmailDomain("");
+    },
+    onError: (e) => toast.error(e.message),
+  });
   const deleteMutation = trpc.students.delete.useMutation({
     onSuccess: () => { utils.students.list.invalidate(); toast.success("Aluno removido"); },
     onError: (e) => toast.error(e.message),
@@ -47,6 +58,11 @@ function StudentsContent() {
   const [bulkText, setBulkText] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
+  const [showCSVImport, setShowCSVImport] = useState(false);
+  const [csvContent, setCsvContent] = useState("");
+  const [csvPreview, setCsvPreview] = useState<{ name: string; enrollment: string; email: string }[] | null>(null);
+  const [emailDomain, setEmailDomain] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!selectedClassId) {
     return (
@@ -78,6 +94,73 @@ function StudentsContent() {
     setBulkText(""); setShowBulk(false);
   };
 
+  const parseCSVPreview = useCallback((content: string, domain: string) => {
+    const lines = content.split("\n");
+    const parsed: { name: string; enrollment: string; email: string }[] = [];
+    for (const line of lines) {
+      const cols = line.split(";");
+      const num = cols[1]?.trim();
+      if (!num || isNaN(parseInt(num))) continue;
+      const enrollment = cols[3]?.trim();
+      const name = cols[4]?.trim();
+      if (!name || !enrollment) continue;
+      if (name === "Aluno" || enrollment === "Matrícula") continue;
+
+      let email = "";
+      if (domain) {
+        const parts = name.toLowerCase()
+          .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+          .split(/\s+/);
+        if (parts.length >= 2) {
+          email = `${parts[0]}.${parts[parts.length - 1]}@${domain}`;
+        } else {
+          email = `${parts[0]}@${domain}`;
+        }
+      } else {
+        email = `${enrollment}@placeholder.com`;
+      }
+      parsed.push({ name, enrollment, email });
+    }
+    return parsed;
+  }, []);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Try reading with different encodings
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      setCsvContent(text);
+      const preview = parseCSVPreview(text, emailDomain);
+      setCsvPreview(preview);
+      if (preview.length === 0) {
+        toast.error("Nenhum aluno encontrado no arquivo. Verifique se é uma Folha de Frequência do SAGRES.");
+      } else {
+        toast.success(`${preview.length} alunos encontrados no arquivo`);
+      }
+    };
+    // Try ISO-8859-1 first (common for SAGRES)
+    reader.readAsText(file, "ISO-8859-1");
+  };
+
+  const handleDomainChange = (newDomain: string) => {
+    setEmailDomain(newDomain);
+    if (csvContent) {
+      setCsvPreview(parseCSVPreview(csvContent, newDomain));
+    }
+  };
+
+  const handleCSVImport = () => {
+    if (!csvContent) { toast.error("Selecione um arquivo CSV"); return; }
+    importCSVMutation.mutate({
+      classId: selectedClassId,
+      csvContent,
+      emailDomain: emailDomain || undefined,
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -86,10 +169,122 @@ function StudentsContent() {
           <p className="text-muted-foreground mt-1">Gerencie os alunos da turma selecionada.</p>
         </div>
         <div className="flex gap-2">
+          {/* CSV Import from SAGRES */}
+          <Dialog open={showCSVImport} onOpenChange={(open) => {
+            setShowCSVImport(open);
+            if (!open) { setCsvPreview(null); setCsvContent(""); setEmailDomain(""); }
+          }}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm">
+                <FileSpreadsheet className="h-4 w-4 mr-2" />Importar CSV
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Importar Alunos via CSV (SAGRES)</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label>Arquivo CSV (Folha de Frequência do SAGRES)</Label>
+                  <div className="mt-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".csv,.txt"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                    <Button
+                      variant="outline"
+                      className="w-full h-20 border-dashed"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <div className="flex flex-col items-center gap-1">
+                        <Upload className="h-5 w-5 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">
+                          Clique para selecionar o arquivo CSV
+                        </span>
+                      </div>
+                    </Button>
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Domínio de e-mail (opcional)</Label>
+                  <Input
+                    value={emailDomain}
+                    onChange={e => handleDomainChange(e.target.value)}
+                    placeholder="exemplo: uefs.br"
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Se informado, os e-mails serão gerados automaticamente no formato <strong>primeiro.ultimo@dominio</strong>.
+                    Caso contrário, será usado matrícula@placeholder.com (edite depois).
+                  </p>
+                </div>
+
+                {csvPreview && csvPreview.length > 0 && (
+                  <div>
+                    <Label className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-emerald-600" />
+                      Pré-visualização ({csvPreview.length} alunos)
+                    </Label>
+                    <div className="mt-2 border rounded-lg overflow-hidden">
+                      <div className="overflow-x-auto max-h-60">
+                        <table className="w-full text-sm">
+                          <thead className="bg-muted/50 sticky top-0">
+                            <tr>
+                              <th className="px-3 py-2 text-left font-medium">#</th>
+                              <th className="px-3 py-2 text-left font-medium">Matrícula</th>
+                              <th className="px-3 py-2 text-left font-medium">Nome</th>
+                              <th className="px-3 py-2 text-left font-medium">E-mail (gerado)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {csvPreview.map((s, i) => (
+                              <tr key={i} className="border-t hover:bg-accent/20">
+                                <td className="px-3 py-2 text-muted-foreground">{i + 1}</td>
+                                <td className="px-3 py-2 font-mono text-xs">{s.enrollment}</td>
+                                <td className="px-3 py-2">{s.name}</td>
+                                <td className="px-3 py-2 text-xs">
+                                  {s.email.includes("placeholder") ? (
+                                    <span className="text-amber-600 flex items-center gap-1">
+                                      <AlertCircle className="h-3 w-3" />{s.email}
+                                    </span>
+                                  ) : s.email}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    {csvPreview.some(s => s.email.includes("placeholder")) && (
+                      <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        E-mails com "placeholder" precisarão ser editados manualmente após a importação.
+                        Informe um domínio de e-mail acima para gerar automaticamente.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button
+                  onClick={handleCSVImport}
+                  disabled={importCSVMutation.isPending || !csvPreview || csvPreview.length === 0}
+                >
+                  {importCSVMutation.isPending ? "Importando..." : `Importar ${csvPreview?.length ?? 0} Alunos`}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Bulk text import */}
           <Dialog open={showBulk} onOpenChange={setShowBulk}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm">
-                <Upload className="h-4 w-4 mr-2" />Importar
+                <Upload className="h-4 w-4 mr-2" />Importar Texto
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -116,6 +311,7 @@ function StudentsContent() {
             </DialogContent>
           </Dialog>
 
+          {/* Add individual */}
           <Dialog open={showAdd} onOpenChange={setShowAdd}>
             <DialogTrigger asChild>
               <Button size="sm">
@@ -161,28 +357,43 @@ function StudentsContent() {
             <div className="text-center py-8 text-muted-foreground">
               <Users className="h-10 w-10 mx-auto mb-3 opacity-40" />
               <p>Nenhum aluno cadastrado nesta turma.</p>
-              <p className="text-sm mt-1">Adicione alunos individualmente ou importe em lote.</p>
+              <p className="text-sm mt-1">Adicione alunos individualmente, importe via texto ou use o CSV do SAGRES.</p>
             </div>
           ) : (
-            <div className="divide-y">
-              {studentsList.map(student => (
-                <div key={student.id} className="flex items-center justify-between py-3 px-2 hover:bg-accent/20 rounded-lg transition-colors">
-                  <div>
-                    <p className="font-medium">{student.name}</p>
-                    <p className="text-sm text-muted-foreground">{student.email}</p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => {
-                      if (confirm(`Remover ${student.name}?`)) deleteMutation.mutate({ id: student.id });
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left">
+                    <th className="pb-3 pr-4 font-semibold">#</th>
+                    <th className="pb-3 pr-4 font-semibold">Nome</th>
+                    <th className="pb-3 pr-4 font-semibold">E-mail</th>
+                    <th className="pb-3 pr-4 font-semibold">Matrícula</th>
+                    <th className="pb-3 font-semibold w-12"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {studentsList.map((student, idx) => (
+                    <tr key={student.id} className="border-b last:border-0 hover:bg-accent/20 transition-colors">
+                      <td className="py-3 pr-4 text-muted-foreground">{idx + 1}</td>
+                      <td className="py-3 pr-4 font-medium">{student.name}</td>
+                      <td className="py-3 pr-4 text-sm text-muted-foreground">{student.email}</td>
+                      <td className="py-3 pr-4 text-sm font-mono text-muted-foreground">{student.enrollment || "—"}</td>
+                      <td className="py-3">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => {
+                            if (confirm(`Remover ${student.name}?`)) deleteMutation.mutate({ id: student.id });
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </CardContent>

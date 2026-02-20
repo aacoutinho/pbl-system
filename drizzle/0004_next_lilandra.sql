@@ -1,0 +1,1 @@
+ALTER TABLE `students` ADD `enrollment` varchar(32);
