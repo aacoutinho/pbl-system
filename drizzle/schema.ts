@@ -95,3 +95,19 @@ export const evaluationItems = mysqlTable("evaluation_items", {
 });
 
 export type EvaluationItem = typeof evaluationItems.$inferSelect;
+
+// ─── Tutorial Evaluations (professor evaluates the session) ───
+export const tutorialEvaluations = mysqlTable("tutorial_evaluations", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull().unique(),
+  professorUserId: int("professorUserId").notNull(),
+  organizacao: decimal("organizacao", { precision: 3, scale: 1 }).default("0").notNull(), // peso 1
+  cooperacao: decimal("cooperacao", { precision: 3, scale: 1 }).default("0").notNull(),   // peso 1
+  conteudo: decimal("conteudo", { precision: 3, scale: 1 }).default("0").notNull(),       // peso 3
+  objetivo: decimal("objetivo", { precision: 3, scale: 1 }).default("0").notNull(),       // peso 3
+  metas: decimal("metas", { precision: 3, scale: 1 }).default("0").notNull(),             // peso 2
+  submittedAt: timestamp("submittedAt").defaultNow().notNull(),
+});
+
+export type TutorialEvaluation = typeof tutorialEvaluations.$inferSelect;
+export type InsertTutorialEvaluation = typeof tutorialEvaluations.$inferInsert;

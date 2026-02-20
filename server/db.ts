@@ -8,6 +8,7 @@ import {
   sessionStudents,
   evaluations,
   evaluationItems, EvaluationItem,
+  tutorialEvaluations, TutorialEvaluation,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -470,6 +471,174 @@ export async function calculateProblemResults(classId: number, problemNumber: nu
       average: Math.round(avg * 100) / 100,
     };
   }).sort((a, b) => b.average - a.average);
+}
+
+// ─── Tutorial Evaluation helpers (professor evaluates session) ───
+export async function submitTutorialEvaluation(data: {
+  sessionId: number;
+  professorUserId: number;
+  organizacao: number;
+  cooperacao: number;
+  conteudo: number;
+  objetivo: number;
+  metas: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+
+  // Check if already submitted – if so, update
+  const existing = await db.select().from(tutorialEvaluations)
+    .where(eq(tutorialEvaluations.sessionId, data.sessionId))
+    .limit(1);
+
+  if (existing.length > 0) {
+    await db.update(tutorialEvaluations).set({
+      organizacao: String(data.organizacao),
+      cooperacao: String(data.cooperacao),
+      conteudo: String(data.conteudo),
+      objetivo: String(data.objetivo),
+      metas: String(data.metas),
+      submittedAt: new Date(),
+    }).where(eq(tutorialEvaluations.id, existing[0].id));
+    return existing[0].id;
+  }
+
+  const [result] = await db.insert(tutorialEvaluations).values({
+    sessionId: data.sessionId,
+    professorUserId: data.professorUserId,
+    organizacao: String(data.organizacao),
+    cooperacao: String(data.cooperacao),
+    conteudo: String(data.conteudo),
+    objetivo: String(data.objetivo),
+    metas: String(data.metas),
+  }).$returningId();
+  return result.id;
+}
+
+export async function getTutorialEvaluation(sessionId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const [row] = await db.select().from(tutorialEvaluations)
+    .where(eq(tutorialEvaluations.sessionId, sessionId))
+    .limit(1);
+  return row;
+}
+
+// Calculate weighted tutorial grade: Org×1 + Coop×1 + Cont×3 + Obj×3 + Metas×2 = total weight 10
+export function calculateTutorialGrade(eval_: { organizacao: string; cooperacao: string; conteudo: string; objetivo: string; metas: string }): number {
+  const org = Number(eval_.organizacao);
+  const coop = Number(eval_.cooperacao);
+  const cont = Number(eval_.conteudo);
+  const obj = Number(eval_.objetivo);
+  const met = Number(eval_.metas);
+  return org * 1 + coop * 1 + cont * 3 + obj * 3 + met * 2;
+}
+
+// ─── Final grade calculation (proportional distribution) ───
+export interface FinalGradeResult {
+  studentId: number;
+  studentName: string;
+  studentEmail: string;
+  role: string;
+  peerScore: number;       // média avaliação pelos pares (0-10)
+  finalGrade: number;      // nota final de desempenho (distribuição proporcional)
+  absent: boolean;
+  validEvaluations: number;
+}
+
+export async function calculateFinalGrades(sessionId: number): Promise<FinalGradeResult[]> {
+  const peerResults = await calculateSessionResults(sessionId);
+  const tutorialEval = await getTutorialEvaluation(sessionId);
+
+  if (!tutorialEval) {
+    // No tutorial evaluation yet, return peer results only with finalGrade = 0
+    return peerResults.map(r => ({
+      studentId: r.studentId,
+      studentName: r.studentName,
+      studentEmail: r.studentEmail,
+      role: r.role,
+      peerScore: Math.round(r.totalScore * 10) / 10,
+      finalGrade: 0,
+      absent: r.absent,
+      validEvaluations: r.validEvaluations,
+    }));
+  }
+
+  const tutorialGrade = calculateTutorialGrade(tutorialEval);
+  const presentStudents = peerResults.filter(r => !r.absent && r.totalScore > 0);
+  const numPresent = presentStudents.length;
+  const totalPoints = tutorialGrade * numPresent;
+  const sumPeerScores = presentStudents.reduce((sum, r) => sum + r.totalScore, 0);
+
+  return peerResults.map(r => {
+    if (r.absent || r.totalScore === 0) {
+      return {
+        studentId: r.studentId,
+        studentName: r.studentName,
+        studentEmail: r.studentEmail,
+        role: r.role,
+        peerScore: 0,
+        finalGrade: 0,
+        absent: r.absent,
+        validEvaluations: r.validEvaluations,
+      };
+    }
+
+    const proportion = r.totalScore / sumPeerScores;
+    const finalGrade = sumPeerScores > 0 ? Math.round(proportion * totalPoints * 10) / 10 : 0;
+
+    return {
+      studentId: r.studentId,
+      studentName: r.studentName,
+      studentEmail: r.studentEmail,
+      role: r.role,
+      peerScore: Math.round(r.totalScore * 10) / 10,
+      finalGrade,
+      absent: r.absent,
+      validEvaluations: r.validEvaluations,
+    };
+  }).sort((a, b) => b.finalGrade - a.finalGrade);
+}
+
+// ─── Problem-level final grades ───
+export async function calculateProblemFinalGrades(classId: number, problemNumber: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const problemSessions = await db.select().from(sessions)
+    .where(and(eq(sessions.classId, classId), eq(sessions.problemNumber, problemNumber)));
+  if (problemSessions.length === 0) return [];
+
+  const allResults: Record<number, {
+    name: string; email: string;
+    peerScores: number[]; finalGrades: number[]; roles: string[];
+  }> = {};
+
+  for (const sess of problemSessions) {
+    const results = await calculateFinalGrades(sess.id);
+    for (const r of results) {
+      if (!allResults[r.studentId]) {
+        allResults[r.studentId] = { name: r.studentName, email: r.studentEmail, peerScores: [], finalGrades: [], roles: [] };
+      }
+      allResults[r.studentId].peerScores.push(r.peerScore);
+      allResults[r.studentId].finalGrades.push(r.finalGrade);
+      allResults[r.studentId].roles.push(r.role);
+    }
+  }
+
+  return Object.entries(allResults).map(([id, data]) => {
+    const peerAvg = data.peerScores.length > 0 ? data.peerScores.reduce((a, b) => a + b, 0) / data.peerScores.length : 0;
+    const finalAvg = data.finalGrades.length > 0 ? data.finalGrades.reduce((a, b) => a + b, 0) / data.finalGrades.length : 0;
+    return {
+      studentId: parseInt(id),
+      studentName: data.name,
+      studentEmail: data.email,
+      peerScores: data.peerScores,
+      finalGrades: data.finalGrades,
+      roles: data.roles,
+      peerAverage: Math.round(peerAvg * 10) / 10,
+      finalAverage: Math.round(finalAvg * 10) / 10,
+    };
+  }).sort((a, b) => b.finalAverage - a.finalAverage);
 }
 
 // ─── Dashboard stats (scoped to professor's classes) ───

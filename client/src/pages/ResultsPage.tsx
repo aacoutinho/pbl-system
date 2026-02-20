@@ -1,13 +1,13 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { useClassContext } from "@/contexts/ClassContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, Download, Trophy, UserX, BookOpen } from "lucide-react";
+import { BarChart3, Download, Trophy, UserX, BookOpen, Info } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -28,12 +28,32 @@ function ResultsContent() {
   const [selectedSessionId, setSelectedSessionId] = useState<string>("");
   const [selectedProblem, setSelectedProblem] = useState<string>("");
 
+  // Peer results
   const { data: sessionResults, isLoading: resultsLoading } = trpc.results.session.useQuery(
     { sessionId: parseInt(selectedSessionId) },
     { enabled: !!selectedSessionId }
   );
 
+  // Final grades (with tutorial evaluation)
+  const { data: finalResults, isLoading: finalLoading } = trpc.results.sessionFinal.useQuery(
+    { sessionId: parseInt(selectedSessionId) },
+    { enabled: !!selectedSessionId }
+  );
+
+  // Tutorial evaluation info
+  const { data: tutorialEval } = trpc.tutorialEval.get.useQuery(
+    { sessionId: parseInt(selectedSessionId) },
+    { enabled: !!selectedSessionId }
+  );
+
+  // Problem-level results
   const { data: problemResults, isLoading: problemLoading } = trpc.results.problem.useQuery(
+    { classId: selectedClassId!, problemNumber: parseInt(selectedProblem) },
+    { enabled: !!selectedProblem && !!selectedClassId }
+  );
+
+  // Problem-level final grades
+  const { data: problemFinalResults, isLoading: problemFinalLoading } = trpc.results.problemFinal.useQuery(
     { classId: selectedClassId!, problemNumber: parseInt(selectedProblem) },
     { enabled: !!selectedProblem && !!selectedClassId }
   );
@@ -68,15 +88,16 @@ function ResultsContent() {
   };
 
   const exportSessionCSV = () => {
-    if (!sessionResults) return;
+    if (!finalResults) return;
     const session = sessionsList?.find(s => s.id === parseInt(selectedSessionId));
     exportCSV(
-      sessionResults.map((r, i) => ({
+      finalResults.map((r, i) => ({
         Posição: i + 1,
         Aluno: r.studentName,
         Email: r.studentEmail,
         Papel: r.role,
-        Nota: r.totalScore,
+        "Nota Pares": r.peerScore.toFixed(1),
+        "Nota Final": r.finalGrade.toFixed(1),
         "Avaliações Válidas": r.validEvaluations,
         Ausente: r.absent ? "Sim" : "Não",
       })),
@@ -85,19 +106,21 @@ function ResultsContent() {
   };
 
   const exportProblemCSV = () => {
-    if (!problemResults) return;
+    if (!problemFinalResults) return;
     const sessionsForProblem = sessionsList?.filter(s => s.problemNumber === parseInt(selectedProblem)).sort((a, b) => a.sessionNumber - b.sessionNumber) ?? [];
     exportCSV(
-      problemResults.map((r, i) => {
+      problemFinalResults.map((r, i) => {
         const row: Record<string, unknown> = {
           Posição: i + 1,
           Aluno: r.studentName,
           Email: r.studentEmail,
         };
         sessionsForProblem.forEach((s, idx) => {
-          row[`S${s.sessionNumber}`] = r.sessionScores[idx] ?? 0;
+          row[`S${s.sessionNumber} Pares`] = r.peerScores[idx]?.toFixed(1) ?? "0.0";
+          row[`S${s.sessionNumber} Final`] = r.finalGrades[idx]?.toFixed(1) ?? "0.0";
         });
-        row["Média Geral"] = r.average;
+        row["Média Pares"] = r.peerAverage.toFixed(1);
+        row["Média Final"] = r.finalAverage.toFixed(1);
         return row;
       }),
       `resultados_problema_${selectedProblem}.csv`
@@ -117,8 +140,9 @@ function ResultsContent() {
           <TabsTrigger value="problem">Por Problema</TabsTrigger>
         </TabsList>
 
+        {/* ─── Session Results ─── */}
         <TabsContent value="session" className="space-y-4">
-          <div className="flex items-end gap-4">
+          <div className="flex items-end gap-4 flex-wrap">
             <div className="flex-1 max-w-xs">
               <Label>Selecione a sessão</Label>
               <Select value={selectedSessionId} onValueChange={setSelectedSessionId}>
@@ -136,7 +160,7 @@ function ResultsContent() {
                 </SelectContent>
               </Select>
             </div>
-            {sessionResults && sessionResults.length > 0 && (
+            {finalResults && finalResults.length > 0 && (
               <Button variant="outline" size="sm" onClick={exportSessionCSV}>
                 <Download className="h-4 w-4 mr-2" />Exportar CSV
               </Button>
@@ -144,64 +168,107 @@ function ResultsContent() {
           </div>
 
           {selectedSessionId && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5" />
-                  Ranking da Sessão
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {resultsLoading ? (
-                  <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}</div>
-                ) : !sessionResults || sessionResults.length === 0 ? (
-                  <p className="text-center py-8 text-muted-foreground">Nenhuma avaliação encontrada para esta sessão.</p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b text-left">
-                          <th className="pb-3 pr-4 font-semibold w-12">#</th>
-                          <th className="pb-3 pr-4 font-semibold">Aluno</th>
-                          <th className="pb-3 pr-4 font-semibold">Papel</th>
-                          <th className="pb-3 pr-4 font-semibold text-center">Nota</th>
-                          <th className="pb-3 font-semibold text-center">Avaliações</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {sessionResults.map((r, i) => (
-                          <tr key={r.studentId} className="border-b last:border-0 hover:bg-accent/20 transition-colors">
-                            <td className="py-3 pr-4">
-                              {i < 3 && !r.absent ? (
-                                <Trophy className={`h-4 w-4 ${i === 0 ? "text-amber-500" : i === 1 ? "text-gray-400" : "text-amber-700"}`} />
-                              ) : (
-                                <span className="text-muted-foreground">{i + 1}</span>
-                              )}
-                            </td>
-                            <td className="py-3 pr-4">
-                              <p className="font-medium">{r.studentName}</p>
-                              <p className="text-xs text-muted-foreground">{r.studentEmail}</p>
-                            </td>
-                            <td className="py-3 pr-4">
-                              <RoleBadge role={r.role} />
-                            </td>
-                            <td className="py-3 pr-4 text-center">
-                              <span className={`font-bold text-base ${r.absent ? "text-muted-foreground" : r.totalScore >= 8 ? "text-emerald-600" : r.totalScore >= 5 ? "text-amber-600" : "text-red-600"}`}>
-                                {r.totalScore.toFixed(2)}
-                              </span>
-                            </td>
-                            <td className="py-3 text-center text-muted-foreground">{r.validEvaluations}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+            <>
+              {/* Tutorial evaluation info */}
+              {tutorialEval ? (
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800">
+                  <Info className="h-4 w-4 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="font-medium">Avaliação do Tutorial pelo Professor</p>
+                    <p className="mt-1">
+                      Org: {Number(tutorialEval.organizacao).toFixed(1)}×1 + 
+                      Coop: {Number(tutorialEval.cooperacao).toFixed(1)}×1 + 
+                      Cont: {Number(tutorialEval.conteudo).toFixed(1)}×3 + 
+                      Obj: {Number(tutorialEval.objetivo).toFixed(1)}×3 + 
+                      Metas: {Number(tutorialEval.metas).toFixed(1)}×2 = {" "}
+                      <span className="font-bold">{tutorialEval.tutorialGrade.toFixed(1)}</span>
+                    </p>
+                    <p className="mt-1 text-xs">
+                      Alunos presentes: {finalResults?.filter(r => !r.absent && r.peerScore > 0).length ?? 0} | 
+                      Pontuação total: {tutorialEval.tutorialGrade.toFixed(1)} × {finalResults?.filter(r => !r.absent && r.peerScore > 0).length ?? 0} = {((tutorialEval.tutorialGrade) * (finalResults?.filter(r => !r.absent && r.peerScore > 0).length ?? 0)).toFixed(1)} pontos
+                    </p>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                </div>
+              ) : (
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                  <Info className="h-4 w-4 mt-0.5 shrink-0" />
+                  <p>O professor ainda não avaliou esta sessão tutorial. A nota final será calculada após a avaliação do tutorial.</p>
+                </div>
+              )}
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5" />
+                    Ranking da Sessão
+                  </CardTitle>
+                  <CardDescription>
+                    {tutorialEval 
+                      ? "Notas finais calculadas com distribuição proporcional baseada na avaliação do tutorial."
+                      : "Mostrando apenas notas da avaliação pelos pares. Avalie o tutorial para ver as notas finais."}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {(resultsLoading || finalLoading) ? (
+                    <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}</div>
+                  ) : !finalResults || finalResults.length === 0 ? (
+                    <p className="text-center py-8 text-muted-foreground">Nenhuma avaliação encontrada para esta sessão.</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b text-left">
+                            <th className="pb-3 pr-4 font-semibold w-12">#</th>
+                            <th className="pb-3 pr-4 font-semibold">Aluno</th>
+                            <th className="pb-3 pr-4 font-semibold">Papel</th>
+                            <th className="pb-3 pr-4 font-semibold text-center">Nota Pares</th>
+                            {tutorialEval && <th className="pb-3 pr-4 font-semibold text-center">Nota Final</th>}
+                            <th className="pb-3 font-semibold text-center">Avaliações</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {finalResults.map((r, i) => (
+                            <tr key={r.studentId} className="border-b last:border-0 hover:bg-accent/20 transition-colors">
+                              <td className="py-3 pr-4">
+                                {i < 3 && !r.absent ? (
+                                  <Trophy className={`h-4 w-4 ${i === 0 ? "text-amber-500" : i === 1 ? "text-gray-400" : "text-amber-700"}`} />
+                                ) : (
+                                  <span className="text-muted-foreground">{i + 1}</span>
+                                )}
+                              </td>
+                              <td className="py-3 pr-4">
+                                <p className="font-medium">{r.studentName}</p>
+                                <p className="text-xs text-muted-foreground">{r.studentEmail}</p>
+                              </td>
+                              <td className="py-3 pr-4">
+                                <RoleBadge role={r.role} />
+                              </td>
+                              <td className="py-3 pr-4 text-center">
+                                <span className={`font-medium ${r.absent ? "text-muted-foreground" : r.peerScore >= 8 ? "text-emerald-600" : r.peerScore >= 5 ? "text-amber-600" : "text-red-600"}`}>
+                                  {r.peerScore.toFixed(1)}
+                                </span>
+                              </td>
+                              {tutorialEval && (
+                                <td className="py-3 pr-4 text-center">
+                                  <span className={`font-bold text-base ${r.absent ? "text-muted-foreground" : r.finalGrade >= 8 ? "text-emerald-600" : r.finalGrade >= 5 ? "text-amber-600" : "text-red-600"}`}>
+                                    {r.finalGrade.toFixed(1)}
+                                  </span>
+                                </td>
+                              )}
+                              <td className="py-3 text-center text-muted-foreground">{r.validEvaluations}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </>
           )}
         </TabsContent>
 
+        {/* ─── Problem Results ─── */}
         <TabsContent value="problem" className="space-y-4">
           <div className="flex items-end gap-4">
             <div className="flex-1 max-w-xs">
@@ -217,7 +284,7 @@ function ResultsContent() {
                 </SelectContent>
               </Select>
             </div>
-            {problemResults && problemResults.length > 0 && (
+            {problemFinalResults && problemFinalResults.length > 0 && (
               <Button variant="outline" size="sm" onClick={exportProblemCSV}>
                 <Download className="h-4 w-4 mr-2" />Exportar CSV
               </Button>
@@ -229,13 +296,16 @@ function ResultsContent() {
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <BarChart3 className="h-5 w-5" />
-                  Média Geral do Problema {selectedProblem}
+                  Notas Finais do Problema {selectedProblem}
                 </CardTitle>
+                <CardDescription>
+                  Média das notas finais de desempenho em todas as sessões do problema.
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                {problemLoading ? (
+                {(problemLoading || problemFinalLoading) ? (
                   <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}</div>
-                ) : !problemResults || problemResults.length === 0 ? (
+                ) : !problemFinalResults || problemFinalResults.length === 0 ? (
                   <p className="text-center py-8 text-muted-foreground">Nenhum resultado encontrado para este problema.</p>
                 ) : (
                   <div className="overflow-x-auto">
@@ -245,13 +315,28 @@ function ResultsContent() {
                           <th className="pb-3 pr-4 font-semibold w-12">#</th>
                           <th className="pb-3 pr-4 font-semibold">Aluno</th>
                           {sessionsList?.filter(s => s.problemNumber === parseInt(selectedProblem)).sort((a, b) => a.sessionNumber - b.sessionNumber).map(s => (
-                            <th key={s.id} className="pb-3 pr-4 font-semibold text-center">S{s.sessionNumber}</th>
+                            <th key={s.id} className="pb-3 pr-2 font-semibold text-center" colSpan={2}>
+                              S{s.sessionNumber}
+                            </th>
                           ))}
-                          <th className="pb-3 font-semibold text-center">Média</th>
+                          <th className="pb-3 pr-2 font-semibold text-center">Média Pares</th>
+                          <th className="pb-3 font-semibold text-center">Média Final</th>
+                        </tr>
+                        <tr className="border-b text-left text-xs text-muted-foreground">
+                          <th className="pb-2 pr-4"></th>
+                          <th className="pb-2 pr-4"></th>
+                          {sessionsList?.filter(s => s.problemNumber === parseInt(selectedProblem)).sort((a, b) => a.sessionNumber - b.sessionNumber).map(s => (
+                            <React.Fragment key={s.id}>
+                              <th className="pb-2 pr-1 text-center">Pares</th>
+                              <th className="pb-2 pr-2 text-center">Final</th>
+                            </React.Fragment>
+                          ))}
+                          <th className="pb-2 pr-2"></th>
+                          <th className="pb-2"></th>
                         </tr>
                       </thead>
                       <tbody>
-                        {problemResults.map((r, i) => (
+                        {problemFinalResults.map((r, i) => (
                           <tr key={r.studentId} className="border-b last:border-0 hover:bg-accent/20 transition-colors">
                             <td className="py-3 pr-4">
                               {i < 3 ? (
@@ -263,14 +348,26 @@ function ResultsContent() {
                             <td className="py-3 pr-4">
                               <p className="font-medium">{r.studentName}</p>
                             </td>
-                            {r.sessionScores.map((score, idx) => (
-                              <td key={idx} className="py-3 pr-4 text-center">
-                                <span className={score === 0 ? "text-muted-foreground" : ""}>{score.toFixed(2)}</span>
-                              </td>
+                            {r.peerScores.map((score, idx) => (
+                              <React.Fragment key={idx}>
+                                <td className="py-3 pr-1 text-center">
+                                  <span className={score === 0 ? "text-muted-foreground" : "text-sm"}>{score.toFixed(1)}</span>
+                                </td>
+                                <td className="py-3 pr-2 text-center">
+                                  <span className={r.finalGrades[idx] === 0 ? "text-muted-foreground" : "text-sm font-medium"}>
+                                    {r.finalGrades[idx]?.toFixed(1) ?? "0.0"}
+                                  </span>
+                                </td>
+                              </React.Fragment>
                             ))}
+                            <td className="py-3 pr-2 text-center">
+                              <span className={r.peerAverage === 0 ? "text-muted-foreground" : ""}>
+                                {r.peerAverage.toFixed(1)}
+                              </span>
+                            </td>
                             <td className="py-3 text-center">
-                              <span className={`font-bold ${r.average >= 8 ? "text-emerald-600" : r.average >= 5 ? "text-amber-600" : "text-red-600"}`}>
-                                {r.average.toFixed(2)}
+                              <span className={`font-bold ${r.finalAverage >= 8 ? "text-emerald-600" : r.finalAverage >= 5 ? "text-amber-600" : "text-red-600"}`}>
+                                {r.finalAverage.toFixed(1)}
                               </span>
                             </td>
                           </tr>
@@ -303,3 +400,5 @@ function RoleBadge({ role }: { role: string }) {
     </Badge>
   );
 }
+
+import React from "react";

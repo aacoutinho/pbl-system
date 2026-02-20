@@ -10,6 +10,8 @@ import {
   createSession, listSessionsByClass, getSessionStudents, closeSession, openSession, deleteSession, getSessionById,
   submitEvaluation, getSessionEvaluations, hasStudentSubmitted,
   calculateSessionResults, calculateProblemResults, getDashboardStats,
+  submitTutorialEvaluation, getTutorialEvaluation, calculateTutorialGrade,
+  calculateFinalGrades, calculateProblemFinalGrades,
 } from "./db";
 
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -187,15 +189,47 @@ export const appRouter = router({
     }),
   }),
 
+  // ─── Tutorial Evaluation (professor evaluates session) ───
+  tutorialEval: router({
+    submit: adminProcedure.input(z.object({
+      sessionId: z.number(),
+      organizacao: z.number().min(0).max(1),
+      cooperacao: z.number().min(0).max(1),
+      conteudo: z.number().min(0).max(1),
+      objetivo: z.number().min(0).max(1),
+      metas: z.number().min(0).max(1),
+    })).mutation(async ({ ctx, input }) => {
+      const evalId = await submitTutorialEvaluation({
+        ...input,
+        professorUserId: ctx.user.id,
+      });
+      return { success: true, evaluationId: evalId };
+    }),
+    get: protectedProcedure.input(z.object({ sessionId: z.number() })).query(async ({ input }) => {
+      const eval_ = await getTutorialEvaluation(input.sessionId);
+      if (!eval_) return null;
+      const grade = calculateTutorialGrade(eval_);
+      return { ...eval_, tutorialGrade: Math.round(grade * 10) / 10 };
+    }),
+  }),
+
   // ─── Results & Dashboard ───
   results: router({
     session: protectedProcedure.input(z.object({ sessionId: z.number() })).query(async ({ input }) => {
       return calculateSessionResults(input.sessionId);
     }),
+    sessionFinal: protectedProcedure.input(z.object({ sessionId: z.number() })).query(async ({ input }) => {
+      return calculateFinalGrades(input.sessionId);
+    }),
     problem: adminProcedure.input(z.object({ classId: z.number(), problemNumber: z.number() })).query(async ({ ctx, input }) => {
       const cls = await getClassById(input.classId);
       if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       return calculateProblemResults(input.classId, input.problemNumber);
+    }),
+    problemFinal: adminProcedure.input(z.object({ classId: z.number(), problemNumber: z.number() })).query(async ({ ctx, input }) => {
+      const cls = await getClassById(input.classId);
+      if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      return calculateProblemFinalGrades(input.classId, input.problemNumber);
     }),
     dashboard: adminProcedure.query(async ({ ctx }) => {
       return getDashboardStats(ctx.user.id);

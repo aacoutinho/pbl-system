@@ -36,3 +36,12 @@
 - [x] Frontend: getGoogleLoginUrl helper for Google OAuth flow
 - [x] Config: Google OAuth credentials configured (Client ID + Secret)
 - [x] Tests: All 22 tests passing with Google OAuth integration
+- [x] Database: Add tutorialEvaluations table (professor evaluates session)
+- [x] Database: 5 weighted criteria (Organização×1, Cooperação×1, Conteúdo×3, Objetivo×3, Metas×2)
+- [x] Backend: CRUD routes for professor tutorial evaluation
+- [x] Backend: Final grade calculation engine (proportional distribution)
+- [x] Backend: Round all grades to 1 decimal place
+- [x] Frontend: Professor tutorial evaluation form with weighted sliders
+- [x] Frontend: Display final grades (nota de desempenho) in results page
+- [x] Frontend: Show tutorial grade breakdown in session results
+- [x] Tests: Tutorial evaluation and final grade calculation tests (36 tests passing)

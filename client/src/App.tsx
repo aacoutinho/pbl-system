@@ -11,6 +11,7 @@ import StudentsPage from "./pages/StudentsPage";
 import SessionsPage from "./pages/SessionsPage";
 import EvaluatePage from "./pages/EvaluatePage";
 import ResultsPage from "./pages/ResultsPage";
+import TutorialEvalPage from "./pages/TutorialEvalPage";
 import StudentResults from "./pages/StudentResults";
 
 function Router() {
@@ -21,6 +22,7 @@ function Router() {
       <Route path={"/students"} component={StudentsPage} />
       <Route path={"/sessions"} component={SessionsPage} />
       <Route path={"/evaluate/:sessionId"} component={EvaluatePage} />
+      <Route path={"/tutorial-eval"} component={TutorialEvalPage} />
       <Route path={"/results"} component={ResultsPage} />
       <Route path={"/my-results"} component={StudentResults} />
       <Route path={"/404"} component={NotFound} />
