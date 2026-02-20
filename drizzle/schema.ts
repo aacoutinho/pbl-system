@@ -1,17 +1,8 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, decimal, boolean, unique } from "drizzle-orm/mysql-core";
 
-/**
- * Core user table backing auth flow.
- * Extend this file with additional tables as your product grows.
- * Columns use camelCase to match both database fields and generated types.
- */
+// ─── Users (auth) ───
 export const users = mysqlTable("users", {
-  /**
-   * Surrogate primary key. Auto-incremented numeric value managed by the database.
-   * Use this for relations between tables.
-   */
   id: int("id").autoincrement().primaryKey(),
-  /** Manus OAuth identifier (openId) returned from the OAuth callback. Unique per user. */
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
   email: varchar("email", { length: 320 }),
@@ -25,4 +16,66 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+// ─── Students (registered in the course) ───
+export const students = mysqlTable("students", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 320 }).notNull().unique(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Student = typeof students.$inferSelect;
+export type InsertStudent = typeof students.$inferInsert;
+
+// ─── Sessions (evaluation sessions: PxSy) ───
+export const sessions = mysqlTable("sessions", {
+  id: int("id").autoincrement().primaryKey(),
+  problemNumber: int("problemNumber").notNull(),
+  sessionNumber: int("sessionNumber").notNull(),
+  label: varchar("label", { length: 100 }).notNull(),
+  status: mysqlEnum("status", ["open", "closed"]).default("open").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  closedAt: timestamp("closedAt"),
+});
+
+export type Session = typeof sessions.$inferSelect;
+export type InsertSession = typeof sessions.$inferInsert;
+
+// ─── Session Students (which students are in each session) ───
+export const sessionStudents = mysqlTable("session_students", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull(),
+  studentId: int("studentId").notNull(),
+}, (table) => [
+  unique("uq_session_student").on(table.sessionId, table.studentId),
+]);
+
+export type SessionStudent = typeof sessionStudents.$inferSelect;
+
+// ─── Evaluations (one per evaluator per session) ───
+export const evaluations = mysqlTable("evaluations", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull(),
+  evaluatorStudentId: int("evaluatorStudentId").notNull(),
+  submittedAt: timestamp("submittedAt").defaultNow().notNull(),
+}, (table) => [
+  unique("uq_eval_session_evaluator").on(table.sessionId, table.evaluatorStudentId),
+]);
+
+export type Evaluation = typeof evaluations.$inferSelect;
+
+// ─── Evaluation Items (individual grades for each evaluated student) ───
+export const evaluationItems = mysqlTable("evaluation_items", {
+  id: int("id").autoincrement().primaryKey(),
+  evaluationId: int("evaluationId").notNull(),
+  evaluatedStudentId: int("evaluatedStudentId").notNull(),
+  role: mysqlEnum("role", ["COORDENADOR", "MESA", "QUADRO", "PARTICIPANTE"]).notNull(),
+  absent: boolean("absent").default(false).notNull(),
+  atuacao: decimal("atuacao", { precision: 3, scale: 1 }).default("0").notNull(),
+  pontualidade: decimal("pontualidade", { precision: 3, scale: 1 }).default("0").notNull(),
+  dominio: decimal("dominio", { precision: 3, scale: 1 }).default("0").notNull(),
+  metas: decimal("metas", { precision: 3, scale: 1 }).default("0").notNull(),
+  participacao: decimal("participacao", { precision: 3, scale: 1 }).default("0").notNull(),
+});
+
+export type EvaluationItem = typeof evaluationItems.$inferSelect;

@@ -1,0 +1,23 @@
+# Project TODO
+
+- [x] Database schema: students, sessions, evaluations, evaluation_items tables
+- [x] API: CRUD for students (register, list, manage)
+- [x] API: CRUD for sessions (create, open/close, list)
+- [x] API: Evaluation submission with validation
+- [x] API: Grade calculation engine (sum 5 criteria, exclude self-eval & absences, compute averages)
+- [x] API: Role management with exclusivity rules (1 Coordenador, 1 Mesa, 1 Quadro per session)
+- [x] API: Export results (CSV)
+- [x] API: Dashboard data aggregation (averages, rankings, participation status)
+- [ ] API: Notification system for professor alerts
+- [x] Frontend: Authentication flow with automatic email identification
+- [x] Frontend: Dynamic evaluation form excluding self from evaluated list
+- [x] Frontend: Real-time validation of grades (0-10) with visual feedback
+- [x] Frontend: Intuitive absence marking interface
+- [x] Frontend: Role assignment with exclusivity enforcement and visual feedback
+- [x] Frontend: Professor dashboard with real-time averages, rankings, participation
+- [x] Frontend: Export functionality (CSV)
+- [x] Frontend: Student results page with session details
+- [ ] Frontend: Notification alerts for submissions and anomalies
+- [x] Frontend: Landing page / Home
+- [x] Tests: Backend calculation engine tests
+- [x] Tests: API endpoint tests (11 tests passing)
