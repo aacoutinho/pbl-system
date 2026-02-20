@@ -1,4 +1,5 @@
 import { trpc } from "@/lib/trpc";
+import { useClassContext } from "@/contexts/ClassContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,11 +9,30 @@ import { useLocation } from "wouter";
 
 export default function StudentDashboard() {
   const [, setLocation] = useLocation();
-  const { data: studentMe, isLoading: meLoading } = trpc.students.me.useQuery();
-  const { data: sessionsList, isLoading: sessionsLoading } = trpc.sessions.list.useQuery();
+  const { selectedClassId } = useClassContext();
+  const { data: studentMe, isLoading: meLoading } = trpc.students.me.useQuery(
+    { classId: selectedClassId! },
+    { enabled: !!selectedClassId }
+  );
+  const { data: sessionsList, isLoading: sessionsLoading } = trpc.sessions.listForStudent.useQuery(
+    { classId: selectedClassId! },
+    { enabled: !!selectedClassId }
+  );
 
   const openSessions = sessionsList?.filter(s => s.status === "open") ?? [];
   const closedSessions = sessionsList?.filter(s => s.status === "closed") ?? [];
+
+  if (!selectedClassId) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <AlertCircle className="h-12 w-12 text-amber-500 mb-4" />
+        <h2 className="text-xl font-semibold mb-2">Nenhuma Turma</h2>
+        <p className="text-muted-foreground text-center max-w-md">
+          Você não está cadastrado em nenhuma turma. Solicite ao professor para adicioná-lo.
+        </p>
+      </div>
+    );
+  }
 
   if (meLoading || sessionsLoading) {
     return (
@@ -31,7 +51,7 @@ export default function StudentDashboard() {
         <AlertCircle className="h-12 w-12 text-amber-500 mb-4" />
         <h2 className="text-xl font-semibold mb-2">Cadastro Pendente</h2>
         <p className="text-muted-foreground text-center max-w-md">
-          Seu e-mail ainda não está cadastrado no sistema de avaliação. Entre em contato com o professor para ser adicionado.
+          Seu e-mail ainda não está cadastrado nesta turma. Entre em contato com o professor para ser adicionado.
         </p>
       </div>
     );
@@ -44,7 +64,6 @@ export default function StudentDashboard() {
         <p className="text-muted-foreground mt-1">Bem-vindo(a), {studentMe.name}. Avalie seus colegas nas sessões abertas.</p>
       </div>
 
-      {/* Open Sessions */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
@@ -73,7 +92,6 @@ export default function StudentDashboard() {
         </CardContent>
       </Card>
 
-      {/* Closed Sessions */}
       {closedSessions.length > 0 && (
         <Card>
           <CardHeader>

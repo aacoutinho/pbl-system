@@ -19,16 +19,21 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, Users, ClipboardList, BarChart3, LogOut, PanelLeft, GraduationCap, FileSpreadsheet } from "lucide-react";
+import { useClassContext } from "@/contexts/ClassContext";
+import { trpc } from "@/lib/trpc";
+import { LayoutDashboard, Users, ClipboardList, BarChart3, LogOut, PanelLeft, GraduationCap, FileSpreadsheet, BookOpen } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
+import { Separator } from "./ui/separator";
 
 const adminMenuItems = [
   { icon: LayoutDashboard, label: "Painel Geral", path: "/" },
+  { icon: BookOpen, label: "Turmas", path: "/classes" },
   { icon: Users, label: "Alunos", path: "/students" },
   { icon: ClipboardList, label: "Sessões", path: "/sessions" },
   { icon: BarChart3, label: "Resultados", path: "/results" },
@@ -119,6 +124,21 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
   const menuItems = isAdmin ? adminMenuItems : studentMenuItems;
   const activeMenuItem = menuItems.find(item => item.path === location);
 
+  // Class selector for admin
+  const { selectedClassId, setSelectedClassId } = useClassContext();
+  const { data: classesList } = trpc.classes.list.useQuery(undefined, { enabled: isAdmin });
+  const { data: myClasses } = trpc.classes.myClasses.useQuery(undefined, { enabled: !isAdmin });
+
+  // Auto-select first class if none selected
+  useEffect(() => {
+    if (isAdmin && classesList && classesList.length > 0 && selectedClassId === null) {
+      setSelectedClassId(classesList[0].id);
+    }
+    if (!isAdmin && myClasses && myClasses.length > 0 && selectedClassId === null) {
+      setSelectedClassId(myClasses[0].classId);
+    }
+  }, [classesList, myClasses, selectedClassId, isAdmin, setSelectedClassId]);
+
   useEffect(() => {
     if (isCollapsed) setIsResizing(false);
   }, [isCollapsed]);
@@ -145,6 +165,10 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
     };
   }, [isResizing, setSidebarWidth]);
 
+  const classOptions = isAdmin
+    ? (classesList ?? []).map(c => ({ id: c.id, label: `${c.code} - ${c.name}` }))
+    : (myClasses ?? []).map(c => ({ id: c.classId, label: `${c.classCode} - ${c.className}` }));
+
   return (
     <>
       <div className="relative" ref={sidebarRef}>
@@ -168,6 +192,29 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
               ) : null}
             </div>
           </SidebarHeader>
+
+          {/* Class selector */}
+          {!isCollapsed && classOptions.length > 0 && (
+            <div className="px-3 pb-2">
+              <Select
+                value={selectedClassId ? String(selectedClassId) : ""}
+                onValueChange={(v) => setSelectedClassId(parseInt(v))}
+              >
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder="Selecione a turma..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {classOptions.map(c => (
+                    <SelectItem key={c.id} value={String(c.id)} className="text-xs">
+                      {c.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {!isCollapsed && <Separator className="mb-1" />}
 
           <SidebarContent className="gap-0">
             <SidebarMenu className="px-2 py-1">

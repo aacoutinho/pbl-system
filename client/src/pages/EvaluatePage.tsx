@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Send, UserX, CheckCircle2, AlertTriangle } from "lucide-react";
 import { useState, useMemo } from "react";
 import { useLocation, useParams } from "wouter";
+import { useClassContext } from "@/contexts/ClassContext";
 
 type RoleType = "COORDENADOR" | "MESA" | "QUADRO" | "PARTICIPANTE";
 
@@ -40,9 +41,13 @@ function EvaluateContent() {
   const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
 
+  const { selectedClassId } = useClassContext();
   const { data: session } = trpc.sessions.get.useQuery({ id: sessionId });
   const { data: sessionStudentsList } = trpc.sessions.getStudents.useQuery({ sessionId });
-  const { data: studentMe } = trpc.students.me.useQuery();
+  const { data: studentMe } = trpc.students.me.useQuery(
+    { classId: selectedClassId! },
+    { enabled: !!selectedClassId }
+  );
 
   const submitMutation = trpc.evaluations.submit.useMutation({
     onSuccess: () => {

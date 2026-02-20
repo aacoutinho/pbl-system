@@ -1,12 +1,13 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
+import { useClassContext } from "@/contexts/ClassContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, Download, Trophy, UserX } from "lucide-react";
+import { BarChart3, Download, Trophy, UserX, BookOpen } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -19,7 +20,11 @@ export default function ResultsPage() {
 }
 
 function ResultsContent() {
-  const { data: sessionsList, isLoading: sessionsLoading } = trpc.sessions.list.useQuery();
+  const { selectedClassId } = useClassContext();
+  const { data: sessionsList, isLoading: sessionsLoading } = trpc.sessions.list.useQuery(
+    { classId: selectedClassId! },
+    { enabled: !!selectedClassId }
+  );
   const [selectedSessionId, setSelectedSessionId] = useState<string>("");
   const [selectedProblem, setSelectedProblem] = useState<string>("");
 
@@ -29,8 +34,8 @@ function ResultsContent() {
   );
 
   const { data: problemResults, isLoading: problemLoading } = trpc.results.problem.useQuery(
-    { problemNumber: parseInt(selectedProblem) },
-    { enabled: !!selectedProblem }
+    { classId: selectedClassId!, problemNumber: parseInt(selectedProblem) },
+    { enabled: !!selectedProblem && !!selectedClassId }
   );
 
   const problems = useMemo(() => {
@@ -38,6 +43,18 @@ function ResultsContent() {
     const pSet = new Set(sessionsList.map(s => s.problemNumber));
     return Array.from(pSet).sort((a, b) => a - b);
   }, [sessionsList]);
+
+  if (!selectedClassId) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <BookOpen className="h-12 w-12 text-muted-foreground/40 mb-4" />
+        <h2 className="text-xl font-semibold mb-2">Selecione uma Turma</h2>
+        <p className="text-muted-foreground text-center max-w-md">
+          Selecione uma turma no menu lateral para ver os resultados.
+        </p>
+      </div>
+    );
+  }
 
   const exportCSV = (data: Array<Record<string, unknown>>, filename: string) => {
     if (!data || data.length === 0) return;

@@ -2,6 +2,7 @@ import { eq, and, inArray, sql, desc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser, users,
+  classes, InsertClass, Class,
   students, InsertStudent, Student,
   sessions, InsertSession, Session,
   sessionStudents,
@@ -58,31 +59,106 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+// ─── Class helpers ───
+export async function createClass(data: { name: string; code: string; professorUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [result] = await db.insert(classes).values(data).$returningId();
+  return getClassById(result.id);
+}
+
+export async function getClassById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const [row] = await db.select().from(classes).where(eq(classes.id, id)).limit(1);
+  return row;
+}
+
+export async function listClassesByProfessor(professorUserId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(classes).where(eq(classes.professorUserId, professorUserId)).orderBy(classes.name);
+}
+
+export async function updateClass(id: number, data: { name?: string; code?: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const updateSet: Record<string, unknown> = {};
+  if (data.name !== undefined) updateSet.name = data.name;
+  if (data.code !== undefined) updateSet.code = data.code;
+  if (Object.keys(updateSet).length > 0) {
+    await db.update(classes).set(updateSet).where(eq(classes.id, id));
+  }
+  return getClassById(id);
+}
+
+export async function deleteClass(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  // Delete all related data: evaluationItems -> evaluations -> sessionStudents -> sessions -> students -> class
+  const classSessions = await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.classId, id));
+  if (classSessions.length > 0) {
+    const sessionIds = classSessions.map(s => s.id);
+    const evals = await db.select({ id: evaluations.id }).from(evaluations).where(inArray(evaluations.sessionId, sessionIds));
+    if (evals.length > 0) {
+      const evalIds = evals.map(e => e.id);
+      await db.delete(evaluationItems).where(inArray(evaluationItems.evaluationId, evalIds));
+      await db.delete(evaluations).where(inArray(evaluations.sessionId, sessionIds));
+    }
+    await db.delete(sessionStudents).where(inArray(sessionStudents.sessionId, sessionIds));
+    await db.delete(sessions).where(eq(sessions.classId, id));
+  }
+  await db.delete(students).where(eq(students.classId, id));
+  await db.delete(classes).where(eq(classes.id, id));
+}
+
+// Helper to find which classes a student (by email) belongs to
+export async function getClassesForStudentEmail(email: string) {
+  const db = await getDb();
+  if (!db) return [];
+  const studentRows = await db.select({
+    classId: students.classId,
+    studentId: students.id,
+    studentName: students.name,
+    className: classes.name,
+    classCode: classes.code,
+  })
+    .from(students)
+    .innerJoin(classes, eq(students.classId, classes.id))
+    .where(eq(students.email, email));
+  return studentRows;
+}
+
 // ─── Student helpers ───
 export async function createStudent(data: InsertStudent) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db.insert(students).values(data);
-  const [row] = await db.select().from(students).where(eq(students.email, data.email)).limit(1);
+  const [row] = await db.select().from(students)
+    .where(and(eq(students.email, data.email), eq(students.classId, data.classId)))
+    .limit(1);
   return row;
 }
 
-export async function listStudents() {
+export async function listStudentsByClass(classId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(students).orderBy(students.name);
+  return db.select().from(students).where(eq(students.classId, classId)).orderBy(students.name);
 }
 
 export async function deleteStudent(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
+  await db.delete(sessionStudents).where(eq(sessionStudents.studentId, id));
   await db.delete(students).where(eq(students.id, id));
 }
 
-export async function getStudentByEmail(email: string) {
+export async function getStudentByEmailAndClass(email: string, classId: number) {
   const db = await getDb();
   if (!db) return undefined;
-  const [row] = await db.select().from(students).where(eq(students.email, email)).limit(1);
+  const [row] = await db.select().from(students)
+    .where(and(eq(students.email, email), eq(students.classId, classId)))
+    .limit(1);
   return row;
 }
 
@@ -93,18 +169,19 @@ export async function bulkCreateStudents(data: InsertStudent[]) {
   for (const s of data) {
     await db.insert(students).values(s).onDuplicateKeyUpdate({ set: { name: s.name } });
   }
-  return listStudents();
+  return listStudentsByClass(data[0].classId);
 }
 
 // ─── Session helpers ───
-export async function createSession(data: InsertSession & { studentIds: number[] }) {
+export async function createSession(data: { classId: number; problemNumber: number; sessionNumber: number; label: string; studentIds: number[]; status?: string }) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   const [result] = await db.insert(sessions).values({
+    classId: data.classId,
     problemNumber: data.problemNumber,
     sessionNumber: data.sessionNumber,
     label: data.label,
-    status: data.status ?? "open",
+    status: (data.status as "open" | "closed") ?? "open",
   }).$returningId();
   const sessionId = result.id;
   if (data.studentIds.length > 0) {
@@ -122,10 +199,10 @@ export async function getSessionById(id: number) {
   return row;
 }
 
-export async function listSessions() {
+export async function listSessionsByClass(classId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(sessions).orderBy(desc(sessions.createdAt));
+  return db.select().from(sessions).where(eq(sessions.classId, classId)).orderBy(desc(sessions.createdAt));
 }
 
 export async function getSessionStudents(sessionId: number) {
@@ -158,7 +235,6 @@ export async function openSession(id: number) {
 export async function deleteSession(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  // Delete all related data
   const evals = await db.select({ id: evaluations.id }).from(evaluations).where(eq(evaluations.sessionId, id));
   if (evals.length > 0) {
     const evalIds = evals.map(e => e.id);
@@ -282,7 +358,6 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
     participacao: evaluationItems.participacao,
   }).from(evaluationItems).where(inArray(evaluationItems.evaluationId, evalIds));
 
-  // Map evaluationId -> evaluatorStudentId
   const evalToEvaluator = new Map<number, number>();
   for (const e of evals) evalToEvaluator.set(e.id, e.evaluatorStudentId);
 
@@ -290,7 +365,7 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
   const roleCounts: Record<number, Record<string, number>> = {};
   for (const item of allItems) {
     const evaluatorId = evalToEvaluator.get(item.evaluationId);
-    if (evaluatorId === item.evaluatedStudentId) continue; // skip self
+    if (evaluatorId === item.evaluatedStudentId) continue;
     if (!roleCounts[item.evaluatedStudentId]) roleCounts[item.evaluatedStudentId] = {};
     const r = item.role;
     roleCounts[item.evaluatedStudentId][r] = (roleCounts[item.evaluatedStudentId][r] || 0) + 1;
@@ -306,6 +381,7 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
     let bestCount = 0;
     for (const [sidStr, counts] of Object.entries(roleCounts)) {
       const sid = parseInt(sidStr);
+      if (usedRoles.has(role)) break;
       if (assignedRoles[sid]) continue;
       const c = counts[role] || 0;
       if (c > bestCount) { bestCount = c; bestStudent = sid; }
@@ -324,7 +400,6 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
       return i.evaluatedStudentId === s.studentId && evaluatorId !== s.studentId;
     });
 
-    // Check if student is absent (majority marked absent)
     const absentCount = itemsForStudent.filter(i => i.absent).length;
     const presentCount = itemsForStudent.filter(i => !i.absent).length;
     const isAbsent = itemsForStudent.length > 0 && absentCount > presentCount;
@@ -342,7 +417,6 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
       continue;
     }
 
-    // Calculate valid scores (non-absent, non-self)
     const validItems = itemsForStudent.filter(i => !i.absent);
     let sumScores = 0;
     for (const item of validItems) {
@@ -366,10 +440,11 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
 }
 
 // ─── Multi-session aggregation ───
-export async function calculateProblemResults(problemNumber: number) {
+export async function calculateProblemResults(classId: number, problemNumber: number) {
   const db = await getDb();
   if (!db) return [];
-  const problemSessions = await db.select().from(sessions).where(eq(sessions.problemNumber, problemNumber));
+  const problemSessions = await db.select().from(sessions)
+    .where(and(eq(sessions.classId, classId), eq(sessions.problemNumber, problemNumber)));
   if (problemSessions.length === 0) return [];
 
   const allResults: Record<number, { name: string; email: string; scores: number[]; roles: string[] }> = {};
@@ -397,18 +472,34 @@ export async function calculateProblemResults(problemNumber: number) {
   }).sort((a, b) => b.average - a.average);
 }
 
-// ─── Dashboard stats ───
-export async function getDashboardStats() {
+// ─── Dashboard stats (scoped to professor's classes) ───
+export async function getDashboardStats(professorUserId: number) {
   const db = await getDb();
-  if (!db) return { totalStudents: 0, totalSessions: 0, openSessions: 0, totalEvaluations: 0 };
-  const [studentCount] = await db.select({ count: sql<number>`count(*)` }).from(students);
-  const [sessionCount] = await db.select({ count: sql<number>`count(*)` }).from(sessions);
-  const [openCount] = await db.select({ count: sql<number>`count(*)` }).from(sessions).where(eq(sessions.status, "open"));
-  const [evalCount] = await db.select({ count: sql<number>`count(*)` }).from(evaluations);
+  if (!db) return { totalStudents: 0, totalSessions: 0, openSessions: 0, totalEvaluations: 0, totalClasses: 0 };
+
+  const professorClasses = await db.select({ id: classes.id }).from(classes).where(eq(classes.professorUserId, professorUserId));
+  if (professorClasses.length === 0) return { totalStudents: 0, totalSessions: 0, openSessions: 0, totalEvaluations: 0, totalClasses: 0 };
+
+  const classIds = professorClasses.map(c => c.id);
+
+  const [studentCount] = await db.select({ count: sql<number>`count(*)` }).from(students).where(inArray(students.classId, classIds));
+  const [sessionCount] = await db.select({ count: sql<number>`count(*)` }).from(sessions).where(inArray(sessions.classId, classIds));
+  const [openCount] = await db.select({ count: sql<number>`count(*)` }).from(sessions).where(and(inArray(sessions.classId, classIds), eq(sessions.status, "open")));
+
+  // Count evaluations for sessions in these classes
+  const classSessions = await db.select({ id: sessions.id }).from(sessions).where(inArray(sessions.classId, classIds));
+  let evalCount = 0;
+  if (classSessions.length > 0) {
+    const sessionIds = classSessions.map(s => s.id);
+    const [ec] = await db.select({ count: sql<number>`count(*)` }).from(evaluations).where(inArray(evaluations.sessionId, sessionIds));
+    evalCount = Number(ec.count);
+  }
+
   return {
     totalStudents: Number(studentCount.count),
     totalSessions: Number(sessionCount.count),
     openSessions: Number(openCount.count),
-    totalEvaluations: Number(evalCount.count),
+    totalEvaluations: evalCount,
+    totalClasses: professorClasses.length,
   };
 }

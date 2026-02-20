@@ -5,11 +5,9 @@ import StudentDashboard from "./StudentDashboard";
 
 export default function Home() {
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
-
   return (
     <DashboardLayout>
-      {isAdmin ? <AdminDashboard /> : <StudentDashboard />}
+      {user?.role === "admin" ? <AdminDashboard /> : <StudentDashboard />}
     </DashboardLayout>
   );
 }

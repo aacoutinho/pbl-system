@@ -4,7 +4,9 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { ClassProvider } from "./contexts/ClassContext";
 import Home from "./pages/Home";
+import ClassesPage from "./pages/ClassesPage";
 import StudentsPage from "./pages/StudentsPage";
 import SessionsPage from "./pages/SessionsPage";
 import EvaluatePage from "./pages/EvaluatePage";
@@ -15,6 +17,7 @@ function Router() {
   return (
     <Switch>
       <Route path={"/"} component={Home} />
+      <Route path={"/classes"} component={ClassesPage} />
       <Route path={"/students"} component={StudentsPage} />
       <Route path={"/sessions"} component={SessionsPage} />
       <Route path={"/evaluate/:sessionId"} component={EvaluatePage} />
@@ -30,10 +33,12 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light">
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
+        <ClassProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Router />
+          </TooltipProvider>
+        </ClassProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );

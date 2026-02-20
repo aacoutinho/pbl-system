@@ -1,5 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
+import { useClassContext } from "@/contexts/ClassContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, Trash2, Upload, Users } from "lucide-react";
+import { Plus, Trash2, Upload, Users, BookOpen } from "lucide-react";
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -22,7 +23,12 @@ export default function StudentsPage() {
 
 function StudentsContent() {
   const utils = trpc.useUtils();
-  const { data: studentsList, isLoading } = trpc.students.list.useQuery();
+  const { selectedClassId } = useClassContext();
+
+  const { data: studentsList, isLoading } = trpc.students.list.useQuery(
+    { classId: selectedClassId! },
+    { enabled: !!selectedClassId }
+  );
   const createMutation = trpc.students.create.useMutation({
     onSuccess: () => { utils.students.list.invalidate(); toast.success("Aluno cadastrado com sucesso"); },
     onError: (e) => toast.error(e.message),
@@ -42,9 +48,21 @@ function StudentsContent() {
   const [showAdd, setShowAdd] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
 
+  if (!selectedClassId) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <BookOpen className="h-12 w-12 text-muted-foreground/40 mb-4" />
+        <h2 className="text-xl font-semibold mb-2">Selecione uma Turma</h2>
+        <p className="text-muted-foreground text-center max-w-md">
+          Selecione uma turma no menu lateral para gerenciar seus alunos.
+        </p>
+      </div>
+    );
+  }
+
   const handleAdd = () => {
     if (!newName.trim() || !newEmail.trim()) { toast.error("Preencha nome e e-mail"); return; }
-    createMutation.mutate({ name: newName.trim(), email: newEmail.trim().toLowerCase() });
+    createMutation.mutate({ classId: selectedClassId, name: newName.trim(), email: newEmail.trim().toLowerCase() });
     setNewName(""); setNewEmail(""); setShowAdd(false);
   };
 
@@ -56,7 +74,7 @@ function StudentsContent() {
       return null;
     }).filter(Boolean) as { name: string; email: string }[];
     if (parsed.length === 0) { toast.error("Nenhum aluno válido encontrado. Use formato: Nome, email"); return; }
-    bulkMutation.mutate({ students: parsed });
+    bulkMutation.mutate({ classId: selectedClassId, students: parsed });
     setBulkText(""); setShowBulk(false);
   };
 
@@ -65,7 +83,7 @@ function StudentsContent() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Alunos</h1>
-          <p className="text-muted-foreground mt-1">Gerencie os alunos cadastrados no sistema.</p>
+          <p className="text-muted-foreground mt-1">Gerencie os alunos da turma selecionada.</p>
         </div>
         <div className="flex gap-2">
           <Dialog open={showBulk} onOpenChange={setShowBulk}>
@@ -142,7 +160,7 @@ function StudentsContent() {
           ) : !studentsList || studentsList.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Users className="h-10 w-10 mx-auto mb-3 opacity-40" />
-              <p>Nenhum aluno cadastrado.</p>
+              <p>Nenhum aluno cadastrado nesta turma.</p>
               <p className="text-sm mt-1">Adicione alunos individualmente ou importe em lote.</p>
             </div>
           ) : (

@@ -1,5 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
+import { useClassContext } from "@/contexts/ClassContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, BarChart3, Trophy } from "lucide-react";
@@ -15,8 +16,27 @@ export default function StudentResults() {
 }
 
 function StudentResultsContent() {
-  const { data: studentMe, isLoading: meLoading } = trpc.students.me.useQuery();
-  const { data: sessionsList, isLoading: sessionsLoading } = trpc.sessions.list.useQuery();
+  const { selectedClassId } = useClassContext();
+  const { data: studentMe, isLoading: meLoading } = trpc.students.me.useQuery(
+    { classId: selectedClassId! },
+    { enabled: !!selectedClassId }
+  );
+  const { data: sessionsList, isLoading: sessionsLoading } = trpc.sessions.listForStudent.useQuery(
+    { classId: selectedClassId! },
+    { enabled: !!selectedClassId }
+  );
+
+  if (!selectedClassId) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <AlertCircle className="h-12 w-12 text-amber-500 mb-4" />
+        <h2 className="text-xl font-semibold mb-2">Nenhuma Turma</h2>
+        <p className="text-muted-foreground text-center max-w-md">
+          Selecione uma turma para ver seus resultados.
+        </p>
+      </div>
+    );
+  }
 
   if (meLoading || sessionsLoading) {
     return (
@@ -33,7 +53,7 @@ function StudentResultsContent() {
         <AlertCircle className="h-12 w-12 text-amber-500 mb-4" />
         <h2 className="text-xl font-semibold mb-2">Cadastro Pendente</h2>
         <p className="text-muted-foreground text-center max-w-md">
-          Seu e-mail ainda não está cadastrado no sistema.
+          Seu e-mail ainda não está cadastrado nesta turma.
         </p>
       </div>
     );

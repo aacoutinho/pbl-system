@@ -8,8 +8,8 @@ function createAdminContext(): TrpcContext {
   const user: AuthenticatedUser = {
     id: 1,
     openId: "admin-user",
-    email: "admin@example.com",
-    name: "Admin Professor",
+    email: "professor@example.com",
+    name: "Professor Admin",
     loginMethod: "manus",
     role: "admin",
     createdAt: new Date(),
@@ -29,7 +29,7 @@ function createStudentContext(): TrpcContext {
     id: 2,
     openId: "student-user",
     email: "student@example.com",
-    name: "Student Test",
+    name: "Student User",
     loginMethod: "manus",
     role: "user",
     createdAt: new Date(),
@@ -44,93 +44,184 @@ function createStudentContext(): TrpcContext {
   };
 }
 
-describe("evaluation system routes", () => {
+describe("Router structure with classes support", () => {
+  it("has all required routers defined", () => {
+    const caller = appRouter.createCaller(createAdminContext());
+    expect(caller.auth).toBeDefined();
+    expect(caller.classes).toBeDefined();
+    expect(caller.students).toBeDefined();
+    expect(caller.sessions).toBeDefined();
+    expect(caller.evaluations).toBeDefined();
+    expect(caller.results).toBeDefined();
+  });
+
+  it("has class CRUD operations", () => {
+    const caller = appRouter.createCaller(createAdminContext());
+    expect(caller.classes.list).toBeDefined();
+    expect(caller.classes.create).toBeDefined();
+    expect(caller.classes.update).toBeDefined();
+    expect(caller.classes.delete).toBeDefined();
+    expect(caller.classes.myClasses).toBeDefined();
+  });
+
+  it("has student operations", () => {
+    const caller = appRouter.createCaller(createAdminContext());
+    expect(caller.students.list).toBeDefined();
+    expect(caller.students.create).toBeDefined();
+    expect(caller.students.bulkCreate).toBeDefined();
+    expect(caller.students.delete).toBeDefined();
+    expect(caller.students.me).toBeDefined();
+  });
+
+  it("has session operations", () => {
+    const caller = appRouter.createCaller(createAdminContext());
+    expect(caller.sessions.list).toBeDefined();
+    expect(caller.sessions.listForStudent).toBeDefined();
+    expect(caller.sessions.create).toBeDefined();
+    expect(caller.sessions.close).toBeDefined();
+    expect(caller.sessions.open).toBeDefined();
+    expect(caller.sessions.delete).toBeDefined();
+    expect(caller.sessions.submissionStatus).toBeDefined();
+  });
+
+  it("has evaluation operations", () => {
+    const caller = appRouter.createCaller(createAdminContext());
+    expect(caller.evaluations.submit).toBeDefined();
+    expect(caller.evaluations.hasSubmitted).toBeDefined();
+  });
+
+  it("has results and dashboard operations", () => {
+    const caller = appRouter.createCaller(createAdminContext());
+    expect(caller.results.session).toBeDefined();
+    expect(caller.results.problem).toBeDefined();
+    expect(caller.results.dashboard).toBeDefined();
+  });
+});
+
+describe("Access control with classes", () => {
   it("admin can access dashboard stats", async () => {
-    const ctx = createAdminContext();
-    const caller = appRouter.createCaller(ctx);
+    const caller = appRouter.createCaller(createAdminContext());
     const stats = await caller.results.dashboard();
     expect(stats).toHaveProperty("totalStudents");
     expect(stats).toHaveProperty("totalSessions");
     expect(stats).toHaveProperty("openSessions");
     expect(stats).toHaveProperty("totalEvaluations");
+    expect(stats).toHaveProperty("totalClasses");
     expect(typeof stats.totalStudents).toBe("number");
-    expect(typeof stats.totalSessions).toBe("number");
+    expect(typeof stats.totalClasses).toBe("number");
   });
 
-  it("non-admin cannot access dashboard stats", async () => {
-    const ctx = createStudentContext();
-    const caller = appRouter.createCaller(ctx);
+  it("blocks student from accessing admin class routes", async () => {
+    const caller = appRouter.createCaller(createStudentContext());
+    await expect(caller.classes.list()).rejects.toThrow();
+  });
+
+  it("blocks student from creating classes", async () => {
+    const caller = appRouter.createCaller(createStudentContext());
+    await expect(caller.classes.create({ name: "Test", code: "T01" })).rejects.toThrow();
+  });
+
+  it("blocks student from deleting classes", async () => {
+    const caller = appRouter.createCaller(createStudentContext());
+    await expect(caller.classes.delete({ id: 1 })).rejects.toThrow();
+  });
+
+  it("blocks student from creating students (requires classId)", async () => {
+    const caller = appRouter.createCaller(createStudentContext());
+    await expect(
+      caller.students.create({ classId: 1, name: "Test", email: "test@test.com" })
+    ).rejects.toThrow();
+  });
+
+  it("blocks student from creating sessions (requires classId)", async () => {
+    const caller = appRouter.createCaller(createStudentContext());
+    await expect(
+      caller.sessions.create({ classId: 1, problemNumber: 1, sessionNumber: 1, label: "Test", studentIds: [] })
+    ).rejects.toThrow();
+  });
+
+  it("blocks student from closing sessions", async () => {
+    const caller = appRouter.createCaller(createStudentContext());
+    await expect(caller.sessions.close({ id: 1 })).rejects.toThrow();
+  });
+
+  it("blocks student from accessing dashboard stats", async () => {
+    const caller = appRouter.createCaller(createStudentContext());
     await expect(caller.results.dashboard()).rejects.toThrow();
   });
 
-  it("authenticated user can list students", async () => {
-    const ctx = createStudentContext();
-    const caller = appRouter.createCaller(ctx);
-    const students = await caller.students.list();
-    expect(Array.isArray(students)).toBe(true);
+  it("allows student to query myClasses", async () => {
+    const caller = appRouter.createCaller(createStudentContext());
+    const result = await caller.classes.myClasses();
+    expect(Array.isArray(result)).toBe(true);
   });
 
-  it("authenticated user can list sessions", async () => {
-    const ctx = createStudentContext();
-    const caller = appRouter.createCaller(ctx);
-    const sessions = await caller.sessions.list();
-    expect(Array.isArray(sessions)).toBe(true);
+  it("allows student to query sessions for student", async () => {
+    const caller = appRouter.createCaller(createStudentContext());
+    const result = await caller.sessions.listForStudent({ classId: 999 });
+    expect(Array.isArray(result)).toBe(true);
   });
+});
 
-  it("non-admin cannot create students", async () => {
-    const ctx = createStudentContext();
-    const caller = appRouter.createCaller(ctx);
-    await expect(
-      caller.students.create({ name: "Test", email: "test@test.com" })
-    ).rejects.toThrow();
-  });
-
-  it("non-admin cannot create sessions", async () => {
-    const ctx = createStudentContext();
-    const caller = appRouter.createCaller(ctx);
-    await expect(
-      caller.sessions.create({ problemNumber: 1, sessionNumber: 1, label: "Test", studentIds: [] })
-    ).rejects.toThrow();
-  });
-
-  it("evaluation submission rejects self-evaluation", async () => {
-    const ctx = createStudentContext();
-    const caller = appRouter.createCaller(ctx);
+describe("Evaluation validation", () => {
+  it("rejects self-evaluation in submission", async () => {
+    const caller = appRouter.createCaller(createStudentContext());
     await expect(
       caller.evaluations.submit({
         sessionId: 999,
-        evaluatorStudentId: 1,
+        evaluatorStudentId: 10,
         items: [{
-          evaluatedStudentId: 1, // same as evaluator
+          evaluatedStudentId: 10,
           role: "PARTICIPANTE",
           absent: false,
-          atuacao: 2, pontualidade: 2, dominio: 2, metas: 2, participacao: 2,
+          atuacao: 2,
+          pontualidade: 2,
+          dominio: 2,
+          metas: 2,
+          participacao: 2,
         }],
       })
     ).rejects.toThrow("Autoavaliação não é permitida");
   });
 
-  it("evaluation submission rejects duplicate exclusive roles", async () => {
-    const ctx = createStudentContext();
-    const caller = appRouter.createCaller(ctx);
+  it("rejects duplicate exclusive roles", async () => {
+    const caller = appRouter.createCaller(createStudentContext());
     await expect(
       caller.evaluations.submit({
         sessionId: 999,
-        evaluatorStudentId: 1,
+        evaluatorStudentId: 10,
         items: [
-          { evaluatedStudentId: 2, role: "COORDENADOR", absent: false, atuacao: 2, pontualidade: 2, dominio: 2, metas: 2, participacao: 2 },
-          { evaluatedStudentId: 3, role: "COORDENADOR", absent: false, atuacao: 2, pontualidade: 2, dominio: 2, metas: 2, participacao: 2 },
+          { evaluatedStudentId: 20, role: "COORDENADOR", absent: false, atuacao: 2, pontualidade: 2, dominio: 2, metas: 2, participacao: 2 },
+          { evaluatedStudentId: 30, role: "COORDENADOR", absent: false, atuacao: 2, pontualidade: 2, dominio: 2, metas: 2, participacao: 2 },
         ],
       })
     ).rejects.toThrow("O papel COORDENADOR só pode ser atribuído a um aluno");
   });
 
+  it("allows multiple absent students with same exclusive role", async () => {
+    const caller = appRouter.createCaller(createStudentContext());
+    try {
+      await caller.evaluations.submit({
+        sessionId: 999,
+        evaluatorStudentId: 10,
+        items: [
+          { evaluatedStudentId: 20, role: "COORDENADOR", absent: true, atuacao: 0, pontualidade: 0, dominio: 0, metas: 0, participacao: 0 },
+          { evaluatedStudentId: 30, role: "COORDENADOR", absent: true, atuacao: 0, pontualidade: 0, dominio: 0, metas: 0, participacao: 0 },
+        ],
+      });
+    } catch (e: any) {
+      // Should not throw for role validation when students are absent
+      expect(e.message).not.toContain("O papel COORDENADOR só pode ser atribuído a um aluno");
+    }
+  });
+});
+
+describe("Auth routes", () => {
   it("auth.me returns user for authenticated context", async () => {
-    const ctx = createAdminContext();
-    const caller = appRouter.createCaller(ctx);
+    const caller = appRouter.createCaller(createAdminContext());
     const me = await caller.auth.me();
     expect(me).toBeDefined();
-    expect(me?.name).toBe("Admin Professor");
+    expect(me?.name).toBe("Professor Admin");
     expect(me?.role).toBe("admin");
   });
 

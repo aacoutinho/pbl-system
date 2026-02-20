@@ -15,6 +15,13 @@
       "when": 1771550788141,
       "tag": "0001_eager_toxin",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1771551623530,
+      "tag": "0002_icy_doctor_doom",
+      "breakpoints": true
     }
   ]
 }

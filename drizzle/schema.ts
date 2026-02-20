@@ -16,13 +16,28 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
+// ─── Classes (turmas) ───
+export const classes = mysqlTable("classes", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  code: varchar("code", { length: 64 }).notNull(),
+  professorUserId: int("professorUserId").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Class = typeof classes.$inferSelect;
+export type InsertClass = typeof classes.$inferInsert;
+
 // ─── Students (registered in the course) ───
 export const students = mysqlTable("students", {
   id: int("id").autoincrement().primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
-  email: varchar("email", { length: 320 }).notNull().unique(),
+  email: varchar("email", { length: 320 }).notNull(),
+  classId: int("classId").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+}, (table) => [
+  unique("uq_student_email_class").on(table.email, table.classId),
+]);
 
 export type Student = typeof students.$inferSelect;
 export type InsertStudent = typeof students.$inferInsert;
@@ -30,6 +45,7 @@ export type InsertStudent = typeof students.$inferInsert;
 // ─── Sessions (evaluation sessions: PxSy) ───
 export const sessions = mysqlTable("sessions", {
   id: int("id").autoincrement().primaryKey(),
+  classId: int("classId").notNull(),
   problemNumber: int("problemNumber").notNull(),
   sessionNumber: int("sessionNumber").notNull(),
   label: varchar("label", { length: 100 }).notNull(),

@@ -5,14 +5,15 @@ import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import {
-  listStudents, createStudent, deleteStudent, getStudentByEmail, bulkCreateStudents,
-  createSession, listSessions, getSessionStudents, closeSession, openSession, deleteSession, getSessionById,
+  createClass, listClassesByProfessor, updateClass, deleteClass, getClassById, getClassesForStudentEmail,
+  listStudentsByClass, createStudent, deleteStudent, getStudentByEmailAndClass, bulkCreateStudents,
+  createSession, listSessionsByClass, getSessionStudents, closeSession, openSession, deleteSession, getSessionById,
   submitEvaluation, getSessionEvaluations, hasStudentSubmitted,
   calculateSessionResults, calculateProblemResults, getDashboardStats,
 } from "./db";
 
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a administradores" });
+  if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a professores" });
   return next({ ctx });
 });
 
@@ -27,49 +28,99 @@ export const appRouter = router({
     }),
   }),
 
-  // ─── Students ───
-  students: router({
-    list: protectedProcedure.query(async () => {
-      return listStudents();
+  // ─── Classes (turmas) ───
+  classes: router({
+    list: adminProcedure.query(async ({ ctx }) => {
+      return listClassesByProfessor(ctx.user.id);
     }),
     create: adminProcedure.input(z.object({
       name: z.string().min(1),
+      code: z.string().min(1),
+    })).mutation(async ({ ctx, input }) => {
+      return createClass({ ...input, professorUserId: ctx.user.id });
+    }),
+    update: adminProcedure.input(z.object({
+      id: z.number(),
+      name: z.string().min(1).optional(),
+      code: z.string().min(1).optional(),
+    })).mutation(async ({ ctx, input }) => {
+      const cls = await getClassById(input.id);
+      if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      return updateClass(input.id, { name: input.name, code: input.code });
+    }),
+    delete: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+      const cls = await getClassById(input.id);
+      if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await deleteClass(input.id);
+      return { success: true };
+    }),
+    // For students: list classes they belong to
+    myClasses: protectedProcedure.query(async ({ ctx }) => {
+      if (!ctx.user.email) return [];
+      return getClassesForStudentEmail(ctx.user.email);
+    }),
+  }),
+
+  // ─── Students ───
+  students: router({
+    list: adminProcedure.input(z.object({ classId: z.number() })).query(async ({ ctx, input }) => {
+      const cls = await getClassById(input.classId);
+      if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      return listStudentsByClass(input.classId);
+    }),
+    create: adminProcedure.input(z.object({
+      classId: z.number(),
+      name: z.string().min(1),
       email: z.string().email(),
-    })).mutation(async ({ input }) => {
-      return createStudent(input);
+    })).mutation(async ({ ctx, input }) => {
+      const cls = await getClassById(input.classId);
+      if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      return createStudent({ name: input.name, email: input.email.toLowerCase(), classId: input.classId });
     }),
     bulkCreate: adminProcedure.input(z.object({
+      classId: z.number(),
       students: z.array(z.object({
         name: z.string().min(1),
         email: z.string().email(),
       })),
-    })).mutation(async ({ input }) => {
-      return bulkCreateStudents(input.students);
+    })).mutation(async ({ ctx, input }) => {
+      const cls = await getClassById(input.classId);
+      if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      return bulkCreateStudents(input.students.map(s => ({ ...s, email: s.email.toLowerCase(), classId: input.classId })));
     }),
     delete: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
       await deleteStudent(input.id);
       return { success: true };
     }),
-    me: protectedProcedure.query(async ({ ctx }) => {
+    me: protectedProcedure.input(z.object({ classId: z.number() })).query(async ({ ctx, input }) => {
       if (!ctx.user.email) return null;
-      return getStudentByEmail(ctx.user.email);
+      return getStudentByEmailAndClass(ctx.user.email, input.classId);
     }),
   }),
 
   // ─── Sessions ───
   sessions: router({
-    list: protectedProcedure.query(async () => {
-      return listSessions();
+    list: adminProcedure.input(z.object({ classId: z.number() })).query(async ({ ctx, input }) => {
+      const cls = await getClassById(input.classId);
+      if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      return listSessionsByClass(input.classId);
+    }),
+    // For students: list sessions for a class (no admin check)
+    listForStudent: protectedProcedure.input(z.object({ classId: z.number() })).query(async ({ input }) => {
+      return listSessionsByClass(input.classId);
     }),
     get: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
       return getSessionById(input.id);
     }),
     create: adminProcedure.input(z.object({
+      classId: z.number(),
       problemNumber: z.number().min(1).max(10),
       sessionNumber: z.number().min(1).max(10),
       label: z.string().min(1),
       studentIds: z.array(z.number()),
-    })).mutation(async ({ input }) => {
+    })).mutation(async ({ ctx, input }) => {
+      const cls = await getClassById(input.classId);
+      if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       return createSession(input);
     }),
     getStudents: protectedProcedure.input(z.object({ sessionId: z.number() })).query(async ({ input }) => {
@@ -141,11 +192,13 @@ export const appRouter = router({
     session: protectedProcedure.input(z.object({ sessionId: z.number() })).query(async ({ input }) => {
       return calculateSessionResults(input.sessionId);
     }),
-    problem: protectedProcedure.input(z.object({ problemNumber: z.number() })).query(async ({ input }) => {
-      return calculateProblemResults(input.problemNumber);
+    problem: adminProcedure.input(z.object({ classId: z.number(), problemNumber: z.number() })).query(async ({ ctx, input }) => {
+      const cls = await getClassById(input.classId);
+      if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      return calculateProblemResults(input.classId, input.problemNumber);
     }),
-    dashboard: adminProcedure.query(async () => {
-      return getDashboardStats();
+    dashboard: adminProcedure.query(async ({ ctx }) => {
+      return getDashboardStats(ctx.user.id);
     }),
   }),
 });

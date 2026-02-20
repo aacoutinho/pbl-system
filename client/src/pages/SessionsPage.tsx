@@ -1,5 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
+import { useClassContext } from "@/contexts/ClassContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Lock, Unlock, Trash2, ClipboardList, Users, Eye } from "lucide-react";
+import { Plus, Lock, Unlock, Trash2, ClipboardList, Users, Eye, BookOpen } from "lucide-react";
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
@@ -24,8 +25,16 @@ export default function SessionsPage() {
 function SessionsContent() {
   const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
-  const { data: sessionsList, isLoading } = trpc.sessions.list.useQuery();
-  const { data: studentsList } = trpc.students.list.useQuery();
+  const { selectedClassId } = useClassContext();
+
+  const { data: sessionsList, isLoading } = trpc.sessions.list.useQuery(
+    { classId: selectedClassId! },
+    { enabled: !!selectedClassId }
+  );
+  const { data: studentsList } = trpc.students.list.useQuery(
+    { classId: selectedClassId! },
+    { enabled: !!selectedClassId }
+  );
 
   const createMutation = trpc.sessions.create.useMutation({
     onSuccess: () => { utils.sessions.list.invalidate(); utils.results.dashboard.invalidate(); toast.success("Sessão criada com sucesso"); setShowCreate(false); },
@@ -46,12 +55,25 @@ function SessionsContent() {
   const [sessionNum, setSessionNum] = useState("1");
   const [selectedStudents, setSelectedStudents] = useState<number[]>([]);
 
+  if (!selectedClassId) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <BookOpen className="h-12 w-12 text-muted-foreground/40 mb-4" />
+        <h2 className="text-xl font-semibold mb-2">Selecione uma Turma</h2>
+        <p className="text-muted-foreground text-center max-w-md">
+          Selecione uma turma no menu lateral para gerenciar suas sessões.
+        </p>
+      </div>
+    );
+  }
+
   const handleCreate = () => {
     const pn = parseInt(problemNum);
     const sn = parseInt(sessionNum);
     if (isNaN(pn) || isNaN(sn) || pn < 1 || sn < 1) { toast.error("Números inválidos"); return; }
     if (selectedStudents.length === 0) { toast.error("Selecione ao menos um aluno"); return; }
     createMutation.mutate({
+      classId: selectedClassId,
       problemNumber: pn,
       sessionNumber: sn,
       label: `Problema ${pn} - Sessão ${sn}`,
@@ -147,7 +169,7 @@ function SessionsContent() {
           ) : !sessionsList || sessionsList.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <ClipboardList className="h-10 w-10 mx-auto mb-3 opacity-40" />
-              <p>Nenhuma sessão criada.</p>
+              <p>Nenhuma sessão criada nesta turma.</p>
             </div>
           ) : (
             <div className="space-y-3">

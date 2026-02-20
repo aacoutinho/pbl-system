@@ -20,4 +20,13 @@
 - [ ] Frontend: Notification alerts for submissions and anomalies
 - [x] Frontend: Landing page / Home
 - [x] Tests: Backend calculation engine tests
-- [x] Tests: API endpoint tests (11 tests passing)
+- [x] Tests: API endpoint tests (22 tests passing)
+- [x] Database: Add classes table with professor ownership
+- [x] Database: Link students and sessions to classes
+- [x] API: Class CRUD (create, list, update, delete) for professors
+- [x] API: Filter all queries by class (students, sessions, evaluations, results)
+- [x] API: Isolate data per professor (only see own classes)
+- [x] Frontend: Class management page for professors
+- [x] Frontend: Class selector in sidebar/header for context switching
+- [x] Frontend: Update all pages to filter by selected class
+- [x] Tests: Update tests for multi-class support (22 tests passing)
