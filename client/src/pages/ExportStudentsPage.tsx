@@ -225,7 +225,7 @@ function ExportStudentsContent() {
           </div>
           <div className="mt-4 p-3 rounded-lg bg-muted/50 text-xs text-muted-foreground space-y-1">
             <p><strong>Formato do CSV:</strong> Google Workspace (29 colunas, separado por ponto e vírgula)</p>
-            <p><strong>Senha padrão:</strong> nome_usuario_email + semestre (ex: aatrcoutinho20262)</p>
+            <p><strong>Senha padrão:</strong> iniciais do nome + matrícula (ex: aatrc20221001)</p>
             <p><strong>Org Unit Path:</strong> /Alunos</p>
             <p><strong>Change Password at Next Sign-In:</strong> True</p>
           </div>

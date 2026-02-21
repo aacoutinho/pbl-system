@@ -186,8 +186,10 @@ export const appRouter = router({
         const nameParts = s.studentName.trim().split(/\s+/);
         const firstName = nameParts[0] || "";
         const lastName = nameParts.slice(1).join(" ") || "";
-        const emailUser = s.studentEmail.split("@")[0] || "";
-        const password = `${emailUser}${s.semester}`;
+        // Password: iniciais do nome + matrícula
+        const initials = nameParts.map(p => p[0]?.toLowerCase() || "").join("");
+        const enrollment = s.studentEnrollment || "";
+        const password = `${initials}${enrollment}`;
         // 29 columns: fill specified ones, rest empty
         return [
           firstName,   // 1. First Name

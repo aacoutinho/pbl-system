@@ -717,6 +717,7 @@ export async function listStudentsForExport(classIds: number[]) {
   const rows = await db.select({
     studentName: students.name,
     studentEmail: students.email,
+    studentEnrollment: students.enrollment,
     classCode: classes.classCode,
     componentCode: classes.componentCode,
     semester: classes.semester,
