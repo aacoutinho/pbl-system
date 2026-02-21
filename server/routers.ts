@@ -7,7 +7,7 @@ import { z } from "zod";
 import {
   createClass, listClassesByProfessor, updateClass, deleteClass, getClassById, getClassesForStudentEmail,
   listStudentsByClass, createStudent, deleteStudent, getStudentByEmailAndClass, bulkCreateStudents,
-  bulkCreateStudentsWithEnrollment, listAllClasses,
+  bulkCreateStudentsWithEnrollment, listAllClasses, listStudentsForExport,
   createSession, listSessionsByClass, getSessionStudents, closeSession, openSession, deleteSession, getSessionById,
   submitEvaluation, getSessionEvaluations, hasStudentSubmitted,
   calculateSessionResults, calculateProblemResults, getDashboardStats,
@@ -163,6 +163,75 @@ export const appRouter = router({
     me: protectedProcedure.input(z.object({ classId: z.number() })).query(async ({ ctx, input }) => {
       if (!ctx.user.email) return null;
       return getStudentByEmailAndClass(ctx.user.email, input.classId);
+    }),
+    exportGoogleWorkspace: adminProcedure.input(z.object({
+      classIds: z.array(z.number()).min(1),
+    })).query(async ({ ctx, input }) => {
+      // Verify all classes belong to the professor
+      for (const classId of input.classIds) {
+        const cls = await getClassById(classId);
+        if (!cls || cls.professorUserId !== ctx.user.id) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+        }
+      }
+      const studentsData = await listStudentsForExport(input.classIds);
+      if (studentsData.length === 0) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Nenhum aluno encontrado nas turmas selecionadas." });
+      }
+
+      // Google Workspace CSV header (29 columns)
+      const header = "First Name [Required];Last Name [Required];Email Address [Required];Password [Required];Password Hash Function [UPLOAD ONLY];Org Unit Path [Required];New Primary Email [UPLOAD ONLY];Recovery Email;Home Secondary Email;Work Secondary Email;Recovery Phone [MUST BE IN THE E.164 FORMAT];Work Phone;Home Phone;Mobile Phone;Work Address;Home Address;Employee ID;Employee Type;Employee Title;Manager Email;Department;Cost Center;Building ID;Floor Name;Floor Section;Change Password at Next Sign-In;New Status [UPLOAD ONLY];New Licenses [UPLOAD ONLY];Advanced Protection Program enrollment";
+
+      const rows = studentsData.map(s => {
+        const nameParts = s.studentName.trim().split(/\s+/);
+        const firstName = nameParts[0] || "";
+        const lastName = nameParts.slice(1).join(" ") || "";
+        const emailUser = s.studentEmail.split("@")[0] || "";
+        const password = `${emailUser}${s.semester}`;
+        // 29 columns: fill specified ones, rest empty
+        return [
+          firstName,   // 1. First Name
+          lastName,    // 2. Last Name
+          s.studentEmail, // 3. Email Address
+          password,    // 4. Password
+          "",          // 5. Password Hash Function
+          "/Alunos",   // 6. Org Unit Path
+          "",          // 7. New Primary Email
+          "",          // 8. Recovery Email
+          "",          // 9. Home Secondary Email
+          "",          // 10. Work Secondary Email
+          "",          // 11. Recovery Phone
+          "",          // 12. Work Phone
+          "",          // 13. Home Phone
+          "",          // 14. Mobile Phone
+          "",          // 15. Work Address
+          "",          // 16. Home Address
+          "",          // 17. Employee ID
+          "",          // 18. Employee Type
+          "",          // 19. Employee Title
+          "",          // 20. Manager Email
+          "",          // 21. Department
+          "",          // 22. Cost Center
+          "",          // 23. Building ID
+          "",          // 24. Floor Name
+          "",          // 25. Floor Section
+          "True",      // 26. Change Password at Next Sign-In
+          "",          // 27. New Status
+          "",          // 28. New Licenses
+          "False",     // 29. Advanced Protection Program enrollment
+        ].join(";");
+      });
+
+      // Deduplicate by email (student may appear in multiple classes, use first occurrence)
+      const seen = new Set<string>();
+      const uniqueRows = rows.filter(row => {
+        const email = row.split(";")[2];
+        if (seen.has(email)) return false;
+        seen.add(email);
+        return true;
+      });
+
+      return { csv: [header, ...uniqueRows].join("\n"), count: uniqueRows.length };
     }),
   }),
 

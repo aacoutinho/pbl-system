@@ -24,7 +24,7 @@ import { getLoginUrl, getGoogleLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import { useClassContext } from "@/contexts/ClassContext";
 import { trpc } from "@/lib/trpc";
-import { LayoutDashboard, Users, ClipboardList, BarChart3, LogOut, PanelLeft, GraduationCap, FileSpreadsheet, BookOpen, ClipboardCheck } from "lucide-react";
+import { LayoutDashboard, Users, ClipboardList, BarChart3, LogOut, PanelLeft, GraduationCap, FileSpreadsheet, BookOpen, ClipboardCheck, Download } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -38,6 +38,7 @@ const adminMenuItems = [
   { icon: ClipboardList, label: "Sessões", path: "/sessions" },
   { icon: ClipboardCheck, label: "Avaliar Tutorial", path: "/tutorial-eval" },
   { icon: BarChart3, label: "Resultados", path: "/results" },
+  { icon: Download, label: "Exportar Alunos", path: "/export-students" },
 ];
 
 const studentMenuItems = [

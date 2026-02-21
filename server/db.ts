@@ -708,3 +708,22 @@ export async function getDashboardStats(professorUserId: number) {
     totalClasses: professorClasses.length,
   };
 }
+
+// ─── Export: list students with class info for Google Workspace CSV ───
+export async function listStudentsForExport(classIds: number[]) {
+  const db = await getDb();
+  if (!db) return [];
+  if (classIds.length === 0) return [];
+  const rows = await db.select({
+    studentName: students.name,
+    studentEmail: students.email,
+    classCode: classes.classCode,
+    componentCode: classes.componentCode,
+    semester: classes.semester,
+  })
+    .from(students)
+    .innerJoin(classes, eq(students.classId, classes.id))
+    .where(inArray(students.classId, classIds))
+    .orderBy(students.name);
+  return rows;
+}

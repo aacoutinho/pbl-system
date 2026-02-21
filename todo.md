@@ -63,3 +63,4 @@
 - [x] Atualizar schema de turmas: usar apenas classCode (TP01), componentCode (TEC502) e semester (20262)
 - [x] Atualizar geração de e-mails: ignorar sufixos (Junior, Jr., Neto, Filho) e usar @ecomp.uefs.br como padrão
 - [x] Reordenar colunas da lista de alunos: matrícula, nome, e-mail
+- [x] Exportar alunos para CSV formato Google Workspace (todas turmas ou turmas selecionadas por semestre)
