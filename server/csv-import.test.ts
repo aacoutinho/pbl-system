@@ -14,23 +14,27 @@ function parseCSV(csvContent: string, emailDomain?: string) {
     if (!name || !enrollment) continue;
     if (name === "Aluno" || enrollment === "Matrícula") continue;
 
+    // Generate email: initials + last name (ignoring suffixes like Junior, Jr., Neto, Filho)
+    const domain = emailDomain || "ecomp.uefs.br";
+    const parts = name.toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .split(/\s+/)
+      .filter(p => p.length > 0);
+    
+    // Remove common suffixes from the end
+    const suffixes = ["junior", "jr", "jr.", "neto", "filho"];
+    let filteredParts = [...parts];
+    while (filteredParts.length > 1 && suffixes.includes(filteredParts[filteredParts.length - 1].replace(/\./g, ""))) {
+      filteredParts.pop();
+    }
+    
     let email = "";
-    if (emailDomain) {
-      // Generate email: first letter of each initial name + full last name
-      // Example: ANTONIO AUGUSTO TEIXEIRA RIBEIRO COUTINHO → aatrcoutinho@domain
-      const parts = name.toLowerCase()
-        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-        .split(/\s+/)
-        .filter(p => p.length > 0);
-      if (parts.length >= 2) {
-        const initials = parts.slice(0, -1).map(p => p[0]).join("");
-        const lastName = parts[parts.length - 1];
-        email = `${initials}${lastName}@${emailDomain}`;
-      } else {
-        email = `${parts[0]}@${emailDomain}`;
-      }
+    if (filteredParts.length >= 2) {
+      const initials = filteredParts.slice(0, -1).map(p => p[0]).join("");
+      const lastName = filteredParts[filteredParts.length - 1];
+      email = `${initials}${lastName}@${domain}`;
     } else {
-      email = `${enrollment}@placeholder.com`;
+      email = `${filteredParts[0]}@${domain}`;
     }
 
     parsed.push({ name, email, enrollment });
@@ -76,10 +80,12 @@ describe("CSV Import - SAGRES Format Parser", () => {
     expect(result[10].enrollment).toBe("22111240");
   });
 
-  it("generates placeholder emails when no domain is provided", () => {
+  it("generates emails with default domain when no domain is provided", () => {
     const result = parseCSV(SAMPLE_CSV_SIMPLE);
-    expect(result[0].email).toBe("20111193@placeholder.com");
-    expect(result[1].email).toBe("23211291@placeholder.com");
+    // CLEIDSON RAMOS DE CARVALHO → crdcarvalho@ecomp.uefs.br
+    expect(result[0].email).toBe("crdcarvalho@ecomp.uefs.br");
+    // FELIPE DA SILVA FERREIRA → fdsferreira@ecomp.uefs.br
+    expect(result[1].email).toBe("fdsferreira@ecomp.uefs.br");
   });
 
   it("generates emails from name when domain is provided (initials + last name)", () => {
@@ -125,6 +131,34 @@ describe("CSV Import - SAGRES Format Parser", () => {
     const csvSingleName = `;1;;99999 ;MADONNA;;;;;   _;`;
     const result = parseCSV(csvSingleName, "uefs.br");
     expect(result[0].email).toBe("madonna@uefs.br");
+  });
+
+  it("ignores Junior suffix when generating email", () => {
+    const csvWithJunior = `;1;;12345 ;JOSÉ MACEDO DOS SANTOS JUNIOR;;;;;   _;`;
+    const result = parseCSV(csvWithJunior);
+    // JOSÉ MACEDO DOS SANTOS JUNIOR → jmdsantos@ecomp.uefs.br (ignoring JUNIOR)
+    expect(result[0].email).toBe("jmdsantos@ecomp.uefs.br");
+  });
+
+  it("ignores Jr. suffix when generating email", () => {
+    const csvWithJr = `;1;;12346 ;PEDRO SILVA JR.;;;;;   _;`;
+    const result = parseCSV(csvWithJr);
+    // PEDRO SILVA JR. → psilva@ecomp.uefs.br (ignoring JR.)
+    expect(result[0].email).toBe("psilva@ecomp.uefs.br");
+  });
+
+  it("ignores Neto suffix when generating email", () => {
+    const csvWithNeto = `;1;;12347 ;GERSON FERREIRA DOS ANJOS NETO;;;;;   _;`;
+    const result = parseCSV(csvWithNeto);
+    // GERSON FERREIRA DOS ANJOS NETO → gfdanjos@ecomp.uefs.br (ignoring NETO)
+    expect(result[0].email).toBe("gfdanjos@ecomp.uefs.br");
+  });
+
+  it("ignores Filho suffix when generating email", () => {
+    const csvWithFilho = `;1;;12348 ;ANTONIO RIBEIRO TEIXEIRA FILHO;;;;;   _;`;
+    const result = parseCSV(csvWithFilho);
+    // ANTONIO RIBEIRO TEIXEIRA FILHO → arteixeira@ecomp.uefs.br (ignoring FILHO)
+    expect(result[0].email).toBe("arteixeira@ecomp.uefs.br");
   });
 
   it("trims whitespace from enrollment and name", () => {

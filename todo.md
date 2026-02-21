@@ -61,3 +61,4 @@
 - [ ] Update VITE_APP_TITLE: "Sistema Automatizado de Avaliação de Alunos" → "Sistema de Avaliação Tutorial"
 - [x] Alterar domínio padrão de email na importação em lote para @ecomp.uefs.br
 - [x] Atualizar schema de turmas: usar apenas classCode (TP01), componentCode (TEC502) e semester (20262)
+- [x] Atualizar geração de e-mails: ignorar sufixos (Junior, Jr., Neto, Filho) e usar @ecomp.uefs.br como padrão

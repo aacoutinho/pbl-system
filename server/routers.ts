@@ -124,20 +124,27 @@ export const appRouter = router({
         // Skip header row
         if (name === "Aluno" || enrollment === "Matr\u00edcula") continue;
 
-        // Generate email from name if domain provided
+        // Generate email: initials + last name (ignoring suffixes like Junior, Jr., Neto, Filho)
+        const domain = input.emailDomain || "ecomp.uefs.br";
+        const parts = name.toLowerCase()
+          .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+          .split(/\s+/)
+          .filter(p => p.length > 0);
+        
+        // Remove common suffixes from the end
+        const suffixes = ["junior", "jr", "jr.", "neto", "filho"];
+        let filteredParts = [...parts];
+        while (filteredParts.length > 1 && suffixes.includes(filteredParts[filteredParts.length - 1].replace(/\./g, ""))) {
+          filteredParts.pop();
+        }
+        
         let email = "";
-        if (input.emailDomain) {
-          // Generate email: first.last@domain
-          const parts = name.toLowerCase()
-            .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-            .split(/\s+/);
-          if (parts.length >= 2) {
-            email = `${parts[0]}.${parts[parts.length - 1]}@${input.emailDomain}`;
-          } else {
-            email = `${parts[0]}@${input.emailDomain}`;
-          }
+        if (filteredParts.length >= 2) {
+          const initials = filteredParts.slice(0, -1).map(p => p[0]).join("");
+          const lastName = filteredParts[filteredParts.length - 1];
+          email = `${initials}${lastName}@${domain}`;
         } else {
-          email = `${enrollment}@placeholder.com`;
+          email = `${filteredParts[0]}@${domain}`;
         }
 
         parsedStudents.push({ name, email, enrollment });

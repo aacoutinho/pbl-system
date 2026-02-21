@@ -106,18 +106,27 @@ function StudentsContent() {
       if (!name || !enrollment) continue;
       if (name === "Aluno" || enrollment === "Matrícula") continue;
 
+      // Generate email: initials + last name (ignoring suffixes like Junior, Jr., Neto, Filho)
+      const emailDomain = domain || "ecomp.uefs.br";
+      const parts = name.toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .split(/\s+/)
+        .filter(p => p.length > 0);
+      
+      // Remove common suffixes from the end
+      const suffixes = ["junior", "jr", "jr.", "neto", "filho"];
+      let filteredParts = [...parts];
+      while (filteredParts.length > 1 && suffixes.includes(filteredParts[filteredParts.length - 1].replace(/\./g, ""))) {
+        filteredParts.pop();
+      }
+      
       let email = "";
-      if (domain) {
-        const parts = name.toLowerCase()
-          .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-          .split(/\s+/);
-        if (parts.length >= 2) {
-          email = `${parts[0]}.${parts[parts.length - 1]}@${domain}`;
-        } else {
-          email = `${parts[0]}@${domain}`;
-        }
+      if (filteredParts.length >= 2) {
+        const initials = filteredParts.slice(0, -1).map(p => p[0]).join("");
+        const lastName = filteredParts[filteredParts.length - 1];
+        email = `${initials}${lastName}@${emailDomain}`;
       } else {
-        email = `${enrollment}@placeholder.com`;
+        email = `${filteredParts[0]}@${emailDomain}`;
       }
       parsed.push({ name, enrollment, email });
     }
@@ -218,8 +227,8 @@ function StudentsContent() {
                     className="mt-1"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Se informado, os e-mails serão gerados automaticamente no formato <strong>primeiro.ultimo@dominio</strong>.
-                    Caso contrário, será usado matrícula@placeholder.com (edite depois).
+                    Se não informado, os e-mails serão gerados automaticamente no formato <strong>letras_iniciais+ultimo_nome@ecomp.uefs.br</strong>.
+                    Sufixos como Junior, Jr., Neto e Filho são ignorados.
                   </p>
                 </div>
 
