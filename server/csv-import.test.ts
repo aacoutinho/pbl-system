@@ -16,11 +16,16 @@ function parseCSV(csvContent: string, emailDomain?: string) {
 
     let email = "";
     if (emailDomain) {
+      // Generate email: first letter of each initial name + full last name
+      // Example: ANTONIO AUGUSTO TEIXEIRA RIBEIRO COUTINHO → aatrcoutinho@domain
       const parts = name.toLowerCase()
         .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-        .split(/\s+/);
+        .split(/\s+/)
+        .filter(p => p.length > 0);
       if (parts.length >= 2) {
-        email = `${parts[0]}.${parts[parts.length - 1]}@${emailDomain}`;
+        const initials = parts.slice(0, -1).map(p => p[0]).join("");
+        const lastName = parts[parts.length - 1];
+        email = `${initials}${lastName}@${emailDomain}`;
       } else {
         email = `${parts[0]}@${emailDomain}`;
       }
@@ -77,18 +82,22 @@ describe("CSV Import - SAGRES Format Parser", () => {
     expect(result[1].email).toBe("23211291@placeholder.com");
   });
 
-  it("generates emails from name when domain is provided", () => {
+  it("generates emails from name when domain is provided (initials + last name)", () => {
     const result = parseCSV(SAMPLE_CSV_SIMPLE, "uefs.br");
-    expect(result[0].email).toBe("cleidson.carvalho@uefs.br");
-    expect(result[1].email).toBe("felipe.ferreira@uefs.br");
-    expect(result[10].email).toBe("yasmin.meira@uefs.br");
+    // CLEIDSON RAMOS DE CARVALHO → crdcarvalho@uefs.br
+    expect(result[0].email).toBe("crdcarvalho@uefs.br");
+    // FELIPE DA SILVA FERREIRA → fdsferreira@uefs.br
+    expect(result[1].email).toBe("fdsferreira@uefs.br");
+    // YASMIN CORDEIRO DE SOUZA MEIRA → ycdsmeira@uefs.br
+    expect(result[10].email).toBe("ycdsmeira@uefs.br");
   });
 
   it("removes accents from generated emails", () => {
     const csvWithAccents = `;N°;;Matrícula; Aluno;
 ;1;;12345 ;JOSÉ ANTÔNIO DA CONCEIÇÃO;;;;;   _;`;
     const result = parseCSV(csvWithAccents, "uefs.br");
-    expect(result[0].email).toBe("jose.conceicao@uefs.br");
+    // JOSÉ ANTÔNIO DA CONCEIÇÃO → jadconceicao@uefs.br
+    expect(result[0].email).toBe("jadconceicao@uefs.br");
   });
 
   it("handles CSV with DevExpress trial notice header", () => {
