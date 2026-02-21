@@ -14,6 +14,7 @@ import ResultsPage from "./pages/ResultsPage";
 import TutorialEvalPage from "./pages/TutorialEvalPage";
 import ExportStudentsPage from "./pages/ExportStudentsPage";
 import StudentAccessPage from "./pages/StudentAccessPage";
+import ProfessorsPage from "./pages/ProfessorsPage";
 
 function Router() {
   return (
@@ -27,6 +28,7 @@ function Router() {
       <Route path={"/tutorial-eval"} component={TutorialEvalPage} />
       <Route path={"/results"} component={ResultsPage} />
       <Route path={"/export-students"} component={ExportStudentsPage} />
+      <Route path={"/professors"} component={ProfessorsPage} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

@@ -14,9 +14,17 @@ import {
   submitTutorialEvaluation, getTutorialEvaluation, calculateTutorialGrade,
   calculateFinalGrades, calculateProblemFinalGrades,
   generateAccessCode, getSessionByAccessCode, findStudentByEmailUsername,
+  approveUser, rejectUser, listPendingProfessors, listApprovedProfessors,
+  addProfessorComponent, removeProfessorComponent, listProfessorComponents, listAllProfessorComponents,
+  getUserById,
 } from "./db";
 
-const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
+const approvedProcedure = protectedProcedure.use(({ ctx, next }) => {
+  if (ctx.user.approvalStatus !== "approved") throw new TRPCError({ code: "FORBIDDEN", message: "Acesso pendente de aprovação" });
+  return next({ ctx });
+});
+
+const adminProcedure = approvedProcedure.use(({ ctx, next }) => {
   if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a professores" });
   return next({ ctx });
 });
@@ -443,6 +451,47 @@ export const appRouter = router({
       if (!eval_) return null;
       const grade = calculateTutorialGrade(eval_);
       return { ...eval_, tutorialGrade: Math.round(grade * 10) / 10 };
+    }),
+  }),
+
+  // ─── Professor Authorization ───
+  professors: router({
+    pending: adminProcedure.query(async () => {
+      return listPendingProfessors();
+    }),
+    approved: adminProcedure.query(async () => {
+      return listApprovedProfessors();
+    }),
+    approve: adminProcedure.input(z.object({ userId: z.number() })).mutation(async ({ input }) => {
+      await approveUser(input.userId);
+      return { success: true };
+    }),
+    reject: adminProcedure.input(z.object({ userId: z.number() })).mutation(async ({ input }) => {
+      await rejectUser(input.userId);
+      return { success: true };
+    }),
+    addComponent: adminProcedure.input(z.object({
+      userId: z.number(),
+      componentCode: z.string().min(1),
+    })).mutation(async ({ ctx, input }) => {
+      await addProfessorComponent(input.userId, input.componentCode, ctx.user.id);
+      return { success: true };
+    }),
+    removeComponent: adminProcedure.input(z.object({
+      userId: z.number(),
+      componentCode: z.string().min(1),
+    })).mutation(async ({ input }) => {
+      await removeProfessorComponent(input.userId, input.componentCode);
+      return { success: true };
+    }),
+    components: adminProcedure.input(z.object({ userId: z.number() })).query(async ({ input }) => {
+      return listProfessorComponents(input.userId);
+    }),
+    allComponents: adminProcedure.query(async () => {
+      return listAllProfessorComponents();
+    }),
+    myStatus: protectedProcedure.query(async ({ ctx }) => {
+      return { approvalStatus: ctx.user.approvalStatus, role: ctx.user.role };
     }),
   }),
 

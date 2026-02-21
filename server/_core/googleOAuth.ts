@@ -159,15 +159,38 @@ export function registerGoogleOAuthRoutes(app: Express) {
       // Use google:<google_id> as the openId to avoid collisions with Manus openIds
       const openId = `google:${googleUser.id}`;
 
-      // Upsert user in database — all OAuth logins are professors (admin)
-      await db.upsertUser({
-        openId,
-        name: googleUser.name || null,
-        email: googleUser.email,
-        loginMethod: "google",
-        role: "admin",
-        lastSignedIn: new Date(),
-      });
+      // Check if user already exists to determine approval status
+      const existingUser = await db.getUserByOpenId(openId);
+      const isOwner = openId === ENV.ownerOpenId;
+
+      if (existingUser) {
+        // Existing user — update sign-in info but keep approval status
+        await db.upsertUser({
+          openId,
+          name: googleUser.name || null,
+          email: googleUser.email,
+          loginMethod: "google",
+          lastSignedIn: new Date(),
+        });
+      } else {
+        // New user — owner gets auto-approved, others are pending
+        await db.upsertUser({
+          openId,
+          name: googleUser.name || null,
+          email: googleUser.email,
+          loginMethod: "google",
+          role: isOwner ? "admin" : "admin",
+          lastSignedIn: new Date(),
+        });
+        // Set approval status after creation
+        const newUser = await db.getUserByOpenId(openId);
+        if (newUser && !isOwner) {
+          // New professor is pending approval
+          // approvalStatus defaults to "pending" from schema
+        } else if (newUser && isOwner) {
+          await db.approveUser(newUser.id);
+        }
+      }
 
       // Create session JWT using the same SDK mechanism
       const sessionToken = await sdk.createSessionToken(openId, {

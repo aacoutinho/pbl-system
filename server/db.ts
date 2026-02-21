@@ -9,6 +9,7 @@ import {
   evaluations,
   evaluationItems, EvaluationItem,
   tutorialEvaluations, TutorialEvaluation,
+  professorComponents, InsertProfessorComponent,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -760,4 +761,78 @@ export async function findStudentByEmailUsername(emailUsername: string, classId:
     const emailUser = s.email.split("@")[0].toLowerCase();
     return emailUser === normalized;
   });
+}
+
+// ─── Professor Authorization helpers ───
+
+export async function approveUser(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(users).set({ approvalStatus: "approved", role: "admin" }).where(eq(users.id, userId));
+}
+
+export async function rejectUser(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(users).set({ approvalStatus: "rejected" }).where(eq(users.id, userId));
+}
+
+export async function listPendingProfessors() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(users).where(eq(users.approvalStatus, "pending")).orderBy(desc(users.createdAt));
+}
+
+export async function listApprovedProfessors() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(users).where(eq(users.approvalStatus, "approved")).orderBy(users.name);
+}
+
+export async function addProfessorComponent(userId: number, componentCode: string, authorizedByUserId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.insert(professorComponents).values({
+    userId,
+    componentCode: componentCode.toUpperCase(),
+    authorizedByUserId,
+  }).onDuplicateKeyUpdate({ set: { authorizedByUserId } });
+}
+
+export async function removeProfessorComponent(userId: number, componentCode: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(professorComponents).where(
+    and(eq(professorComponents.userId, userId), eq(professorComponents.componentCode, componentCode.toUpperCase()))
+  );
+}
+
+export async function listProfessorComponents(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(professorComponents).where(eq(professorComponents.userId, userId));
+}
+
+export async function listAllProfessorComponents() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    id: professorComponents.id,
+    userId: professorComponents.userId,
+    componentCode: professorComponents.componentCode,
+    authorizedAt: professorComponents.authorizedAt,
+    authorizedByUserId: professorComponents.authorizedByUserId,
+    professorName: users.name,
+    professorEmail: users.email,
+  })
+    .from(professorComponents)
+    .innerJoin(users, eq(professorComponents.userId, users.id))
+    .orderBy(professorComponents.componentCode, users.name);
+}
+
+export async function getUserById(userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const [row] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  return row;
 }

@@ -24,7 +24,7 @@ import { getGoogleLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import { useClassContext } from "@/contexts/ClassContext";
 import { trpc } from "@/lib/trpc";
-import { LayoutDashboard, Users, ClipboardList, BarChart3, LogOut, PanelLeft, GraduationCap, BookOpen, ClipboardCheck, Download, KeyRound } from "lucide-react";
+import { LayoutDashboard, Users, ClipboardList, BarChart3, LogOut, PanelLeft, GraduationCap, BookOpen, ClipboardCheck, Download, KeyRound, UserCheck, Clock } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -39,6 +39,7 @@ const adminMenuItems = [
   { icon: ClipboardCheck, label: "Avaliar Tutorial", path: "/tutorial-eval" },
   { icon: BarChart3, label: "Resultados", path: "/results" },
   { icon: Download, label: "Exportar Alunos", path: "/export-students" },
+  { icon: UserCheck, label: "Professores", path: "/professors" },
 ];
 
 // Students access only via session code — no dashboard menu needed
@@ -65,6 +66,38 @@ export default function DashboardLayout({
 
   if (loading) {
     return <DashboardLayoutSkeleton />
+  }
+
+  // Check if user is pending approval
+  if (user && user.approvalStatus !== "approved") {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/10">
+        <div className="flex flex-col items-center gap-6 p-10 max-w-md w-full bg-card rounded-2xl shadow-lg border">
+          <div className="h-16 w-16 rounded-full bg-amber-100 flex items-center justify-center">
+            <Clock className="h-8 w-8 text-amber-600" />
+          </div>
+          <h1 className="text-xl font-bold tracking-tight text-center text-card-foreground">
+            Acesso Pendente
+          </h1>
+          <p className="text-sm text-muted-foreground text-center leading-relaxed">
+            Olá, <strong>{user.name || user.email}</strong>! Seu cadastro foi recebido e está aguardando aprovação de um professor já autorizado.
+          </p>
+          <p className="text-xs text-muted-foreground text-center">
+            {user.approvalStatus === "rejected" 
+              ? "Sua solicitação foi rejeitada. Entre em contato com o administrador."
+              : "Você será notificado quando seu acesso for liberado. Tente novamente mais tarde."}
+          </p>
+          <Button
+            onClick={() => { window.location.href = "/"; }}
+            variant="outline"
+            className="w-full"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Voltar
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   if (!user) {

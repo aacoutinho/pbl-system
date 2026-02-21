@@ -8,6 +8,7 @@ export const users = mysqlTable("users", {
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  approvalStatus: mysqlEnum("approvalStatus", ["pending", "approved", "rejected"]).default("pending").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -15,6 +16,20 @@ export const users = mysqlTable("users", {
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
+
+// ─── Professor Component Authorizations ───
+export const professorComponents = mysqlTable("professor_components", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  componentCode: varchar("componentCode", { length: 32 }).notNull(), // Ex: TEC502
+  authorizedAt: timestamp("authorizedAt").defaultNow().notNull(),
+  authorizedByUserId: int("authorizedByUserId"),
+}, (table) => [
+  unique("uq_professor_component").on(table.userId, table.componentCode),
+]);
+
+export type ProfessorComponent = typeof professorComponents.$inferSelect;
+export type InsertProfessorComponent = typeof professorComponents.$inferInsert;
 
 // ─── Classes (turmas) ───
 export const classes = mysqlTable("classes", {

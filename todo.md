@@ -85,3 +85,9 @@
 - [x] Simplificar tela de login: OAuth para professor, código para aluno
 - [x] Remover rotas de aluno no backend (myClasses, myResults, etc.)
 - [x] Remover botão "Entrar com Manus" da tela de login (apenas Google OAuth)
+- [x] Schema: adicionar campo status (pending/approved) à tabela users e tabela professorComponents
+- [x] Backend: login OAuth define professor como pendente (não admin imediato)
+- [x] Backend: rotas para listar, aprovar e rejeitar professores por componente
+- [x] Frontend: tela de "acesso pendente" para professor não aprovado
+- [x] Frontend: página de gestão de professores autorizados e pendentes por componente
+- [x] Testes: autorização de professores
