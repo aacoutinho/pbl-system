@@ -24,7 +24,7 @@ import { getLoginUrl, getGoogleLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import { useClassContext } from "@/contexts/ClassContext";
 import { trpc } from "@/lib/trpc";
-import { LayoutDashboard, Users, ClipboardList, BarChart3, LogOut, PanelLeft, GraduationCap, FileSpreadsheet, BookOpen, ClipboardCheck, Download } from "lucide-react";
+import { LayoutDashboard, Users, ClipboardList, BarChart3, LogOut, PanelLeft, GraduationCap, FileSpreadsheet, BookOpen, ClipboardCheck, Download, KeyRound } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -114,6 +114,23 @@ export default function DashboardLayout({
               className="w-full shadow-md hover:shadow-lg transition-all font-semibold"
             >
               Entrar com Manus
+            </Button>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">aluno?</span>
+              </div>
+            </div>
+            <Button
+              onClick={() => { window.location.href = "/acesso"; }}
+              size="lg"
+              variant="outline"
+              className="w-full shadow-md hover:shadow-lg transition-all font-semibold gap-2"
+            >
+              <KeyRound className="h-5 w-5" />
+              Entrar com Código da Sessão
             </Button>
           </div>
         </div>

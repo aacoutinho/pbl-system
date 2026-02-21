@@ -78,3 +78,4 @@
 - [x] Frontend: página de acesso do aluno por código de sessão
 - [x] Frontend: exibir código de acesso na página de sessões do professor
 - [x] Testes: login simplificado por código de sessão
+- [x] Adicionar botão "Entrar com Código" na página inicial
