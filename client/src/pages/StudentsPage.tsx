@@ -373,20 +373,18 @@ function StudentsContent() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left">
-                    <th className="pb-3 pr-4 font-semibold">#</th>
+                    <th className="pb-3 pr-4 font-semibold">Matrícula</th>
                     <th className="pb-3 pr-4 font-semibold">Nome</th>
                     <th className="pb-3 pr-4 font-semibold">E-mail</th>
-                    <th className="pb-3 pr-4 font-semibold">Matrícula</th>
                     <th className="pb-3 font-semibold w-12"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {studentsList.map((student, idx) => (
                     <tr key={student.id} className="border-b last:border-0 hover:bg-accent/20 transition-colors">
-                      <td className="py-3 pr-4 text-muted-foreground">{idx + 1}</td>
+                      <td className="py-3 pr-4 text-sm font-mono text-muted-foreground">{student.enrollment || "—"}</td>
                       <td className="py-3 pr-4 font-medium">{student.name}</td>
                       <td className="py-3 pr-4 text-sm text-muted-foreground">{student.email}</td>
-                      <td className="py-3 pr-4 text-sm font-mono text-muted-foreground">{student.enrollment || "—"}</td>
                       <td className="py-3">
                         <Button
                           variant="ghost"
