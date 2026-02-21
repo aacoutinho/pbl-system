@@ -44,20 +44,30 @@ export const classes = mysqlTable("classes", {
 export type Class = typeof classes.$inferSelect;
 export type InsertClass = typeof classes.$inferInsert;
 
-// ─── Students (registered in the course) ───
+// ─── Students (identified by enrollment/matrícula) ───
 export const students = mysqlTable("students", {
   id: int("id").autoincrement().primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
-  email: varchar("email", { length: 320 }).notNull(),
-  enrollment: varchar("enrollment", { length: 32 }),
-  classId: int("classId").notNull(),
+  enrollment: varchar("enrollment", { length: 32 }).notNull().unique(), // Matrícula - chave única
+  email: varchar("email", { length: 320 }), // Opcional - definido pelo aluno na avaliação
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-}, (table) => [
-  unique("uq_student_email_class").on(table.email, table.classId),
-]);
+});
 
 export type Student = typeof students.$inferSelect;
 export type InsertStudent = typeof students.$inferInsert;
+
+// ─── Class Students (vínculo aluno-turma) ───
+export const classStudents = mysqlTable("class_students", {
+  id: int("id").autoincrement().primaryKey(),
+  studentId: int("studentId").notNull(),
+  classId: int("classId").notNull(),
+  addedAt: timestamp("addedAt").defaultNow().notNull(),
+}, (table) => [
+  unique("uq_student_class").on(table.studentId, table.classId),
+]);
+
+export type ClassStudent = typeof classStudents.$inferSelect;
+export type InsertClassStudent = typeof classStudents.$inferInsert;
 
 // ─── Sessions (evaluation sessions: PxSy) ───
 export const sessions = mysqlTable("sessions", {

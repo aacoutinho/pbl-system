@@ -5,15 +5,16 @@ import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import {
-  createClass, listClassesByProfessor, updateClass, deleteClass, getClassById, getClassesForStudentEmail,
-  listStudentsByClass, createStudent, deleteStudent, getStudentByEmailAndClass, bulkCreateStudents,
-  bulkCreateStudentsWithEnrollment, listAllClasses, listStudentsForExport,
+  createClass, listClassesByProfessor, updateClass, deleteClass, getClassById,
+  listStudentsByClass, createStudent, updateStudent, removeStudentFromClass, getStudentByEnrollment,
+  addStudentToClass, isStudentInComponentClass, bulkImportStudents,
+  listAllClasses, listStudentsForExport, updateStudentEmail,
   createSession, listSessionsByClass, getSessionStudents, closeSession, openSession, deleteSession, getSessionById,
   submitEvaluation, getSessionEvaluations, hasStudentSubmitted,
   calculateSessionResults, calculateProblemResults, getDashboardStats,
   submitTutorialEvaluation, getTutorialEvaluation, calculateTutorialGrade,
   calculateFinalGrades, calculateProblemFinalGrades,
-  generateAccessCode, getSessionByAccessCode, findStudentByEmailUsername,
+  generateAccessCode, getSessionByAccessCode, findStudentByEnrollmentInClass,
   approveUser, rejectUser, listPendingProfessors, listApprovedProfessors,
   addProfessorComponent, removeProfessorComponent, listProfessorComponents, listAllProfessorComponents,
   getUserById,
@@ -68,11 +69,7 @@ export const appRouter = router({
       await deleteClass(input.id);
       return { success: true };
     }),
-    // For students: list classes they belong to
-    myClasses: protectedProcedure.query(async ({ ctx }) => {
-      if (!ctx.user.email) return [];
-      return getClassesForStudentEmail(ctx.user.email);
-    }),
+
     // All classes (for cross-class results visibility)
     listAll: adminProcedure.query(async () => {
       return listAllClasses();
@@ -89,38 +86,55 @@ export const appRouter = router({
     create: adminProcedure.input(z.object({
       classId: z.number(),
       name: z.string().min(1),
-      email: z.string().email(),
+      enrollment: z.string().min(1),
+      email: z.string().optional(),
     })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.classId);
       if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
-      return createStudent({ name: input.name, email: input.email.toLowerCase(), classId: input.classId });
+      // Check if student already exists by enrollment
+      let student = await getStudentByEnrollment(input.enrollment);
+      if (student) {
+        // Check if already in this class
+        const classStudentsList = await listStudentsByClass(input.classId);
+        if (classStudentsList.some(s => s.id === student!.id)) {
+          throw new TRPCError({ code: "CONFLICT", message: "Aluno já está nesta turma" });
+        }
+        // Check component conflict
+        const inComponent = await isStudentInComponentClass(student.id, cls.componentCode, input.classId);
+        if (inComponent) {
+          throw new TRPCError({ code: "CONFLICT", message: "Aluno já está em outra turma deste componente" });
+        }
+        await addStudentToClass(student.id, input.classId);
+      } else {
+        student = await createStudent({ name: input.name, enrollment: input.enrollment, email: input.email || null });
+        if (student) await addStudentToClass(student.id, input.classId);
+      }
+      return student;
     }),
-    bulkCreate: adminProcedure.input(z.object({
-      classId: z.number(),
-      students: z.array(z.object({
-        name: z.string().min(1),
-        email: z.string().email(),
-      })),
-    })).mutation(async ({ ctx, input }) => {
+    update: adminProcedure.input(z.object({
+      studentId: z.number(),
+      name: z.string().optional(),
+      enrollment: z.string().optional(),
+      email: z.string().nullable().optional(),
+    })).mutation(async ({ input }) => {
+      return updateStudent(input.studentId, { name: input.name, enrollment: input.enrollment, email: input.email });
+    }),
+    removeFromClass: adminProcedure.input(z.object({ studentId: z.number(), classId: z.number() })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.classId);
       if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
-      return bulkCreateStudents(input.students.map(s => ({ ...s, email: s.email.toLowerCase(), classId: input.classId })));
-    }),
-    delete: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
-      await deleteStudent(input.id);
+      await removeStudentFromClass(input.studentId, input.classId);
       return { success: true };
     }),
     importCSV: adminProcedure.input(z.object({
       classId: z.number(),
       csvContent: z.string(),
-      emailDomain: z.string().optional(),
     })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.classId);
-      if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma n\u00e3o encontrada" });
+      if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
 
-      // Parse CSV from SAGRES system (semicolon-separated, ISO-8859-1)
+      // Parse CSV from SAGRES system (semicolon-separated)
       const lines = input.csvContent.split("\n");
-      const parsedStudents: { name: string; email: string; enrollment: string }[] = [];
+      const parsedStudents: { name: string; enrollment: string }[] = [];
 
       for (const line of lines) {
         const cols = line.split(";");
@@ -131,47 +145,33 @@ export const appRouter = router({
         const name = cols[4]?.trim();
         if (!name || !enrollment) continue;
         // Skip header row
-        if (name === "Aluno" || enrollment === "Matr\u00edcula") continue;
+        if (name === "Aluno" || enrollment === "Matrícula") continue;
 
-        // Generate email: initials + last name (ignoring suffixes like Junior, Jr., Neto, Filho)
-        const domain = input.emailDomain || "ecomp.uefs.br";
-        const parts = name.toLowerCase()
-          .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-          .split(/\s+/)
-          .filter(p => p.length > 0);
-        
-        // Remove common suffixes from the end
-        const suffixes = ["junior", "jr", "jr.", "neto", "filho"];
-        let filteredParts = [...parts];
-        while (filteredParts.length > 1 && suffixes.includes(filteredParts[filteredParts.length - 1].replace(/\./g, ""))) {
-          filteredParts.pop();
-        }
-        
-        let email = "";
-        if (filteredParts.length >= 2) {
-          const initials = filteredParts.slice(0, -1).map(p => p[0]).join("");
-          const lastName = filteredParts[filteredParts.length - 1];
-          email = `${initials}${lastName}@${domain}`;
-        } else {
-          email = `${filteredParts[0]}@${domain}`;
-        }
-
-        parsedStudents.push({ name, email, enrollment });
+        parsedStudents.push({ name, enrollment });
       }
 
       if (parsedStudents.length === 0) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "Nenhum aluno encontrado no CSV. Verifique se o formato \u00e9 compat\u00edvel com a Folha de Frequ\u00eancia do SAGRES." });
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Nenhum aluno encontrado no CSV. Verifique se o formato é compatível com a Folha de Frequência do SAGRES." });
       }
 
-      await bulkCreateStudentsWithEnrollment(
+      const results = await bulkImportStudents(
         parsedStudents.map(s => ({ ...s, classId: input.classId }))
       );
 
-      return { success: true, count: parsedStudents.length, students: parsedStudents };
-    }),
-    me: protectedProcedure.input(z.object({ classId: z.number() })).query(async ({ ctx, input }) => {
-      if (!ctx.user.email) return null;
-      return getStudentByEmailAndClass(ctx.user.email, input.classId);
+      const created = results.filter(r => r.status === "created").length;
+      const linked = results.filter(r => r.status === "linked").length;
+      const alreadyInClass = results.filter(r => r.status === "already_in_class").length;
+      const conflicts = results.filter(r => r.status === "conflict");
+
+      return {
+        success: true,
+        count: parsedStudents.length,
+        created,
+        linked,
+        alreadyInClass,
+        conflicts: conflicts.map(c => ({ name: c.name, enrollment: c.enrollment })),
+        students: parsedStudents,
+      };
     }),
     exportGoogleWorkspace: adminProcedure.input(z.object({
       classIds: z.array(z.number()).min(1),
@@ -324,16 +324,16 @@ export const appRouter = router({
         semester: cls?.semester ?? "",
       };
     }),
-    // Login with username (email without @domain)
+    // Login with enrollment (matrícula)
     login: publicProcedure.input(z.object({
       accessCode: z.string().min(1).max(8),
-      emailUsername: z.string().min(1),
+      enrollment: z.string().min(1),
     })).mutation(async ({ input }) => {
       const session = await getSessionByAccessCode(input.accessCode.toUpperCase());
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Código de acesso inválido" });
       if (session.status !== "open") throw new TRPCError({ code: "BAD_REQUEST", message: "Esta sessão já foi encerrada" });
-      const student = await findStudentByEmailUsername(input.emailUsername, session.classId);
-      if (!student) throw new TRPCError({ code: "NOT_FOUND", message: "Usuário não encontrado nesta turma. Verifique se digitou corretamente (ex: aatrcoutinho)." });
+      const student = await findStudentByEnrollmentInClass(input.enrollment.trim(), session.classId);
+      if (!student) throw new TRPCError({ code: "NOT_FOUND", message: "Matrícula não encontrada nesta turma. Verifique se digitou corretamente." });
       // Check if student is part of this session
       const sessionStudentsList = await getSessionStudents(session.id);
       const isInSession = sessionStudentsList.some(s => s.studentId === student.id);
@@ -342,11 +342,20 @@ export const appRouter = router({
       return {
         studentId: student.id,
         studentName: student.name,
+        studentEmail: student.email,
         sessionId: session.id,
         sessionLabel: session.label,
         classId: session.classId,
         alreadySubmitted: submitted,
       };
+    }),
+    // Update student email during evaluation
+    updateEmail: publicProcedure.input(z.object({
+      studentId: z.number(),
+      email: z.string().email(),
+    })).mutation(async ({ input }) => {
+      await updateStudentEmail(input.studentId, input.email.toLowerCase());
+      return { success: true };
     }),
     // Get session students for evaluation (public, by access code)
     getSessionStudents: publicProcedure.input(z.object({

@@ -91,3 +91,10 @@
 - [x] Frontend: tela de "acesso pendente" para professor não aprovado
 - [x] Frontend: página de gestão de professores autorizados e pendentes por componente
 - [x] Testes: autorização de professores
+- [x] 1. Matrícula obrigatória em todos os formulários de aluno
+- [x] 2. Alunos inseridos apenas por importação CSV ou edição na lista da turma pelo professor
+- [x] 3. Remover e-mail da importação CSV (e-mail não definido na importação)
+- [x] 4. Aluno define e-mail no início da avaliação de pares (campo editável, persistido)
+- [x] 5. Importação: se aluno já existe (por matrícula), apenas vincular à turma
+- [x] 6. Aluno só pode pertencer a uma turma de um mesmo componente
+- [x] 7. Excluir aluno da turma vs excluir do sistema (só exclui do sistema se não está em nenhuma turma)

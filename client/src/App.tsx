@@ -9,7 +9,6 @@ import Home from "./pages/Home";
 import ClassesPage from "./pages/ClassesPage";
 import StudentsPage from "./pages/StudentsPage";
 import SessionsPage from "./pages/SessionsPage";
-import EvaluatePage from "./pages/EvaluatePage";
 import ResultsPage from "./pages/ResultsPage";
 import TutorialEvalPage from "./pages/TutorialEvalPage";
 import ExportStudentsPage from "./pages/ExportStudentsPage";
@@ -24,7 +23,6 @@ function Router() {
       <Route path={"/classes"} component={ClassesPage} />
       <Route path={"/students"} component={StudentsPage} />
       <Route path={"/sessions"} component={SessionsPage} />
-      <Route path={"/evaluate/:sessionId"} component={EvaluatePage} />
       <Route path={"/tutorial-eval"} component={TutorialEvalPage} />
       <Route path={"/results"} component={ResultsPage} />
       <Route path={"/export-students"} component={ExportStudentsPage} />

@@ -7,10 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, Trash2, Upload, Users, BookOpen, FileSpreadsheet, Check, AlertCircle } from "lucide-react";
-import { useState, useRef, useCallback } from "react";
+import { Plus, Trash2, Upload, Users, BookOpen, FileSpreadsheet, Check, Pencil } from "lucide-react";
+import { useState, useRef } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function StudentsPage() {
@@ -30,38 +29,42 @@ function StudentsContent() {
     { enabled: !!selectedClassId }
   );
   const createMutation = trpc.students.create.useMutation({
-    onSuccess: () => { utils.students.list.invalidate(); toast.success("Aluno cadastrado com sucesso"); },
-    onError: (e) => toast.error(e.message),
+    onSuccess: () => { utils.students.list.invalidate(); toast.success("Aluno cadastrado com sucesso"); setShowAdd(false); },
+    onError: (e: any) => toast.error(e.message),
   });
-  const bulkMutation = trpc.students.bulkCreate.useMutation({
-    onSuccess: () => { utils.students.list.invalidate(); toast.success("Alunos importados com sucesso"); },
-    onError: (e) => toast.error(e.message),
+  const updateMutation = trpc.students.update.useMutation({
+    onSuccess: () => { utils.students.list.invalidate(); toast.success("Aluno atualizado"); setEditingStudent(null); },
+    onError: (e: any) => toast.error(e.message),
   });
   const importCSVMutation = trpc.students.importCSV.useMutation({
     onSuccess: (data) => {
       utils.students.list.invalidate();
-      toast.success(`${data.count} alunos importados com sucesso`);
+      let msg = `${data.count} alunos processados: ${data.created} novos, ${data.linked} vinculados`;
+      if (data.alreadyInClass > 0) msg += `, ${data.alreadyInClass} já na turma`;
+      if (data.conflicts.length > 0) msg += `. ${data.conflicts.length} conflitos (já em outra turma do componente)`;
+      toast.success(msg);
       setShowCSVImport(false);
       setCsvPreview(null);
       setCsvContent("");
-      setEmailDomain("");
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e: any) => toast.error(e.message),
   });
-  const deleteMutation = trpc.students.delete.useMutation({
-    onSuccess: () => { utils.students.list.invalidate(); toast.success("Aluno removido"); },
-    onError: (e) => toast.error(e.message),
+  const removeMutation = trpc.students.removeFromClass.useMutation({
+    onSuccess: () => { utils.students.list.invalidate(); toast.success("Aluno removido da turma"); },
+    onError: (e: any) => toast.error(e.message),
   });
 
   const [newName, setNewName] = useState("");
+  const [newEnrollment, setNewEnrollment] = useState("");
   const [newEmail, setNewEmail] = useState("");
-  const [bulkText, setBulkText] = useState("");
   const [showAdd, setShowAdd] = useState(false);
-  const [showBulk, setShowBulk] = useState(false);
   const [showCSVImport, setShowCSVImport] = useState(false);
   const [csvContent, setCsvContent] = useState("");
-  const [csvPreview, setCsvPreview] = useState<{ name: string; enrollment: string; email: string }[] | null>(null);
-  const [emailDomain, setEmailDomain] = useState("ecomp.uefs.br");
+  const [csvPreview, setCsvPreview] = useState<{ name: string; enrollment: string }[] | null>(null);
+  const [editingStudent, setEditingStudent] = useState<{ id: number; name: string; enrollment: string; email: string | null } | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editEnrollment, setEditEnrollment] = useState("");
+  const [editEmail, setEditEmail] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!selectedClassId) {
@@ -77,26 +80,37 @@ function StudentsContent() {
   }
 
   const handleAdd = () => {
-    if (!newName.trim() || !newEmail.trim()) { toast.error("Preencha nome e e-mail"); return; }
-    createMutation.mutate({ classId: selectedClassId, name: newName.trim(), email: newEmail.trim().toLowerCase() });
-    setNewName(""); setNewEmail(""); setShowAdd(false);
+    if (!newName.trim() || !newEnrollment.trim()) { toast.error("Preencha nome e matrícula"); return; }
+    createMutation.mutate({
+      classId: selectedClassId,
+      name: newName.trim(),
+      enrollment: newEnrollment.trim(),
+      email: newEmail.trim() || undefined,
+    });
+    setNewName(""); setNewEnrollment(""); setNewEmail("");
   };
 
-  const handleBulk = () => {
-    const lines = bulkText.trim().split("\n").filter(l => l.trim());
-    const parsed = lines.map(line => {
-      const parts = line.split(/[,;\t]+/).map(s => s.trim());
-      if (parts.length >= 2) return { name: parts[0], email: parts[1].toLowerCase() };
-      return null;
-    }).filter(Boolean) as { name: string; email: string }[];
-    if (parsed.length === 0) { toast.error("Nenhum aluno válido encontrado. Use formato: Nome, email"); return; }
-    bulkMutation.mutate({ classId: selectedClassId, students: parsed });
-    setBulkText(""); setShowBulk(false);
+  const handleEdit = () => {
+    if (!editingStudent) return;
+    if (!editName.trim() || !editEnrollment.trim()) { toast.error("Preencha nome e matrícula"); return; }
+    updateMutation.mutate({
+      studentId: editingStudent.id,
+      name: editName.trim(),
+      enrollment: editEnrollment.trim(),
+      email: editEmail.trim() || null,
+    });
   };
 
-  const parseCSVPreview = useCallback((content: string, domain: string) => {
+  const startEdit = (student: { id: number; name: string; enrollment: string; email: string | null }) => {
+    setEditingStudent(student);
+    setEditName(student.name);
+    setEditEnrollment(student.enrollment);
+    setEditEmail(student.email || "");
+  };
+
+  const parseCSVPreview = (content: string) => {
     const lines = content.split("\n");
-    const parsed: { name: string; enrollment: string; email: string }[] = [];
+    const parsed: { name: string; enrollment: string }[] = [];
     for (const line of lines) {
       const cols = line.split(";");
       const num = cols[1]?.trim();
@@ -105,44 +119,19 @@ function StudentsContent() {
       const name = cols[4]?.trim();
       if (!name || !enrollment) continue;
       if (name === "Aluno" || enrollment === "Matrícula") continue;
-
-      // Generate email: initials + last name (ignoring suffixes like Junior, Jr., Neto, Filho)
-      const emailDomain = domain || "ecomp.uefs.br";
-      const parts = name.toLowerCase()
-        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-        .split(/\s+/)
-        .filter(p => p.length > 0);
-      
-      // Remove common suffixes from the end
-      const suffixes = ["junior", "jr", "jr.", "neto", "filho"];
-      let filteredParts = [...parts];
-      while (filteredParts.length > 1 && suffixes.includes(filteredParts[filteredParts.length - 1].replace(/\./g, ""))) {
-        filteredParts.pop();
-      }
-      
-      let email = "";
-      if (filteredParts.length >= 2) {
-        const initials = filteredParts.slice(0, -1).map(p => p[0]).join("");
-        const lastName = filteredParts[filteredParts.length - 1];
-        email = `${initials}${lastName}@${emailDomain}`;
-      } else {
-        email = `${filteredParts[0]}@${emailDomain}`;
-      }
-      parsed.push({ name, enrollment, email });
+      parsed.push({ name, enrollment });
     }
     return parsed;
-  }, []);
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // Try reading with different encodings
     const reader = new FileReader();
     reader.onload = (ev) => {
       const text = ev.target?.result as string;
       setCsvContent(text);
-      const preview = parseCSVPreview(text, emailDomain);
+      const preview = parseCSVPreview(text);
       setCsvPreview(preview);
       if (preview.length === 0) {
         toast.error("Nenhum aluno encontrado no arquivo. Verifique se é uma Folha de Frequência do SAGRES.");
@@ -150,24 +139,12 @@ function StudentsContent() {
         toast.success(`${preview.length} alunos encontrados no arquivo`);
       }
     };
-    // Try ISO-8859-1 first (common for SAGRES)
     reader.readAsText(file, "ISO-8859-1");
-  };
-
-  const handleDomainChange = (newDomain: string) => {
-    setEmailDomain(newDomain);
-    if (csvContent) {
-      setCsvPreview(parseCSVPreview(csvContent, newDomain));
-    }
   };
 
   const handleCSVImport = () => {
     if (!csvContent) { toast.error("Selecione um arquivo CSV"); return; }
-    importCSVMutation.mutate({
-      classId: selectedClassId,
-      csvContent,
-      emailDomain: emailDomain || undefined,
-    });
+    importCSVMutation.mutate({ classId: selectedClassId, csvContent });
   };
 
   return (
@@ -181,7 +158,7 @@ function StudentsContent() {
           {/* CSV Import from SAGRES */}
           <Dialog open={showCSVImport} onOpenChange={(open) => {
             setShowCSVImport(open);
-            if (!open) { setCsvPreview(null); setCsvContent(""); setEmailDomain(""); }
+            if (!open) { setCsvPreview(null); setCsvContent(""); }
           }}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm">
@@ -218,19 +195,10 @@ function StudentsContent() {
                   </div>
                 </div>
 
-                <div>
-                  <Label>Domínio de e-mail (opcional)</Label>
-                  <Input
-                    value={emailDomain}
-                    onChange={e => handleDomainChange(e.target.value)}
-                    placeholder="ecomp.uefs.br"
-                    className="mt-1"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Se não informado, os e-mails serão gerados automaticamente no formato <strong>letras_iniciais+ultimo_nome@ecomp.uefs.br</strong>.
-                    Sufixos como Junior, Jr., Neto e Filho são ignorados.
-                  </p>
-                </div>
+                <p className="text-xs text-muted-foreground">
+                  O e-mail não é definido na importação. O aluno poderá informar seu e-mail ao acessar a avaliação de pares.
+                  Se o aluno já existir no sistema (mesma matrícula), ele será apenas vinculado a esta turma.
+                </p>
 
                 {csvPreview && csvPreview.length > 0 && (
                   <div>
@@ -246,7 +214,6 @@ function StudentsContent() {
                               <th className="px-3 py-2 text-left font-medium">#</th>
                               <th className="px-3 py-2 text-left font-medium">Matrícula</th>
                               <th className="px-3 py-2 text-left font-medium">Nome</th>
-                              <th className="px-3 py-2 text-left font-medium">E-mail (gerado)</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -255,26 +222,12 @@ function StudentsContent() {
                                 <td className="px-3 py-2 text-muted-foreground">{i + 1}</td>
                                 <td className="px-3 py-2 font-mono text-xs">{s.enrollment}</td>
                                 <td className="px-3 py-2">{s.name}</td>
-                                <td className="px-3 py-2 text-xs">
-                                  {s.email.includes("placeholder") ? (
-                                    <span className="text-amber-600 flex items-center gap-1">
-                                      <AlertCircle className="h-3 w-3" />{s.email}
-                                    </span>
-                                  ) : s.email}
-                                </td>
                               </tr>
                             ))}
                           </tbody>
                         </table>
                       </div>
                     </div>
-                    {csvPreview.some(s => s.email.includes("placeholder")) && (
-                      <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        E-mails com "placeholder" precisarão ser editados manualmente após a importação.
-                        Informe um domínio de e-mail acima para gerar automaticamente.
-                      </p>
-                    )}
                   </div>
                 )}
               </div>
@@ -284,37 +237,6 @@ function StudentsContent() {
                   disabled={importCSVMutation.isPending || !csvPreview || csvPreview.length === 0}
                 >
                   {importCSVMutation.isPending ? "Importando..." : `Importar ${csvPreview?.length ?? 0} Alunos`}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          {/* Bulk text import */}
-          <Dialog open={showBulk} onOpenChange={setShowBulk}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Upload className="h-4 w-4 mr-2" />Importar Texto
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Importar Alunos em Lote</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label>Lista de alunos (um por linha: Nome, email)</Label>
-                  <Textarea
-                    value={bulkText}
-                    onChange={e => setBulkText(e.target.value)}
-                    placeholder={"João Silva, joao@email.com\nMaria Santos, maria@email.com"}
-                    rows={8}
-                    className="mt-2 font-mono text-sm"
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button onClick={handleBulk} disabled={bulkMutation.isPending}>
-                  {bulkMutation.isPending ? "Importando..." : "Importar"}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -333,12 +255,17 @@ function StudentsContent() {
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <Label>Nome completo</Label>
+                  <Label>Matrícula *</Label>
+                  <Input value={newEnrollment} onChange={e => setNewEnrollment(e.target.value)} placeholder="20221001" className="mt-1" />
+                </div>
+                <div>
+                  <Label>Nome completo *</Label>
                   <Input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Nome do aluno" className="mt-1" />
                 </div>
                 <div>
-                  <Label>E-mail</Label>
-                  <Input value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="aluno@email.com" type="email" className="mt-1" />
+                  <Label>E-mail (opcional)</Label>
+                  <Input value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="aluno@ecomp.uefs.br" type="email" className="mt-1" />
+                  <p className="text-xs text-muted-foreground mt-1">O aluno poderá informar o e-mail ao acessar a avaliação.</p>
                 </div>
               </div>
               <DialogFooter>
@@ -351,11 +278,39 @@ function StudentsContent() {
         </div>
       </div>
 
+      {/* Edit student dialog */}
+      <Dialog open={!!editingStudent} onOpenChange={(open) => { if (!open) setEditingStudent(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Aluno</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Matrícula *</Label>
+              <Input value={editEnrollment} onChange={e => setEditEnrollment(e.target.value)} className="mt-1" />
+            </div>
+            <div>
+              <Label>Nome completo *</Label>
+              <Input value={editName} onChange={e => setEditName(e.target.value)} className="mt-1" />
+            </div>
+            <div>
+              <Label>E-mail (opcional)</Label>
+              <Input value={editEmail} onChange={e => setEditEmail(e.target.value)} type="email" className="mt-1" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleEdit} disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Alunos Cadastrados
+            Alunos da Turma
             {studentsList && <Badge variant="secondary" className="ml-2">{studentsList.length}</Badge>}
           </CardTitle>
         </CardHeader>
@@ -366,7 +321,7 @@ function StudentsContent() {
             <div className="text-center py-8 text-muted-foreground">
               <Users className="h-10 w-10 mx-auto mb-3 opacity-40" />
               <p>Nenhum aluno cadastrado nesta turma.</p>
-              <p className="text-sm mt-1">Adicione alunos individualmente, importe via texto ou use o CSV do SAGRES.</p>
+              <p className="text-sm mt-1">Adicione alunos individualmente ou importe via CSV do SAGRES.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -376,22 +331,30 @@ function StudentsContent() {
                     <th className="pb-3 pr-4 font-semibold">Matrícula</th>
                     <th className="pb-3 pr-4 font-semibold">Nome</th>
                     <th className="pb-3 pr-4 font-semibold">E-mail</th>
-                    <th className="pb-3 font-semibold w-12"></th>
+                    <th className="pb-3 font-semibold w-20"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {studentsList.map((student, idx) => (
+                  {studentsList.map((student: any) => (
                     <tr key={student.id} className="border-b last:border-0 hover:bg-accent/20 transition-colors">
-                      <td className="py-3 pr-4 text-sm font-mono text-muted-foreground">{student.enrollment || "—"}</td>
+                      <td className="py-3 pr-4 text-sm font-mono">{student.enrollment}</td>
                       <td className="py-3 pr-4 font-medium">{student.name}</td>
-                      <td className="py-3 pr-4 text-sm text-muted-foreground">{student.email}</td>
-                      <td className="py-3">
+                      <td className="py-3 pr-4 text-sm text-muted-foreground">{student.email || <span className="italic text-muted-foreground/50">não informado</span>}</td>
+                      <td className="py-3 flex gap-1">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          className="h-8 w-8"
+                          onClick={() => startEdit({ id: student.id, name: student.name, enrollment: student.enrollment, email: student.email })}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                           onClick={() => {
-                            if (confirm(`Remover ${student.name}?`)) deleteMutation.mutate({ id: student.id });
+                            if (confirm(`Remover ${student.name} desta turma?`)) removeMutation.mutate({ studentId: student.id, classId: selectedClassId });
                           }}
                         >
                           <Trash2 className="h-4 w-4" />

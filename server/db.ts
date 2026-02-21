@@ -1,9 +1,10 @@
-import { eq, and, inArray, sql, desc } from "drizzle-orm";
+import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser, users,
   classes, InsertClass, Class,
   students, InsertStudent, Student,
+  classStudents,
   sessions, InsertSession, Session,
   sessionStudents,
   evaluations,
@@ -98,7 +99,7 @@ export async function updateClass(id: number, data: { classCode?: string; compon
 export async function deleteClass(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  // Delete all related data: evaluationItems -> evaluations -> sessionStudents -> sessions -> students -> class
+  // Delete all related data: evaluationItems -> evaluations -> sessionStudents -> sessions -> classStudents -> class
   const classSessions = await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.classId, id));
   if (classSessions.length > 0) {
     const sessionIds = classSessions.map(s => s.id);
@@ -108,72 +109,211 @@ export async function deleteClass(id: number) {
       await db.delete(evaluationItems).where(inArray(evaluationItems.evaluationId, evalIds));
       await db.delete(evaluations).where(inArray(evaluations.sessionId, sessionIds));
     }
+    await db.delete(tutorialEvaluations).where(inArray(tutorialEvaluations.sessionId, sessionIds));
     await db.delete(sessionStudents).where(inArray(sessionStudents.sessionId, sessionIds));
     await db.delete(sessions).where(eq(sessions.classId, id));
   }
-  await db.delete(students).where(eq(students.classId, id));
+  // Remove class-student links
+  await db.delete(classStudents).where(eq(classStudents.classId, id));
+  // Clean up orphan students (students not linked to any other class)
+  await cleanupOrphanStudents();
   await db.delete(classes).where(eq(classes.id, id));
 }
 
-// Helper to find which classes a student (by email) belongs to
-export async function getClassesForStudentEmail(email: string) {
-  const db = await getDb();
-  if (!db) return [];
-  const studentRows = await db.select({
-    classId: students.classId,
-    studentId: students.id,
-    studentName: students.name,
-    classCode: classes.classCode,
-    componentCode: classes.componentCode,
-    semester: classes.semester,
-  })
-    .from(students)
-    .innerJoin(classes, eq(students.classId, classes.id))
-    .where(eq(students.email, email));
-  return studentRows;
-}
+// ─── Student helpers (new structure: students identified by enrollment) ───
 
-// ─── Student helpers ───
-export async function createStudent(data: InsertStudent) {
+export async function getStudentByEnrollment(enrollment: string) {
   const db = await getDb();
-  if (!db) throw new Error("DB not available");
-  await db.insert(students).values(data);
-  const [row] = await db.select().from(students)
-    .where(and(eq(students.email, data.email), eq(students.classId, data.classId)))
-    .limit(1);
+  if (!db) return undefined;
+  const [row] = await db.select().from(students).where(eq(students.enrollment, enrollment)).limit(1);
   return row;
 }
 
+export async function getStudentById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const [row] = await db.select().from(students).where(eq(students.id, id)).limit(1);
+  return row;
+}
+
+export async function createStudent(data: { name: string; enrollment: string; email?: string | null }) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const values: any = { name: data.name, enrollment: data.enrollment };
+  if (data.email) values.email = data.email;
+  await db.insert(students).values(values);
+  return getStudentByEnrollment(data.enrollment);
+}
+
+export async function updateStudentEmail(studentId: number, email: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(students).set({ email }).where(eq(students.id, studentId));
+}
+
+export async function updateStudent(studentId: number, data: { name?: string; enrollment?: string; email?: string | null }) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const updateSet: Record<string, unknown> = {};
+  if (data.name !== undefined) updateSet.name = data.name;
+  if (data.enrollment !== undefined) updateSet.enrollment = data.enrollment;
+  if (data.email !== undefined) updateSet.email = data.email;
+  if (Object.keys(updateSet).length > 0) {
+    await db.update(students).set(updateSet).where(eq(students.id, studentId));
+  }
+  return getStudentById(studentId);
+}
+
+// List students for a specific class (via classStudents join table)
 export async function listStudentsByClass(classId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(students).where(eq(students.classId, classId)).orderBy(students.name);
+  return db.select({
+    id: students.id,
+    name: students.name,
+    enrollment: students.enrollment,
+    email: students.email,
+    createdAt: students.createdAt,
+  })
+    .from(classStudents)
+    .innerJoin(students, eq(classStudents.studentId, students.id))
+    .where(eq(classStudents.classId, classId))
+    .orderBy(students.name);
 }
 
-export async function deleteStudent(id: number) {
+// Add student to class (creates link in classStudents)
+export async function addStudentToClass(studentId: number, classId: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.delete(sessionStudents).where(eq(sessionStudents.studentId, id));
-  await db.delete(students).where(eq(students.id, id));
+  await db.insert(classStudents).values({ studentId, classId }).onDuplicateKeyUpdate({ set: { studentId } });
 }
 
-export async function getStudentByEmailAndClass(email: string, classId: number) {
+// Check if student is already in a class of the same component
+export async function isStudentInComponentClass(studentId: number, componentCode: string, excludeClassId?: number) {
   const db = await getDb();
-  if (!db) return undefined;
-  const [row] = await db.select().from(students)
-    .where(and(eq(students.email, email), eq(students.classId, classId)))
-    .limit(1);
-  return row;
-}
-
-export async function bulkCreateStudents(data: InsertStudent[]) {
-  const db = await getDb();
-  if (!db) throw new Error("DB not available");
-  if (data.length === 0) return;
-  for (const s of data) {
-    await db.insert(students).values(s).onDuplicateKeyUpdate({ set: { name: s.name } });
+  if (!db) return false;
+  const links = await db.select({
+    classId: classStudents.classId,
+    componentCode: classes.componentCode,
+  })
+    .from(classStudents)
+    .innerJoin(classes, eq(classStudents.classId, classes.id))
+    .where(and(
+      eq(classStudents.studentId, studentId),
+      eq(classes.componentCode, componentCode),
+    ));
+  if (excludeClassId) {
+    return links.some(l => l.classId !== excludeClassId);
   }
-  return listStudentsByClass(data[0].classId);
+  return links.length > 0;
+}
+
+// Remove student from class. If student has no more classes, delete student entirely.
+export async function removeStudentFromClass(studentId: number, classId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  // Remove from session_students for sessions of this class
+  const classSessions = await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.classId, classId));
+  if (classSessions.length > 0) {
+    const sessionIds = classSessions.map(s => s.id);
+    await db.delete(sessionStudents).where(
+      and(eq(sessionStudents.studentId, studentId), inArray(sessionStudents.sessionId, sessionIds))
+    );
+  }
+  // Remove class-student link
+  await db.delete(classStudents).where(and(eq(classStudents.studentId, studentId), eq(classStudents.classId, classId)));
+  // Check if student still belongs to any class
+  const remaining = await db.select({ id: classStudents.id }).from(classStudents).where(eq(classStudents.studentId, studentId));
+  if (remaining.length === 0) {
+    // Delete student entirely (no more classes)
+    // First clean up evaluations
+    const evals = await db.select({ id: evaluations.id }).from(evaluations).where(eq(evaluations.evaluatorStudentId, studentId));
+    if (evals.length > 0) {
+      const evalIds = evals.map(e => e.id);
+      await db.delete(evaluationItems).where(inArray(evaluationItems.evaluationId, evalIds));
+      await db.delete(evaluations).where(eq(evaluations.evaluatorStudentId, studentId));
+    }
+    // Delete evaluation items where student was evaluated
+    await db.delete(evaluationItems).where(eq(evaluationItems.evaluatedStudentId, studentId));
+    await db.delete(students).where(eq(students.id, studentId));
+  }
+}
+
+// Clean up orphan students (students not linked to any class)
+async function cleanupOrphanStudents() {
+  const db = await getDb();
+  if (!db) return;
+  const allStudents = await db.select({ id: students.id }).from(students);
+  for (const s of allStudents) {
+    const links = await db.select({ id: classStudents.id }).from(classStudents).where(eq(classStudents.studentId, s.id));
+    if (links.length === 0) {
+      const evals = await db.select({ id: evaluations.id }).from(evaluations).where(eq(evaluations.evaluatorStudentId, s.id));
+      if (evals.length > 0) {
+        const evalIds = evals.map(e => e.id);
+        await db.delete(evaluationItems).where(inArray(evaluationItems.evaluationId, evalIds));
+        await db.delete(evaluations).where(eq(evaluations.evaluatorStudentId, s.id));
+      }
+      await db.delete(evaluationItems).where(eq(evaluationItems.evaluatedStudentId, s.id));
+      await db.delete(students).where(eq(students.id, s.id));
+    }
+  }
+}
+
+// Bulk import students: create or find by enrollment, link to class
+export async function bulkImportStudents(data: { name: string; enrollment: string; classId: number }[]) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  if (data.length === 0) return [];
+  
+  const cls = await getClassById(data[0].classId);
+  if (!cls) throw new Error("Class not found");
+  
+  const results: { name: string; enrollment: string; status: "created" | "linked" | "already_in_class" | "conflict" }[] = [];
+  
+  for (const s of data) {
+    // Check if student already exists by enrollment
+    const existing = await getStudentByEnrollment(s.enrollment);
+    
+    if (existing) {
+      // Check if already in this class
+      const link = await db.select().from(classStudents)
+        .where(and(eq(classStudents.studentId, existing.id), eq(classStudents.classId, s.classId)))
+        .limit(1);
+      
+      if (link.length > 0) {
+        // Already in this class, update name if different
+        if (existing.name !== s.name) {
+          await db.update(students).set({ name: s.name }).where(eq(students.id, existing.id));
+        }
+        results.push({ name: s.name, enrollment: s.enrollment, status: "already_in_class" });
+        continue;
+      }
+      
+      // Check if student is already in another class of the same component
+      const inComponent = await isStudentInComponentClass(existing.id, cls.componentCode, s.classId);
+      if (inComponent) {
+        results.push({ name: s.name, enrollment: s.enrollment, status: "conflict" });
+        continue;
+      }
+      
+      // Link existing student to this class
+      await addStudentToClass(existing.id, s.classId);
+      // Update name if different
+      if (existing.name !== s.name) {
+        await db.update(students).set({ name: s.name }).where(eq(students.id, existing.id));
+      }
+      results.push({ name: s.name, enrollment: s.enrollment, status: "linked" });
+    } else {
+      // Create new student
+      const newStudent = await createStudent({ name: s.name, enrollment: s.enrollment });
+      if (newStudent) {
+        await addStudentToClass(newStudent.id, s.classId);
+        results.push({ name: s.name, enrollment: s.enrollment, status: "created" });
+      }
+    }
+  }
+  
+  return results;
 }
 
 // ─── Session helpers ───
@@ -216,6 +356,7 @@ export async function getSessionStudents(sessionId: number) {
     studentId: sessionStudents.studentId,
     studentName: students.name,
     studentEmail: students.email,
+    studentEnrollment: students.enrollment,
   })
     .from(sessionStudents)
     .innerJoin(students, eq(sessionStudents.studentId, students.id))
@@ -245,6 +386,7 @@ export async function deleteSession(id: number) {
     await db.delete(evaluationItems).where(inArray(evaluationItems.evaluationId, evalIds));
     await db.delete(evaluations).where(eq(evaluations.sessionId, id));
   }
+  await db.delete(tutorialEvaluations).where(eq(tutorialEvaluations.sessionId, id));
   await db.delete(sessionStudents).where(eq(sessionStudents.sessionId, id));
   await db.delete(sessions).where(eq(sessions.id, id));
 }
@@ -325,7 +467,8 @@ export async function hasStudentSubmitted(sessionId: number, studentId: number) 
 export interface SessionResult {
   studentId: number;
   studentName: string;
-  studentEmail: string;
+  studentEmail: string | null;
+  studentEnrollment: string;
   role: string;
   totalScore: number;
   validEvaluations: number;
@@ -343,6 +486,7 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
     studentId: s.studentId,
     studentName: s.studentName,
     studentEmail: s.studentEmail,
+    studentEnrollment: s.studentEnrollment,
     role: "PARTICIPANTE",
     totalScore: 0,
     validEvaluations: 0,
@@ -413,6 +557,7 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
         studentId: s.studentId,
         studentName: s.studentName,
         studentEmail: s.studentEmail,
+        studentEnrollment: s.studentEnrollment,
         role: isAbsent ? "FALTOU" : (assignedRoles[s.studentId] || "PARTICIPANTE"),
         totalScore: 0,
         validEvaluations: 0,
@@ -433,6 +578,7 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
       studentId: s.studentId,
       studentName: s.studentName,
       studentEmail: s.studentEmail,
+      studentEnrollment: s.studentEnrollment,
       role: assignedRoles[s.studentId] || "PARTICIPANTE",
       totalScore: Math.round(avg * 100) / 100,
       validEvaluations: validItems.length,
@@ -451,12 +597,12 @@ export async function calculateProblemResults(classId: number, problemNumber: nu
     .where(and(eq(sessions.classId, classId), eq(sessions.problemNumber, problemNumber)));
   if (problemSessions.length === 0) return [];
 
-  const allResults: Record<number, { name: string; email: string; scores: number[]; roles: string[] }> = {};
+  const allResults: Record<number, { name: string; email: string | null; enrollment: string; scores: number[]; roles: string[] }> = {};
   for (const sess of problemSessions) {
     const results = await calculateSessionResults(sess.id);
     for (const r of results) {
       if (!allResults[r.studentId]) {
-        allResults[r.studentId] = { name: r.studentName, email: r.studentEmail, scores: [], roles: [] };
+        allResults[r.studentId] = { name: r.studentName, email: r.studentEmail, enrollment: r.studentEnrollment, scores: [], roles: [] };
       }
       allResults[r.studentId].scores.push(r.totalScore);
       allResults[r.studentId].roles.push(r.role);
@@ -469,6 +615,7 @@ export async function calculateProblemResults(classId: number, problemNumber: nu
       studentId: parseInt(id),
       studentName: data.name,
       studentEmail: data.email,
+      studentEnrollment: data.enrollment,
       sessionScores: data.scores,
       roles: data.roles,
       average: Math.round(avg * 100) / 100,
@@ -489,7 +636,6 @@ export async function submitTutorialEvaluation(data: {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
 
-  // Check if already submitted – if so, update
   const existing = await db.select().from(tutorialEvaluations)
     .where(eq(tutorialEvaluations.sessionId, data.sessionId))
     .limit(1);
@@ -541,10 +687,11 @@ export function calculateTutorialGrade(eval_: { organizacao: string; cooperacao:
 export interface FinalGradeResult {
   studentId: number;
   studentName: string;
-  studentEmail: string;
+  studentEmail: string | null;
+  studentEnrollment: string;
   role: string;
-  peerScore: number;       // média avaliação pelos pares (0-10)
-  finalGrade: number;      // nota final de desempenho (distribuição proporcional)
+  peerScore: number;
+  finalGrade: number;
   absent: boolean;
   validEvaluations: number;
 }
@@ -554,11 +701,11 @@ export async function calculateFinalGrades(sessionId: number): Promise<FinalGrad
   const tutorialEval = await getTutorialEvaluation(sessionId);
 
   if (!tutorialEval) {
-    // No tutorial evaluation yet, return peer results only with finalGrade = 0
     return peerResults.map(r => ({
       studentId: r.studentId,
       studentName: r.studentName,
       studentEmail: r.studentEmail,
+      studentEnrollment: r.studentEnrollment,
       role: r.role,
       peerScore: Math.round(r.totalScore * 10) / 10,
       finalGrade: 0,
@@ -579,6 +726,7 @@ export async function calculateFinalGrades(sessionId: number): Promise<FinalGrad
         studentId: r.studentId,
         studentName: r.studentName,
         studentEmail: r.studentEmail,
+        studentEnrollment: r.studentEnrollment,
         role: r.role,
         peerScore: 0,
         finalGrade: 0,
@@ -594,6 +742,7 @@ export async function calculateFinalGrades(sessionId: number): Promise<FinalGrad
       studentId: r.studentId,
       studentName: r.studentName,
       studentEmail: r.studentEmail,
+      studentEnrollment: r.studentEnrollment,
       role: r.role,
       peerScore: Math.round(r.totalScore * 10) / 10,
       finalGrade,
@@ -612,7 +761,7 @@ export async function calculateProblemFinalGrades(classId: number, problemNumber
   if (problemSessions.length === 0) return [];
 
   const allResults: Record<number, {
-    name: string; email: string;
+    name: string; email: string | null; enrollment: string;
     peerScores: number[]; finalGrades: number[]; roles: string[];
   }> = {};
 
@@ -620,7 +769,7 @@ export async function calculateProblemFinalGrades(classId: number, problemNumber
     const results = await calculateFinalGrades(sess.id);
     for (const r of results) {
       if (!allResults[r.studentId]) {
-        allResults[r.studentId] = { name: r.studentName, email: r.studentEmail, peerScores: [], finalGrades: [], roles: [] };
+        allResults[r.studentId] = { name: r.studentName, email: r.studentEmail, enrollment: r.studentEnrollment, peerScores: [], finalGrades: [], roles: [] };
       }
       allResults[r.studentId].peerScores.push(r.peerScore);
       allResults[r.studentId].finalGrades.push(r.finalGrade);
@@ -635,6 +784,7 @@ export async function calculateProblemFinalGrades(classId: number, problemNumber
       studentId: parseInt(id),
       studentName: data.name,
       studentEmail: data.email,
+      studentEnrollment: data.enrollment,
       peerScores: data.peerScores,
       finalGrades: data.finalGrades,
       roles: data.roles,
@@ -663,19 +813,25 @@ export async function listAllClasses() {
   return rows;
 }
 
-// ─── Bulk import students with enrollment ───
-export async function bulkCreateStudentsWithEnrollment(data: { name: string; email: string; enrollment?: string; classId: number }[]) {
+// ─── Export: list students with class info for Google Workspace CSV ───
+export async function listStudentsForExport(classIds: number[]) {
   const db = await getDb();
-  if (!db) throw new Error("DB not available");
-  if (data.length === 0) return;
-  for (const s of data) {
-    const values: any = { name: s.name, email: s.email, classId: s.classId };
-    if (s.enrollment) values.enrollment = s.enrollment;
-    const updateSet: any = { name: s.name };
-    if (s.enrollment) updateSet.enrollment = s.enrollment;
-    await db.insert(students).values(values).onDuplicateKeyUpdate({ set: updateSet });
-  }
-  return listStudentsByClass(data[0].classId);
+  if (!db) return [];
+  if (classIds.length === 0) return [];
+  const rows = await db.select({
+    studentName: students.name,
+    studentEmail: students.email,
+    studentEnrollment: students.enrollment,
+    classCode: classes.classCode,
+    componentCode: classes.componentCode,
+    semester: classes.semester,
+  })
+    .from(classStudents)
+    .innerJoin(students, eq(classStudents.studentId, students.id))
+    .innerJoin(classes, eq(classStudents.classId, classes.id))
+    .where(inArray(classStudents.classId, classIds))
+    .orderBy(students.name);
+  return rows;
 }
 
 // ─── Dashboard stats (scoped to professor's classes) ───
@@ -688,11 +844,10 @@ export async function getDashboardStats(professorUserId: number) {
 
   const classIds = professorClasses.map(c => c.id);
 
-  const [studentCount] = await db.select({ count: sql<number>`count(*)` }).from(students).where(inArray(students.classId, classIds));
+  const [studentCount] = await db.select({ count: sql<number>`count(DISTINCT ${classStudents.studentId})` }).from(classStudents).where(inArray(classStudents.classId, classIds));
   const [sessionCount] = await db.select({ count: sql<number>`count(*)` }).from(sessions).where(inArray(sessions.classId, classIds));
   const [openCount] = await db.select({ count: sql<number>`count(*)` }).from(sessions).where(and(inArray(sessions.classId, classIds), eq(sessions.status, "open")));
 
-  // Count evaluations for sessions in these classes
   const classSessions = await db.select({ id: sessions.id }).from(sessions).where(inArray(sessions.classId, classIds));
   let evalCount = 0;
   if (classSessions.length > 0) {
@@ -710,32 +865,11 @@ export async function getDashboardStats(professorUserId: number) {
   };
 }
 
-// ─── Export: list students with class info for Google Workspace CSV ───
-export async function listStudentsForExport(classIds: number[]) {
-  const db = await getDb();
-  if (!db) return [];
-  if (classIds.length === 0) return [];
-  const rows = await db.select({
-    studentName: students.name,
-    studentEmail: students.email,
-    studentEnrollment: students.enrollment,
-    classCode: classes.classCode,
-    componentCode: classes.componentCode,
-    semester: classes.semester,
-  })
-    .from(students)
-    .innerJoin(classes, eq(students.classId, classes.id))
-    .where(inArray(students.classId, classIds))
-    .orderBy(students.name);
-  return rows;
-}
-
 // ─── Session access code helpers ───
 export async function generateAccessCode(sessionId: number): Promise<string> {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  // Generate a 6-char alphanumeric code (uppercase, no ambiguous chars)
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no I,O,0,1
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code = "";
   for (let i = 0; i < 6; i++) {
     code += chars[Math.floor(Math.random() * chars.length)];
@@ -751,16 +885,21 @@ export async function getSessionByAccessCode(accessCode: string) {
   return row;
 }
 
-export async function findStudentByEmailUsername(emailUsername: string, classId: number) {
+// Find student by enrollment (matrícula) in a class
+export async function findStudentByEnrollmentInClass(enrollment: string, classId: number) {
   const db = await getDb();
   if (!db) return undefined;
-  // Find student whose email starts with the given username (before @)
-  const classStudents = await db.select().from(students).where(eq(students.classId, classId));
-  const normalized = emailUsername.toLowerCase().trim();
-  return classStudents.find(s => {
-    const emailUser = s.email.split("@")[0].toLowerCase();
-    return emailUser === normalized;
-  });
+  const rows = await db.select({
+    id: students.id,
+    name: students.name,
+    enrollment: students.enrollment,
+    email: students.email,
+  })
+    .from(classStudents)
+    .innerJoin(students, eq(classStudents.studentId, students.id))
+    .where(and(eq(classStudents.classId, classId), eq(students.enrollment, enrollment)))
+    .limit(1);
+  return rows.length > 0 ? rows[0] : undefined;
 }
 
 // ─── Professor Authorization helpers ───

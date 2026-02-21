@@ -30,12 +30,13 @@ type Step = "code" | "login" | "evaluate" | "done";
 export default function StudentAccessPage() {
   const [step, setStep] = useState<Step>("code");
   const [accessCode, setAccessCode] = useState("");
-  const [emailUsername, setEmailUsername] = useState("");
+  const [enrollment, setEnrollment] = useState("");
+  const [studentEmail, setStudentEmail] = useState("");
   const [sessionInfo, setSessionInfo] = useState<{
     sessionId: number; label: string; classCode: string; componentCode: string; semester: string;
   } | null>(null);
   const [studentInfo, setStudentInfo] = useState<{
-    studentId: number; studentName: string; sessionId: number; sessionLabel: string; classId: number;
+    studentId: number; studentName: string; studentEmail: string | null; sessionId: number; sessionLabel: string; classId: number;
   } | null>(null);
 
   // Step 1: Validate access code
@@ -52,10 +53,17 @@ export default function StudentAccessPage() {
         setStep("done");
       } else {
         setStudentInfo(data);
+        setStudentEmail(data.studentEmail || "");
         setStep("evaluate");
       }
     },
     onError: (e) => toast.error(e.message),
+  });
+
+  // Update email mutation
+  const updateEmailMutation = trpc.studentAccess.updateEmail.useMutation({
+    onSuccess: () => toast.success("E-mail atualizado"),
+    onError: (e: any) => toast.error(e.message),
   });
 
   const handleValidateCode = async () => {
@@ -72,8 +80,8 @@ export default function StudentAccessPage() {
   };
 
   const handleLogin = () => {
-    if (!emailUsername.trim()) { toast.error("Digite seu usuário"); return; }
-    loginMutation.mutate({ accessCode: accessCode.toUpperCase(), emailUsername: emailUsername.trim() });
+    if (!enrollment.trim()) { toast.error("Digite sua matrícula"); return; }
+    loginMutation.mutate({ accessCode: accessCode.toUpperCase(), enrollment: enrollment.trim() });
   };
 
   if (step === "code") {
@@ -134,25 +142,19 @@ export default function StudentAccessPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="username">Seu usuário (e-mail sem @domínio)</Label>
-              <div className="flex items-center gap-1 mt-1">
-                <Input
-                  id="username"
-                  placeholder="Ex: aatrcoutinho"
-                  value={emailUsername}
-                  onChange={(e) => setEmailUsername(e.target.value.toLowerCase().trim())}
-                  onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-                  className="font-mono"
-                  autoFocus
-                />
-                <span className="text-sm text-muted-foreground whitespace-nowrap">@ecomp.uefs.br</span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Use a parte do e-mail antes do @. Exemplo: para aatrcoutinho@ecomp.uefs.br, digite <strong>aatrcoutinho</strong>.
-              </p>
+              <Label htmlFor="enrollment">Sua matrícula</Label>
+              <Input
+                id="enrollment"
+                placeholder="Ex: 20221001"
+                value={enrollment}
+                onChange={(e) => setEnrollment(e.target.value.trim())}
+                onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+                className="mt-1 font-mono"
+                autoFocus
+              />
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => { setStep("code"); setAccessCode(""); setEmailUsername(""); }}>
+              <Button variant="outline" onClick={() => { setStep("code"); setAccessCode(""); setEnrollment(""); }}>
                 <ArrowLeft className="h-4 w-4 mr-1" />
                 Voltar
               </Button>
@@ -185,7 +187,7 @@ export default function StudentAccessPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button variant="outline" className="w-full" onClick={() => { setStep("code"); setAccessCode(""); setEmailUsername(""); setStudentInfo(null); setSessionInfo(null); }}>
+            <Button variant="outline" className="w-full" onClick={() => { setStep("code"); setAccessCode(""); setEnrollment(""); setStudentInfo(null); setSessionInfo(null); }}>
               <ArrowLeft className="h-4 w-4 mr-1" />
               Voltar ao início
             </Button>
@@ -202,6 +204,11 @@ export default function StudentAccessPage() {
         accessCode={accessCode}
         studentInfo={studentInfo!}
         sessionInfo={sessionInfo!}
+        studentEmail={studentEmail}
+        onEmailChange={setStudentEmail}
+        onEmailSave={(email) => {
+          if (studentInfo) updateEmailMutation.mutate({ studentId: studentInfo.studentId, email });
+        }}
         onDone={() => setStep("done")}
         onBack={() => { setStep("login"); setStudentInfo(null); }}
       />
@@ -209,10 +216,13 @@ export default function StudentAccessPage() {
   );
 }
 
-function EvaluationForm({ accessCode, studentInfo, sessionInfo, onDone, onBack }: {
+function EvaluationForm({ accessCode, studentInfo, sessionInfo, studentEmail, onEmailChange, onEmailSave, onDone, onBack }: {
   accessCode: string;
   studentInfo: { studentId: number; studentName: string; sessionId: number; sessionLabel: string; classId: number };
   sessionInfo: { sessionId: number; label: string; classCode: string; componentCode: string; semester: string };
+  studentEmail: string;
+  onEmailChange: (email: string) => void;
+  onEmailSave: (email: string) => void;
   onDone: () => void;
   onBack: () => void;
 }) {
@@ -305,6 +315,41 @@ function EvaluationForm({ accessCode, studentInfo, sessionInfo, onDone, onBack }
           </p>
         </div>
       </div>
+
+      {/* Email field */}
+      <Card className="border-blue-200 bg-blue-50/50">
+        <CardContent className="pt-4 pb-4">
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Seu e-mail (opcional, mas recomendado)</Label>
+            <div className="flex gap-2">
+              <Input
+                type="email"
+                placeholder="seu.email@ecomp.uefs.br"
+                value={studentEmail}
+                onChange={(e) => onEmailChange(e.target.value)}
+                className="bg-white"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (studentEmail.trim() && studentEmail.includes("@")) {
+                    onEmailSave(studentEmail.trim().toLowerCase());
+                  } else if (studentEmail.trim()) {
+                    toast.error("E-mail inválido");
+                  }
+                }}
+                disabled={!studentEmail.trim()}
+              >
+                Salvar
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {studentEmail ? "E-mail atual registrado. Atualize se necessário." : "Informe seu e-mail para receber comunicações do professor."}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="bg-primary/5 border-primary/20">
         <CardContent className="pt-4 pb-4">

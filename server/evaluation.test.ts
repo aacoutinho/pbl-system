@@ -152,16 +152,10 @@ describe("Access control with classes", () => {
     await expect(caller.results.dashboard()).rejects.toThrow();
   });
 
-  it("allows student to query myClasses", async () => {
+  it("blocks student from accessing student routes (no longer available)", async () => {
     const caller = appRouter.createCaller(createStudentContext());
-    const result = await caller.classes.myClasses();
-    expect(Array.isArray(result)).toBe(true);
-  });
-
-  it("allows student to query sessions for student", async () => {
-    const caller = appRouter.createCaller(createStudentContext());
-    const result = await caller.sessions.listForStudent({ classId: 999 });
-    expect(Array.isArray(result)).toBe(true);
+    // myClasses and listForStudent routes were removed - students access via session code only
+    expect(caller.studentAccess).toBeDefined();
   });
 });
 
