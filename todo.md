@@ -58,3 +58,5 @@
 - [x] Frontend: Clean export format without individual peer scores
 - [x] Tests: Export format validation tests (60 tests passing)
 - [x] Update homepage text: "Sistema de avaliação de seminários" → "Sistema de avaliação de Desempenho Tutorial"
+- [ ] Update VITE_APP_TITLE: "Sistema Automatizado de Avaliação de Alunos" → "Sistema de Avaliação Tutorial"
+- [x] Alterar domínio padrão de email na importação em lote para @ecomp.uefs.br

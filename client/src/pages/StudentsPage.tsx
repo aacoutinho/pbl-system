@@ -61,7 +61,7 @@ function StudentsContent() {
   const [showCSVImport, setShowCSVImport] = useState(false);
   const [csvContent, setCsvContent] = useState("");
   const [csvPreview, setCsvPreview] = useState<{ name: string; enrollment: string; email: string }[] | null>(null);
-  const [emailDomain, setEmailDomain] = useState("");
+  const [emailDomain, setEmailDomain] = useState("ecomp.uefs.br");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!selectedClassId) {
@@ -214,7 +214,7 @@ function StudentsContent() {
                   <Input
                     value={emailDomain}
                     onChange={e => handleDomainChange(e.target.value)}
-                    placeholder="exemplo: uefs.br"
+                    placeholder="ecomp.uefs.br"
                     className="mt-1"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
