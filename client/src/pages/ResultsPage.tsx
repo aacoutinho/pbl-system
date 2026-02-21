@@ -13,6 +13,20 @@ import { useState, useMemo, useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import React from "react";
 
+// Converte valor numérico para rótulo descritivo
+function valueToLabel(value: number, gender: "fem" | "masc"): string {
+  const labelsMap: Record<string, { fem: string; masc: string }> = {
+    "0": { fem: "Nenhuma", masc: "Nenhum" },
+    "0.25": { fem: "Fraca", masc: "Fraco" },
+    "0.5": { fem: "Normal", masc: "Normal" },
+    "0.75": { fem: "Boa", masc: "Bom" },
+    "1": { fem: "Excelente", masc: "Excelente" },
+  };
+  const key = String(value);
+  const match = labelsMap[key];
+  return match ? match[gender] : `${value.toFixed(2)}`;
+}
+
 export default function ResultsPage() {
   return (
     <DashboardLayout>
@@ -132,11 +146,11 @@ function ResultsContent() {
     if (tutorialEval) {
       lines.push("AVALIAÇÃO DO TUTORIAL PELO PROFESSOR");
       lines.push("Critério,Nota (0-1),Peso,Contribuição");
-      lines.push(`Organização,${Number(tutorialEval.organizacao).toFixed(1)},1,${(Number(tutorialEval.organizacao) * 1).toFixed(1)}`);
-      lines.push(`Cooperação,${Number(tutorialEval.cooperacao).toFixed(1)},1,${(Number(tutorialEval.cooperacao) * 1).toFixed(1)}`);
-      lines.push(`Conteúdo,${Number(tutorialEval.conteudo).toFixed(1)},3,${(Number(tutorialEval.conteudo) * 3).toFixed(1)}`);
-      lines.push(`Objetivo,${Number(tutorialEval.objetivo).toFixed(1)},3,${(Number(tutorialEval.objetivo) * 3).toFixed(1)}`);
-      lines.push(`Metas,${Number(tutorialEval.metas).toFixed(1)},2,${(Number(tutorialEval.metas) * 2).toFixed(1)}`);
+      lines.push(`Organização,${Number(tutorialEval.organizacao).toFixed(2)},1,${(Number(tutorialEval.organizacao) * 1).toFixed(2)}`);
+      lines.push(`Cooperação,${Number(tutorialEval.cooperacao).toFixed(2)},1,${(Number(tutorialEval.cooperacao) * 1).toFixed(2)}`);
+      lines.push(`Conteúdo,${Number(tutorialEval.conteudo).toFixed(2)},3,${(Number(tutorialEval.conteudo) * 3).toFixed(2)}`);
+      lines.push(`Objetivo,${Number(tutorialEval.objetivo).toFixed(2)},3,${(Number(tutorialEval.objetivo) * 3).toFixed(2)}`);
+      lines.push(`Metas,${Number(tutorialEval.metas).toFixed(2)},2,${(Number(tutorialEval.metas) * 2).toFixed(2)}`);
       lines.push(`Nota do Tutorial,,,"${tutorialEval.tutorialGrade.toFixed(1)}"`);
       lines.push(`Alunos Presentes,,,${presentCount}`);
       lines.push(`Pontuação Total,,,"${(tutorialEval.tutorialGrade * presentCount).toFixed(1)}"`);
@@ -280,44 +294,26 @@ function ResultsContent() {
                         <thead>
                           <tr className="border-b border-blue-200 text-left">
                             <th className="pb-2 pr-4 font-medium text-blue-700">Critério</th>
-                            <th className="pb-2 pr-4 font-medium text-blue-700 text-center">Nota (0-1)</th>
                             <th className="pb-2 pr-4 font-medium text-blue-700 text-center">Peso</th>
-                            <th className="pb-2 font-medium text-blue-700 text-center">Contribuição</th>
+                            <th className="pb-2 font-medium text-blue-700 text-center">Avaliação</th>
                           </tr>
                         </thead>
                         <tbody className="text-blue-900">
-                          <tr className="border-b border-blue-100">
-                            <td className="py-1.5 pr-4">Organização</td>
-                            <td className="py-1.5 pr-4 text-center">{Number(tutorialEval.organizacao).toFixed(1)}</td>
-                            <td className="py-1.5 pr-4 text-center">×1</td>
-                            <td className="py-1.5 text-center">{(Number(tutorialEval.organizacao) * 1).toFixed(1)}</td>
-                          </tr>
-                          <tr className="border-b border-blue-100">
-                            <td className="py-1.5 pr-4">Cooperação</td>
-                            <td className="py-1.5 pr-4 text-center">{Number(tutorialEval.cooperacao).toFixed(1)}</td>
-                            <td className="py-1.5 pr-4 text-center">×1</td>
-                            <td className="py-1.5 text-center">{(Number(tutorialEval.cooperacao) * 1).toFixed(1)}</td>
-                          </tr>
-                          <tr className="border-b border-blue-100">
-                            <td className="py-1.5 pr-4">Conteúdo</td>
-                            <td className="py-1.5 pr-4 text-center">{Number(tutorialEval.conteudo).toFixed(1)}</td>
-                            <td className="py-1.5 pr-4 text-center">×3</td>
-                            <td className="py-1.5 text-center">{(Number(tutorialEval.conteudo) * 3).toFixed(1)}</td>
-                          </tr>
-                          <tr className="border-b border-blue-100">
-                            <td className="py-1.5 pr-4">Objetivo</td>
-                            <td className="py-1.5 pr-4 text-center">{Number(tutorialEval.objetivo).toFixed(1)}</td>
-                            <td className="py-1.5 pr-4 text-center">×3</td>
-                            <td className="py-1.5 text-center">{(Number(tutorialEval.objetivo) * 3).toFixed(1)}</td>
-                          </tr>
-                          <tr className="border-b border-blue-100">
-                            <td className="py-1.5 pr-4">Metas</td>
-                            <td className="py-1.5 pr-4 text-center">{Number(tutorialEval.metas).toFixed(1)}</td>
-                            <td className="py-1.5 pr-4 text-center">×2</td>
-                            <td className="py-1.5 text-center">{(Number(tutorialEval.metas) * 2).toFixed(1)}</td>
-                          </tr>
+                          {[
+                            { label: "Organização", value: Number(tutorialEval.organizacao), weight: 1, gender: "fem" as const },
+                            { label: "Cooperação", value: Number(tutorialEval.cooperacao), weight: 1, gender: "fem" as const },
+                            { label: "Conteúdo", value: Number(tutorialEval.conteudo), weight: 3, gender: "masc" as const },
+                            { label: "Objetivo", value: Number(tutorialEval.objetivo), weight: 3, gender: "masc" as const },
+                            { label: "Metas", value: Number(tutorialEval.metas), weight: 2, gender: "fem" as const },
+                          ].map((c) => (
+                            <tr key={c.label} className="border-b border-blue-100">
+                              <td className="py-1.5 pr-4">{c.label}</td>
+                              <td className="py-1.5 pr-4 text-center">×{c.weight}</td>
+                              <td className="py-1.5 text-center font-medium">{valueToLabel(c.value, c.gender)}</td>
+                            </tr>
+                          ))}
                           <tr className="font-semibold">
-                            <td className="py-2 pr-4" colSpan={3}>Nota do Tutorial</td>
+                            <td className="py-2 pr-4" colSpan={2}>Nota do Tutorial</td>
                             <td className="py-2 text-center text-base">{tutorialEval.tutorialGrade.toFixed(1)}</td>
                           </tr>
                         </tbody>

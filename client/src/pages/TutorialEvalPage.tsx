@@ -6,43 +6,72 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { BookOpen, ClipboardCheck, Save, CheckCircle2, Info } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+
+// Rótulos descritivos com valores numéricos correspondentes
+const LABELS = [
+  { label: "Nenhuma", value: 0 },
+  { label: "Fraca", value: 0.25 },
+  { label: "Normal", value: 0.5 },
+  { label: "Boa", value: 0.75 },
+  { label: "Excelente", value: 1.0 },
+] as const;
+
+// Variantes femininas para critérios que usam "Fraco" em vez de "Fraca"
+const LABELS_MASC = [
+  { label: "Nenhum", value: 0 },
+  { label: "Fraco", value: 0.25 },
+  { label: "Normal", value: 0.5 },
+  { label: "Bom", value: 0.75 },
+  { label: "Excelente", value: 1.0 },
+] as const;
+
+function getLabelForValue(value: number, gender: "fem" | "masc"): string {
+  const labels = gender === "masc" ? LABELS_MASC : LABELS;
+  const match = labels.find(l => Math.abs(l.value - value) < 0.01);
+  return match?.label ?? `${value.toFixed(2)}`;
+}
 
 const CRITERIA = [
   {
     key: "organizacao" as const,
     label: "Organização",
     weight: 1,
+    gender: "fem" as const,
     description: "Disposição do quadro, fluência da discussão em sala e qualidade das notas de tutorial publicadas da sessão.",
   },
   {
     key: "cooperacao" as const,
     label: "Cooperação",
     weight: 1,
+    gender: "fem" as const,
     description: "Existência de troca de ideias ou divisão de tarefas de forma produtiva entre os alunos na sessão tutorial.",
   },
   {
     key: "conteudo" as const,
     label: "Conteúdo",
     weight: 3,
+    gender: "masc" as const,
     description: "As ideias, fatos e questões abordadas na sessão estavam coerentes, bem apresentadas e adequadas aos objetivos do problema.",
   },
   {
     key: "objetivo" as const,
     label: "Objetivo",
     weight: 3,
+    gender: "masc" as const,
     description: "Resultado alcançado pelo produto em relação às metas estipuladas até a presente sessão tutorial.",
   },
   {
     key: "metas" as const,
     label: "Metas",
     weight: 2,
+    gender: "fem" as const,
     description: "As metas definidas para a próxima sessão tutorial estão contribuindo para a devida resolução do problema.",
   },
 ];
@@ -157,7 +186,6 @@ function TutorialEvalContent() {
                       <SelectItem key={s.id} value={String(s.id)}>
                         <span className="flex items-center gap-2">
                           {s.label}
-                          {/* We'll check if evaluated after loading */}
                         </span>
                       </SelectItem>
                     ))
@@ -187,16 +215,17 @@ function TutorialEvalContent() {
                 Critérios de Avaliação
               </CardTitle>
               <CardDescription>
-                Avalie cada critério de 0 a 1 (em incrementos de 0.1). A nota final é calculada pela soma ponderada dos critérios (peso total = 10).
+                Avalie cada critério selecionando o nível correspondente. A nota final é calculada pela soma ponderada dos critérios (peso total = 10).
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {CRITERIA.map((criterion, idx) => (
                 <div key={criterion.key}>
                   {idx > 0 && <Separator className="mb-6" />}
-                  <CriterionSlider
+                  <CriterionSelector
                     label={criterion.label}
                     weight={criterion.weight}
+                    gender={criterion.gender}
                     description={criterion.description}
                     value={scores[criterion.key]}
                     onChange={(v) => setScores(prev => ({ ...prev, [criterion.key]: v }))}
@@ -209,7 +238,7 @@ function TutorialEvalContent() {
               {/* Summary */}
               <div className="flex items-center justify-between p-4 rounded-lg bg-accent/30 border">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Nota do Tutorial (soma ponderada)</p>
+                  <p className="text-sm font-medium text-muted-foreground">Nota do Tutorial</p>
                   <p className="text-3xl font-bold mt-1">
                     <span className={totalGrade >= 7 ? "text-emerald-600" : totalGrade >= 5 ? "text-amber-600" : "text-red-600"}>
                       {totalGrade.toFixed(1)}
@@ -223,16 +252,13 @@ function TutorialEvalContent() {
                 </Button>
               </div>
 
-              {/* Formula explanation */}
+              {/* Info box */}
               <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800">
                 <Info className="h-4 w-4 mt-0.5 shrink-0" />
                 <div>
-                  <p className="font-medium">Fórmula da nota do tutorial:</p>
+                  <p className="font-medium">Escala de avaliação:</p>
                   <p className="mt-1">
-                    Organização×1 + Cooperação×1 + Conteúdo×3 + Objetivo×3 + Metas×2 = {" "}
-                    <span className="font-mono">
-                      {scores.organizacao.toFixed(1)}×1 + {scores.cooperacao.toFixed(1)}×1 + {scores.conteudo.toFixed(1)}×3 + {scores.objetivo.toFixed(1)}×3 + {scores.metas.toFixed(1)}×2 = {totalGrade.toFixed(1)}
-                    </span>
+                    Nenhuma/Nenhum = 0 &middot; Fraca/Fraco = 0.25 &middot; Normal = 0.5 &middot; Boa/Bom = 0.75 &middot; Excelente = 1.0
                   </p>
                 </div>
               </div>
@@ -244,50 +270,48 @@ function TutorialEvalContent() {
   );
 }
 
-function CriterionSlider({ label, weight, description, value, onChange }: {
+function CriterionSelector({ label, weight, gender, description, value, onChange }: {
   label: string;
   weight: number;
+  gender: "fem" | "masc";
   description: string;
   value: number;
   onChange: (v: number) => void;
 }) {
-  const weightedValue = value * weight;
+  const labels = gender === "masc" ? LABELS_MASC : LABELS;
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Label className="text-base font-semibold">{label}</Label>
-          <Badge variant="secondary" className="text-xs">Peso {weight}</Badge>
-          <Tooltip>
-            <TooltipTrigger>
-              <Info className="h-3.5 w-3.5 text-muted-foreground" />
-            </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-xs">
-              <p className="text-sm">{description}</p>
-            </TooltipContent>
-          </Tooltip>
-        </div>
-        <div className="text-right">
-          <span className="text-lg font-bold">{value.toFixed(1)}</span>
-          <span className="text-sm text-muted-foreground ml-1">
-            (contribuição: {weightedValue.toFixed(1)})
-          </span>
-        </div>
+      <div className="flex items-center gap-2">
+        <Label className="text-base font-semibold">{label}</Label>
+        <Badge variant="secondary" className="text-xs">Peso {weight}</Badge>
+        <Tooltip>
+          <TooltipTrigger>
+            <Info className="h-3.5 w-3.5 text-muted-foreground" />
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-xs">
+            <p className="text-sm">{description}</p>
+          </TooltipContent>
+        </Tooltip>
       </div>
       <p className="text-sm text-muted-foreground">{description}</p>
-      <Slider
-        value={[value * 10]}
-        onValueChange={([v]) => onChange(Math.round(v) / 10)}
-        min={0}
-        max={10}
-        step={1}
-        className="w-full"
-      />
-      <div className="flex justify-between text-xs text-muted-foreground px-1">
-        <span>0.0</span>
-        <span>0.5</span>
-        <span>1.0</span>
+      <div className="flex gap-2 flex-wrap">
+        {labels.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            className={cn(
+              "px-4 py-2 rounded-lg text-sm font-medium border transition-all",
+              "hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
+              Math.abs(value - opt.value) < 0.01
+                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                : "bg-background text-foreground border-border hover:bg-accent hover:text-accent-foreground"
+            )}
+          >
+            {opt.label}
+          </button>
+        ))}
       </div>
     </div>
   );

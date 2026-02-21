@@ -66,3 +66,9 @@
 - [x] Exportar alunos para CSV formato Google Workspace (todas turmas ou turmas selecionadas por semestre)
 - [x] Alterar senha na exportação: usar iniciais_nome+matrícula em vez de usuario+semestre
 - [x] Formatar nomes na exportação Google Workspace com Title Case (primeira letra maiúscula)
+- [x] Resultados: média aritmética por problema (média das sessões de cada problema)
+- [x] Resultados: alternar visualização entre por sessão e por problema
+- [x] Resultados: exportar CSV por sessão ou por problema
+- [x] Avaliação tutorial: substituir números por rótulos descritivos (Nenhuma, Fraco/Fraca, Normal, Boa, Excelente)
+- [x] Avaliação tutorial: mostrar apenas nota final arredondada (sem números por item)
+- [x] Exportação CSV: usar números (não rótulos) na avaliação tutorial
