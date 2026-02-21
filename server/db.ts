@@ -728,3 +728,36 @@ export async function listStudentsForExport(classIds: number[]) {
     .orderBy(students.name);
   return rows;
 }
+
+// ─── Session access code helpers ───
+export async function generateAccessCode(sessionId: number): Promise<string> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  // Generate a 6-char alphanumeric code (uppercase, no ambiguous chars)
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no I,O,0,1
+  let code = "";
+  for (let i = 0; i < 6; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  await db.update(sessions).set({ accessCode: code }).where(eq(sessions.id, sessionId));
+  return code;
+}
+
+export async function getSessionByAccessCode(accessCode: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const [row] = await db.select().from(sessions).where(eq(sessions.accessCode, accessCode.toUpperCase())).limit(1);
+  return row;
+}
+
+export async function findStudentByEmailUsername(emailUsername: string, classId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  // Find student whose email starts with the given username (before @)
+  const classStudents = await db.select().from(students).where(eq(students.classId, classId));
+  const normalized = emailUsername.toLowerCase().trim();
+  return classStudents.find(s => {
+    const emailUser = s.email.split("@")[0].toLowerCase();
+    return emailUser === normalized;
+  });
+}

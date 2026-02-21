@@ -51,6 +51,7 @@ export const sessions = mysqlTable("sessions", {
   problemNumber: int("problemNumber").notNull(),
   sessionNumber: int("sessionNumber").notNull(),
   label: varchar("label", { length: 100 }).notNull(),
+  accessCode: varchar("accessCode", { length: 8 }).unique(),
   status: mysqlEnum("status", ["open", "closed"]).default("open").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   closedAt: timestamp("closedAt"),

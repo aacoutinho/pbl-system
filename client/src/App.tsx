@@ -14,11 +14,13 @@ import ResultsPage from "./pages/ResultsPage";
 import TutorialEvalPage from "./pages/TutorialEvalPage";
 import StudentResults from "./pages/StudentResults";
 import ExportStudentsPage from "./pages/ExportStudentsPage";
+import StudentAccessPage from "./pages/StudentAccessPage";
 
 function Router() {
   return (
     <Switch>
       <Route path={"/"} component={Home} />
+      <Route path={"/acesso"} component={StudentAccessPage} />
       <Route path={"/classes"} component={ClassesPage} />
       <Route path={"/students"} component={StudentsPage} />
       <Route path={"/sessions"} component={SessionsPage} />

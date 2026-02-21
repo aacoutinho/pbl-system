@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Lock, Unlock, Trash2, ClipboardList, Users, Eye, BookOpen } from "lucide-react";
+import { Plus, Lock, Unlock, Trash2, ClipboardList, Users, Eye, BookOpen, KeyRound, Copy, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
@@ -192,15 +192,31 @@ function SessionsContent() {
 }
 
 function SessionRow({ session, onClose, onOpen, onDelete, onViewResults }: {
-  session: { id: number; label: string; problemNumber: number; sessionNumber: number; status: string };
+  session: { id: number; label: string; problemNumber: number; sessionNumber: number; status: string; accessCode?: string | null };
   onClose: () => void;
   onOpen: () => void;
   onDelete: () => void;
   onViewResults: () => void;
 }) {
+  const utils = trpc.useUtils();
   const { data: status } = trpc.sessions.submissionStatus.useQuery({ sessionId: session.id });
   const submitted = status?.filter(s => s.submitted).length ?? 0;
   const total = status?.length ?? 0;
+
+  const generateCodeMutation = trpc.sessions.generateCode.useMutation({
+    onSuccess: (data) => {
+      utils.sessions.list.invalidate();
+      toast.success(`Código gerado: ${data.accessCode}`);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const copyCode = () => {
+    if (session.accessCode) {
+      navigator.clipboard.writeText(session.accessCode);
+      toast.success("Código copiado!");
+    }
+  };
 
   return (
     <div className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/10 transition-colors">
@@ -216,9 +232,29 @@ function SessionRow({ session, onClose, onOpen, onDelete, onViewResults }: {
             <Users className="h-3.5 w-3.5" />
             {submitted}/{total} avaliações
           </span>
+          {session.accessCode ? (
+            <span className="flex items-center gap-1">
+              <KeyRound className="h-3.5 w-3.5" />
+              Código: <strong className="font-mono text-foreground tracking-wider">{session.accessCode}</strong>
+              <Button variant="ghost" size="icon" className="h-5 w-5" onClick={copyCode} title="Copiar código">
+                <Copy className="h-3 w-3" />
+              </Button>
+            </span>
+          ) : null}
         </div>
       </div>
       <div className="flex items-center gap-1">
+        {session.status === "open" && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => generateCodeMutation.mutate({ sessionId: session.id })}
+            disabled={generateCodeMutation.isPending}
+            title={session.accessCode ? "Regenerar código de acesso" : "Gerar código de acesso"}
+          >
+            {session.accessCode ? <RefreshCw className="h-4 w-4" /> : <KeyRound className="h-4 w-4" />}
+          </Button>
+        )}
         <Button variant="ghost" size="icon" onClick={onViewResults} title="Ver resultados">
           <Eye className="h-4 w-4" />
         </Button>

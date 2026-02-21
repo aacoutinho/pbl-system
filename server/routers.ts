@@ -13,6 +13,7 @@ import {
   calculateSessionResults, calculateProblemResults, getDashboardStats,
   submitTutorialEvaluation, getTutorialEvaluation, calculateTutorialGrade,
   calculateFinalGrades, calculateProblemFinalGrades,
+  generateAccessCode, getSessionByAccessCode, findStudentByEmailUsername,
 } from "./db";
 
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -288,6 +289,98 @@ export const appRouter = router({
         ...s,
         submitted: submittedIds.has(s.studentId),
       }));
+    }),
+    generateCode: adminProcedure.input(z.object({ sessionId: z.number() })).mutation(async ({ input }) => {
+      const session = await getSessionById(input.sessionId);
+      if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
+      const code = await generateAccessCode(input.sessionId);
+      return { accessCode: code };
+    }),
+  }),
+
+  // ─── Student simplified access (no login required) ───
+  studentAccess: router({
+    // Validate access code and return session info
+    validateCode: publicProcedure.input(z.object({
+      accessCode: z.string().min(1).max(8),
+    })).query(async ({ input }) => {
+      const session = await getSessionByAccessCode(input.accessCode.toUpperCase());
+      if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Código de acesso inválido" });
+      if (session.status !== "open") throw new TRPCError({ code: "BAD_REQUEST", message: "Esta sessão já foi encerrada" });
+      const cls = await getClassById(session.classId);
+      return {
+        sessionId: session.id,
+        label: session.label,
+        classCode: cls?.classCode ?? "",
+        componentCode: cls?.componentCode ?? "",
+        semester: cls?.semester ?? "",
+      };
+    }),
+    // Login with username (email without @domain)
+    login: publicProcedure.input(z.object({
+      accessCode: z.string().min(1).max(8),
+      emailUsername: z.string().min(1),
+    })).mutation(async ({ input }) => {
+      const session = await getSessionByAccessCode(input.accessCode.toUpperCase());
+      if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Código de acesso inválido" });
+      if (session.status !== "open") throw new TRPCError({ code: "BAD_REQUEST", message: "Esta sessão já foi encerrada" });
+      const student = await findStudentByEmailUsername(input.emailUsername, session.classId);
+      if (!student) throw new TRPCError({ code: "NOT_FOUND", message: "Usuário não encontrado nesta turma. Verifique se digitou corretamente (ex: aatrcoutinho)." });
+      // Check if student is part of this session
+      const sessionStudentsList = await getSessionStudents(session.id);
+      const isInSession = sessionStudentsList.some(s => s.studentId === student.id);
+      if (!isInSession) throw new TRPCError({ code: "NOT_FOUND", message: "Você não está inscrito nesta sessão." });
+      const submitted = await hasStudentSubmitted(session.id, student.id);
+      return {
+        studentId: student.id,
+        studentName: student.name,
+        sessionId: session.id,
+        sessionLabel: session.label,
+        classId: session.classId,
+        alreadySubmitted: submitted,
+      };
+    }),
+    // Get session students for evaluation (public, by access code)
+    getSessionStudents: publicProcedure.input(z.object({
+      accessCode: z.string().min(1).max(8),
+    })).query(async ({ input }) => {
+      const session = await getSessionByAccessCode(input.accessCode.toUpperCase());
+      if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Código inválido" });
+      return getSessionStudents(session.id);
+    }),
+    // Submit evaluation (public, by access code + student id)
+    submitEvaluation: publicProcedure.input(z.object({
+      accessCode: z.string().min(1).max(8),
+      evaluatorStudentId: z.number(),
+      items: z.array(z.object({
+        evaluatedStudentId: z.number(),
+        role: z.enum(["COORDENADOR", "MESA", "QUADRO", "PARTICIPANTE"]),
+        absent: z.boolean(),
+        atuacao: z.number().min(0).max(2),
+        pontualidade: z.number().min(0).max(2),
+        dominio: z.number().min(0).max(2),
+        metas: z.number().min(0).max(2),
+        participacao: z.number().min(0).max(2),
+      })),
+    })).mutation(async ({ input }) => {
+      const session = await getSessionByAccessCode(input.accessCode.toUpperCase());
+      if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Código inválido" });
+      if (session.status !== "open") throw new TRPCError({ code: "BAD_REQUEST", message: "Sessão encerrada" });
+      // Validate: evaluator cannot evaluate self
+      const selfEval = input.items.find(i => i.evaluatedStudentId === input.evaluatorStudentId);
+      if (selfEval) throw new TRPCError({ code: "BAD_REQUEST", message: "Autoavaliação não é permitida" });
+      // Validate exclusive roles
+      const exclusiveRoles = ["COORDENADOR", "MESA", "QUADRO"];
+      for (const role of exclusiveRoles) {
+        const count = input.items.filter(i => i.role === role && !i.absent).length;
+        if (count > 1) throw new TRPCError({ code: "BAD_REQUEST", message: `O papel ${role} só pode ser atribuído a um aluno` });
+      }
+      const evalId = await submitEvaluation({
+        sessionId: session.id,
+        evaluatorStudentId: input.evaluatorStudentId,
+        items: input.items,
+      });
+      return { success: true, evaluationId: evalId };
     }),
   }),
 

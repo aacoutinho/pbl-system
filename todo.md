@@ -72,3 +72,9 @@
 - [x] Avaliação tutorial: substituir números por rótulos descritivos (Nenhuma, Fraco/Fraca, Normal, Boa, Excelente)
 - [x] Avaliação tutorial: mostrar apenas nota final arredondada (sem números por item)
 - [x] Exportação CSV: usar números (não rótulos) na avaliação tutorial
+- [x] Schema: adicionar campo accessCode à tabela sessions
+- [x] Backend: rota para gerar/regenerar código de acesso da sessão
+- [x] Backend: rota pública de login simplificado (código + usuário do e-mail)
+- [x] Frontend: página de acesso do aluno por código de sessão
+- [x] Frontend: exibir código de acesso na página de sessões do professor
+- [x] Testes: login simplificado por código de sessão
