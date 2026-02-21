@@ -12,7 +12,6 @@ import SessionsPage from "./pages/SessionsPage";
 import EvaluatePage from "./pages/EvaluatePage";
 import ResultsPage from "./pages/ResultsPage";
 import TutorialEvalPage from "./pages/TutorialEvalPage";
-import StudentResults from "./pages/StudentResults";
 import ExportStudentsPage from "./pages/ExportStudentsPage";
 import StudentAccessPage from "./pages/StudentAccessPage";
 
@@ -27,7 +26,6 @@ function Router() {
       <Route path={"/evaluate/:sessionId"} component={EvaluatePage} />
       <Route path={"/tutorial-eval"} component={TutorialEvalPage} />
       <Route path={"/results"} component={ResultsPage} />
-      <Route path={"/my-results"} component={StudentResults} />
       <Route path={"/export-students"} component={ExportStudentsPage} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />

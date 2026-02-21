@@ -79,3 +79,9 @@
 - [x] Frontend: exibir código de acesso na página de sessões do professor
 - [x] Testes: login simplificado por código de sessão
 - [x] Adicionar botão "Entrar com Código" na página inicial
+- [x] Restringir OAuth (Google/Manus) apenas para professores (admin)
+- [x] Remover dashboard de aluno (Minhas Avaliações, Meus Resultados)
+- [x] Alunos acessam apenas por código de sessão para avaliar pares
+- [x] Simplificar tela de login: OAuth para professor, código para aluno
+- [x] Remover rotas de aluno no backend (myClasses, myResults, etc.)
+- [x] Remover botão "Entrar com Manus" da tela de login (apenas Google OAuth)

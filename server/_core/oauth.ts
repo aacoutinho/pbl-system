@@ -28,11 +28,13 @@ export function registerOAuthRoutes(app: Express) {
         return;
       }
 
+      // All OAuth logins are professors (admin)
       await db.upsertUser({
         openId: userInfo.openId,
         name: userInfo.name || null,
         email: userInfo.email ?? null,
         loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
+        role: "admin",
         lastSignedIn: new Date(),
       });
 

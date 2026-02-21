@@ -20,11 +20,11 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getLoginUrl, getGoogleLoginUrl } from "@/const";
+import { getGoogleLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import { useClassContext } from "@/contexts/ClassContext";
 import { trpc } from "@/lib/trpc";
-import { LayoutDashboard, Users, ClipboardList, BarChart3, LogOut, PanelLeft, GraduationCap, FileSpreadsheet, BookOpen, ClipboardCheck, Download, KeyRound } from "lucide-react";
+import { LayoutDashboard, Users, ClipboardList, BarChart3, LogOut, PanelLeft, GraduationCap, BookOpen, ClipboardCheck, Download, KeyRound } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -41,10 +41,7 @@ const adminMenuItems = [
   { icon: Download, label: "Exportar Alunos", path: "/export-students" },
 ];
 
-const studentMenuItems = [
-  { icon: GraduationCap, label: "Minhas Avaliações", path: "/" },
-  { icon: FileSpreadsheet, label: "Meus Resultados", path: "/my-results" },
-];
+// Students access only via session code — no dashboard menu needed
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
 const DEFAULT_WIDTH = 260;
@@ -82,10 +79,11 @@ export default function DashboardLayout({
               Avaliação Tutorial
             </h1>
             <p className="text-sm text-muted-foreground text-center max-w-sm leading-relaxed">
-              Sistema de avaliação de Desempenho Tutorial. Faça login para acessar o formulário de avaliação ou o painel administrativo.
+              Sistema de avaliação de Desempenho Tutorial.
             </p>
           </div>
           <div className="flex flex-col gap-3 w-full">
+            <p className="text-xs text-muted-foreground text-center font-medium uppercase tracking-wider">Professor</p>
             <Button
               onClick={() => { window.location.href = getGoogleLoginUrl(); }}
               size="lg"
@@ -100,27 +98,12 @@ export default function DashboardLayout({
               </svg>
               Entrar com Google
             </Button>
-            <div className="relative">
+            <div className="relative my-1">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">ou</span>
-              </div>
-            </div>
-            <Button
-              onClick={() => { window.location.href = getLoginUrl(); }}
-              size="lg"
-              className="w-full shadow-md hover:shadow-lg transition-all font-semibold"
-            >
-              Entrar com Manus
-            </Button>
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">aluno?</span>
+                <span className="bg-card px-2 text-muted-foreground">aluno</span>
               </div>
             </div>
             <Button
@@ -163,24 +146,19 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
 
-  const isAdmin = user?.role === "admin";
-  const menuItems = isAdmin ? adminMenuItems : studentMenuItems;
+  const menuItems = adminMenuItems;
   const activeMenuItem = menuItems.find(item => item.path === location);
 
   // Class selector for admin
   const { selectedClassId, setSelectedClassId } = useClassContext();
-  const { data: classesList } = trpc.classes.list.useQuery(undefined, { enabled: isAdmin });
-  const { data: myClasses } = trpc.classes.myClasses.useQuery(undefined, { enabled: !isAdmin });
+  const { data: classesList } = trpc.classes.list.useQuery();
 
   // Auto-select first class if none selected
   useEffect(() => {
-    if (isAdmin && classesList && classesList.length > 0 && selectedClassId === null) {
+    if (classesList && classesList.length > 0 && selectedClassId === null) {
       setSelectedClassId(classesList[0].id);
     }
-    if (!isAdmin && myClasses && myClasses.length > 0 && selectedClassId === null) {
-      setSelectedClassId(myClasses[0].classId);
-    }
-  }, [classesList, myClasses, selectedClassId, isAdmin, setSelectedClassId]);
+  }, [classesList, selectedClassId, setSelectedClassId]);
 
   useEffect(() => {
     if (isCollapsed) setIsResizing(false);
@@ -208,9 +186,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
     };
   }, [isResizing, setSidebarWidth]);
 
-  const classOptions = isAdmin
-    ? (classesList ?? []).map(c => ({ id: c.id, label: `${c.componentCode} - ${c.classCode} (${c.semester})` }))
-    : (myClasses ?? []).map(c => ({ id: c.classId, label: `${c.componentCode} - ${c.classCode} (${c.semester})` }));
+  const classOptions = (classesList ?? []).map(c => ({ id: c.id, label: `${c.componentCode} - ${c.classCode} (${c.semester})` }));
 
   return (
     <>
@@ -292,7 +268,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                   <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
                     <p className="text-sm font-medium truncate leading-none">{user?.name || "-"}</p>
                     <p className="text-xs text-muted-foreground truncate mt-1.5">
-                      {isAdmin ? "Professor" : "Aluno"} · {user?.email || "-"}
+                      Professor · {user?.email || "-"}
                     </p>
                   </div>
                 </button>

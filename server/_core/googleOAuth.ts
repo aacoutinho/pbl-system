@@ -159,12 +159,13 @@ export function registerGoogleOAuthRoutes(app: Express) {
       // Use google:<google_id> as the openId to avoid collisions with Manus openIds
       const openId = `google:${googleUser.id}`;
 
-      // Upsert user in database
+      // Upsert user in database — all OAuth logins are professors (admin)
       await db.upsertUser({
         openId,
         name: googleUser.name || null,
         email: googleUser.email,
         loginMethod: "google",
+        role: "admin",
         lastSignedIn: new Date(),
       });
 
