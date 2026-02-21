@@ -60,3 +60,4 @@
 - [x] Update homepage text: "Sistema de avaliação de seminários" → "Sistema de avaliação de Desempenho Tutorial"
 - [ ] Update VITE_APP_TITLE: "Sistema Automatizado de Avaliação de Alunos" → "Sistema de Avaliação Tutorial"
 - [x] Alterar domínio padrão de email na importação em lote para @ecomp.uefs.br
+- [x] Atualizar schema de turmas: usar apenas classCode (TP01), componentCode (TEC502) e semester (20262)

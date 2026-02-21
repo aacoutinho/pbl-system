@@ -19,8 +19,9 @@ export type InsertUser = typeof users.$inferInsert;
 // ─── Classes (turmas) ───
 export const classes = mysqlTable("classes", {
   id: int("id").autoincrement().primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  code: varchar("code", { length: 64 }).notNull(),
+  classCode: varchar("classCode", { length: 32 }).notNull(), // Ex: TP01
+  componentCode: varchar("componentCode", { length: 32 }).notNull(), // Ex: TEC502
+  semester: varchar("semester", { length: 16 }).notNull(), // Ex: 20262
   professorUserId: int("professorUserId").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });

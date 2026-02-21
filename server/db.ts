@@ -61,7 +61,7 @@ export async function getUserByOpenId(openId: string) {
 }
 
 // ─── Class helpers ───
-export async function createClass(data: { name: string; code: string; professorUserId: number }) {
+export async function createClass(data: { classCode: string; componentCode: string; semester: string; professorUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   const [result] = await db.insert(classes).values(data).$returningId();
@@ -78,15 +78,16 @@ export async function getClassById(id: number) {
 export async function listClassesByProfessor(professorUserId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(classes).where(eq(classes.professorUserId, professorUserId)).orderBy(classes.name);
+  return db.select().from(classes).where(eq(classes.professorUserId, professorUserId)).orderBy(classes.componentCode, classes.classCode);
 }
 
-export async function updateClass(id: number, data: { name?: string; code?: string }) {
+export async function updateClass(id: number, data: { classCode?: string; componentCode?: string; semester?: string }) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   const updateSet: Record<string, unknown> = {};
-  if (data.name !== undefined) updateSet.name = data.name;
-  if (data.code !== undefined) updateSet.code = data.code;
+  if (data.classCode !== undefined) updateSet.classCode = data.classCode;
+  if (data.componentCode !== undefined) updateSet.componentCode = data.componentCode;
+  if (data.semester !== undefined) updateSet.semester = data.semester;
   if (Object.keys(updateSet).length > 0) {
     await db.update(classes).set(updateSet).where(eq(classes.id, id));
   }
@@ -121,8 +122,9 @@ export async function getClassesForStudentEmail(email: string) {
     classId: students.classId,
     studentId: students.id,
     studentName: students.name,
-    className: classes.name,
-    classCode: classes.code,
+    classCode: classes.classCode,
+    componentCode: classes.componentCode,
+    semester: classes.semester,
   })
     .from(students)
     .innerJoin(classes, eq(students.classId, classes.id))
@@ -647,15 +649,16 @@ export async function listAllClasses() {
   if (!db) return [];
   const rows = await db.select({
     id: classes.id,
-    name: classes.name,
-    code: classes.code,
+    classCode: classes.classCode,
+    componentCode: classes.componentCode,
+    semester: classes.semester,
     professorUserId: classes.professorUserId,
     professorName: users.name,
     createdAt: classes.createdAt,
   })
     .from(classes)
     .leftJoin(users, eq(classes.professorUserId, users.id))
-    .orderBy(classes.name);
+    .orderBy(classes.componentCode, classes.classCode);
   return rows;
 }
 

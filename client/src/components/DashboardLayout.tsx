@@ -191,8 +191,8 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
   }, [isResizing, setSidebarWidth]);
 
   const classOptions = isAdmin
-    ? (classesList ?? []).map(c => ({ id: c.id, label: `${c.code} - ${c.name}` }))
-    : (myClasses ?? []).map(c => ({ id: c.classId, label: `${c.classCode} - ${c.className}` }));
+    ? (classesList ?? []).map(c => ({ id: c.id, label: `${c.componentCode} - ${c.classCode} (${c.semester})` }))
+    : (myClasses ?? []).map(c => ({ id: c.classId, label: `${c.componentCode} - ${c.classCode} (${c.semester})` }));
 
   return (
     <>

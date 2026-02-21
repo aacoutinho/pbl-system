@@ -43,23 +43,37 @@ function ClassesContent() {
     onError: (e) => toast.error(e.message),
   });
 
-  const [newName, setNewName] = useState("");
-  const [newCode, setNewCode] = useState("");
+  const [newClassCode, setNewClassCode] = useState("");
+  const [newComponentCode, setNewComponentCode] = useState("");
+  const [newSemester, setNewSemester] = useState("");
   const [editId, setEditId] = useState<number | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editCode, setEditCode] = useState("");
+  const [editClassCode, setEditClassCode] = useState("");
+  const [editComponentCode, setEditComponentCode] = useState("");
+  const [editSemester, setEditSemester] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
 
   const handleCreate = () => {
-    if (!newName.trim() || !newCode.trim()) { toast.error("Preencha todos os campos"); return; }
-    createMutation.mutate({ name: newName.trim(), code: newCode.trim() });
-    setNewName(""); setNewCode(""); setCreateOpen(false);
+    if (!newClassCode.trim() || !newComponentCode.trim() || !newSemester.trim()) { 
+      toast.error("Preencha todos os campos"); 
+      return; 
+    }
+    createMutation.mutate({ 
+      classCode: newClassCode.trim(), 
+      componentCode: newComponentCode.trim(), 
+      semester: newSemester.trim() 
+    });
+    setNewClassCode(""); setNewComponentCode(""); setNewSemester(""); setCreateOpen(false);
   };
 
   const handleEdit = () => {
-    if (!editId || !editName.trim() || !editCode.trim()) return;
-    updateMutation.mutate({ id: editId, name: editName.trim(), code: editCode.trim() });
+    if (!editId || !editClassCode.trim() || !editComponentCode.trim() || !editSemester.trim()) return;
+    updateMutation.mutate({ 
+      id: editId, 
+      classCode: editClassCode.trim(), 
+      componentCode: editComponentCode.trim(), 
+      semester: editSemester.trim() 
+    });
     setEditOpen(false);
   };
 
@@ -92,11 +106,15 @@ function ClassesContent() {
             <div className="space-y-4 py-2">
               <div className="space-y-2">
                 <Label>Código da Turma</Label>
-                <Input placeholder="Ex: TEC502-2025.2" value={newCode} onChange={e => setNewCode(e.target.value)} />
+                <Input placeholder="Ex: TP01" value={newClassCode} onChange={e => setNewClassCode(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Nome da Turma</Label>
-                <Input placeholder="Ex: Concorrência e Conectividade" value={newName} onChange={e => setNewName(e.target.value)} />
+                <Label>Código do Componente</Label>
+                <Input placeholder="Ex: TEC502" value={newComponentCode} onChange={e => setNewComponentCode(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Semestre</Label>
+                <Input placeholder="Ex: 20262" value={newSemester} onChange={e => setNewSemester(e.target.value)} />
               </div>
             </div>
             <DialogFooter>
@@ -124,17 +142,21 @@ function ClassesContent() {
               onClick={() => setSelectedClassId(cls.id)}>
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">{cls.code}</CardTitle>
+                  <CardTitle className="text-base">{cls.componentCode} - {cls.classCode}</CardTitle>
                   {selectedClassId === cls.id && (
                     <Badge variant="default" className="text-xs">Selecionada</Badge>
                   )}
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">{cls.name}</p>
+                <p className="text-sm text-muted-foreground mb-4">Semestre: {cls.semester}</p>
                 <div className="flex gap-2" onClick={e => e.stopPropagation()}>
                   <Button variant="outline" size="sm" onClick={() => {
-                    setEditId(cls.id); setEditName(cls.name); setEditCode(cls.code); setEditOpen(true);
+                    setEditId(cls.id); 
+                    setEditClassCode(cls.classCode); 
+                    setEditComponentCode(cls.componentCode); 
+                    setEditSemester(cls.semester); 
+                    setEditOpen(true);
                   }}>
                     <Pencil className="h-3 w-3 mr-1" />Editar
                   </Button>
@@ -175,11 +197,15 @@ function ClassesContent() {
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Código da Turma</Label>
-              <Input value={editCode} onChange={e => setEditCode(e.target.value)} />
+              <Input placeholder="Ex: TP01" value={editClassCode} onChange={e => setEditClassCode(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Nome da Turma</Label>
-              <Input value={editName} onChange={e => setEditName(e.target.value)} />
+              <Label>Código do Componente</Label>
+              <Input placeholder="Ex: TEC502" value={editComponentCode} onChange={e => setEditComponentCode(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Semestre</Label>
+              <Input placeholder="Ex: 20262" value={editSemester} onChange={e => setEditSemester(e.target.value)} />
             </div>
           </div>
           <DialogFooter>

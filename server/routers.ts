@@ -37,19 +37,21 @@ export const appRouter = router({
       return listClassesByProfessor(ctx.user.id);
     }),
     create: adminProcedure.input(z.object({
-      name: z.string().min(1),
-      code: z.string().min(1),
+      classCode: z.string().min(1),
+      componentCode: z.string().min(1),
+      semester: z.string().min(1),
     })).mutation(async ({ ctx, input }) => {
       return createClass({ ...input, professorUserId: ctx.user.id });
     }),
     update: adminProcedure.input(z.object({
       id: z.number(),
-      name: z.string().min(1).optional(),
-      code: z.string().min(1).optional(),
+      classCode: z.string().min(1).optional(),
+      componentCode: z.string().min(1).optional(),
+      semester: z.string().min(1).optional(),
     })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.id);
       if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
-      return updateClass(input.id, { name: input.name, code: input.code });
+      return updateClass(input.id, { classCode: input.classCode, componentCode: input.componentCode, semester: input.semester });
     }),
     delete: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.id);

@@ -93,7 +93,8 @@ function ResultsContent() {
   }
 
   const viewingOtherClass = viewingClassId && viewingClassId !== selectedClassId;
-  const viewingClassName = allClasses?.find(c => c.id === viewingClassId)?.name;
+  const viewingClass = allClasses?.find(c => c.id === viewingClassId);
+  const viewingClassName = viewingClass ? `${viewingClass.componentCode} - ${viewingClass.classCode} (${viewingClass.semester})` : undefined;
 
   // ─── Export helpers ───
 
@@ -214,7 +215,7 @@ function ResultsContent() {
                 <SelectContent>
                   {allClasses.map(c => (
                     <SelectItem key={c.id} value={String(c.id)}>
-                      {c.name} ({c.code}){c.professorUserId === user?.id ? " — Minha turma" : ` — Prof. ${c.professorName || "N/A"}`}
+                      {c.componentCode} - {c.classCode} ({c.semester}){c.professorUserId === user?.id ? " — Minha turma" : ` — Prof. ${c.professorName || "N/A"}`}
                     </SelectItem>
                   ))}
                 </SelectContent>
