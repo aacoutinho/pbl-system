@@ -81,7 +81,7 @@ export default function DashboardLayout({
               Avaliação Tutorial
             </h1>
             <p className="text-sm text-muted-foreground text-center max-w-sm leading-relaxed">
-              Sistema de avaliação de seminários. Faça login para acessar o formulário de avaliação ou o painel administrativo.
+              Sistema de avaliação de Desempenho Tutorial. Faça login para acessar o formulário de avaliação ou o painel administrativo.
             </p>
           </div>
           <div className="flex flex-col gap-3 w-full">

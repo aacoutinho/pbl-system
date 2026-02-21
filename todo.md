@@ -57,3 +57,4 @@
 - [x] Frontend: Export button with CSV download (session-level and problem-level)
 - [x] Frontend: Clean export format without individual peer scores
 - [x] Tests: Export format validation tests (60 tests passing)
+- [x] Update homepage text: "Sistema de avaliação de seminários" → "Sistema de avaliação de Desempenho Tutorial"
