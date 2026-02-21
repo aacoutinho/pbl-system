@@ -182,10 +182,13 @@ export const appRouter = router({
       // Google Workspace CSV header (29 columns)
       const header = "First Name [Required];Last Name [Required];Email Address [Required];Password [Required];Password Hash Function [UPLOAD ONLY];Org Unit Path [Required];New Primary Email [UPLOAD ONLY];Recovery Email;Home Secondary Email;Work Secondary Email;Recovery Phone [MUST BE IN THE E.164 FORMAT];Work Phone;Home Phone;Mobile Phone;Work Address;Home Address;Employee ID;Employee Type;Employee Title;Manager Email;Department;Cost Center;Building ID;Floor Name;Floor Section;Change Password at Next Sign-In;New Status [UPLOAD ONLY];New Licenses [UPLOAD ONLY];Advanced Protection Program enrollment";
 
+      // Title Case: primeira letra maiúscula, resto minúscula
+      const toTitleCase = (str: string) => str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+
       const rows = studentsData.map(s => {
         const nameParts = s.studentName.trim().split(/\s+/);
-        const firstName = nameParts[0] || "";
-        const lastName = nameParts.slice(1).join(" ") || "";
+        const firstName = toTitleCase(nameParts[0] || "");
+        const lastName = toTitleCase(nameParts.slice(1).join(" ") || "");
         // Password: iniciais do nome + matrícula
         const initials = nameParts.map(p => p[0]?.toLowerCase() || "").join("");
         const enrollment = s.studentEnrollment || "";

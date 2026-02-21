@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+// Title Case: primeira letra maiúscula, resto minúscula
+const toTitleCase = (str: string) => str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+
 // Replicate the CSV generation logic from the router for testing
 function generateGoogleWorkspaceCSV(
   studentsData: { studentName: string; studentEmail: string; studentEnrollment: string | null; semester: string }[]
@@ -8,8 +11,8 @@ function generateGoogleWorkspaceCSV(
 
   const rows = studentsData.map(s => {
     const nameParts = s.studentName.trim().split(/\s+/);
-    const firstName = nameParts[0] || "";
-    const lastName = nameParts.slice(1).join(" ") || "";
+    const firstName = toTitleCase(nameParts[0] || "");
+    const lastName = toTitleCase(nameParts.slice(1).join(" ") || "");
     // Password: iniciais do nome + matrícula
     const initials = nameParts.map(p => p[0]?.toLowerCase() || "").join("");
     const enrollment = s.studentEnrollment || "";
@@ -50,28 +53,46 @@ describe("Google Workspace CSV Export", () => {
     expect(headerCols[28]).toBe("Advanced Protection Program enrollment");
   });
 
-  it("splits name into first name and last name correctly", () => {
+  it("formats names in Title Case from UPPERCASE input", () => {
     const result = generateGoogleWorkspaceCSV([
       { studentName: "ANTONIO AUGUSTO TEIXEIRA RIBEIRO COUTINHO", studentEmail: "aatrcoutinho@ecomp.uefs.br", studentEnrollment: "20221001", semester: "20262" },
     ]);
     const lines = result.csv.split("\n");
     const cols = lines[1].split(";");
-    expect(cols[0]).toBe("ANTONIO"); // First Name
-    expect(cols[1]).toBe("AUGUSTO TEIXEIRA RIBEIRO COUTINHO"); // Last Name
+    expect(cols[0]).toBe("Antonio"); // First Name in Title Case
+    expect(cols[1]).toBe("Augusto Teixeira Ribeiro Coutinho"); // Last Name in Title Case
+  });
+
+  it("formats names in Title Case from lowercase input", () => {
+    const result = generateGoogleWorkspaceCSV([
+      { studentName: "jose macedo dos santos", studentEmail: "jmdsantos@ecomp.uefs.br", studentEnrollment: "20221001", semester: "20262" },
+    ]);
+    const lines = result.csv.split("\n");
+    const cols = lines[1].split(";");
+    expect(cols[0]).toBe("Jose");
+    expect(cols[1]).toBe("Macedo Dos Santos");
+  });
+
+  it("preserves Title Case from mixed case input", () => {
+    const result = generateGoogleWorkspaceCSV([
+      { studentName: "Antonio Crispim Amorim Neto", studentEmail: "acamorim@ecomp.uefs.br", studentEnrollment: "20230303", semester: "20262" },
+    ]);
+    const lines = result.csv.split("\n");
+    const cols = lines[1].split(";");
+    expect(cols[0]).toBe("Antonio");
+    expect(cols[1]).toBe("Crispim Amorim Neto");
   });
 
   it("generates password as iniciais_nome + matrícula", () => {
-    // ANTONIO AUGUSTO TEIXEIRA RIBEIRO COUTINHO → iniciais: a+a+t+r+c = "aatrc", matrícula: 20221001
     const result = generateGoogleWorkspaceCSV([
       { studentName: "ANTONIO AUGUSTO TEIXEIRA RIBEIRO COUTINHO", studentEmail: "aatrcoutinho@ecomp.uefs.br", studentEnrollment: "20221001", semester: "20262" },
     ]);
     const lines = result.csv.split("\n");
     const cols = lines[1].split(";");
-    expect(cols[3]).toBe("aatrc20221001"); // Password = iniciais + matrícula
+    expect(cols[3]).toBe("aatrc20221001");
   });
 
   it("generates password for two-name student", () => {
-    // JOSE SANTOS → iniciais: j+s = "js", matrícula: 20220505
     const result = generateGoogleWorkspaceCSV([
       { studentName: "JOSE SANTOS", studentEmail: "jsantos@ecomp.uefs.br", studentEnrollment: "20220505", semester: "20262" },
     ]);
@@ -86,11 +107,10 @@ describe("Google Workspace CSV Export", () => {
     ]);
     const lines = result.csv.split("\n");
     const cols = lines[1].split(";");
-    expect(cols[3]).toBe("js"); // Only initials, no enrollment
+    expect(cols[3]).toBe("js");
   });
 
   it("generates password for student with many names", () => {
-    // JOSE MACEDO DOS SANTOS JUNIOR → iniciais: j+m+d+s+j = "jmdsj"
     const result = generateGoogleWorkspaceCSV([
       { studentName: "JOSE MACEDO DOS SANTOS JUNIOR", studentEmail: "jmdsantos@ecomp.uefs.br", studentEnrollment: "20230101", semester: "20262" },
     ]);
@@ -132,12 +152,12 @@ describe("Google Workspace CSV Export", () => {
     ]);
     const lines = result.csv.split("\n");
     const cols = lines[1].split(";");
-    expect(cols[4]).toBe(""); // Password Hash Function
-    expect(cols[7]).toBe(""); // Recovery Email
-    expect(cols[26]).toBe(""); // New Status
+    expect(cols[4]).toBe("");
+    expect(cols[7]).toBe("");
+    expect(cols[26]).toBe("");
   });
 
-  it("exports multiple students correctly", () => {
+  it("exports multiple students correctly with Title Case", () => {
     const result = generateGoogleWorkspaceCSV([
       { studentName: "ANTONIO COUTINHO", studentEmail: "acoutinho@ecomp.uefs.br", studentEnrollment: "20221001", semester: "20262" },
       { studentName: "JOSE MACEDO DOS SANTOS", studentEmail: "jmdsantos@ecomp.uefs.br", studentEnrollment: "20221002", semester: "20262" },
@@ -145,7 +165,11 @@ describe("Google Workspace CSV Export", () => {
     ]);
     expect(result.count).toBe(3);
     const lines = result.csv.split("\n");
-    expect(lines).toHaveLength(4); // header + 3 students
+    expect(lines).toHaveLength(4);
+    // Verify Title Case on all rows
+    expect(lines[1].split(";")[0]).toBe("Antonio");
+    expect(lines[2].split(";")[0]).toBe("Jose");
+    expect(lines[3].split(";")[0]).toBe("Maria");
   });
 
   it("deduplicates students by email", () => {
@@ -155,7 +179,7 @@ describe("Google Workspace CSV Export", () => {
     ]);
     expect(result.count).toBe(1);
     const lines = result.csv.split("\n");
-    expect(lines).toHaveLength(2); // header + 1 student
+    expect(lines).toHaveLength(2);
   });
 
   it("each row has exactly 29 columns", () => {
@@ -170,31 +194,15 @@ describe("Google Workspace CSV Export", () => {
     }
   });
 
-  it("matches the expected format structure", () => {
-    // Antonio Crispim Amorim Neto → iniciais: a+c+a+n = "acan", matrícula: 20230303
-    const result = generateGoogleWorkspaceCSV([
-      { studentName: "Antonio Crispim Amorim Neto", studentEmail: "acamorim@ecomp.uefs.br", studentEnrollment: "20230303", semester: "20262" },
-    ]);
-    const lines = result.csv.split("\n");
-    const cols = lines[1].split(";");
-    expect(cols[0]).toBe("Antonio"); // First Name
-    expect(cols[1]).toBe("Crispim Amorim Neto"); // Last Name
-    expect(cols[2]).toBe("acamorim@ecomp.uefs.br"); // Email
-    expect(cols[3]).toBe("acan20230303"); // Password = iniciais + matrícula
-    expect(cols[5]).toBe("/Alunos");
-    expect(cols[25]).toBe("True");
-    expect(cols[28]).toBe("False");
-  });
-
-  it("handles single-name students", () => {
+  it("handles single-name students in Title Case", () => {
     const result = generateGoogleWorkspaceCSV([
       { studentName: "MADONNA", studentEmail: "madonna@ecomp.uefs.br", studentEnrollment: "20221099", semester: "20262" },
     ]);
     const lines = result.csv.split("\n");
     const cols = lines[1].split(";");
-    expect(cols[0]).toBe("MADONNA"); // First Name
-    expect(cols[1]).toBe(""); // Last Name (empty)
-    expect(cols[3]).toBe("m20221099"); // Password = "m" + matrícula
+    expect(cols[0]).toBe("Madonna"); // Title Case
+    expect(cols[1]).toBe("");
+    expect(cols[3]).toBe("m20221099");
   });
 
   it("returns correct count", () => {

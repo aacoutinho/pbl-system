@@ -65,3 +65,4 @@
 - [x] Reordenar colunas da lista de alunos: matrícula, nome, e-mail
 - [x] Exportar alunos para CSV formato Google Workspace (todas turmas ou turmas selecionadas por semestre)
 - [x] Alterar senha na exportação: usar iniciais_nome+matrícula em vez de usuario+semestre
+- [x] Formatar nomes na exportação Google Workspace com Title Case (primeira letra maiúscula)
