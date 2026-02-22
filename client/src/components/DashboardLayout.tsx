@@ -24,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useIsMobile } from "@/hooks/useMobile";
 import { useClassContext } from "@/contexts/ClassContext";
 import { trpc } from "@/lib/trpc";
-import { LayoutDashboard, Users, ClipboardList, BarChart3, LogOut, PanelLeft, GraduationCap, BookOpen, ClipboardCheck, Download, KeyRound, UserCheck, Clock, Eye, EyeOff, Loader2, Mail, ArrowRightLeft, Layers, User } from "lucide-react";
+import { LayoutDashboard, Users, ClipboardList, BarChart3, LogOut, PanelLeft, GraduationCap, BookOpen, ClipboardCheck, Download, KeyRound, UserCheck, Clock, Eye, EyeOff, Loader2, Mail, ArrowRightLeft, Layers, User, History } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState, FormEvent } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -48,6 +48,9 @@ const baseMenuItems = [
 // Tutorial evaluation: only for prof and coordinator (NOT admin)
 const tutorialEvalItem = { icon: ClipboardCheck, label: "Avaliar Tutorial", path: "/tutorial-eval" };
 
+// Audit log: for coordinator and admin
+const auditLogItem = { icon: History, label: "Histórico de Ações", path: "/audit-log" };
+
 // Admin-only items
 const adminOnlyItems = [
   { icon: Download, label: "Exportar Alunos", path: "/export-students" },
@@ -56,13 +59,17 @@ const adminOnlyItems = [
 
 function getMenuItemsForRole(role: string) {
   if (role === "admin") {
-    return [...baseMenuItems, ...adminOnlyItems];
+    return [...baseMenuItems, auditLogItem, ...adminOnlyItems];
   }
   // coordinator and prof: include tutorial eval
   const items = [...baseMenuItems];
   // Insert tutorial eval after Sessões
   const sessionsIdx = items.findIndex(i => i.path === "/sessions");
   items.splice(sessionsIdx + 1, 0, tutorialEvalItem);
+  // Coordinators also get audit log
+  if (role === "coordinator") {
+    items.push(auditLogItem);
+  }
   return items;
 }
 

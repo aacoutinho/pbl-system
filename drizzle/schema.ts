@@ -212,3 +212,18 @@ export const passwordResetCodes = mysqlTable("password_reset_codes", {
 });
 
 export type PasswordResetCode = typeof passwordResetCodes.$inferSelect;
+
+// ─── Audit Logs (action history for administrative traceability) ───
+export const auditLogs = mysqlTable("audit_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  action: varchar("action", { length: 64 }).notNull(), // e.g. "approve_request", "reject_request", "promote_coordinator", etc.
+  actorUserId: int("actorUserId").notNull(), // Who performed the action
+  targetUserId: int("targetUserId"), // Who was affected (nullable for non-user actions)
+  componentId: int("componentId"), // Related component (nullable)
+  classId: int("classId"), // Related class (nullable)
+  details: text("details"), // JSON string with additional context
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = typeof auditLogs.$inferInsert;

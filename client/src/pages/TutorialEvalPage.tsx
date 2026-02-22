@@ -8,11 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { BookOpen, ClipboardCheck, Save, CheckCircle2, Info } from "lucide-react";
+import { BookOpen, ClipboardCheck, Save, CheckCircle2, Info, ShieldCheck, ShieldAlert, Crown, UserCheck } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 // Rótulos descritivos com valores numéricos correspondentes
 const LABELS = [
@@ -78,6 +79,50 @@ const CRITERIA = [
 
 type CriteriaKey = typeof CRITERIA[number]["key"];
 
+type EvalPermission = "owner" | "coordinator" | "authorized" | "no_permission" | "admin";
+
+function PermissionBadge({ permission }: { permission: EvalPermission }) {
+  switch (permission) {
+    case "owner":
+      return (
+        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs gap-1">
+          <Crown className="h-3 w-3" />
+          Sua turma
+        </Badge>
+      );
+    case "coordinator":
+      return (
+        <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-xs gap-1">
+          <ShieldCheck className="h-3 w-3" />
+          Coordenador
+        </Badge>
+      );
+    case "authorized":
+      return (
+        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs gap-1">
+          <UserCheck className="h-3 w-3" />
+          Autorizado
+        </Badge>
+      );
+    case "no_permission":
+      return (
+        <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200 text-xs gap-1">
+          <ShieldAlert className="h-3 w-3" />
+          Sem permissão
+        </Badge>
+      );
+    case "admin":
+      return (
+        <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200 text-xs gap-1">
+          <ShieldCheck className="h-3 w-3" />
+          Admin
+        </Badge>
+      );
+    default:
+      return null;
+  }
+}
+
 export default function TutorialEvalPage() {
   return (
     <DashboardLayout>
@@ -88,14 +133,35 @@ export default function TutorialEvalPage() {
 
 function TutorialEvalContent() {
   const { selectedClassId } = useClassContext();
+  const { user } = useAuth();
   const utils = trpc.useUtils();
 
-  const { data: sessionsList, isLoading: sessionsLoading } = trpc.sessions.list.useQuery(
+  const { data: sessionsWithPerms, isLoading: sessionsLoading } = trpc.sessions.listWithPermissions.useQuery(
     { classId: selectedClassId! },
-    { enabled: !!selectedClassId }
+    { enabled: !!selectedClassId && user?.role !== "admin" }
   );
 
+  // Fallback for admin (who can't evaluate but can view)
+  const { data: sessionsList, isLoading: sessionsListLoading } = trpc.sessions.list.useQuery(
+    { classId: selectedClassId! },
+    { enabled: !!selectedClassId && user?.role === "admin" }
+  );
+
+  const effectiveSessions = user?.role === "admin"
+    ? sessionsList?.map(s => ({ ...s, evalPermission: "admin" as EvalPermission }))
+    : sessionsWithPerms;
+  const isLoadingSessions = user?.role === "admin" ? sessionsListLoading : sessionsLoading;
+
   const [selectedSessionId, setSelectedSessionId] = useState<string>("");
+
+  const selectedSession = useMemo(() => {
+    if (!selectedSessionId || !effectiveSessions) return null;
+    return effectiveSessions.find(s => String(s.id) === selectedSessionId) ?? null;
+  }, [selectedSessionId, effectiveSessions]);
+
+  const canEvaluateSelected = selectedSession
+    ? selectedSession.evalPermission !== "no_permission" && selectedSession.evalPermission !== "admin"
+    : false;
 
   const { data: existingEval, isLoading: evalLoading } = trpc.tutorialEval.get.useQuery(
     { sessionId: parseInt(selectedSessionId) },
@@ -168,10 +234,35 @@ function TutorialEvalContent() {
         </p>
       </div>
 
+      {/* Permission legend */}
+      <Card>
+        <CardContent className="pt-4 pb-3">
+          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">Legenda:</span>
+            <div className="flex items-center gap-1">
+              <Crown className="h-3 w-3 text-blue-600" />
+              <span>Sua turma</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <ShieldCheck className="h-3 w-3 text-purple-600" />
+              <span>Coordenador</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <UserCheck className="h-3 w-3 text-emerald-600" />
+              <span>Autorizado</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <ShieldAlert className="h-3 w-3 text-red-500" />
+              <span>Sem permissão</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Session selector */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex items-end gap-4">
+          <div className="flex items-end gap-4 flex-wrap">
             <div className="flex-1 max-w-sm">
               <Label>Selecione a sessão</Label>
               <Select value={selectedSessionId} onValueChange={setSelectedSessionId}>
@@ -179,13 +270,17 @@ function TutorialEvalContent() {
                   <SelectValue placeholder="Escolha uma sessão..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {sessionsLoading ? (
+                  {isLoadingSessions ? (
                     <SelectItem value="loading" disabled>Carregando...</SelectItem>
                   ) : (
-                    sessionsList?.map(s => (
+                    effectiveSessions?.map(s => (
                       <SelectItem key={s.id} value={String(s.id)}>
                         <span className="flex items-center gap-2">
                           {s.label}
+                          {s.evalPermission === "owner" && <Crown className="h-3 w-3 text-blue-600" />}
+                          {s.evalPermission === "coordinator" && <ShieldCheck className="h-3 w-3 text-purple-600" />}
+                          {s.evalPermission === "authorized" && <UserCheck className="h-3 w-3 text-emerald-600" />}
+                          {s.evalPermission === "no_permission" && <ShieldAlert className="h-3 w-3 text-red-500" />}
                         </span>
                       </SelectItem>
                     ))
@@ -193,18 +288,40 @@ function TutorialEvalContent() {
                 </SelectContent>
               </Select>
             </div>
-            {existingEval && (
-              <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 mb-0.5">
-                <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                Já avaliada (nota: {existingEval.tutorialGrade.toFixed(1)})
-              </Badge>
-            )}
+            <div className="flex items-center gap-2 mb-0.5">
+              {selectedSession && <PermissionBadge permission={selectedSession.evalPermission} />}
+              {existingEval && (
+                <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                  <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                  Já avaliada (nota: {existingEval.tutorialGrade.toFixed(1)})
+                </Badge>
+              )}
+            </div>
           </div>
+
+          {/* No permission warning */}
+          {selectedSession && selectedSession.evalPermission === "no_permission" && (
+            <div className="mt-4 flex items-start gap-2 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-800">
+              <ShieldAlert className="h-4 w-4 mt-0.5 shrink-0" />
+              <p>
+                Você não tem permissão para avaliar sessões desta turma. Solicite ao professor responsável pela turma ou ao coordenador do componente para conceder acesso na seção de <strong>Permissões de Avaliação</strong>.
+              </p>
+            </div>
+          )}
+
+          {selectedSession && selectedSession.evalPermission === "admin" && (
+            <div className="mt-4 flex items-start gap-2 p-3 rounded-lg bg-gray-50 border border-gray-200 text-sm text-gray-700">
+              <Info className="h-4 w-4 mt-0.5 shrink-0" />
+              <p>
+                Administradores podem visualizar as avaliações, mas não podem avaliar sessões tutoriais diretamente.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Evaluation form */}
-      {selectedSessionId && (
+      {selectedSessionId && canEvaluateSelected && (
         evalLoading ? (
           <Card><CardContent className="pt-6"><div className="space-y-6">{[1,2,3,4,5].map(i => <Skeleton key={i} className="h-20 rounded-lg" />)}</div></CardContent></Card>
         ) : (
@@ -265,6 +382,40 @@ function TutorialEvalContent() {
             </CardContent>
           </Card>
         )
+      )}
+
+      {/* View-only existing eval for admin or no_permission */}
+      {selectedSessionId && !canEvaluateSelected && existingEval && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <ClipboardCheck className="h-5 w-5" />
+              Avaliação Existente (somente leitura)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {CRITERIA.map(c => (
+                <div key={c.key} className="p-3 rounded-lg bg-accent/20 border">
+                  <p className="text-xs text-muted-foreground font-medium">{c.label} (peso {c.weight})</p>
+                  <p className="text-lg font-bold mt-1">
+                    {getLabelForValue(Number((existingEval as any)[c.key]), c.gender)}
+                    <span className="text-sm font-normal text-muted-foreground ml-1">({Number((existingEval as any)[c.key]).toFixed(2)})</span>
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 p-4 rounded-lg bg-accent/30 border">
+              <p className="text-sm font-medium text-muted-foreground">Nota do Tutorial</p>
+              <p className="text-3xl font-bold mt-1">
+                <span className={existingEval.tutorialGrade >= 7 ? "text-emerald-600" : existingEval.tutorialGrade >= 5 ? "text-amber-600" : "text-red-600"}>
+                  {existingEval.tutorialGrade.toFixed(1)}
+                </span>
+                <span className="text-base font-normal text-muted-foreground"> / 10</span>
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

@@ -17,6 +17,7 @@ import ProfessorsPage from "./pages/ProfessorsPage";
 import SmtpConfigPage from "./pages/SmtpConfigPage";
 import ComponentsPage from "./pages/ComponentsPage";
 import ProfilePage from "./pages/ProfilePage";
+import AuditLogPage from "./pages/AuditLogPage";
 
 function Router() {
   return (
@@ -33,6 +34,7 @@ function Router() {
       <Route path={"/professors"} component={ProfessorsPage} />
       <Route path={"/smtp-config"} component={SmtpConfigPage} />
       <Route path={"/profile"} component={ProfilePage} />
+      <Route path={"/audit-log"} component={AuditLogPage} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

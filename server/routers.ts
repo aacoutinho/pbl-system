@@ -27,11 +27,13 @@ import {
   requestComponentMembership, listPendingRequestsByComponents,
   approveComponentRequest, rejectComponentRequest, setComponentRole, removeProfessorFromComponent,
   getCoordinatorComponentIds,
+  getComponentCoordinators,
   grantEvalPermission, revokeEvalPermission, hasEvalPermission, listEvalPermissions, listComponentProfessorsForClass,
   createEmailVerificationCode, verifyEmailCode,
   transferStudentBetweenClasses,
+  createAuditLog, listAuditLogs,
 } from "./db";
-import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml } from "./email";
+import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml } from "./email";
 
 // Base: approved user (any role except "user" pending)
 const approvedProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -601,6 +603,7 @@ export const appRouter = router({
         throw new TRPCError({ code: "CONFLICT", message: "Aluno já está na turma de destino" });
       }
       await transferStudentBetweenClasses(input.studentId, input.fromClassId, input.toClassId);
+      await createAuditLog({ action: "transfer_student", actorUserId: ctx.user.id, componentId: fromCls.componentId, classId: input.fromClassId, details: JSON.stringify({ studentId: input.studentId, fromClassId: input.fromClassId, toClassId: input.toClassId }) });
       return { success: true };
     }),
   }),
@@ -613,6 +616,28 @@ export const appRouter = router({
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);
       return listSessionsByClass(input.classId);
+    }),
+    // List sessions with permission info for the current professor
+    listWithPermissions: professorProcedure.input(z.object({ classId: z.number() })).query(async ({ ctx, input }) => {
+      const cls = await getClassById(input.classId);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);
+      const sessionsList = await listSessionsByClass(input.classId);
+      if (ctx.user.role === "admin") {
+        return sessionsList.map(s => ({ ...s, evalPermission: "admin" as const }));
+      }
+      const isOwner = cls.professorUserId === ctx.user.id;
+      const compRole = await getUserComponentRole(ctx.user.id, cls.componentId);
+      const isCoordinator = compRole === "coordinator";
+      if (isOwner) {
+        return sessionsList.map(s => ({ ...s, evalPermission: "owner" as const }));
+      }
+      if (isCoordinator) {
+        return sessionsList.map(s => ({ ...s, evalPermission: "coordinator" as const }));
+      }
+      // Check explicit permission
+      const permitted = await hasEvalPermission(input.classId, ctx.user.id);
+      return sessionsList.map(s => ({ ...s, evalPermission: permitted ? "authorized" as const : "no_permission" as const }));
     }),
     listForStudent: protectedProcedure.input(z.object({ classId: z.number() })).query(async ({ input }) => {
       return listSessionsByClass(input.classId);
@@ -935,6 +960,7 @@ export const appRouter = router({
         }
       }
       await grantEvalPermission(input.classId, input.authorizedUserId, ctx.user.id);
+      await createAuditLog({ action: "grant_eval_permission", actorUserId: ctx.user.id, targetUserId: input.authorizedUserId, classId: input.classId, details: JSON.stringify({ classId: input.classId }) });
       return { success: true };
     }),
     // Revoke permission: class owner or coordinator of component can revoke
@@ -952,6 +978,7 @@ export const appRouter = router({
         }
       }
       await revokeEvalPermission(input.classId, input.authorizedUserId);
+      await createAuditLog({ action: "revoke_eval_permission", actorUserId: ctx.user.id, targetUserId: input.authorizedUserId, classId: input.classId, details: JSON.stringify({ classId: input.classId }) });
       return { success: true };
     }),
   }),
@@ -999,6 +1026,32 @@ export const appRouter = router({
     })).mutation(async ({ ctx, input }) => {
       try {
         await requestComponentMembership(ctx.user.id, input.componentId);
+        // Notify coordinators of the component via email
+        try {
+          const component = await getComponentById(input.componentId);
+          const coordinators = await getComponentCoordinators(input.componentId);
+          const requester = await getUserById(ctx.user.id);
+          if (component && requester && coordinators.length > 0) {
+            for (const coord of coordinators) {
+              if (coord.userEmail) {
+                await sendEmail({
+                  to: coord.userEmail,
+                  subject: `Nova Solicitação de Entrada - ${component.code}`,
+                  text: `Olá ${coord.userName || ""}, o professor ${requester.name || requester.email || ""} solicitou entrada no componente ${component.code} - ${component.name}. Acesse o sistema para aprovar ou rejeitar.`,
+                  html: buildNewRequestEmailHtml(
+                    coord.userName || coord.userEmail,
+                    requester.name || requester.email || "Professor",
+                    requester.email || "Não informado",
+                    component.code,
+                    component.name,
+                  ),
+                });
+              }
+            }
+          }
+        } catch (emailErr) {
+          console.error("[Email] Failed to send new request notification to coordinators:", emailErr);
+        }
         return { success: true };
       } catch (e: any) {
         throw new TRPCError({ code: "CONFLICT", message: e.message || "Erro ao solicitar entrada no componente" });
@@ -1025,6 +1078,7 @@ export const appRouter = router({
     })).mutation(async ({ ctx, input }) => {
       await assertComponentCoordinator(ctx.user.id, ctx.user.role, input.componentId);
       await approveComponentRequest(input.userId, input.componentId, ctx.user.id);
+      await createAuditLog({ action: "approve_component_request", actorUserId: ctx.user.id, targetUserId: input.userId, componentId: input.componentId, details: JSON.stringify({ componentId: input.componentId }) });
       // Send notification email
       try {
         const user = await getUserById(input.userId);
@@ -1052,6 +1106,7 @@ export const appRouter = router({
       const user = await getUserById(input.userId);
       const component = await getComponentById(input.componentId);
       await rejectComponentRequest(input.userId, input.componentId);
+      await createAuditLog({ action: "reject_component_request", actorUserId: ctx.user.id, targetUserId: input.userId, componentId: input.componentId, details: JSON.stringify({ componentId: input.componentId }) });
       // Send notification email
       try {
         if (user?.email && component) {
@@ -1074,6 +1129,7 @@ export const appRouter = router({
     })).mutation(async ({ ctx, input }) => {
       await assertComponentCoordinator(ctx.user.id, ctx.user.role, input.componentId);
       await setComponentRole(input.userId, input.componentId, "coordinator");
+      await createAuditLog({ action: "promote_to_coordinator", actorUserId: ctx.user.id, targetUserId: input.userId, componentId: input.componentId });
       // Also update user's system role to coordinator if they are currently prof
       const user = await getUserById(input.userId);
       if (user && user.role === "prof") {
@@ -1089,6 +1145,7 @@ export const appRouter = router({
     })).mutation(async ({ ctx, input }) => {
       await assertComponentCoordinator(ctx.user.id, ctx.user.role, input.componentId);
       await setComponentRole(input.userId, input.componentId, "prof");
+      await createAuditLog({ action: "demote_to_prof", actorUserId: ctx.user.id, targetUserId: input.userId, componentId: input.componentId });
       // Check if user is still coordinator of any component, if not, demote system role
       const userComps = await getUserComponents(input.userId);
       const stillCoordinator = userComps.some(c => c.componentRole === "coordinator" && c.status === "approved" && c.componentId !== input.componentId);
@@ -1108,6 +1165,7 @@ export const appRouter = router({
     })).mutation(async ({ ctx, input }) => {
       await assertComponentCoordinator(ctx.user.id, ctx.user.role, input.componentId);
       await removeProfessorFromComponent(input.userId, input.componentId);
+      await createAuditLog({ action: "remove_from_component", actorUserId: ctx.user.id, targetUserId: input.userId, componentId: input.componentId });
       // Check if user still has any approved components, if not, check system role
       const userComps = await getUserComponents(input.userId);
       const hasCoordinator = userComps.some(c => c.componentRole === "coordinator" && c.status === "approved");
@@ -1179,6 +1237,25 @@ export const appRouter = router({
       const componentIds = await getUserApprovedComponentIds(ctx.user.id);
       if (componentIds.length === 0) return { totalStudents: 0, totalSessions: 0, openSessions: 0, totalEvaluations: 0, totalClasses: 0 };
       return getDashboardStatsByComponents(componentIds);
+    }),
+  }),
+
+  // ─── Audit Logs ───
+  auditLogs: router({
+    list: approvedProcedure.input(z.object({
+      limit: z.number().min(1).max(100).optional().default(50),
+      offset: z.number().min(0).optional().default(0),
+    })).query(async ({ ctx, input }) => {
+      // Admin sees all; coordinators see logs for their components
+      if (ctx.user.role === "admin") {
+        return listAuditLogs({ limit: input.limit, offset: input.offset });
+      }
+      const coordCompIds = await getCoordinatorComponentIds(ctx.user.id);
+      if (coordCompIds.length === 0) {
+        // Regular prof: see only logs where they are the actor
+        return listAuditLogs({ limit: input.limit, offset: input.offset, componentIds: [] });
+      }
+      return listAuditLogs({ limit: input.limit, offset: input.offset, componentIds: coordCompIds });
     }),
   }),
 });

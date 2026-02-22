@@ -213,19 +213,19 @@
 - [x] Rota no menu lateral para acessar perfil pessoal (acessível via dropdown do avatar no footer da sidebar)
 - [x] Notificação por e-mail ao professor quando solicitação de componente for aprovada
 - [x] Notificação por e-mail ao professor quando solicitação de componente for rejeitada
-- [ ] Indicação visual na página Avaliar Tutorial: ícone/badge diferenciando sessões próprias, autorizadas e sem permissão
-- [ ] Backend: rota para listar sessões com indicação de permissão do professor logado
-- [ ] Frontend: badges visuais (própria, autorizada, sem permissão) nos cards de sessão na página Avaliar Tutorial
-- [ ] Notificação por e-mail ao coordenador quando professor solicita entrada em componente
-- [ ] Backend: enviar e-mail aos coordenadores do componente na rota de solicitação de entrada
-- [ ] Template de e-mail para notificação de nova solicitação ao coordenador
-- [ ] Histórico de ações (log de auditoria) para rastreabilidade administrativa
-- [ ] Schema: tabela audit_log (id, userId, action, targetType, targetId, details, createdAt)
-- [ ] Backend: helper para registrar ações no log de auditoria
-- [ ] Backend: registrar aprovações, rejeições, promoções e alterações de permissão no log
-- [ ] Backend: rota para listar histórico de ações (admin only)
-- [ ] Frontend: página de Histórico de Ações no menu admin
-- [ ] Testes: indicação visual de permissões, notificação ao coordenador, log de auditoria
+- [x] Indicação visual na página Avaliar Tutorial: ícone/badge diferenciando sessões próprias, autorizadas e sem permissão
+- [x] Backend: rota para listar sessões com indicação de permissão do professor logado
+- [x] Frontend: badges visuais (própria, autorizada, sem permissão) nos cards de sessão na página Avaliar Tutorial
+- [x] Notificação por e-mail ao coordenador quando professor solicita entrada em componente
+- [x] Backend: enviar e-mail aos coordenadores do componente na rota de solicitação de entrada
+- [x] Template de e-mail para notificação de nova solicitação ao coordenador
+- [x] Histórico de ações (log de auditoria) para rastreabilidade administrativa
+- [x] Schema: tabela audit_logs (id, action, actorUserId, targetUserId, componentId, classId, details, createdAt)
+- [x] Backend: helper para registrar ações no log de auditoria
+- [x] Backend: registrar aprovações, rejeições, promoções, alterações de permissão e transferências no log
+- [x] Backend: rota para listar histórico de ações (admin e coordenadores)
+- [x] Frontend: página de Histórico de Ações no menu (admin e coordenadores)
+- [x] Testes: indicação visual de permissões, notificação ao coordenador, log de auditoria (14 novos testes)
 - [x] Transferência de aluno entre turmas do mesmo componente (tutorial)
 - [x] Backend: helper DB para transferir aluno (remover de turma origem, adicionar na turma destino)
 - [x] Backend: rota tRPC para transferência (apenas coordenador do componente ou admin)

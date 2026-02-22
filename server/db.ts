@@ -16,6 +16,7 @@ import {
   passwordResetCodes,
   classEvalPermissions,
   emailVerificationCodes,
+  auditLogs,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1581,4 +1582,93 @@ export async function verifyEmailCode(email: string, code: string): Promise<bool
     .set({ used: true })
     .where(eq(emailVerificationCodes.id, record.id));
   return true;
+}
+
+
+// ─── Get coordinators of a component (for notifications) ───
+export async function getComponentCoordinators(componentId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.select({
+    userId: professorComponents.userId,
+    userName: users.name,
+    userEmail: users.email,
+  })
+    .from(professorComponents)
+    .innerJoin(users, eq(professorComponents.userId, users.id))
+    .where(and(
+      eq(professorComponents.componentId, componentId),
+      eq(professorComponents.componentRole, "coordinator"),
+      eq(professorComponents.status, "approved"),
+    ));
+  return rows;
+}
+
+
+// ─── Audit Log helpers ───
+export async function createAuditLog(data: {
+  action: string;
+  actorUserId: number;
+  targetUserId?: number | null;
+  componentId?: number | null;
+  classId?: number | null;
+  details?: string | null;
+}) {
+  const db = await getDb();
+  if (!db) return;
+  try {
+    await db.insert(auditLogs).values({
+      action: data.action,
+      actorUserId: data.actorUserId,
+      targetUserId: data.targetUserId ?? null,
+      componentId: data.componentId ?? null,
+      classId: data.classId ?? null,
+      details: data.details ?? null,
+    });
+  } catch (err) {
+    console.error("[AuditLog] Failed to create audit log:", err);
+  }
+}
+
+export async function listAuditLogs(opts: {
+  limit?: number;
+  offset?: number;
+  componentIds?: number[];
+}) {
+  const db = await getDb();
+  if (!db) return { logs: [], total: 0 };
+  const limit = opts.limit ?? 50;
+  const offset = opts.offset ?? 0;
+
+  const conditions = [];
+  if (opts.componentIds && opts.componentIds.length > 0) {
+    conditions.push(inArray(auditLogs.componentId, opts.componentIds));
+  }
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [countResult] = await db.select({ count: sql<number>`count(*)` })
+    .from(auditLogs)
+    .where(whereClause);
+
+  const rows = await db.select({
+    id: auditLogs.id,
+    action: auditLogs.action,
+    actorUserId: auditLogs.actorUserId,
+    targetUserId: auditLogs.targetUserId,
+    componentId: auditLogs.componentId,
+    classId: auditLogs.classId,
+    details: auditLogs.details,
+    createdAt: auditLogs.createdAt,
+    actorName: users.name,
+    actorEmail: users.email,
+  })
+    .from(auditLogs)
+    .leftJoin(users, eq(auditLogs.actorUserId, users.id))
+    .where(whereClause)
+    .orderBy(desc(auditLogs.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  return { logs: rows, total: Number(countResult.count) };
 }
