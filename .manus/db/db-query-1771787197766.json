@@ -1,0 +1,66 @@
+{
+  "query": "DESCRIBE professor_components;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute DESCRIBE professor_components;",
+  "rows": [
+    {
+      "Field": "id",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "PRI",
+      "Default": "NULL",
+      "Extra": "auto_increment"
+    },
+    {
+      "Field": "userId",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "MUL",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "authorizedAt",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": ""
+    },
+    {
+      "Field": "authorizedByUserId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "componentId",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "componentRole",
+      "Type": "enum('coordinator','prof')",
+      "Null": "NO",
+      "Key": "",
+      "Default": "prof",
+      "Extra": ""
+    },
+    {
+      "Field": "status",
+      "Type": "enum('pending','approved')",
+      "Null": "NO",
+      "Key": "",
+      "Default": "pending",
+      "Extra": ""
+    }
+  ],
+  "messages": [],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\nid\tint\tNO\tPRI\tNULL\tauto_increment\nuserId\tint\tNO\tMUL\tNULL\t\nauthorizedAt\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\t\nauthorizedByUserId\tint\tYES\t\tNULL\t\ncomponentId\tint\tNO\t\tNULL\t\ncomponentRole\tenum('coordinator','prof')\tNO\t\tprof\t\nstatus\tenum('pending','approved')\tNO\t\tpending\t\n",
+  "stderr": "",
+  "execution_time_ms": 358
+}

@@ -33,7 +33,9 @@ import {
   transferStudentBetweenClasses,
   createAuditLog, listAuditLogs,
   createNotification, listNotifications, countUnreadNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification,
+  listPendingNotifications, countPendingNotifications,
   getPeerGradesMatrix,
+  syncPendingRequestNotifications,
 } from "./db";
 import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml } from "./email";
 
@@ -1373,9 +1375,13 @@ export const appRouter = router({
       limit: z.number().min(1).max(100).optional().default(50),
       offset: z.number().min(0).optional().default(0),
     })).query(async ({ ctx, input }) => {
+      // Sync pending requests that may not have notifications yet (retroactive)
+      try { await syncPendingRequestNotifications(); } catch {}
       return listNotifications(ctx.user.id, { limit: input.limit, offset: input.offset });
     }),
     unreadCount: approvedProcedure.query(async ({ ctx }) => {
+      // Sync pending requests that may not have notifications yet (retroactive)
+      try { await syncPendingRequestNotifications(); } catch {}
       const count = await countUnreadNotifications(ctx.user.id);
       return { count };
     }),
@@ -1394,6 +1400,17 @@ export const appRouter = router({
     })).mutation(async ({ ctx, input }) => {
       await deleteNotification(input.notificationId, ctx.user.id);
       return { success: true };
+    }),
+    pendingList: approvedProcedure.input(z.object({
+      limit: z.number().min(1).max(20).optional().default(5),
+    })).query(async ({ ctx, input }) => {
+      try { await syncPendingRequestNotifications(); } catch {}
+      return listPendingNotifications(ctx.user.id, input.limit);
+    }),
+    pendingCount: approvedProcedure.query(async ({ ctx }) => {
+      try { await syncPendingRequestNotifications(); } catch {}
+      const count = await countPendingNotifications(ctx.user.id);
+      return { count };
     }),
   }),
 });

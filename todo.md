@@ -260,3 +260,6 @@
 - [x] Notificações resolvidas ficam na página de Notificações até serem apagadas pelo usuário
 - [x] Adicionar funcionalidade de apagar notificação individual na página de Notificações
 - [x] Coordenadores recebem notificação real quando professor solicita entrada em componente
+- [x] Bug: solicitações pendentes anteriores não aparecem em Notificações (sincronização retroativa implementada)
+- [x] Renomear "Notificações Recentes" para "Notificações Pendentes" no Painel Geral
+- [x] Notificações pendentes (ex: solicitações) devem permanecer visíveis mesmo se lidas, até serem resolvidas

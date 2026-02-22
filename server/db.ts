@@ -1883,3 +1883,144 @@ export async function deleteNotification(notificationId: number, userId: number)
   await db.delete(notifications)
     .where(and(eq(notifications.id, notificationId), eq(notifications.userId, userId)));
 }
+
+// Sync pending requests that don't have corresponding notifications
+// This ensures that requests created before the notification system was implemented
+// still appear in the notifications page
+export async function syncPendingRequestNotifications() {
+  const db = await getDb();
+  if (!db) return;
+  try {
+    // Get all pending requests
+    const pendingRequests = await db.select({
+      userId: professorComponents.userId,
+      componentId: professorComponents.componentId,
+      requesterName: users.name,
+      requesterEmail: users.email,
+      componentCode: components.code,
+      componentName: components.name,
+    })
+      .from(professorComponents)
+      .innerJoin(users, eq(professorComponents.userId, users.id))
+      .innerJoin(components, eq(professorComponents.componentId, components.id))
+      .where(eq(professorComponents.status, "pending"));
+
+    if (pendingRequests.length === 0) return;
+
+    // For each pending request, check if coordinators already have a notification
+    for (const req of pendingRequests) {
+      const coordinators = await getComponentCoordinators(req.componentId);
+      for (const coord of coordinators) {
+        // Check if a pending_request notification already exists for this coordinator about this request
+        const existing = await db.select({ id: notifications.id })
+          .from(notifications)
+          .where(and(
+            eq(notifications.userId, coord.userId),
+            eq(notifications.type, "pending_request"),
+            eq(notifications.read, false),
+          ))
+          .limit(100);
+
+        // Check if any existing notification matches this specific request (by metadata)
+        const hasNotification = existing.some(() => {
+          // We need to check metadata for componentId and requesterId match
+          return false; // Will be refined below
+        });
+
+        if (!hasNotification) {
+          // Check more precisely by querying with metadata content
+          const existingWithMeta = await db.select({ id: notifications.id, metadata: notifications.metadata })
+            .from(notifications)
+            .where(and(
+              eq(notifications.userId, coord.userId),
+              eq(notifications.type, "pending_request"),
+            ))
+            .limit(100);
+
+          const alreadyExists = existingWithMeta.some(n => {
+            if (!n.metadata) return false;
+            try {
+              const meta = JSON.parse(n.metadata);
+              return meta.componentId === req.componentId && meta.requesterId === req.userId;
+            } catch { return false; }
+          });
+
+          if (!alreadyExists) {
+            await createNotification({
+              userId: coord.userId,
+              type: "pending_request",
+              title: "Nova Solicitação de Entrada",
+              message: `${req.requesterName || req.requesterEmail || "Professor"} solicitou entrada em ${req.componentCode} - ${req.componentName}`,
+              metadata: JSON.stringify({ componentId: req.componentId, requesterId: req.userId }),
+            });
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[Sync] Failed to sync pending request notifications:", err);
+  }
+}
+
+// List notifications that are still "pending" resolution.
+// A notification is considered pending if:
+// - It is of type "pending_request" and the underlying request is still pending (not yet approved/rejected)
+// - OR it is unread (any type)
+// This is used for the "Notificações Pendentes" section on the dashboard.
+export async function listPendingNotifications(userId: number, limit: number = 5) {
+  const db = await getDb();
+  if (!db) return [];
+
+  // Get all unread notifications + all pending_request notifications (even if read)
+  const allCandidates = await db.select()
+    .from(notifications)
+    .where(and(
+      eq(notifications.userId, userId),
+      or(
+        eq(notifications.read, false),
+        eq(notifications.type, "pending_request"),
+      ),
+    ))
+    .orderBy(desc(notifications.createdAt))
+    .limit(100);
+
+  // For pending_request notifications, check if the underlying request is still pending
+  const result: typeof allCandidates = [];
+  for (const notif of allCandidates) {
+    if (notif.type === "pending_request") {
+      // Check if the request is still pending
+      if (notif.metadata) {
+        try {
+          const meta = JSON.parse(notif.metadata);
+          if (meta.componentId && meta.requesterId) {
+            const [row] = await db.select({ status: professorComponents.status })
+              .from(professorComponents)
+              .where(and(
+                eq(professorComponents.userId, meta.requesterId),
+                eq(professorComponents.componentId, meta.componentId),
+              ))
+              .limit(1);
+            if (row && row.status === "pending") {
+              result.push(notif);
+            }
+            // If not pending anymore, skip it (resolved)
+            continue;
+          }
+        } catch {}
+      }
+      // If metadata is missing or invalid, include it as unread
+      if (!notif.read) result.push(notif);
+    } else {
+      // Non-pending_request: only include if unread
+      if (!notif.read) result.push(notif);
+    }
+    if (result.length >= limit) break;
+  }
+
+  return result.slice(0, limit);
+}
+
+export async function countPendingNotifications(userId: number): Promise<number> {
+  const items = await listPendingNotifications(userId, 100);
+  return items.length;
+}

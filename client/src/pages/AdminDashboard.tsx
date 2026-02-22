@@ -45,12 +45,12 @@ export default function AdminDashboard() {
     { classId: selectedClassId! },
     { enabled: !!selectedClassId }
   );
-  // Fetch more notifications but only show unread ones in "Recentes"
-  const { data: notifData, isLoading: notifLoading } = trpc.notifications.list.useQuery(
-    { limit: 20, offset: 0 },
+  // Fetch pending notifications (unread + pending_request still unresolved)
+  const { data: pendingNotifs, isLoading: pendingLoading } = trpc.notifications.pendingList.useQuery(
+    { limit: 5 },
     { refetchInterval: 30000 }
   );
-  const { data: unreadData } = trpc.notifications.unreadCount.useQuery(
+  const { data: pendingCountData } = trpc.notifications.pendingCount.useQuery(
     undefined,
     { refetchInterval: 30000 }
   );
@@ -59,15 +59,15 @@ export default function AdminDashboard() {
 
   const markAsRead = trpc.notifications.markAsRead.useMutation({
     onSuccess: () => {
+      utils.notifications.pendingList.invalidate();
+      utils.notifications.pendingCount.invalidate();
       utils.notifications.list.invalidate();
       utils.notifications.unreadCount.invalidate();
     },
   });
 
-  const unreadCount = unreadData?.count ?? 0;
-  const allNotifications = notifData?.items ?? [];
-  // Only show unread notifications in "Recentes"
-  const unreadNotifications = allNotifications.filter((n: any) => !n.read).slice(0, 5);
+  const pendingCount = pendingCountData?.count ?? 0;
+  const pendingList = pendingNotifs ?? [];
 
   if (isLoading) {
     return (
@@ -91,8 +91,10 @@ export default function AdminDashboard() {
   const closedSessions = sessions?.filter(s => s.status === "closed") ?? [];
 
   const handleNotificationClick = (n: any) => {
-    // Mark as read (resolves it, removes from Recentes)
-    markAsRead.mutate({ notificationId: n.id });
+    // Mark as read if not already read
+    if (!n.read) {
+      markAsRead.mutate({ notificationId: n.id });
+    }
     // Navigate based on type
     if (n.type === "pending_request") {
       setLocation("/professors");
@@ -126,16 +128,16 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {/* Notificações Recentes - only unread, clicking marks as read and removes from here */}
+      {/* Notificações Pendentes - shows unread + pending_request still unresolved */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
               <Bell className="h-4 w-4 text-primary" />
-              Notificações Recentes
-              {unreadCount > 0 && (
+              Notificações Pendentes
+              {pendingCount > 0 && (
                 <Badge variant="default" className="text-[10px] px-1.5 py-0 ml-1">
-                  {unreadCount} nova{unreadCount > 1 ? "s" : ""}
+                  {pendingCount}
                 </Badge>
               )}
             </CardTitle>
@@ -151,21 +153,22 @@ export default function AdminDashboard() {
           </div>
         </CardHeader>
         <CardContent>
-          {notifLoading ? (
+          {pendingLoading ? (
             <div className="space-y-3">
               {[1, 2, 3].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}
             </div>
-          ) : unreadNotifications.length === 0 ? (
+          ) : pendingList.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8">
               <BellOff className="h-8 w-8 text-muted-foreground/30 mb-2" />
               <p className="text-sm text-muted-foreground">Nenhuma notificação pendente.</p>
             </div>
           ) : (
             <div className="space-y-1.5">
-              {unreadNotifications.map((n: any) => {
+              {pendingList.map((n: any) => {
                 const config = notifTypeConfig[n.type] || defaultNotifConfig;
                 const Icon = config.icon;
                 const isPendingRequest = n.type === "pending_request";
+                const isUnread = !n.read;
                 return (
                   <div
                     key={n.id}
@@ -189,7 +192,9 @@ export default function AdminDashboard() {
                             Pendente
                           </Badge>
                         )}
-                        <span className="flex-shrink-0 h-1.5 w-1.5 rounded-full bg-primary" />
+                        {isUnread && (
+                          <span className="flex-shrink-0 h-1.5 w-1.5 rounded-full bg-primary" />
+                        )}
                       </div>
                       <p className="text-xs truncate text-foreground/70">
                         {n.message}

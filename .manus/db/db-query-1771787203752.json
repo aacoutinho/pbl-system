@@ -1,0 +1,19 @@
+{
+  "query": "SELECT pc.userId, pc.componentId, pc.status, u.name as userName, u.email as userEmail, c.code as componentCode, c.name as componentName FROM professor_components pc JOIN users u ON u.id = pc.userId JOIN components c ON c.id = pc.componentId WHERE pc.status = 'pending';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute SELECT pc.userId, pc.componentId, pc.status, u.name as userName, u.email as userEmail, c.code as componentCode, c.name as componentName FROM professor_components pc JOIN users u ON u.id = pc.userId JOIN components c ON c.id = pc.componentId WHERE pc.status = 'pending';",
+  "rows": [
+    {
+      "userId": "810419",
+      "componentId": "1",
+      "status": "pending",
+      "userName": "Antonio Augusto Coutinho",
+      "userEmail": "augusto@ecomp.uefs.br",
+      "componentCode": "TEC502",
+      "componentName": "Concorrência e Conectividade"
+    }
+  ],
+  "messages": [],
+  "stdout": "userId\tcomponentId\tstatus\tuserName\tuserEmail\tcomponentCode\tcomponentName\n810419\t1\tpending\tAntonio Augusto Coutinho\taugusto@ecomp.uefs.br\tTEC502\tConcorrência e Conectividade\n",
+  "stderr": "",
+  "execution_time_ms": 364
+}
