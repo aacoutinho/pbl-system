@@ -1,9 +1,11 @@
-import { COOKIE_NAME } from "@shared/const";
+import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { sdk } from "./_core/sdk";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import bcrypt from "bcryptjs";
 import {
   createClass, listClassesByProfessor, updateClass, deleteClass, getClassById,
   listStudentsByClass, createStudent, updateStudent, removeStudentFromClass, getStudentByEnrollment,
@@ -17,7 +19,7 @@ import {
   generateAccessCode, getSessionByAccessCode, findStudentByEnrollmentInClass,
   approveUser, rejectUser, listPendingProfessors, listApprovedProfessors,
   addProfessorComponent, removeProfessorComponent, listProfessorComponents, listAllProfessorComponents,
-  getUserById,
+  getUserById, getUserByEmail, countUsers, createUserWithPassword, updateUserPassword,
 } from "./db";
 
 const approvedProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -38,6 +40,71 @@ export const appRouter = router({
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
+    }),
+    // Check if system has any users (for first-time setup)
+    isFirstUser: publicProcedure.query(async () => {
+      const total = await countUsers();
+      return { isFirstUser: total === 0 };
+    }),
+    // Register a new professor (first user becomes admin auto-approved)
+    register: publicProcedure.input(z.object({
+      email: z.string().email(),
+      name: z.string().min(1),
+      password: z.string().min(6),
+    })).mutation(async ({ ctx, input }) => {
+      const existing = await getUserByEmail(input.email.toLowerCase());
+      if (existing) throw new TRPCError({ code: "CONFLICT", message: "Este e-mail já está cadastrado" });
+      const total = await countUsers();
+      const isFirst = total === 0;
+      const passwordHash = await bcrypt.hash(input.password, 10);
+      const user = await createUserWithPassword({
+        email: input.email.toLowerCase(),
+        name: input.name,
+        passwordHash,
+        role: "admin",
+        approvalStatus: isFirst ? "approved" : "pending",
+      });
+      if (!user) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Erro ao criar usuário" });
+      // Auto-login after registration
+      const openId = `local:${input.email.toLowerCase()}`;
+      const sessionToken = await sdk.createSessionToken(openId, {
+        name: input.name,
+        expiresInMs: ONE_YEAR_MS,
+      });
+      const cookieOptions = getSessionCookieOptions(ctx.req);
+      ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+      return { success: true, isFirstUser: isFirst, user: { id: user.id, name: user.name, email: user.email, role: user.role, approvalStatus: user.approvalStatus } };
+    }),
+    // Login with email and password
+    login: publicProcedure.input(z.object({
+      email: z.string().email(),
+      password: z.string().min(1),
+    })).mutation(async ({ ctx, input }) => {
+      const user = await getUserByEmail(input.email.toLowerCase());
+      if (!user || !user.passwordHash) throw new TRPCError({ code: "UNAUTHORIZED", message: "E-mail ou senha incorretos" });
+      const valid = await bcrypt.compare(input.password, user.passwordHash);
+      if (!valid) throw new TRPCError({ code: "UNAUTHORIZED", message: "E-mail ou senha incorretos" });
+      // Create session
+      const sessionToken = await sdk.createSessionToken(user.openId, {
+        name: user.name || user.email || "",
+        expiresInMs: ONE_YEAR_MS,
+      });
+      const cookieOptions = getSessionCookieOptions(ctx.req);
+      ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+      return { success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role, approvalStatus: user.approvalStatus } };
+    }),
+    // Change password (for logged-in user)
+    changePassword: protectedProcedure.input(z.object({
+      currentPassword: z.string().min(1),
+      newPassword: z.string().min(6),
+    })).mutation(async ({ ctx, input }) => {
+      const user = await getUserById(ctx.user.id);
+      if (!user || !user.passwordHash) throw new TRPCError({ code: "BAD_REQUEST", message: "Usuário não encontrado" });
+      const valid = await bcrypt.compare(input.currentPassword, user.passwordHash);
+      if (!valid) throw new TRPCError({ code: "UNAUTHORIZED", message: "Senha atual incorreta" });
+      const newHash = await bcrypt.hash(input.newPassword, 10);
+      await updateUserPassword(user.id, newHash);
+      return { success: true };
     }),
   }),
 

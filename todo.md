@@ -105,3 +105,14 @@
 - [x] Testes: avaliação única por aluno e liberação de reavaliação
 - [x] Tratar preposições portuguesas em nomes na exportação Google Workspace (de, da, do, dos, das em minúscula)
 - [x] Validação de matrícula duplicada na edição de aluno
+- [x] Remover autenticação Google OAuth para professores
+- [x] Schema: adicionar campo passwordHash à tabela users
+- [x] Backend: rota de registro de professor (email, nome, senha)
+- [x] Backend: rota de login com email e senha
+- [x] Backend: primeiro usuário cadastrado é automaticamente admin aprovado
+- [x] Backend: remover callback e helpers do Google OAuth
+- [x] Frontend: tela de login com email e senha (remover botão Google)
+- [x] Frontend: tela de registro para novos professores
+- [x] Frontend: fluxo de primeiro acesso (setup inicial do admin)
+- [x] Atualizar fluxo de aprovação de professores para novo sistema de auth
+- [x] Testes: login/registro com email e senha

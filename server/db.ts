@@ -991,3 +991,47 @@ export async function getUserById(userId: number) {
   const [row] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
   return row;
 }
+
+// ─── Email/Password Auth helpers ───
+export async function getUserByEmail(email: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const [row] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  return row;
+}
+
+export async function countUsers() {
+  const db = await getDb();
+  if (!db) return 0;
+  const result = await db.select({ count: sql<number>`count(*)` }).from(users);
+  return result[0]?.count ?? 0;
+}
+
+export async function createUserWithPassword(data: {
+  email: string;
+  name: string;
+  passwordHash: string;
+  role: "user" | "admin";
+  approvalStatus: "pending" | "approved" | "rejected";
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const openId = `local:${data.email}`;
+  const [result] = await db.insert(users).values({
+    openId,
+    email: data.email,
+    name: data.name,
+    passwordHash: data.passwordHash,
+    role: data.role,
+    approvalStatus: data.approvalStatus,
+    loginMethod: "email",
+    lastSignedIn: new Date(),
+  }).$returningId();
+  return getUserById(result.id);
+}
+
+export async function updateUserPassword(userId: number, passwordHash: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(users).set({ passwordHash }).where(eq(users.id, userId));
+}

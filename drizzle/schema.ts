@@ -11,6 +11,7 @@ export const users = mysqlTable("users", {
   approvalStatus: mysqlEnum("approvalStatus", ["pending", "approved", "rejected"]).default("pending").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  passwordHash: varchar("passwordHash", { length: 255 }),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
 });
 

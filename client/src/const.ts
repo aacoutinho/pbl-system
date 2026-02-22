@@ -16,9 +16,3 @@ export const getLoginUrl = () => {
   return url.toString();
 };
 
-// Generate Google OAuth login URL.
-// Redirects to our backend which then redirects to Google consent screen.
-export const getGoogleLoginUrl = () => {
-  const origin = window.location.origin;
-  return `${origin}/api/auth/google?origin=${encodeURIComponent(origin)}`;
-};

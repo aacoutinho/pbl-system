@@ -77,7 +77,7 @@ function ProfessorsContent() {
             <Clock className="h-5 w-5 text-amber-500" />
             Solicitações Pendentes
           </CardTitle>
-          <CardDescription>Professores que fizeram login e aguardam aprovação.</CardDescription>
+          <CardDescription>Professores que se cadastraram e aguardam aprovação.</CardDescription>
         </CardHeader>
         <CardContent>
           {loadingPending ? (
