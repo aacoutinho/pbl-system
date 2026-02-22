@@ -248,3 +248,4 @@
 - [x] Frontend: página de Notificações com lista de alertas, marcação de lidas e paginação
 - [x] Frontend: aba Notificações no menu lateral com badge de contagem de não lidas
 - [x] Testes: notificações in-app (19 novos testes)
+- [x] Exibir notificações recentes no Painel Geral (Home)

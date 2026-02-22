@@ -2,9 +2,40 @@ import { trpc } from "@/lib/trpc";
 import { useClassContext } from "@/contexts/ClassContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, ClipboardList, BarChart3, BookOpen, CheckCircle2, Clock, FileCheck } from "lucide-react";
+import {
+  Users, ClipboardList, BarChart3, BookOpen, CheckCircle2, Clock, FileCheck,
+  Bell, BellOff, ChevronRight, ShieldCheck, ShieldOff, UserPlus, UserMinus,
+  XCircle, ArrowRightLeft, Info,
+} from "lucide-react";
 import { useLocation } from "wouter";
+
+const notifTypeConfig: Record<string, { icon: React.ElementType; color: string; bgColor: string }> = {
+  component_approved: { icon: CheckCircle2, color: "text-green-600", bgColor: "bg-green-50" },
+  component_rejected: { icon: XCircle, color: "text-red-600", bgColor: "bg-red-50" },
+  promoted_to_coordinator: { icon: ShieldCheck, color: "text-blue-600", bgColor: "bg-blue-50" },
+  demoted_to_prof: { icon: ShieldOff, color: "text-orange-600", bgColor: "bg-orange-50" },
+  removed_from_component: { icon: UserMinus, color: "text-red-600", bgColor: "bg-red-50" },
+  eval_permission_granted: { icon: UserPlus, color: "text-emerald-600", bgColor: "bg-emerald-50" },
+  eval_permission_revoked: { icon: UserMinus, color: "text-amber-600", bgColor: "bg-amber-50" },
+  student_transferred: { icon: ArrowRightLeft, color: "text-purple-600", bgColor: "bg-purple-50" },
+};
+const defaultNotifConfig = { icon: Info, color: "text-gray-600", bgColor: "bg-gray-50" };
+
+function formatTimeAgo(date: string | Date) {
+  const d = new Date(date);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffHour = Math.floor(diffMs / 3600000);
+  const diffDay = Math.floor(diffMs / 86400000);
+  if (diffMin < 1) return "Agora";
+  if (diffMin < 60) return `${diffMin}min`;
+  if (diffHour < 24) return `${diffHour}h`;
+  if (diffDay < 7) return `${diffDay}d`;
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+}
 
 export default function AdminDashboard() {
   const { data: stats, isLoading } = trpc.results.dashboard.useQuery();
@@ -13,7 +44,18 @@ export default function AdminDashboard() {
     { classId: selectedClassId! },
     { enabled: !!selectedClassId }
   );
+  const { data: notifData, isLoading: notifLoading } = trpc.notifications.list.useQuery(
+    { limit: 5, offset: 0 },
+    { refetchInterval: 30000 }
+  );
+  const { data: unreadData } = trpc.notifications.unreadCount.useQuery(
+    undefined,
+    { refetchInterval: 30000 }
+  );
   const [, setLocation] = useLocation();
+
+  const unreadCount = unreadData?.count ?? 0;
+  const recentNotifications = notifData?.items ?? [];
 
   if (isLoading) {
     return (
@@ -60,6 +102,80 @@ export default function AdminDashboard() {
           </Card>
         ))}
       </div>
+
+      {/* Notificações Recentes */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Bell className="h-4 w-4 text-primary" />
+              Notificações Recentes
+              {unreadCount > 0 && (
+                <Badge variant="default" className="text-[10px] px-1.5 py-0 ml-1">
+                  {unreadCount} nova{unreadCount > 1 ? "s" : ""}
+                </Badge>
+              )}
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => setLocation("/notifications")}
+            >
+              Ver todas
+              <ChevronRight className="h-3 w-3 ml-1" />
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {notifLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}
+            </div>
+          ) : recentNotifications.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8">
+              <BellOff className="h-8 w-8 text-muted-foreground/30 mb-2" />
+              <p className="text-sm text-muted-foreground">Nenhuma notificação.</p>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {recentNotifications.map((n: any) => {
+                const config = notifTypeConfig[n.type] || defaultNotifConfig;
+                const Icon = config.icon;
+                return (
+                  <div
+                    key={n.id}
+                    className={`flex items-center gap-3 p-3 rounded-lg transition-colors cursor-pointer hover:bg-accent/50 ${
+                      !n.read ? "bg-primary/[0.03] border-l-2 border-l-primary" : "bg-accent/20"
+                    }`}
+                    onClick={() => setLocation("/notifications")}
+                  >
+                    <div className={`flex-shrink-0 rounded-full p-2 ${config.bgColor}`}>
+                      <Icon className={`h-3.5 w-3.5 ${config.color}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-sm font-medium truncate ${!n.read ? "text-foreground" : "text-muted-foreground"}`}>
+                          {n.title}
+                        </span>
+                        {!n.read && (
+                          <span className="flex-shrink-0 h-1.5 w-1.5 rounded-full bg-primary" />
+                        )}
+                      </div>
+                      <p className={`text-xs truncate ${!n.read ? "text-foreground/70" : "text-muted-foreground/70"}`}>
+                        {n.message}
+                      </p>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground/60 flex-shrink-0">
+                      {formatTimeAgo(n.createdAt)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {selectedClassId && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
