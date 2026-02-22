@@ -253,3 +253,4 @@
 - [x] Frontend: tabela com serial, matrícula, nome, notas individuais (coluna por avaliador com serial) e média dos pares
 - [x] Bug: página de Notificações não exibe menu lateral (DashboardLayout) como nas outras páginas
 - [x] Exibir solicitações pendentes de professores na seção de Notificações Recentes do Painel Geral
+- [x] Remover quadro separado "Solicitações Pendentes" e integrar solicitações no quadro "Notificações Recentes" do Painel Geral

@@ -5,11 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Users, ClipboardList, BarChart3, BookOpen, CheckCircle2, Clock, FileCheck,
+  Users, ClipboardList, BookOpen, CheckCircle2, Clock, FileCheck,
   Bell, BellOff, ChevronRight, ShieldCheck, ShieldOff, UserPlus, UserMinus,
-  XCircle, ArrowRightLeft, Info, UserCheck, AlertCircle,
+  XCircle, ArrowRightLeft, Info,
 } from "lucide-react";
 import { useLocation } from "wouter";
+import { useMemo } from "react";
 
 const notifTypeConfig: Record<string, { icon: React.ElementType; color: string; bgColor: string }> = {
   component_approved: { icon: CheckCircle2, color: "text-green-600", bgColor: "bg-green-50" },
@@ -20,6 +21,7 @@ const notifTypeConfig: Record<string, { icon: React.ElementType; color: string; 
   eval_permission_granted: { icon: UserPlus, color: "text-emerald-600", bgColor: "bg-emerald-50" },
   eval_permission_revoked: { icon: UserMinus, color: "text-amber-600", bgColor: "bg-amber-50" },
   student_transferred: { icon: ArrowRightLeft, color: "text-purple-600", bgColor: "bg-purple-50" },
+  pending_request: { icon: UserPlus, color: "text-amber-600", bgColor: "bg-amber-50" },
 };
 const defaultNotifConfig = { icon: Info, color: "text-gray-600", bgColor: "bg-gray-50" };
 
@@ -37,91 +39,6 @@ function formatTimeAgo(date: string | Date) {
   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 }
 
-function PendingRequestsSection({ onNavigate }: { onNavigate: (path: string) => void }) {
-  const { data: pendingRequests, isLoading } = trpc.professors.pendingComponentRequests.useQuery(
-    undefined,
-    { refetchInterval: 30000 }
-  );
-
-  const requests = pendingRequests ?? [];
-
-  if (isLoading) {
-    return (
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <UserCheck className="h-4 w-4 text-amber-500" />
-            Solicitações Pendentes
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {[1, 2].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (requests.length === 0) return null;
-
-  return (
-    <Card className="border-amber-200 bg-amber-50/30">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-amber-600" />
-            Solicitações Pendentes
-            <Badge variant="default" className="text-[10px] px-1.5 py-0 ml-1 bg-amber-500 hover:bg-amber-600">
-              {requests.length}
-            </Badge>
-          </CardTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-xs text-muted-foreground hover:text-foreground"
-            onClick={() => onNavigate("/professors")}
-          >
-            Gerenciar
-            <ChevronRight className="h-3 w-3 ml-1" />
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-1.5">
-          {requests.slice(0, 5).map((req: any) => (
-            <div
-              key={`${req.userId}-${req.componentId}`}
-              className="flex items-center gap-3 p-3 rounded-lg bg-white/60 hover:bg-white transition-colors cursor-pointer border border-amber-100"
-              onClick={() => onNavigate("/professors")}
-            >
-              <div className="flex-shrink-0 rounded-full p-2 bg-amber-100">
-                <UserPlus className="h-3.5 w-3.5 text-amber-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <span className="text-sm font-medium text-foreground truncate block">
-                  {req.userName || req.userEmail}
-                </span>
-                <p className="text-xs text-muted-foreground truncate">
-                  Solicitou entrada em <span className="font-medium">{req.componentCode}</span>
-                </p>
-              </div>
-              <Badge variant="outline" className="border-amber-300 text-amber-700 text-[10px] flex-shrink-0">
-                Pendente
-              </Badge>
-            </div>
-          ))}
-          {requests.length > 5 && (
-            <p className="text-xs text-center text-muted-foreground pt-2">
-              e mais {requests.length - 5} solicitação{requests.length - 5 > 1 ? "ões" : ""}...
-            </p>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 export default function AdminDashboard() {
   const { data: stats, isLoading } = trpc.results.dashboard.useQuery();
   const { selectedClassId } = useClassContext();
@@ -137,10 +54,31 @@ export default function AdminDashboard() {
     undefined,
     { refetchInterval: 30000 }
   );
+  const { data: pendingRequests } = trpc.professors.pendingComponentRequests.useQuery(
+    undefined,
+    { refetchInterval: 30000 }
+  );
   const [, setLocation] = useLocation();
 
   const unreadCount = unreadData?.count ?? 0;
   const recentNotifications = notifData?.items ?? [];
+  const requests = pendingRequests ?? [];
+
+  // Merge pending requests as pseudo-notifications at the top, then real notifications
+  const mergedItems = useMemo(() => {
+    const requestItems = requests.map((req: any) => ({
+      id: `req-${req.userId}-${req.componentId}`,
+      type: "pending_request",
+      title: req.userName || req.userEmail,
+      message: `Solicitou entrada em ${req.componentCode}`,
+      read: false,
+      createdAt: req.createdAt || new Date().toISOString(),
+      _isRequest: true,
+    }));
+    return [...requestItems, ...recentNotifications].slice(0, 8);
+  }, [requests, recentNotifications]);
+
+  const totalUnread = unreadCount + requests.length;
 
   if (isLoading) {
     return (
@@ -188,19 +126,16 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {/* Solicitações Pendentes */}
-      <PendingRequestsSection onNavigate={setLocation} />
-
-      {/* Notificações Recentes */}
+      {/* Notificações Recentes (inclui solicitações pendentes) */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
               <Bell className="h-4 w-4 text-primary" />
               Notificações Recentes
-              {unreadCount > 0 && (
+              {totalUnread > 0 && (
                 <Badge variant="default" className="text-[10px] px-1.5 py-0 ml-1">
-                  {unreadCount} nova{unreadCount > 1 ? "s" : ""}
+                  {totalUnread} nova{totalUnread > 1 ? "s" : ""}
                 </Badge>
               )}
             </CardTitle>
@@ -220,23 +155,28 @@ export default function AdminDashboard() {
             <div className="space-y-3">
               {[1, 2, 3].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}
             </div>
-          ) : recentNotifications.length === 0 ? (
+          ) : mergedItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8">
               <BellOff className="h-8 w-8 text-muted-foreground/30 mb-2" />
               <p className="text-sm text-muted-foreground">Nenhuma notificação.</p>
             </div>
           ) : (
             <div className="space-y-1.5">
-              {recentNotifications.map((n: any) => {
+              {mergedItems.map((n: any) => {
                 const config = notifTypeConfig[n.type] || defaultNotifConfig;
                 const Icon = config.icon;
+                const isRequest = n._isRequest;
                 return (
                   <div
                     key={n.id}
                     className={`flex items-center gap-3 p-3 rounded-lg transition-colors cursor-pointer hover:bg-accent/50 ${
-                      !n.read ? "bg-primary/[0.03] border-l-2 border-l-primary" : "bg-accent/20"
+                      isRequest
+                        ? "bg-amber-50/50 border-l-2 border-l-amber-400"
+                        : !n.read
+                        ? "bg-primary/[0.03] border-l-2 border-l-primary"
+                        : "bg-accent/20"
                     }`}
-                    onClick={() => setLocation("/notifications")}
+                    onClick={() => setLocation(isRequest ? "/professors" : "/notifications")}
                   >
                     <div className={`flex-shrink-0 rounded-full p-2 ${config.bgColor}`}>
                       <Icon className={`h-3.5 w-3.5 ${config.color}`} />
@@ -246,7 +186,12 @@ export default function AdminDashboard() {
                         <span className={`text-sm font-medium truncate ${!n.read ? "text-foreground" : "text-muted-foreground"}`}>
                           {n.title}
                         </span>
-                        {!n.read && (
+                        {isRequest && (
+                          <Badge variant="outline" className="border-amber-300 text-amber-700 text-[10px] px-1.5 py-0">
+                            Pendente
+                          </Badge>
+                        )}
+                        {!n.read && !isRequest && (
                           <span className="flex-shrink-0 h-1.5 w-1.5 rounded-full bg-primary" />
                         )}
                       </div>
@@ -255,7 +200,7 @@ export default function AdminDashboard() {
                       </p>
                     </div>
                     <span className="text-[10px] text-muted-foreground/60 flex-shrink-0">
-                      {formatTimeAgo(n.createdAt)}
+                      {isRequest ? "Pendente" : formatTimeAgo(n.createdAt)}
                     </span>
                   </div>
                 );
