@@ -86,7 +86,7 @@ function LoginScreen() {
   const [verificationCode, setVerificationCode] = useState("");
 
   const { data: firstUserData } = trpc.auth.isFirstUser.useQuery();
-  const { data: componentsList } = trpc.components.list.useQuery();
+  const { data: componentsList } = trpc.components.listPublic.useQuery();
   const isFirstUser = firstUserData?.isFirstUser ?? false;
   const { data: smtpStatus } = trpc.auth.smtpStatus.useQuery();
   const smtpConfigured = smtpStatus?.configured ?? false;

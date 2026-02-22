@@ -207,4 +207,4 @@
 - [x] Rota para validar código e completar registro
 - [x] Frontend: fluxo de registro com etapa de verificação
 - [x] Nos combo/listbox da interface, mostrar apenas o código do componente em vez do nome completo
-- [x] Bug: ao digitar '@' no campo de e-mail do login, a tela redireciona para OAuth (era autoComplete do navegador, alterado para off)
+- [x] Bug: redirecionamento automático para seletor de contas OAuth ao navegar no formulário de login (removido listener global de redirecionamento OAuth + corrigido components.list para listPublic no LoginScreen)
