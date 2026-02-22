@@ -688,22 +688,22 @@ export const appRouter = router({
     approved: adminProcedure.query(async () => {
       return listApprovedProfessors();
     }),
-    approve: adminProcedure.input(z.object({ userId: z.number() })).mutation(async ({ input }) => {
+    approve: coordinatorProcedure.input(z.object({ userId: z.number() })).mutation(async ({ input }) => {
       await approveUser(input.userId);
       return { success: true };
     }),
-    reject: adminProcedure.input(z.object({ userId: z.number() })).mutation(async ({ input }) => {
+    reject: coordinatorProcedure.input(z.object({ userId: z.number() })).mutation(async ({ input }) => {
       await rejectUser(input.userId);
       return { success: true };
     }),
-    addComponent: adminProcedure.input(z.object({
+    addComponent: coordinatorProcedure.input(z.object({
       userId: z.number(),
       componentCode: z.string().min(1),
     })).mutation(async ({ ctx, input }) => {
       await addProfessorComponent(input.userId, input.componentCode, ctx.user.id);
       return { success: true };
     }),
-    removeComponent: adminProcedure.input(z.object({
+    removeComponent: coordinatorProcedure.input(z.object({
       userId: z.number(),
       componentCode: z.string().min(1),
     })).mutation(async ({ input }) => {

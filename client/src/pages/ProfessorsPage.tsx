@@ -162,6 +162,7 @@ function ProfessorsContent() {
                       Solicitado em {new Date(prof.createdAt).toLocaleDateString("pt-BR")}
                     </p>
                   </div>
+                  {isCoordinator && (
                   <div className="flex gap-2">
                     <Button
                       size="sm"
@@ -183,6 +184,7 @@ function ProfessorsContent() {
                       Rejeitar
                     </Button>
                   </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -351,8 +353,9 @@ function ProfessorCard({
             <p className="text-xs text-muted-foreground">Nenhum componente atribuído.</p>
           ) : (
             components.map((code) => (
-              <Badge key={code} variant="secondary" className="gap-1 pr-1">
+              <Badge key={code} variant="secondary" className={`gap-1 ${isCoordinator ? 'pr-1' : ''}`}>
                 {code}
+                {isCoordinator && (
                 <button
                   onClick={() => onRemoveComponent(code)}
                   disabled={isRemoving}
@@ -360,10 +363,12 @@ function ProfessorCard({
                 >
                   <Trash2 className="h-3 w-3" />
                 </button>
+                )}
               </Badge>
             ))
           )}
         </div>
+        {isCoordinator && (
         <div className="flex gap-2">
           <Input
             placeholder="Ex: TEC502"
@@ -377,6 +382,7 @@ function ProfessorCard({
             Adicionar
           </Button>
         </div>
+        )}
       </div>
     </div>
   );
