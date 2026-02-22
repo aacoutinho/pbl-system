@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Users, ClipboardList, BarChart3, BookOpen, CheckCircle2, Clock, FileCheck,
   Bell, BellOff, ChevronRight, ShieldCheck, ShieldOff, UserPlus, UserMinus,
-  XCircle, ArrowRightLeft, Info,
+  XCircle, ArrowRightLeft, Info, UserCheck, AlertCircle,
 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -35,6 +35,91 @@ function formatTimeAgo(date: string | Date) {
   if (diffHour < 24) return `${diffHour}h`;
   if (diffDay < 7) return `${diffDay}d`;
   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+}
+
+function PendingRequestsSection({ onNavigate }: { onNavigate: (path: string) => void }) {
+  const { data: pendingRequests, isLoading } = trpc.professors.pendingComponentRequests.useQuery(
+    undefined,
+    { refetchInterval: 30000 }
+  );
+
+  const requests = pendingRequests ?? [];
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <UserCheck className="h-4 w-4 text-amber-500" />
+            Solicitações Pendentes
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {[1, 2].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (requests.length === 0) return null;
+
+  return (
+    <Card className="border-amber-200 bg-amber-50/30">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-amber-600" />
+            Solicitações Pendentes
+            <Badge variant="default" className="text-[10px] px-1.5 py-0 ml-1 bg-amber-500 hover:bg-amber-600">
+              {requests.length}
+            </Badge>
+          </CardTitle>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => onNavigate("/professors")}
+          >
+            Gerenciar
+            <ChevronRight className="h-3 w-3 ml-1" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-1.5">
+          {requests.slice(0, 5).map((req: any) => (
+            <div
+              key={`${req.userId}-${req.componentId}`}
+              className="flex items-center gap-3 p-3 rounded-lg bg-white/60 hover:bg-white transition-colors cursor-pointer border border-amber-100"
+              onClick={() => onNavigate("/professors")}
+            >
+              <div className="flex-shrink-0 rounded-full p-2 bg-amber-100">
+                <UserPlus className="h-3.5 w-3.5 text-amber-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="text-sm font-medium text-foreground truncate block">
+                  {req.userName || req.userEmail}
+                </span>
+                <p className="text-xs text-muted-foreground truncate">
+                  Solicitou entrada em <span className="font-medium">{req.componentCode}</span>
+                </p>
+              </div>
+              <Badge variant="outline" className="border-amber-300 text-amber-700 text-[10px] flex-shrink-0">
+                Pendente
+              </Badge>
+            </div>
+          ))}
+          {requests.length > 5 && (
+            <p className="text-xs text-center text-muted-foreground pt-2">
+              e mais {requests.length - 5} solicitação{requests.length - 5 > 1 ? "ões" : ""}...
+            </p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 export default function AdminDashboard() {
@@ -102,6 +187,9 @@ export default function AdminDashboard() {
           </Card>
         ))}
       </div>
+
+      {/* Solicitações Pendentes */}
+      <PendingRequestsSection onNavigate={setLocation} />
 
       {/* Notificações Recentes */}
       <Card>

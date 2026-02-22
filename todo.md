@@ -252,3 +252,4 @@
 - [x] Backend: rota para retornar notas individuais dos pares por sessão
 - [x] Frontend: tabela com serial, matrícula, nome, notas individuais (coluna por avaliador com serial) e média dos pares
 - [x] Bug: página de Notificações não exibe menu lateral (DashboardLayout) como nas outras páginas
+- [x] Exibir solicitações pendentes de professores na seção de Notificações Recentes do Painel Geral
