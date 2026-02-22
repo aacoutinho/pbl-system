@@ -284,6 +284,39 @@ describe("Menu items by role", () => {
   });
 });
 
+describe("Class management permissions (assertClassManager)", () => {
+  function canManageClass(userId: number, role: string, compRole: string | null, classProfessorUserId: number): boolean {
+    if (role === "admin") return true;
+    if (compRole === "coordinator") return true;
+    if (compRole === "prof" && classProfessorUserId === userId) return true;
+    return false;
+  }
+
+  it("admin can manage any class", () => {
+    expect(canManageClass(1, "admin", null, 99)).toBe(true);
+  });
+
+  it("coordinator of component can manage any class in that component", () => {
+    expect(canManageClass(2, "coordinator", "coordinator", 99)).toBe(true);
+  });
+
+  it("prof who created the class can manage it", () => {
+    expect(canManageClass(3, "prof", "prof", 3)).toBe(true);
+  });
+
+  it("prof who did NOT create the class cannot manage it", () => {
+    expect(canManageClass(3, "prof", "prof", 99)).toBe(false);
+  });
+
+  it("prof with no component role cannot manage any class", () => {
+    expect(canManageClass(4, "prof", null, 4)).toBe(false);
+  });
+
+  it("user role cannot manage any class", () => {
+    expect(canManageClass(5, "user", null, 5)).toBe(false);
+  });
+});
+
 describe("Router routes existence for new permissions", async () => {
   const { appRouter } = await import("./routers");
 

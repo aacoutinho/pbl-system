@@ -70,6 +70,17 @@ async function assertComponentCoordinator(userId: number, role: string, componen
   if (compRole !== "coordinator") throw new TRPCError({ code: "FORBIDDEN", message: "Apenas coordenadores deste componente podem realizar esta ação" });
 }
 
+// Helper: check if user can manage a class (admin, coordinator of component, or prof who created the class)
+async function assertClassManager(userId: number, role: string, cls: { componentId: number; professorUserId: number }) {
+  if (role === "admin") return;
+  // Coordinator of the component can manage any class in that component
+  const compRole = await getUserComponentRole(userId, cls.componentId);
+  if (compRole === "coordinator") return;
+  // Prof can manage only classes they created
+  if (compRole === "prof" && cls.professorUserId === userId) return;
+  throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para gerenciar esta turma" });
+}
+
 // Helper: get accessible component IDs for user
 async function getAccessibleComponentIds(userId: number, role: string): Promise<number[]> {
   if (role === "admin") {
@@ -369,8 +380,8 @@ export const appRouter = router({
       await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);
       return listStudentsByClass(input.classId);
     }),
-    // Create: admin or coordinator of component
-    create: coordinatorOrAdminProcedure.input(z.object({
+    // Create: admin, coordinator of component, or prof who created the class
+    create: approvedProcedure.input(z.object({
       classId: z.number(),
       name: z.string().min(1),
       enrollment: z.string().min(1),
@@ -378,7 +389,7 @@ export const appRouter = router({
     })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
-      await assertComponentCoordinator(ctx.user.id, ctx.user.role, cls.componentId);
+      await assertClassManager(ctx.user.id, ctx.user.role, cls);
       let student = await getStudentByEnrollment(input.enrollment);
       if (student) {
         const classStudentsList = await listStudentsByClass(input.classId);
@@ -396,7 +407,7 @@ export const appRouter = router({
       }
       return student;
     }),
-    update: coordinatorOrAdminProcedure.input(z.object({
+    update: approvedProcedure.input(z.object({
       studentId: z.number(),
       classId: z.number(), // needed to verify component access
       name: z.string().optional(),
@@ -405,7 +416,7 @@ export const appRouter = router({
     })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
-      await assertComponentCoordinator(ctx.user.id, ctx.user.role, cls.componentId);
+      await assertClassManager(ctx.user.id, ctx.user.role, cls);
       if (input.enrollment) {
         const existing = await getStudentByEnrollment(input.enrollment);
         if (existing && existing.id !== input.studentId) {
@@ -414,21 +425,21 @@ export const appRouter = router({
       }
       return updateStudent(input.studentId, { name: input.name, enrollment: input.enrollment, email: input.email });
     }),
-    // Remove from class: coordinator of component or admin
-    removeFromClass: coordinatorOrAdminProcedure.input(z.object({ studentId: z.number(), classId: z.number() })).mutation(async ({ ctx, input }) => {
+    // Remove from class: admin, coordinator of component, or prof who created the class
+    removeFromClass: approvedProcedure.input(z.object({ studentId: z.number(), classId: z.number() })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
-      await assertComponentCoordinator(ctx.user.id, ctx.user.role, cls.componentId);
+      await assertClassManager(ctx.user.id, ctx.user.role, cls);
       await removeStudentFromClass(input.studentId, input.classId);
       return { success: true };
     }),
-    importCSV: coordinatorOrAdminProcedure.input(z.object({
+    importCSV: approvedProcedure.input(z.object({
       classId: z.number(),
       csvContent: z.string(),
     })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
-      await assertComponentCoordinator(ctx.user.id, ctx.user.role, cls.componentId);
+      await assertClassManager(ctx.user.id, ctx.user.role, cls);
 
       const lines = input.csvContent.split("\n");
       const parsedStudents: { name: string; enrollment: string }[] = [];

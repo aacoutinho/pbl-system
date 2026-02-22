@@ -190,3 +190,4 @@
 - [x] Atualizar frontend para novo sistema de permissões por componente
 - [x] Testes para novo sistema de permissões (253 testes passando)
 - [x] Exportar Alunos deve aparecer apenas no perfil do admin
+- [x] Professor (role prof) pode incluir, listar, editar e excluir alunos nas turmas que ele criou dos seus componentes
