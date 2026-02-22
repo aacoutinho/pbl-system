@@ -24,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useIsMobile } from "@/hooks/useMobile";
 import { useClassContext } from "@/contexts/ClassContext";
 import { trpc } from "@/lib/trpc";
-import { LayoutDashboard, Users, ClipboardList, BarChart3, LogOut, PanelLeft, GraduationCap, BookOpen, ClipboardCheck, Download, KeyRound, UserCheck, Clock, Eye, EyeOff, Loader2, Mail, ArrowRightLeft, Layers, User, History } from "lucide-react";
+import { LayoutDashboard, Users, ClipboardList, BarChart3, LogOut, PanelLeft, GraduationCap, BookOpen, ClipboardCheck, Download, KeyRound, UserCheck, Clock, Eye, EyeOff, Loader2, Mail, ArrowRightLeft, Layers, User, History, Bell } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState, FormEvent } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -51,6 +51,9 @@ const tutorialEvalItem = { icon: ClipboardCheck, label: "Avaliar Tutorial", path
 // Audit log: for coordinator and admin
 const auditLogItem = { icon: History, label: "Histórico de Ações", path: "/audit-log" };
 
+// Notifications: for all approved users
+const notificationsItem = { icon: Bell, label: "Notificações", path: "/notifications" };
+
 // Admin-only items
 const adminOnlyItems = [
   { icon: Download, label: "Exportar Alunos", path: "/export-students" },
@@ -59,13 +62,15 @@ const adminOnlyItems = [
 
 function getMenuItemsForRole(role: string) {
   if (role === "admin") {
-    return [...baseMenuItems, auditLogItem, ...adminOnlyItems];
+    return [...baseMenuItems, notificationsItem, auditLogItem, ...adminOnlyItems];
   }
   // coordinator and prof: include tutorial eval
   const items = [...baseMenuItems];
   // Insert tutorial eval after Sessões
   const sessionsIdx = items.findIndex(i => i.path === "/sessions");
   items.splice(sessionsIdx + 1, 0, tutorialEvalItem);
+  // All approved users get notifications
+  items.push(notificationsItem);
   // Coordinators also get audit log
   if (role === "coordinator") {
     items.push(auditLogItem);
@@ -544,6 +549,11 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
 
   const isAdmin = user?.role === "admin";
   const menuItems = getMenuItemsForRole(user?.role || "prof");
+  const { data: unreadData } = trpc.notifications.unreadCount.useQuery(undefined, {
+    refetchInterval: 30000,
+    enabled: !!user,
+  });
+  const unreadCount = unreadData?.count ?? 0;
   const activeMenuItem = menuItems.find(item => item.path === location);
 
   // Class selector for admin
@@ -647,6 +657,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
             <SidebarMenu className="px-2 py-1">
               {menuItems.map(item => {
                 const isActive = location === item.path;
+                const isNotifications = item.path === "/notifications";
                 return (
                   <SidebarMenuItem key={item.path}>
                     <SidebarMenuButton
@@ -655,8 +666,20 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                       tooltip={item.label}
                       className="h-10 transition-all font-normal"
                     >
-                      <item.icon className={`h-4 w-4 ${isActive ? "text-primary" : ""}`} />
-                      <span>{item.label}</span>
+                      <div className="relative">
+                        <item.icon className={`h-4 w-4 ${isActive ? "text-primary" : ""}`} />
+                        {isNotifications && unreadCount > 0 && (
+                          <span className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+                            {unreadCount > 9 ? "9+" : unreadCount}
+                          </span>
+                        )}
+                      </div>
+                      <span className="flex-1">{item.label}</span>
+                      {isNotifications && unreadCount > 0 && (
+                        <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
+                          {unreadCount > 99 ? "99+" : unreadCount}
+                        </span>
+                      )}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );

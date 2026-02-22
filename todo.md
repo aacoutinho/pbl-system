@@ -58,7 +58,7 @@
 - [x] Frontend: Clean export format without individual peer scores
 - [x] Tests: Export format validation tests (60 tests passing)
 - [x] Update homepage text: "Sistema de avaliação de seminários" → "Sistema de avaliação de Desempenho Tutorial"
-- [ ] Update VITE_APP_TITLE: "Sistema Automatizado de Avaliação de Alunos" → "Sistema de Avaliação Tutorial"
+- [x] Update VITE_APP_TITLE: "Sistema Automatizado de Avaliação de Alunos" → "Sistema de Avaliação Tutorial"
 - [x] Alterar domínio padrão de email na importação em lote para @ecomp.uefs.br
 - [x] Atualizar schema de turmas: usar apenas classCode (TP01), componentCode (TEC502) e semester (20262)
 - [x] Atualizar geração de e-mails: ignorar sufixos (Junior, Jr., Neto, Filho) e usar @ecomp.uefs.br como padrão
@@ -240,3 +240,11 @@
 - [x] Template de e-mail para concessão de permissão de avaliação
 - [x] Integrar envio de e-mail na rota evalPermissions.grant
 - [x] Testes para o novo template de e-mail de permissão de avaliação (4 novos testes)
+- [x] Sistema de notificações in-app para professores
+- [x] Schema: tabela notifications (id, userId, type, title, message, read, metadata, createdAt)
+- [x] Backend: helpers DB para criar, listar, marcar como lida e contar não lidas
+- [x] Backend: rotas tRPC para listar notificações, marcar como lida, marcar todas como lidas, contar não lidas
+- [x] Backend: criar notificações nos eventos (aprovação/rejeição componente, promoção/rebaixamento, remoção, permissão avaliação concedida/revogada)
+- [x] Frontend: página de Notificações com lista de alertas, marcação de lidas e paginação
+- [x] Frontend: aba Notificações no menu lateral com badge de contagem de não lidas
+- [x] Testes: notificações in-app (19 novos testes)

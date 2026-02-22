@@ -113,6 +113,13 @@
       "when": 1771781851103,
       "tag": "0015_redundant_vindicator",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "5",
+      "when": 1771783274294,
+      "tag": "0016_kind_cyclops",
+      "breakpoints": true
     }
   ]
 }

@@ -32,6 +32,7 @@ import {
   createEmailVerificationCode, verifyEmailCode,
   transferStudentBetweenClasses,
   createAuditLog, listAuditLogs,
+  createNotification, listNotifications, countUnreadNotifications, markNotificationAsRead, markAllNotificationsAsRead,
 } from "./db";
 import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml } from "./email";
 
@@ -961,6 +962,15 @@ export const appRouter = router({
       }
       await grantEvalPermission(input.classId, input.authorizedUserId, ctx.user.id);
       await createAuditLog({ action: "grant_eval_permission", actorUserId: ctx.user.id, targetUserId: input.authorizedUserId, classId: input.classId, details: JSON.stringify({ classId: input.classId }) });
+      // In-app notification
+      const grantComponent = await getComponentById(cls.componentId);
+      await createNotification({
+        userId: input.authorizedUserId,
+        type: "eval_permission_granted",
+        title: "Permissão de Avaliação Concedida",
+        message: `Você recebeu permissão para avaliar sessões da turma ${cls.classCode} do componente ${grantComponent?.code || ""} - ${grantComponent?.name || ""}.`,
+        metadata: JSON.stringify({ classId: input.classId, componentId: cls.componentId }),
+      });
       // Send notification email to the authorized professor
       try {
         const authorizedUser = await getUserById(input.authorizedUserId);
@@ -1001,6 +1011,15 @@ export const appRouter = router({
       }
       await revokeEvalPermission(input.classId, input.authorizedUserId);
       await createAuditLog({ action: "revoke_eval_permission", actorUserId: ctx.user.id, targetUserId: input.authorizedUserId, classId: input.classId, details: JSON.stringify({ classId: input.classId }) });
+      // In-app notification
+      const revokeComponent = await getComponentById(cls.componentId);
+      await createNotification({
+        userId: input.authorizedUserId,
+        type: "eval_permission_revoked",
+        title: "Permissão de Avaliação Revogada",
+        message: `Sua permissão para avaliar sessões da turma ${cls.classCode} do componente ${revokeComponent?.code || ""} - ${revokeComponent?.name || ""} foi revogada.`,
+        metadata: JSON.stringify({ classId: input.classId, componentId: cls.componentId }),
+      });
       return { success: true };
     }),
   }),
@@ -1101,10 +1120,19 @@ export const appRouter = router({
       await assertComponentCoordinator(ctx.user.id, ctx.user.role, input.componentId);
       await approveComponentRequest(input.userId, input.componentId, ctx.user.id);
       await createAuditLog({ action: "approve_component_request", actorUserId: ctx.user.id, targetUserId: input.userId, componentId: input.componentId, details: JSON.stringify({ componentId: input.componentId }) });
+      // In-app notification
+      const approvedComponent = await getComponentById(input.componentId);
+      await createNotification({
+        userId: input.userId,
+        type: "component_approved",
+        title: "Solicitação Aprovada",
+        message: `Sua solicitação de entrada no componente ${approvedComponent?.code || ""} - ${approvedComponent?.name || ""} foi aprovada.`,
+        metadata: JSON.stringify({ componentId: input.componentId }),
+      });
       // Send notification email
       try {
         const user = await getUserById(input.userId);
-        const component = await getComponentById(input.componentId);
+        const component = approvedComponent;
         if (user?.email && component) {
           await sendEmail({
             to: user.email,
@@ -1129,6 +1157,14 @@ export const appRouter = router({
       const component = await getComponentById(input.componentId);
       await rejectComponentRequest(input.userId, input.componentId);
       await createAuditLog({ action: "reject_component_request", actorUserId: ctx.user.id, targetUserId: input.userId, componentId: input.componentId, details: JSON.stringify({ componentId: input.componentId }) });
+      // In-app notification
+      await createNotification({
+        userId: input.userId,
+        type: "component_rejected",
+        title: "Solicitação Rejeitada",
+        message: `Sua solicitação de entrada no componente ${component?.code || ""} - ${component?.name || ""} foi rejeitada.`,
+        metadata: JSON.stringify({ componentId: input.componentId }),
+      });
       // Send notification email
       try {
         if (user?.email && component) {
@@ -1152,6 +1188,15 @@ export const appRouter = router({
       await assertComponentCoordinator(ctx.user.id, ctx.user.role, input.componentId);
       await setComponentRole(input.userId, input.componentId, "coordinator");
       await createAuditLog({ action: "promote_to_coordinator", actorUserId: ctx.user.id, targetUserId: input.userId, componentId: input.componentId });
+      // In-app notification
+      const promoComponent = await getComponentById(input.componentId);
+      await createNotification({
+        userId: input.userId,
+        type: "promoted_to_coordinator",
+        title: "Promovido a Coordenador",
+        message: `Você foi promovido a coordenador do componente ${promoComponent?.code || ""} - ${promoComponent?.name || ""}.`,
+        metadata: JSON.stringify({ componentId: input.componentId }),
+      });
       // Also update user's system role to coordinator if they are currently prof
       const user = await getUserById(input.userId);
       if (user && user.role === "prof") {
@@ -1168,6 +1213,15 @@ export const appRouter = router({
       await assertComponentCoordinator(ctx.user.id, ctx.user.role, input.componentId);
       await setComponentRole(input.userId, input.componentId, "prof");
       await createAuditLog({ action: "demote_to_prof", actorUserId: ctx.user.id, targetUserId: input.userId, componentId: input.componentId });
+      // In-app notification
+      const demoteComponent = await getComponentById(input.componentId);
+      await createNotification({
+        userId: input.userId,
+        type: "demoted_to_prof",
+        title: "Papel Alterado",
+        message: `Seu papel no componente ${demoteComponent?.code || ""} - ${demoteComponent?.name || ""} foi alterado para professor.`,
+        metadata: JSON.stringify({ componentId: input.componentId }),
+      });
       // Check if user is still coordinator of any component, if not, demote system role
       const userComps = await getUserComponents(input.userId);
       const stillCoordinator = userComps.some(c => c.componentRole === "coordinator" && c.status === "approved" && c.componentId !== input.componentId);
@@ -1188,6 +1242,15 @@ export const appRouter = router({
       await assertComponentCoordinator(ctx.user.id, ctx.user.role, input.componentId);
       await removeProfessorFromComponent(input.userId, input.componentId);
       await createAuditLog({ action: "remove_from_component", actorUserId: ctx.user.id, targetUserId: input.userId, componentId: input.componentId });
+      // In-app notification
+      const removedComponent = await getComponentById(input.componentId);
+      await createNotification({
+        userId: input.userId,
+        type: "removed_from_component",
+        title: "Removido do Componente",
+        message: `Você foi removido do componente ${removedComponent?.code || ""} - ${removedComponent?.name || ""}.`,
+        metadata: JSON.stringify({ componentId: input.componentId }),
+      });
       // Check if user still has any approved components, if not, check system role
       const userComps = await getUserComponents(input.userId);
       const hasCoordinator = userComps.some(c => c.componentRole === "coordinator" && c.status === "approved");
@@ -1278,6 +1341,30 @@ export const appRouter = router({
         return listAuditLogs({ limit: input.limit, offset: input.offset, componentIds: [] });
       }
       return listAuditLogs({ limit: input.limit, offset: input.offset, componentIds: coordCompIds });
+    }),
+  }),
+
+  // ─── Notifications ───
+  notifications: router({
+    list: approvedProcedure.input(z.object({
+      limit: z.number().min(1).max(100).optional().default(50),
+      offset: z.number().min(0).optional().default(0),
+    })).query(async ({ ctx, input }) => {
+      return listNotifications(ctx.user.id, { limit: input.limit, offset: input.offset });
+    }),
+    unreadCount: approvedProcedure.query(async ({ ctx }) => {
+      const count = await countUnreadNotifications(ctx.user.id);
+      return { count };
+    }),
+    markAsRead: approvedProcedure.input(z.object({
+      notificationId: z.number(),
+    })).mutation(async ({ ctx, input }) => {
+      await markNotificationAsRead(input.notificationId, ctx.user.id);
+      return { success: true };
+    }),
+    markAllAsRead: approvedProcedure.mutation(async ({ ctx }) => {
+      await markAllNotificationsAsRead(ctx.user.id);
+      return { success: true };
     }),
   }),
 });

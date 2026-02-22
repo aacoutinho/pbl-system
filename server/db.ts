@@ -17,6 +17,7 @@ import {
   classEvalPermissions,
   emailVerificationCodes,
   auditLogs,
+  notifications,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1671,4 +1672,73 @@ export async function listAuditLogs(opts: {
     .offset(offset);
 
   return { logs: rows, total: Number(countResult.count) };
+}
+
+
+// ─── Notification helpers ───
+export async function createNotification(data: {
+  userId: number;
+  type: string;
+  title: string;
+  message: string;
+  metadata?: string | null;
+}) {
+  const db = await getDb();
+  if (!db) return;
+  try {
+    await db.insert(notifications).values({
+      userId: data.userId,
+      type: data.type,
+      title: data.title,
+      message: data.message,
+      metadata: data.metadata ?? null,
+    });
+  } catch (err) {
+    console.error("[Notification] Failed to create notification:", err);
+  }
+}
+
+export async function listNotifications(userId: number, opts: { limit?: number; offset?: number }) {
+  const db = await getDb();
+  if (!db) return { items: [], total: 0 };
+  const limit = opts.limit ?? 50;
+  const offset = opts.offset ?? 0;
+
+  const [countResult] = await db.select({ count: sql<number>`count(*)` })
+    .from(notifications)
+    .where(eq(notifications.userId, userId));
+
+  const items = await db.select()
+    .from(notifications)
+    .where(eq(notifications.userId, userId))
+    .orderBy(desc(notifications.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  return { items, total: Number(countResult.count) };
+}
+
+export async function countUnreadNotifications(userId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const [result] = await db.select({ count: sql<number>`count(*)` })
+    .from(notifications)
+    .where(and(eq(notifications.userId, userId), eq(notifications.read, false)));
+  return Number(result.count);
+}
+
+export async function markNotificationAsRead(notificationId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(notifications)
+    .set({ read: true })
+    .where(and(eq(notifications.id, notificationId), eq(notifications.userId, userId)));
+}
+
+export async function markAllNotificationsAsRead(userId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(notifications)
+    .set({ read: true })
+    .where(and(eq(notifications.userId, userId), eq(notifications.read, false)));
 }
