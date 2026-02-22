@@ -113,7 +113,7 @@ function SmtpConfigContent() {
   const { data: existingConfig, isLoading } = trpc.smtp.get.useQuery();
   const utils = trpc.useUtils();
 
-  const [host, setHost] = useState("");
+  const [host, setHost] = useState("smtp.gmail.com");
   const [port, setPort] = useState(587);
   const [secure, setSecure] = useState(false);
   const [username, setUsername] = useState("");
