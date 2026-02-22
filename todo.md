@@ -98,3 +98,10 @@
 - [x] 5. Importação: se aluno já existe (por matrícula), apenas vincular à turma
 - [x] 6. Aluno só pode pertencer a uma turma de um mesmo componente
 - [x] 7. Excluir aluno da turma vs excluir do sistema (só exclui do sistema se não está em nenhuma turma)
+- [x] Backend: verificar se aluno já avaliou na sessão antes de permitir nova avaliação
+- [x] Backend: rota para professor liberar reavaliação de um aluno em uma sessão
+- [x] Frontend: mostrar mensagem de "já avaliou" quando aluno tenta reavaliar
+- [x] Frontend: botão para professor liberar reavaliação de aluno na sessão
+- [x] Testes: avaliação única por aluno e liberação de reavaliação
+- [x] Tratar preposições portuguesas em nomes na exportação Google Workspace (de, da, do, dos, das em minúscula)
+- [x] Validação de matrícula duplicada na edição de aluno

@@ -7,9 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Lock, Unlock, Trash2, ClipboardList, Users, Eye, BookOpen, KeyRound, Copy, RefreshCw } from "lucide-react";
+import { Plus, Lock, Unlock, Trash2, ClipboardList, Users, Eye, BookOpen, KeyRound, Copy, RefreshCw, RotateCcw, CheckCircle2, Clock } from "lucide-react";
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
@@ -137,7 +137,7 @@ function SessionsContent() {
                         />
                         <div className="min-w-0">
                           <p className="text-sm font-medium truncate">{student.name}</p>
-                          <p className="text-xs text-muted-foreground truncate">{student.email}</p>
+                          <p className="text-xs text-muted-foreground truncate">{student.enrollment}</p>
                         </div>
                       </label>
                     ))
@@ -203,10 +203,20 @@ function SessionRow({ session, onClose, onOpen, onDelete, onViewResults }: {
   const submitted = status?.filter(s => s.submitted).length ?? 0;
   const total = status?.length ?? 0;
 
+  const [showReevalDialog, setShowReevalDialog] = useState(false);
+
   const generateCodeMutation = trpc.sessions.generateCode.useMutation({
     onSuccess: (data) => {
       utils.sessions.list.invalidate();
       toast.success(`Código gerado: ${data.accessCode}`);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const allowReevalMutation = trpc.evaluations.allowReevaluation.useMutation({
+    onSuccess: () => {
+      utils.sessions.submissionStatus.invalidate({ sessionId: session.id });
+      toast.success("Reavaliação liberada! O aluno pode avaliar novamente.");
     },
     onError: (e) => toast.error(e.message),
   });
@@ -216,6 +226,10 @@ function SessionRow({ session, onClose, onOpen, onDelete, onViewResults }: {
       navigator.clipboard.writeText(session.accessCode);
       toast.success("Código copiado!");
     }
+  };
+
+  const handleAllowReevaluation = (studentId: number) => {
+    allowReevalMutation.mutate({ sessionId: session.id, studentId });
   };
 
   return (
@@ -255,6 +269,60 @@ function SessionRow({ session, onClose, onOpen, onDelete, onViewResults }: {
             {session.accessCode ? <RefreshCw className="h-4 w-4" /> : <KeyRound className="h-4 w-4" />}
           </Button>
         )}
+
+        {/* Reevaluation dialog */}
+        <Dialog open={showReevalDialog} onOpenChange={setShowReevalDialog}>
+          <DialogTrigger asChild>
+            <Button variant="ghost" size="icon" title="Gerenciar avaliações / Liberar reavaliação" disabled={submitted === 0}>
+              <RotateCcw className="h-4 w-4" />
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Avaliações da Sessão</DialogTitle>
+              <DialogDescription>
+                {session.label} — {submitted}/{total} alunos avaliaram. Libere a reavaliação para permitir que um aluno envie novamente.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="border rounded-lg max-h-80 overflow-y-auto divide-y">
+              {status?.map(s => (
+                <div key={s.studentId} className="flex items-center justify-between px-4 py-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {s.submitted ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                    ) : (
+                      <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{s.studentName}</p>
+                      <p className="text-xs text-muted-foreground truncate">{s.studentEnrollment}</p>
+                    </div>
+                  </div>
+                  <div className="shrink-0 ml-2">
+                    {s.submitted ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-7"
+                        onClick={() => handleAllowReevaluation(s.studentId)}
+                        disabled={allowReevalMutation.isPending}
+                      >
+                        <RotateCcw className="h-3 w-3 mr-1" />
+                        Liberar
+                      </Button>
+                    ) : (
+                      <Badge variant="outline" className="text-xs text-muted-foreground">Pendente</Badge>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {(!status || status.length === 0) && (
+                <p className="p-4 text-sm text-muted-foreground text-center">Nenhum aluno nesta sessão.</p>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
         <Button variant="ghost" size="icon" onClick={onViewResults} title="Ver resultados">
           <Eye className="h-4 w-4" />
         </Button>

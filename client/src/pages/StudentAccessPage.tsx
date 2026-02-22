@@ -38,6 +38,7 @@ export default function StudentAccessPage() {
   const [studentInfo, setStudentInfo] = useState<{
     studentId: number; studentName: string; studentEmail: string | null; sessionId: number; sessionLabel: string; classId: number;
   } | null>(null);
+  const [alreadySubmitted, setAlreadySubmitted] = useState(false);
 
   // Step 1: Validate access code
   const validateCodeQuery = trpc.studentAccess.validateCode.useQuery(
@@ -49,7 +50,7 @@ export default function StudentAccessPage() {
   const loginMutation = trpc.studentAccess.login.useMutation({
     onSuccess: (data) => {
       if (data.alreadySubmitted) {
-        toast.info("Você já enviou sua avaliação para esta sessão.");
+        setAlreadySubmitted(true);
         setStep("done");
       } else {
         setStudentInfo(data);
@@ -175,19 +176,33 @@ export default function StudentAccessPage() {
 
   if (step === "done") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-green-50 flex items-center justify-center p-4">
+      <div className={`min-h-screen bg-gradient-to-br ${alreadySubmitted ? "from-slate-50 to-amber-50" : "from-slate-50 to-green-50"} flex items-center justify-center p-4`}>
         <Card className="w-full max-w-md shadow-lg">
           <CardHeader className="text-center">
-            <div className="mx-auto w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mb-3">
-              <CheckCircle2 className="h-7 w-7 text-emerald-600" />
-            </div>
-            <CardTitle className="text-xl text-emerald-700">Avaliação Enviada!</CardTitle>
-            <CardDescription>
-              Sua avaliação foi registrada com sucesso. Obrigado pela participação!
-            </CardDescription>
+            {alreadySubmitted ? (
+              <>
+                <div className="mx-auto w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center mb-3">
+                  <AlertTriangle className="h-7 w-7 text-amber-600" />
+                </div>
+                <CardTitle className="text-xl text-amber-700">Avaliação Já Realizada</CardTitle>
+                <CardDescription>
+                  Você já enviou sua avaliação para esta sessão. Caso precise reavaliar, solicite ao professor a liberação.
+                </CardDescription>
+              </>
+            ) : (
+              <>
+                <div className="mx-auto w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mb-3">
+                  <CheckCircle2 className="h-7 w-7 text-emerald-600" />
+                </div>
+                <CardTitle className="text-xl text-emerald-700">Avaliação Enviada!</CardTitle>
+                <CardDescription>
+                  Sua avaliação foi registrada com sucesso. Obrigado pela participação!
+                </CardDescription>
+              </>
+            )}
           </CardHeader>
           <CardContent>
-            <Button variant="outline" className="w-full" onClick={() => { setStep("code"); setAccessCode(""); setEnrollment(""); setStudentInfo(null); setSessionInfo(null); }}>
+            <Button variant="outline" className="w-full" onClick={() => { setStep("code"); setAccessCode(""); setEnrollment(""); setStudentInfo(null); setSessionInfo(null); setAlreadySubmitted(false); }}>
               <ArrowLeft className="h-4 w-4 mr-1" />
               Voltar ao início
             </Button>

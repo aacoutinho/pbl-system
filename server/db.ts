@@ -463,6 +463,22 @@ export async function hasStudentSubmitted(sessionId: number, studentId: number) 
   return rows.length > 0;
 }
 
+export async function deleteStudentEvaluation(sessionId: number, studentId: number) {
+  const db = await getDb();
+  if (!db) return false;
+  // Find the evaluation
+  const rows = await db.select().from(evaluations)
+    .where(and(eq(evaluations.sessionId, sessionId), eq(evaluations.evaluatorStudentId, studentId)))
+    .limit(1);
+  if (rows.length === 0) return false;
+  const evaluationId = rows[0].id;
+  // Delete evaluation items first
+  await db.delete(evaluationItems).where(eq(evaluationItems.evaluationId, evaluationId));
+  // Delete evaluation
+  await db.delete(evaluations).where(eq(evaluations.id, evaluationId));
+  return true;
+}
+
 // ─── Calculation engine ───
 export interface SessionResult {
   studentId: number;

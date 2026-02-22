@@ -10,7 +10,7 @@ import {
   addStudentToClass, isStudentInComponentClass, bulkImportStudents,
   listAllClasses, listStudentsForExport, updateStudentEmail,
   createSession, listSessionsByClass, getSessionStudents, closeSession, openSession, deleteSession, getSessionById,
-  submitEvaluation, getSessionEvaluations, hasStudentSubmitted,
+  submitEvaluation, getSessionEvaluations, hasStudentSubmitted, deleteStudentEvaluation,
   calculateSessionResults, calculateProblemResults, getDashboardStats,
   submitTutorialEvaluation, getTutorialEvaluation, calculateTutorialGrade,
   calculateFinalGrades, calculateProblemFinalGrades,
@@ -117,6 +117,13 @@ export const appRouter = router({
       enrollment: z.string().optional(),
       email: z.string().nullable().optional(),
     })).mutation(async ({ input }) => {
+      // Validate enrollment uniqueness if changing enrollment
+      if (input.enrollment) {
+        const existing = await getStudentByEnrollment(input.enrollment);
+        if (existing && existing.id !== input.studentId) {
+          throw new TRPCError({ code: "CONFLICT", message: "Já existe outro aluno com esta matrícula" });
+        }
+      }
       return updateStudent(input.studentId, { name: input.name, enrollment: input.enrollment, email: input.email });
     }),
     removeFromClass: adminProcedure.input(z.object({ studentId: z.number(), classId: z.number() })).mutation(async ({ ctx, input }) => {
@@ -192,7 +199,14 @@ export const appRouter = router({
       const header = "First Name [Required];Last Name [Required];Email Address [Required];Password [Required];Password Hash Function [UPLOAD ONLY];Org Unit Path [Required];New Primary Email [UPLOAD ONLY];Recovery Email;Home Secondary Email;Work Secondary Email;Recovery Phone [MUST BE IN THE E.164 FORMAT];Work Phone;Home Phone;Mobile Phone;Work Address;Home Address;Employee ID;Employee Type;Employee Title;Manager Email;Department;Cost Center;Building ID;Floor Name;Floor Section;Change Password at Next Sign-In;New Status [UPLOAD ONLY];New Licenses [UPLOAD ONLY];Advanced Protection Program enrollment";
 
       // Title Case: primeira letra maiúscula, resto minúscula
-      const toTitleCase = (str: string) => str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+      // Preposições portuguesas permanecem em minúscula
+      const PREPOSITIONS = new Set(["de", "da", "do", "dos", "das", "e"]);
+      const toTitleCase = (str: string) => {
+        return str.toLowerCase().split(/\s+/).map((word) => {
+          if (PREPOSITIONS.has(word)) return word;
+          return word.charAt(0).toUpperCase() + word.slice(1);
+        }).join(" ");
+      };
 
       const rows = studentsData.map(s => {
         const nameParts = s.studentName.trim().split(/\s+/);
@@ -383,6 +397,9 @@ export const appRouter = router({
       const session = await getSessionByAccessCode(input.accessCode.toUpperCase());
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Código inválido" });
       if (session.status !== "open") throw new TRPCError({ code: "BAD_REQUEST", message: "Sessão encerrada" });
+      // Check if student already submitted
+      const alreadySubmitted = await hasStudentSubmitted(session.id, input.evaluatorStudentId);
+      if (alreadySubmitted) throw new TRPCError({ code: "BAD_REQUEST", message: "Você já realizou a avaliação desta sessão. Solicite ao professor a liberação para reavaliar." });
       // Validate: evaluator cannot evaluate self
       const selfEval = input.items.find(i => i.evaluatedStudentId === input.evaluatorStudentId);
       if (selfEval) throw new TRPCError({ code: "BAD_REQUEST", message: "Autoavaliação não é permitida" });
@@ -436,6 +453,22 @@ export const appRouter = router({
       studentId: z.number(),
     })).query(async ({ input }) => {
       return hasStudentSubmitted(input.sessionId, input.studentId);
+    }),
+    // Professor releases a student to re-evaluate
+    allowReevaluation: adminProcedure.input(z.object({
+      sessionId: z.number(),
+      studentId: z.number(),
+    })).mutation(async ({ input }) => {
+      const deleted = await deleteStudentEvaluation(input.sessionId, input.studentId);
+      if (!deleted) throw new TRPCError({ code: "NOT_FOUND", message: "Avaliação não encontrada para este aluno nesta sessão" });
+      return { success: true };
+    }),
+    // List students who have submitted evaluations for a session
+    submittedStudents: adminProcedure.input(z.object({
+      sessionId: z.number(),
+    })).query(async ({ input }) => {
+      const evals = await getSessionEvaluations(input.sessionId);
+      return evals.map(e => ({ studentId: e.evaluatorStudentId, submittedAt: e.submittedAt }));
     }),
   }),
 

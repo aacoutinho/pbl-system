@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 // Title Case: primeira letra maiúscula, resto minúscula
-const toTitleCase = (str: string) => str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+// Preposições portuguesas permanecem em minúscula
+const PREPOSITIONS = new Set(["de", "da", "do", "dos", "das", "e"]);
+const toTitleCase = (str: string) => {
+  return str.toLowerCase().split(/\s+/).map((word) => {
+    if (PREPOSITIONS.has(word)) return word;
+    return word.charAt(0).toUpperCase() + word.slice(1);
+  }).join(" ");
+};
 
 // Replicate the CSV generation logic from the router for testing
 function generateGoogleWorkspaceCSV(
@@ -63,17 +70,37 @@ describe("Google Workspace CSV Export", () => {
     expect(cols[1]).toBe("Augusto Teixeira Ribeiro Coutinho"); // Last Name in Title Case
   });
 
-  it("formats names in Title Case from lowercase input", () => {
+  it("formats names with prepositions in lowercase", () => {
     const result = generateGoogleWorkspaceCSV([
-      { studentName: "jose macedo dos santos", studentEmail: "jmdsantos@ecomp.uefs.br", studentEnrollment: "20221001", semester: "20262" },
+      { studentName: "JOSE MACEDO DOS SANTOS", studentEmail: "jmdsantos@ecomp.uefs.br", studentEnrollment: "20221001", semester: "20262" },
     ]);
     const lines = result.csv.split("\n");
     const cols = lines[1].split(";");
     expect(cols[0]).toBe("Jose");
-    expect(cols[1]).toBe("Macedo Dos Santos");
+    expect(cols[1]).toBe("Macedo dos Santos"); // "dos" stays lowercase
   });
 
-  it("preserves Title Case from mixed case input", () => {
+  it("handles 'da' preposition correctly", () => {
+    const result = generateGoogleWorkspaceCSV([
+      { studentName: "MARIA DA CONCEICAO SANTOS", studentEmail: "mdcsantos@ecomp.uefs.br", studentEnrollment: "20221004", semester: "20262" },
+    ]);
+    const lines = result.csv.split("\n");
+    const cols = lines[1].split(";");
+    expect(cols[0]).toBe("Maria");
+    expect(cols[1]).toBe("da Conceicao Santos"); // "da" stays lowercase
+  });
+
+  it("handles 'de' preposition correctly", () => {
+    const result = generateGoogleWorkspaceCSV([
+      { studentName: "CARLOS DE OLIVEIRA", studentEmail: "cdoliveira@ecomp.uefs.br", studentEnrollment: "20221005", semester: "20262" },
+    ]);
+    const lines = result.csv.split("\n");
+    const cols = lines[1].split(";");
+    expect(cols[0]).toBe("Carlos");
+    expect(cols[1]).toBe("de Oliveira"); // "de" stays lowercase
+  });
+
+  it("preserves Title Case from mixed case input with prepositions", () => {
     const result = generateGoogleWorkspaceCSV([
       { studentName: "Antonio Crispim Amorim Neto", studentEmail: "acamorim@ecomp.uefs.br", studentEnrollment: "20230303", semester: "20262" },
     ]);
@@ -157,11 +184,11 @@ describe("Google Workspace CSV Export", () => {
     expect(cols[26]).toBe("");
   });
 
-  it("exports multiple students correctly with Title Case", () => {
+  it("exports multiple students correctly with Title Case and prepositions", () => {
     const result = generateGoogleWorkspaceCSV([
       { studentName: "ANTONIO COUTINHO", studentEmail: "acoutinho@ecomp.uefs.br", studentEnrollment: "20221001", semester: "20262" },
       { studentName: "JOSE MACEDO DOS SANTOS", studentEmail: "jmdsantos@ecomp.uefs.br", studentEnrollment: "20221002", semester: "20262" },
-      { studentName: "MARIA SILVA", studentEmail: "msilva@ecomp.uefs.br", studentEnrollment: "20221003", semester: "20262" },
+      { studentName: "MARIA DA SILVA", studentEmail: "msilva@ecomp.uefs.br", studentEnrollment: "20221003", semester: "20262" },
     ]);
     expect(result.count).toBe(3);
     const lines = result.csv.split("\n");
@@ -169,7 +196,9 @@ describe("Google Workspace CSV Export", () => {
     // Verify Title Case on all rows
     expect(lines[1].split(";")[0]).toBe("Antonio");
     expect(lines[2].split(";")[0]).toBe("Jose");
+    expect(lines[2].split(";")[1]).toBe("Macedo dos Santos"); // "dos" lowercase
     expect(lines[3].split(";")[0]).toBe("Maria");
+    expect(lines[3].split(";")[1]).toBe("da Silva"); // "da" lowercase
   });
 
   it("deduplicates students by email", () => {
