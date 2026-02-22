@@ -237,7 +237,7 @@ function LoginScreen() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                autoComplete="email"
+                autoComplete="off"
               />
             </div>
           )}
