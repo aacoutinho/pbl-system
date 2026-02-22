@@ -146,3 +146,4 @@
 - [x] Frontend: valores padrão do Gmail SMTP nos campos de configuração de e-mail
 - [x] Backend: teste de conexão SMTP também envia e-mail de teste ao coordenador
 - [x] Frontend: feedback sobre e-mail de teste enviado
+- [x] Bug: erro "Acesso restrito ao coordenador" na página /professors para usuários admin (não coordenador)

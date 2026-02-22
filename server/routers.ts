@@ -213,7 +213,7 @@ export const appRouter = router({
 
   // ─── Coordination (coordinator only) ───
   coordination: router({
-    current: adminProcedure.query(async () => {
+    current: approvedProcedure.query(async () => {
       const coord = await getCoordinator();
       if (!coord) return null;
       return { id: coord.id, name: coord.name, email: coord.email };
@@ -687,10 +687,10 @@ export const appRouter = router({
 
   // ─── Professor Authorization ───
   professors: router({
-    pending: adminProcedure.query(async () => {
+    pending: approvedProcedure.query(async () => {
       return listPendingProfessors();
     }),
-    approved: adminProcedure.query(async () => {
+    approved: approvedProcedure.query(async () => {
       return listApprovedProfessors();
     }),
     approve: coordinatorProcedure.input(z.object({ userId: z.number() })).mutation(async ({ input }) => {
@@ -718,7 +718,7 @@ export const appRouter = router({
     components: adminProcedure.input(z.object({ userId: z.number() })).query(async ({ input }) => {
       return listProfessorComponents(input.userId);
     }),
-    allComponents: adminProcedure.query(async () => {
+    allComponents: approvedProcedure.query(async () => {
       return listAllProfessorComponents();
     }),
     myStatus: protectedProcedure.query(async ({ ctx }) => {
