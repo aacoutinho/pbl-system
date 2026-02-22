@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Trash2, Upload, Users, BookOpen, FileSpreadsheet, Check, Pencil } from "lucide-react";
+import { Plus, Trash2, Upload, Users, BookOpen, FileSpreadsheet, Check, Pencil, ArrowRightLeft } from "lucide-react";
 import { useState, useRef, useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -44,6 +45,15 @@ function StudentsContent() {
     );
   }, [selectedClass, myComponents]);
   const canManage = isAdmin || isOwner || isCoordinatorOfComponent;
+  const canTransfer = isAdmin || isCoordinatorOfComponent;
+
+  // Other classes of the same component (for transfer target)
+  const sameComponentClasses = useMemo(() => {
+    if (!classesList || !selectedClass) return [];
+    return classesList.filter(
+      c => c.componentId === selectedClass.componentId && c.id !== selectedClassId
+    );
+  }, [classesList, selectedClass, selectedClassId]);
 
   const { data: studentsList, isLoading } = trpc.students.list.useQuery(
     { classId: selectedClassId! },
@@ -71,7 +81,16 @@ function StudentsContent() {
     onError: (e: any) => toast.error(e.message),
   });
   const removeMutation = trpc.students.removeFromClass.useMutation({
-    onSuccess: () => { utils.students.list.invalidate(); toast.success("Aluno removido da turma"); },
+    onSuccess: () => { utils.students.list.invalidate(); toast.success("Aluno removido da turma. As avaliações anteriores foram preservadas."); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const transferMutation = trpc.students.transfer.useMutation({
+    onSuccess: () => {
+      utils.students.list.invalidate();
+      toast.success("Aluno transferido com sucesso. As avaliações anteriores foram preservadas.");
+      setTransferringStudent(null);
+      setTransferTargetClassId("");
+    },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -86,6 +105,8 @@ function StudentsContent() {
   const [editName, setEditName] = useState("");
   const [editEnrollment, setEditEnrollment] = useState("");
   const [editEmail, setEditEmail] = useState("");
+  const [transferringStudent, setTransferringStudent] = useState<{ id: number; name: string; enrollment: string } | null>(null);
+  const [transferTargetClassId, setTransferTargetClassId] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!selectedClassId) {
@@ -128,6 +149,18 @@ function StudentsContent() {
     setEditName(student.name);
     setEditEnrollment(student.enrollment);
     setEditEmail(student.email || "");
+  };
+
+  const handleTransfer = () => {
+    if (!transferringStudent || !transferTargetClassId) {
+      toast.error("Selecione a turma de destino");
+      return;
+    }
+    transferMutation.mutate({
+      studentId: transferringStudent.id,
+      fromClassId: selectedClassId,
+      toClassId: parseInt(transferTargetClassId),
+    });
   };
 
   const parseCSVPreview = (content: string) => {
@@ -330,6 +363,66 @@ function StudentsContent() {
         </DialogContent>
       </Dialog>
 
+      {/* Transfer student dialog */}
+      <Dialog open={!!transferringStudent} onOpenChange={(open) => {
+        if (!open) { setTransferringStudent(null); setTransferTargetClassId(""); }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowRightLeft className="h-5 w-5" />
+              Transferir Aluno
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-3 rounded-lg bg-accent/30 border">
+              <p className="text-sm font-medium">{transferringStudent?.name}</p>
+              <p className="text-xs text-muted-foreground font-mono">{transferringStudent?.enrollment}</p>
+            </div>
+
+            <div>
+              <Label>Turma de destino</Label>
+              {sameComponentClasses.length === 0 ? (
+                <p className="text-sm text-muted-foreground mt-2">
+                  Não há outras turmas neste componente para transferir o aluno.
+                </p>
+              ) : (
+                <Select value={transferTargetClassId} onValueChange={setTransferTargetClassId}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Selecione a turma de destino..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sameComponentClasses.map(c => (
+                      <SelectItem key={c.id} value={String(c.id)}>
+                        {c.classCode} — {(c as any).componentCode ?? ""} ({c.semester})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800">
+              <svg className="h-4 w-4 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <p>
+                O aluno será removido desta turma e adicionado à turma de destino. <strong>As avaliações já realizadas serão preservadas.</strong>
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setTransferringStudent(null); setTransferTargetClassId(""); }}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleTransfer}
+              disabled={transferMutation.isPending || !transferTargetClassId || sameComponentClasses.length === 0}
+            >
+              {transferMutation.isPending ? "Transferindo..." : "Transferir"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
@@ -355,7 +448,7 @@ function StudentsContent() {
                     <th className="pb-3 pr-4 font-semibold">Matrícula</th>
                     <th className="pb-3 pr-4 font-semibold">Nome</th>
                     <th className="pb-3 pr-4 font-semibold">E-mail</th>
-                    <th className="pb-3 font-semibold w-20"></th>
+                    <th className="pb-3 font-semibold w-28"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -372,16 +465,29 @@ function StudentsContent() {
                               size="icon"
                               className="h-8 w-8"
                               onClick={() => startEdit({ id: student.id, name: student.name, enrollment: student.enrollment, email: student.email })}
+                              title="Editar aluno"
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
+                            {canTransfer && sameComponentClasses.length > 0 && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                onClick={() => setTransferringStudent({ id: student.id, name: student.name, enrollment: student.enrollment })}
+                                title="Transferir para outra turma"
+                              >
+                                <ArrowRightLeft className="h-4 w-4" />
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                               onClick={() => {
-                                if (confirm(`Remover ${student.name} desta turma?`)) removeMutation.mutate({ studentId: student.id, classId: selectedClassId });
+                                if (confirm(`Remover ${student.name} desta turma? As avaliações anteriores serão preservadas.`)) removeMutation.mutate({ studentId: student.id, classId: selectedClassId });
                               }}
+                              title="Remover da turma"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>

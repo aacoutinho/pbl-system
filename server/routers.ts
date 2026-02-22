@@ -29,6 +29,7 @@ import {
   getCoordinatorComponentIds,
   grantEvalPermission, revokeEvalPermission, hasEvalPermission, listEvalPermissions, listComponentProfessorsForClass,
   createEmailVerificationCode, verifyEmailCode,
+  transferStudentBetweenClasses,
 } from "./db";
 import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml } from "./email";
 
@@ -569,6 +570,38 @@ export const appRouter = router({
       });
 
       return { csv: [header, ...uniqueRows].join("\n"), count: uniqueRows.length };
+    }),
+    // Transfer student between classes of the same component (coordinator or admin only)
+    transfer: approvedProcedure.input(z.object({
+      studentId: z.number(),
+      fromClassId: z.number(),
+      toClassId: z.number(),
+    })).mutation(async ({ ctx, input }) => {
+      const fromCls = await getClassById(input.fromClassId);
+      if (!fromCls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma de origem não encontrada" });
+      const toCls = await getClassById(input.toClassId);
+      if (!toCls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma de destino não encontrada" });
+      // Both classes must belong to the same component
+      if (fromCls.componentId !== toCls.componentId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "As turmas devem pertencer ao mesmo componente" });
+      }
+      if (input.fromClassId === input.toClassId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "A turma de destino deve ser diferente da turma de origem" });
+      }
+      // Only coordinator of the component or admin can transfer
+      await assertComponentCoordinator(ctx.user.id, ctx.user.role, fromCls.componentId);
+      // Verify student is in the source class
+      const studentsInFrom = await listStudentsByClass(input.fromClassId);
+      if (!studentsInFrom.some((s: any) => s.id === input.studentId)) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Aluno não encontrado na turma de origem" });
+      }
+      // Verify student is not already in the destination class
+      const studentsInTo = await listStudentsByClass(input.toClassId);
+      if (studentsInTo.some((s: any) => s.id === input.studentId)) {
+        throw new TRPCError({ code: "CONFLICT", message: "Aluno já está na turma de destino" });
+      }
+      await transferStudentBetweenClasses(input.studentId, input.fromClassId, input.toClassId);
+      return { success: true };
     }),
   }),
 

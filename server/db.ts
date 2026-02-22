@@ -614,6 +614,8 @@ export async function isStudentInComponentClass(studentId: number, componentId: 
 export async function removeStudentFromClass(studentId: number, classId: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
+  // Remove student from future session participation lists (sessionStudents),
+  // but preserve all evaluations and evaluation items for historical records.
   const classSessions = await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.classId, classId));
   if (classSessions.length > 0) {
     const sessionIds = classSessions.map(s => s.id);
@@ -621,20 +623,26 @@ export async function removeStudentFromClass(studentId: number, classId: number)
       and(eq(sessionStudents.studentId, studentId), inArray(sessionStudents.sessionId, sessionIds))
     );
   }
+  // Remove class-student link
   await db.delete(classStudents).where(and(eq(classStudents.studentId, studentId), eq(classStudents.classId, classId)));
-  // Check if student still belongs to any class
-  const remaining = await db.select({ id: classStudents.id }).from(classStudents).where(eq(classStudents.studentId, studentId));
-  if (remaining.length === 0) {
-    // Delete student entirely (no more classes)
-    const evals = await db.select({ id: evaluations.id }).from(evaluations).where(eq(evaluations.evaluatorStudentId, studentId));
-    if (evals.length > 0) {
-      const evalIds = evals.map(e => e.id);
-      await db.delete(evaluationItems).where(inArray(evaluationItems.evaluationId, evalIds));
-      await db.delete(evaluations).where(eq(evaluations.evaluatorStudentId, studentId));
-    }
-    await db.delete(evaluationItems).where(eq(evaluationItems.evaluatedStudentId, studentId));
-    await db.delete(students).where(eq(students.id, studentId));
+  // Note: student record and all evaluations are preserved regardless of remaining class memberships.
+}
+
+export async function transferStudentBetweenClasses(studentId: number, fromClassId: number, toClassId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  // Remove student from source class sessions
+  const fromSessions = await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.classId, fromClassId));
+  if (fromSessions.length > 0) {
+    const sessionIds = fromSessions.map(s => s.id);
+    await db.delete(sessionStudents).where(
+      and(eq(sessionStudents.studentId, studentId), inArray(sessionStudents.sessionId, sessionIds))
+    );
   }
+  // Remove from source class
+  await db.delete(classStudents).where(and(eq(classStudents.studentId, studentId), eq(classStudents.classId, fromClassId)));
+  // Add to destination class
+  await db.insert(classStudents).values({ studentId, classId: toClassId }).onDuplicateKeyUpdate({ set: { studentId } });
 }
 
 async function cleanupOrphanStudents() {
