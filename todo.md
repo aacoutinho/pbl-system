@@ -208,3 +208,8 @@
 - [x] Frontend: fluxo de registro com etapa de verificação
 - [x] Nos combo/listbox da interface, mostrar apenas o código do componente em vez do nome completo
 - [x] Bug: redirecionamento automático para seletor de contas OAuth ao navegar no formulário de login (removido listener global de redirecionamento OAuth + corrigido components.list para listPublic no LoginScreen)
+- [x] Página de perfil pessoal com visualização de componentes do professor
+- [x] Alterar própria senha na página de perfil
+- [x] Rota no menu lateral para acessar perfil pessoal (acessível via dropdown do avatar no footer da sidebar)
+- [x] Notificação por e-mail ao professor quando solicitação de componente for aprovada
+- [x] Notificação por e-mail ao professor quando solicitação de componente for rejeitada

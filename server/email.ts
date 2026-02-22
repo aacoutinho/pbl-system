@@ -164,3 +164,61 @@ export function buildResetEmailHtml(code: string, userName: string): string {
     </div>
   `;
 }
+
+export function buildComponentApprovalEmailHtml(userName: string, componentCode: string, componentName: string): string {
+  return `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <h2 style="color: #1f2937; margin: 0 0 8px;">Solicitação Aprovada</h2>
+        <p style="color: #6b7280; margin: 0; font-size: 14px;">Avaliação Tutorial</p>
+      </div>
+      <p style="color: #374151; font-size: 15px; line-height: 1.6;">
+        Olá <strong>${userName}</strong>,
+      </p>
+      <p style="color: #374151; font-size: 15px; line-height: 1.6;">
+        Sua solicitação de entrada no componente foi <strong style="color: #059669;">aprovada</strong>!
+      </p>
+      <div style="text-align: center; margin: 24px 0;">
+        <div style="display: inline-block; background: #ecfdf5; border: 2px solid #6ee7b7; border-radius: 8px; padding: 16px 32px;">
+          <span style="font-size: 18px; font-weight: 600; color: #065f46;">${componentCode} - ${componentName}</span>
+        </div>
+      </div>
+      <p style="color: #374151; font-size: 15px; line-height: 1.6;">
+        Você já pode acessar o sistema e visualizar as turmas, alunos e sessões deste componente.
+      </p>
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+      <p style="color: #9ca3af; font-size: 12px; text-align: center;">
+        Sistema de Avaliação de Desempenho Tutorial
+      </p>
+    </div>
+  `;
+}
+
+export function buildComponentRejectionEmailHtml(userName: string, componentCode: string, componentName: string): string {
+  return `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <h2 style="color: #1f2937; margin: 0 0 8px;">Solicitação Rejeitada</h2>
+        <p style="color: #6b7280; margin: 0; font-size: 14px;">Avaliação Tutorial</p>
+      </div>
+      <p style="color: #374151; font-size: 15px; line-height: 1.6;">
+        Olá <strong>${userName}</strong>,
+      </p>
+      <p style="color: #374151; font-size: 15px; line-height: 1.6;">
+        Infelizmente, sua solicitação de entrada no componente foi <strong style="color: #dc2626;">rejeitada</strong>.
+      </p>
+      <div style="text-align: center; margin: 24px 0;">
+        <div style="display: inline-block; background: #fef2f2; border: 2px solid #fca5a5; border-radius: 8px; padding: 16px 32px;">
+          <span style="font-size: 18px; font-weight: 600; color: #991b1b;">${componentCode} - ${componentName}</span>
+        </div>
+      </div>
+      <p style="color: #374151; font-size: 15px; line-height: 1.6;">
+        Caso acredite que houve um engano, entre em contato com o coordenador do componente ou com o administrador do sistema.
+      </p>
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+      <p style="color: #9ca3af; font-size: 12px; text-align: center;">
+        Sistema de Avaliação de Desempenho Tutorial
+      </p>
+    </div>
+  `;
+}

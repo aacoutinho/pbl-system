@@ -30,7 +30,7 @@ import {
   grantEvalPermission, revokeEvalPermission, hasEvalPermission, listEvalPermissions, listComponentProfessorsForClass,
   createEmailVerificationCode, verifyEmailCode,
 } from "./db";
-import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml } from "./email";
+import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml } from "./email";
 
 // Base: approved user (any role except "user" pending)
 const approvedProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -992,6 +992,21 @@ export const appRouter = router({
     })).mutation(async ({ ctx, input }) => {
       await assertComponentCoordinator(ctx.user.id, ctx.user.role, input.componentId);
       await approveComponentRequest(input.userId, input.componentId, ctx.user.id);
+      // Send notification email
+      try {
+        const user = await getUserById(input.userId);
+        const component = await getComponentById(input.componentId);
+        if (user?.email && component) {
+          await sendEmail({
+            to: user.email,
+            subject: `Solicitação Aprovada - ${component.code}`,
+            text: `Olá ${user.name || ""}, sua solicitação de entrada no componente ${component.code} - ${component.name} foi aprovada.`,
+            html: buildComponentApprovalEmailHtml(user.name || user.email, component.code, component.name),
+          });
+        }
+      } catch (e) {
+        console.error("[Email] Failed to send approval notification:", e);
+      }
       return { success: true };
     }),
     // Reject component request (admin or coordinator of that component)
@@ -1000,7 +1015,23 @@ export const appRouter = router({
       componentId: z.number(),
     })).mutation(async ({ ctx, input }) => {
       await assertComponentCoordinator(ctx.user.id, ctx.user.role, input.componentId);
+      // Get user and component info before rejecting
+      const user = await getUserById(input.userId);
+      const component = await getComponentById(input.componentId);
       await rejectComponentRequest(input.userId, input.componentId);
+      // Send notification email
+      try {
+        if (user?.email && component) {
+          await sendEmail({
+            to: user.email,
+            subject: `Solicitação Rejeitada - ${component.code}`,
+            text: `Olá ${user.name || ""}, sua solicitação de entrada no componente ${component.code} - ${component.name} foi rejeitada.`,
+            html: buildComponentRejectionEmailHtml(user.name || user.email, component.code, component.name),
+          });
+        }
+      } catch (e) {
+        console.error("[Email] Failed to send rejection notification:", e);
+      }
       return { success: true };
     }),
     // Promote prof to coordinator in a component (coordinator of that component or admin)
