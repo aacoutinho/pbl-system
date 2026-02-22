@@ -33,7 +33,7 @@ import {
   transferStudentBetweenClasses,
   createAuditLog, listAuditLogs,
 } from "./db";
-import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml } from "./email";
+import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml } from "./email";
 
 // Base: approved user (any role except "user" pending)
 const approvedProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -961,6 +961,28 @@ export const appRouter = router({
       }
       await grantEvalPermission(input.classId, input.authorizedUserId, ctx.user.id);
       await createAuditLog({ action: "grant_eval_permission", actorUserId: ctx.user.id, targetUserId: input.authorizedUserId, classId: input.classId, details: JSON.stringify({ classId: input.classId }) });
+      // Send notification email to the authorized professor
+      try {
+        const authorizedUser = await getUserById(input.authorizedUserId);
+        const component = await getComponentById(cls.componentId);
+        if (authorizedUser?.email && component) {
+          const grantedByName = ctx.user.name || ctx.user.email || "Administrador";
+          await sendEmail({
+            to: authorizedUser.email,
+            subject: `Permissão de Avaliação Concedida - ${component.code} ${cls.classCode}`,
+            text: `Olá ${authorizedUser.name || ""}, você recebeu permissão para avaliar sessões da turma ${cls.classCode} do componente ${component.code} - ${component.name}. Concedida por ${grantedByName}.`,
+            html: buildEvalPermissionGrantedEmailHtml(
+              authorizedUser.name || authorizedUser.email,
+              cls.classCode,
+              component.code,
+              component.name,
+              grantedByName
+            ),
+          });
+        }
+      } catch (e) {
+        console.error("[Email] Failed to send eval permission notification:", e);
+      }
       return { success: true };
     }),
     // Revoke permission: class owner or coordinator of component can revoke

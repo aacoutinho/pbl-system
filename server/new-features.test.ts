@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { buildNewRequestEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml } from "./email";
+import { buildNewRequestEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildEvalPermissionGrantedEmailHtml } from "./email";
 
 // ─── Test 1: Email template for coordinator notification on new request ───
 describe("buildNewRequestEmailHtml", () => {
@@ -45,6 +45,46 @@ describe("buildComponentRejectionEmailHtml", () => {
     expect(html).toContain("Prof. Santos");
     expect(html).toContain("TEC502");
     expect(html).toContain("rejeitada");
+  });
+});
+
+// ─── Test: Eval permission granted email template ───
+describe("buildEvalPermissionGrantedEmailHtml", () => {
+  it("generates HTML with professor name, class code, component info and grantor", () => {
+    const html = buildEvalPermissionGrantedEmailHtml(
+      "Prof. Santos",
+      "TP01",
+      "TEC502",
+      "Concorrência e Conectividade",
+      "Dr. Silva"
+    );
+    expect(html).toContain("Prof. Santos");
+    expect(html).toContain("TP01");
+    expect(html).toContain("TEC502");
+    expect(html).toContain("Concorrência e Conectividade");
+    expect(html).toContain("Dr. Silva");
+    expect(html).toContain("Permissão de Avaliação Concedida");
+    expect(html).toContain("Avaliar Tutorial");
+  });
+
+  it("has proper HTML structure", () => {
+    const html = buildEvalPermissionGrantedEmailHtml("Prof", "TP01", "ABC", "Test", "Admin");
+    expect(html).toContain("<div");
+    expect(html).toContain("</div>");
+    expect(html).toContain("style=");
+    expect(html).toContain("font-family");
+  });
+
+  it("includes grantor info in a dedicated section", () => {
+    const html = buildEvalPermissionGrantedEmailHtml("Prof", "TP01", "ABC", "Test", "Coord. Lima");
+    expect(html).toContain("Concedida por");
+    expect(html).toContain("Coord. Lima");
+  });
+
+  it("handles empty names gracefully", () => {
+    const html = buildEvalPermissionGrantedEmailHtml("", "TP01", "ABC", "Test", "");
+    expect(html).toContain("TP01");
+    expect(html).toContain("ABC");
   });
 });
 

@@ -255,3 +255,43 @@ export function buildNewRequestEmailHtml(coordinatorName: string, professorName:
     </div>
   `;
 }
+
+export function buildEvalPermissionGrantedEmailHtml(
+  professorName: string,
+  classCode: string,
+  componentCode: string,
+  componentName: string,
+  grantedByName: string
+): string {
+  return `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <h2 style="color: #1f2937; margin: 0 0 8px;">Permissão de Avaliação Concedida</h2>
+        <p style="color: #6b7280; margin: 0; font-size: 14px;">Avaliação Tutorial</p>
+      </div>
+      <p style="color: #374151; font-size: 15px; line-height: 1.6;">
+        Olá <strong>${professorName}</strong>,
+      </p>
+      <p style="color: #374151; font-size: 15px; line-height: 1.6;">
+        Você recebeu <strong style="color: #2563eb;">permissão para avaliar sessões</strong> de uma turma:
+      </p>
+      <div style="text-align: center; margin: 24px 0;">
+        <div style="display: inline-block; background: #eff6ff; border: 2px solid #93c5fd; border-radius: 8px; padding: 16px 32px;">
+          <span style="font-size: 18px; font-weight: 600; color: #1e40af;">${componentCode} - ${classCode}</span>
+          <br />
+          <span style="font-size: 14px; color: #3b82f6;">${componentName}</span>
+        </div>
+      </div>
+      <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin: 16px 0;">
+        <p style="color: #374151; font-size: 14px; margin: 0;"><strong>Concedida por:</strong> ${grantedByName}</p>
+      </div>
+      <p style="color: #374151; font-size: 15px; line-height: 1.6;">
+        Acesse a página <strong>Avaliar Tutorial</strong> no sistema para visualizar e avaliar as sessões desta turma.
+      </p>
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+      <p style="color: #9ca3af; font-size: 12px; text-align: center;">
+        Sistema de Avaliação de Desempenho Tutorial
+      </p>
+    </div>
+  `;
+}

@@ -236,3 +236,7 @@
 - [x] Preservar avaliações ao remover aluno de turma (não deletar evaluations/evaluationItems)
 - [x] Preservar avaliações ao transferir aluno entre turmas (manter dados históricos intactos)
 - [x] Aluno removido de todas as turmas: manter registro do aluno e suas avaliações no banco
+- [x] Notificação por e-mail ao professor quando receber permissão de avaliação em uma turma
+- [x] Template de e-mail para concessão de permissão de avaliação
+- [x] Integrar envio de e-mail na rota evalPermissions.grant
+- [x] Testes para o novo template de e-mail de permissão de avaliação (4 novos testes)
