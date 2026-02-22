@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { DatabaseBackup, Download, Upload, AlertTriangle, CheckCircle2, Loader2, FileJson, HardDrive, Table2, Info } from "lucide-react";
+import { DatabaseBackup, Download, Upload, AlertTriangle, CheckCircle2, Loader2, FileJson, HardDrive, Table2, Info, RotateCcw, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -44,6 +44,9 @@ export default function BackupPage() {
   const [importFileName, setImportFileName] = useState("");
   const [clearFirst, setClearFirst] = useState(true);
   const [showConfirmImport, setShowConfirmImport] = useState(false);
+  const [isRebuilding, setIsRebuilding] = useState(false);
+  const [showRebuildDialog, setShowRebuildDialog] = useState(false);
+  const [rebuildConfirmText, setRebuildConfirmText] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const statsQuery = trpc.backup.stats.useQuery(undefined, {
@@ -88,6 +91,25 @@ export default function BackupPage() {
       setIsImporting(false);
     },
   });
+
+  const rebuildMutation = trpc.backup.rebuild.useMutation({
+    onSuccess: (result) => {
+      toast.success(`Banco reconstruído com sucesso! ${result.tablesCreated} tabelas criadas.`);
+      setIsRebuilding(false);
+      setShowRebuildDialog(false);
+      setRebuildConfirmText("");
+      statsQuery.refetch();
+    },
+    onError: (error) => {
+      toast.error(`Erro ao reconstruir: ${error.message}`);
+      setIsRebuilding(false);
+    },
+  });
+
+  const confirmRebuild = () => {
+    setIsRebuilding(true);
+    rebuildMutation.mutate();
+  };
 
   const handleExport = () => {
     setIsExporting(true);
@@ -278,7 +300,113 @@ export default function BackupPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Rebuild Section */}
+        <Card className="border-red-200 bg-red-50/30">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <RotateCcw className="h-5 w-5 text-red-600" />
+              Reconstruir Banco de Dados
+            </CardTitle>
+            <CardDescription>
+              Apaga completamente todas as tabelas e dados, e recria a estrutura do banco do zero.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-start gap-2 mb-4 p-3 rounded-lg bg-red-50 border border-red-200">
+              <Trash2 className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+              <p className="text-xs text-red-700">
+                <strong>Operação destrutiva:</strong> Esta ação remove TODOS os dados e tabelas do banco de dados e recria a estrutura vazia. Use apenas se o banco estiver danificado, corrompido ou se desejar zerar completamente o sistema. Recomenda-se fortemente exportar um backup antes.
+              </p>
+            </div>
+            <Button
+              onClick={() => setShowRebuildDialog(true)}
+              variant="outline"
+              className="w-full border-red-300 text-red-700 hover:bg-red-100"
+            >
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Reconstruir Banco de Dados
+            </Button>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Rebuild Confirmation Dialog */}
+      <Dialog open={showRebuildDialog} onOpenChange={(open) => {
+        if (!isRebuilding) {
+          setShowRebuildDialog(open);
+          if (!open) setRebuildConfirmText("");
+        }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-700">
+              <AlertTriangle className="h-5 w-5" />
+              Reconstruir Banco de Dados
+            </DialogTitle>
+            <DialogDescription>
+              Esta ação é irreversível e apagará todos os dados do sistema.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-red-50 border border-red-200">
+              <Trash2 className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
+              <div className="text-sm text-red-800">
+                <p className="font-medium">O que será feito:</p>
+                <ul className="mt-1 space-y-1 text-xs text-red-700">
+                  <li>1. Todas as tabelas existentes serão removidas</li>
+                  <li>2. Todos os dados serão permanentemente apagados</li>
+                  <li>3. As tabelas serão recriadas vazias a partir do schema</li>
+                  <li>4. O sistema ficará completamente zerado</li>
+                </ul>
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="rebuild-confirm" className="text-sm font-medium">
+                Digite <strong className="text-red-700">RECONSTRUIR</strong> para confirmar:
+              </Label>
+              <input
+                id="rebuild-confirm"
+                type="text"
+                value={rebuildConfirmText}
+                onChange={(e) => setRebuildConfirmText(e.target.value)}
+                placeholder="RECONSTRUIR"
+                className="mt-2 w-full rounded-md border border-red-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                disabled={isRebuilding}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              onClick={() => { setShowRebuildDialog(false); setRebuildConfirmText(""); }}
+              disabled={isRebuilding}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={confirmRebuild}
+              disabled={isRebuilding || rebuildConfirmText !== "RECONSTRUIR"}
+              className="bg-red-600 hover:bg-red-700 disabled:opacity-50"
+            >
+              {isRebuilding ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Reconstruindo...
+                </>
+              ) : (
+                <>
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Confirmar Reconstrução
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Import Preview Dialog */}
       <Dialog open={showImportDialog} onOpenChange={(open) => {

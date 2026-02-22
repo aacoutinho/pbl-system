@@ -2203,6 +2203,48 @@ export async function importDatabase(data: BackupData, clearFirst: boolean): Pro
   return { tablesImported, rowsImported };
 }
 
+export async function rebuildDatabase(): Promise<{ success: boolean; tablesCreated: number }> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // 1. Get all existing tables in the database
+  const existingTables = await db.execute(sql`
+    SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE'
+  `);
+
+  // 2. Disable foreign key checks, drop all tables, re-enable
+  await db.execute(sql`SET FOREIGN_KEY_CHECKS = 0`);
+  try {
+    const tableRows = (existingTables as any)[0] || existingTables;
+    if (Array.isArray(tableRows)) {
+      for (const row of tableRows) {
+        const tableName = (row as any).TABLE_NAME || (row as any).table_name;
+        if (tableName) {
+          await db.execute(sql.raw(`DROP TABLE IF EXISTS \`${tableName}\``));
+        }
+      }
+    }
+  } finally {
+    await db.execute(sql`SET FOREIGN_KEY_CHECKS = 1`);
+  }
+
+  // 3. Run drizzle migrations to recreate all tables
+  const { migrate } = await import("drizzle-orm/mysql2/migrator");
+  const path = await import("path");
+  const migrationsFolder = path.resolve(process.cwd(), "drizzle");
+  await migrate(db as any, { migrationsFolder });
+
+  // 4. Count recreated tables
+  const newTables = await db.execute(sql`
+    SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.TABLES
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE'
+  `);
+  const tableCount = ((newTables as any)[0]?.[0]?.cnt ?? (newTables as any)[0]?.cnt ?? 0) as number;
+
+  return { success: true, tablesCreated: tableCount };
+}
+
 export async function getBackupStats(): Promise<Record<string, number>> {
   const db = await getDb();
   if (!db) return {};

@@ -279,3 +279,4 @@
 - [x] Interface frontend para backup e restauração na área admin
 - [x] Testes para exportação e importação do banco
 - [x] Alterar texto dos botões de backup: "Exportar JSON" e "Selecionar JSON"
+- [x] Opção de reconstruir banco de dados (zerar completamente e recriar tabelas vazias) na página de Backup

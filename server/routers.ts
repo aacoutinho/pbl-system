@@ -37,7 +37,7 @@ import {
   getPeerGradesMatrix,
   syncPendingRequestNotifications,
   createContactTicket, listContactTickets, listMyContactTickets, resolveContactTicket, getContactTicketById, countOpenContactTickets,
-  exportDatabase, importDatabase, getBackupStats,
+  exportDatabase, importDatabase, getBackupStats, rebuildDatabase,
   type BackupData,
 } from "./db";
 import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml, buildContactTicketEmailHtml } from "./email";
@@ -1532,6 +1532,25 @@ export const appRouter = router({
     // Get row counts for all tables
     stats: adminProcedure.query(async () => {
       return getBackupStats();
+    }),
+
+    // Rebuild database: drop all tables and recreate from migrations
+    rebuild: adminProcedure.mutation(async ({ ctx }) => {
+      const result = await rebuildDatabase();
+      // Log after rebuild (tables were just recreated, so audit log table is fresh)
+      try {
+        await createAuditLog({
+          action: "database_rebuild",
+          actorUserId: ctx.user.id,
+          details: JSON.stringify({
+            rebuiltAt: new Date().toISOString(),
+            tablesCreated: result.tablesCreated,
+          }),
+        });
+      } catch {
+        // audit log table may not accept inserts right after rebuild
+      }
+      return result;
     }),
   }),
 });

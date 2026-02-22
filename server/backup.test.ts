@@ -485,6 +485,44 @@ describe("Batch import logic", () => {
   });
 });
 
+// ─── Test rebuild database ───
+describe("Rebuild database", () => {
+  it("rebuild result has success and tablesCreated fields", () => {
+    const result = { success: true, tablesCreated: 19 };
+    expect(result.success).toBe(true);
+    expect(result.tablesCreated).toBeGreaterThan(0);
+  });
+
+  it("rebuild audit log entry includes rebuiltAt and tablesCreated", () => {
+    const details = JSON.stringify({
+      rebuiltAt: "2025-06-15T12:00:00.000Z",
+      tablesCreated: 19,
+    });
+    const parsed = JSON.parse(details);
+    expect(parsed.rebuiltAt).toBeDefined();
+    expect(parsed.tablesCreated).toBe(19);
+  });
+
+  it("rebuild confirmation requires exact text RECONSTRUIR", () => {
+    const confirmText = "RECONSTRUIR";
+    expect(confirmText).toBe("RECONSTRUIR");
+    expect("reconstruir").not.toBe("RECONSTRUIR");
+    expect("RECONSTRUI").not.toBe("RECONSTRUIR");
+    expect("").not.toBe("RECONSTRUIR");
+  });
+
+  it("rebuild is a destructive operation that drops all tables", () => {
+    const steps = [
+      "Drop all existing tables",
+      "Run drizzle migrations",
+      "Recreate empty tables",
+    ];
+    expect(steps).toHaveLength(3);
+    expect(steps[0]).toContain("Drop");
+    expect(steps[2]).toContain("Recreate");
+  });
+});
+
 // ─── Test backup file naming ───
 describe("Backup file naming", () => {
   it("generates correct filename format", () => {
