@@ -200,3 +200,4 @@
 - [x] Professor pode criar, abrir, fechar e excluir sessões nas turmas que ele criou
 - [x] Esconder botões de edição/exclusão no frontend quando o professor não é dono da turma
 - [x] Indicação visual na lista de turmas mostrando quem criou cada turma
+- [x] Mover ajuda 'Como configurar o Gmail como servidor SMTP?' para logo abaixo da mensagem de status
