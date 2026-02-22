@@ -25,7 +25,7 @@ function ComponentsContent() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
   const { data: components, isLoading } = trpc.components.list.useQuery();
-  const isCoordinator = user?.role === "coordinator";
+  const isAdmin = user?.role === "admin";
 
   const createMutation = trpc.components.create.useMutation({
     onSuccess: () => { utils.components.list.invalidate(); toast.success("Componente criado com sucesso!"); setCreateOpen(false); setNewCode(""); setNewName(""); },
@@ -74,7 +74,7 @@ function ComponentsContent() {
           <h1 className="text-2xl font-bold tracking-tight">Componentes Curriculares</h1>
           <p className="text-muted-foreground mt-1">Gerencie os componentes curriculares do sistema.</p>
         </div>
-        {isCoordinator && (
+        {isAdmin && (
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
               <Button><Plus className="h-4 w-4 mr-2" />Novo Componente</Button>
@@ -111,8 +111,8 @@ function ComponentsContent() {
             Componentes Cadastrados
           </CardTitle>
           <CardDescription>
-            {isCoordinator 
-              ? "Apenas o coordenador pode criar, editar e excluir componentes." 
+            {isAdmin 
+              ? "Apenas o administrador pode criar, editar e excluir componentes." 
               : "Visualização dos componentes cadastrados no sistema."}
           </CardDescription>
         </CardHeader>
@@ -121,7 +121,7 @@ function ComponentsContent() {
             <div className="py-8 text-center text-muted-foreground">
               <Layers className="h-10 w-10 mx-auto mb-3 opacity-40" />
               <p>Nenhum componente cadastrado.</p>
-              {isCoordinator && <p className="text-xs mt-1">Clique em "Novo Componente" para começar.</p>}
+              {isAdmin && <p className="text-xs mt-1">Clique em "Novo Componente" para começar.</p>}
             </div>
           ) : (
             <Table>
@@ -129,7 +129,7 @@ function ComponentsContent() {
                 <TableRow>
                   <TableHead className="w-[120px]">Código</TableHead>
                   <TableHead>Nome</TableHead>
-                  {isCoordinator && <TableHead className="w-[120px] text-right">Ações</TableHead>}
+                  {isAdmin && <TableHead className="w-[120px] text-right">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -137,7 +137,7 @@ function ComponentsContent() {
                   <TableRow key={comp.id}>
                     <TableCell className="font-mono font-medium">{comp.code}</TableCell>
                     <TableCell>{comp.name}</TableCell>
-                    {isCoordinator && (
+                    {isAdmin && (
                       <TableCell className="text-right">
                         <div className="flex gap-1 justify-end">
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {

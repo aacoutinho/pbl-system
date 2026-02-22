@@ -20,7 +20,7 @@ import {
   approveUser, rejectUser, listPendingProfessors, listApprovedProfessors,
   addProfessorComponent, removeProfessorComponent, listProfessorComponents, listAllProfessorComponents,
   getUserById, getUserByEmail, countUsers, createUserWithPassword, updateUserPassword,
-  getCoordinator, transferCoordination, getSmtpConfig, upsertSmtpConfig, deleteSmtpConfig,
+  getAdmin, transferCoordination, getSmtpConfig, upsertSmtpConfig, deleteSmtpConfig,
   createPasswordResetCode, verifyPasswordResetCode, markResetCodeUsed, isSmtpConfigured,
   createComponent, getComponentById, getComponentByCode, listComponents, updateComponent, deleteComponent,
 } from "./db";
@@ -31,13 +31,13 @@ const approvedProcedure = protectedProcedure.use(({ ctx, next }) => {
   return next({ ctx });
 });
 
-const adminProcedure = approvedProcedure.use(({ ctx, next }) => {
-  if (ctx.user.role !== "admin" && ctx.user.role !== "coordinator") throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a professores" });
+const coordinatorProcedure = approvedProcedure.use(({ ctx, next }) => {
+  if (ctx.user.role !== "coordinator" && ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a professores" });
   return next({ ctx });
 });
 
-const coordinatorProcedure = approvedProcedure.use(({ ctx, next }) => {
-  if (ctx.user.role !== "coordinator") throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito ao coordenador" });
+const adminProcedure = approvedProcedure.use(({ ctx, next }) => {
+  if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito ao administrador" });
   return next({ ctx });
 });
 
@@ -70,7 +70,7 @@ export const appRouter = router({
         email: input.email.toLowerCase(),
         name: input.name,
         passwordHash,
-        role: isFirst ? "coordinator" : "admin",
+        role: isFirst ? "admin" : "user",
         approvalStatus: isFirst ? "approved" : "pending",
       });
       if (!user) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Erro ao criar usuário" });
@@ -126,7 +126,7 @@ export const appRouter = router({
       }
       const smtpReady = await isSmtpConfigured();
       if (!smtpReady) {
-        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "O sistema de e-mail não está configurado. Contacte o coordenador." });
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "O sistema de e-mail não está configurado. Contacte o administrador." });
       }
       const code = generateResetCode();
       const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
@@ -164,9 +164,9 @@ export const appRouter = router({
     }),
   }),
 
-  // ─── SMTP Configuration (coordinator only) ───
+  // ─── SMTP Configuration (admin only) ───
   smtp: router({
-    get: coordinatorProcedure.query(async ({ ctx }) => {
+    get: adminProcedure.query(async ({ ctx }) => {
       const config = await getSmtpConfig(ctx.user.id);
       if (!config) return null;
       // Don't return the actual password
@@ -180,7 +180,7 @@ export const appRouter = router({
         configured: config.configured,
       };
     }),
-    save: coordinatorProcedure.input(z.object({
+    save: adminProcedure.input(z.object({
       host: z.string().min(1),
       port: z.number().int().min(1).max(65535),
       secure: z.boolean(),
@@ -192,7 +192,7 @@ export const appRouter = router({
       await upsertSmtpConfig({ userId: ctx.user.id, ...input });
       return { success: true };
     }),
-    test: coordinatorProcedure.input(z.object({
+    test: adminProcedure.input(z.object({
       host: z.string().min(1),
       port: z.number().int().min(1).max(65535),
       secure: z.boolean(),
@@ -206,23 +206,23 @@ export const appRouter = router({
         testRecipient: ctx.user.email ?? undefined,
       });
     }),
-    delete: coordinatorProcedure.mutation(async ({ ctx }) => {
+    delete: adminProcedure.mutation(async ({ ctx }) => {
       await deleteSmtpConfig(ctx.user.id);
       return { success: true };
     }),
   }),
 
-  // ─── Coordination (coordinator only) ───
+  // ─── Administration (admin only) ───
   coordination: router({
     current: approvedProcedure.query(async () => {
-      const coord = await getCoordinator();
+      const coord = await getAdmin();
       if (!coord) return null;
       return { id: coord.id, name: coord.name, email: coord.email };
     }),
-    transfer: coordinatorProcedure.input(z.object({
+    transfer: adminProcedure.input(z.object({
       toUserId: z.number().int(),
     })).mutation(async ({ ctx, input }) => {
-      if (input.toUserId === ctx.user.id) throw new TRPCError({ code: "BAD_REQUEST", message: "Você já é o coordenador" });
+      if (input.toUserId === ctx.user.id) throw new TRPCError({ code: "BAD_REQUEST", message: "Você já é o administrador" });
       const target = await getUserById(input.toUserId);
       if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "Professor não encontrado" });
       if (target.approvalStatus !== "approved") throw new TRPCError({ code: "BAD_REQUEST", message: "O professor precisa estar aprovado" });
@@ -236,7 +236,7 @@ export const appRouter = router({
     list: approvedProcedure.query(async () => {
       return listComponents();
     }),
-    create: coordinatorProcedure.input(z.object({
+    create: adminProcedure.input(z.object({
       code: z.string().min(1),
       name: z.string().min(1),
     })).mutation(async ({ input }) => {
@@ -244,7 +244,7 @@ export const appRouter = router({
       if (existing) throw new TRPCError({ code: "CONFLICT", message: "Já existe um componente com este código" });
       return createComponent(input);
     }),
-    update: coordinatorProcedure.input(z.object({
+    update: adminProcedure.input(z.object({
       id: z.number(),
       code: z.string().min(1).optional(),
       name: z.string().min(1).optional(),
@@ -255,7 +255,7 @@ export const appRouter = router({
       }
       return updateComponent(input.id, { code: input.code, name: input.name });
     }),
-    delete: coordinatorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+    delete: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
       try {
         await deleteComponent(input.id);
         return { success: true };
@@ -267,17 +267,17 @@ export const appRouter = router({
 
   // ─── Classes (turmas) ───
   classes: router({
-    list: adminProcedure.query(async ({ ctx }) => {
+    list: coordinatorProcedure.query(async ({ ctx }) => {
       return listClassesByProfessor(ctx.user.id);
     }),
-    create: adminProcedure.input(z.object({
+    create: coordinatorProcedure.input(z.object({
       classCode: z.string().min(1),
       componentId: z.number(),
       semester: z.string().min(1),
     })).mutation(async ({ ctx, input }) => {
       return createClass({ ...input, professorUserId: ctx.user.id });
     }),
-    update: adminProcedure.input(z.object({
+    update: coordinatorProcedure.input(z.object({
       id: z.number(),
       classCode: z.string().min(1).optional(),
       componentId: z.number().optional(),
@@ -287,7 +287,7 @@ export const appRouter = router({
       if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       return updateClass(input.id, { classCode: input.classCode, componentId: input.componentId, semester: input.semester });
     }),
-    delete: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+    delete: coordinatorProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.id);
       if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       await deleteClass(input.id);
@@ -295,19 +295,19 @@ export const appRouter = router({
     }),
 
     // All classes (for cross-class results visibility)
-    listAll: adminProcedure.query(async () => {
+    listAll: coordinatorProcedure.query(async () => {
       return listAllClasses();
     }),
   }),
 
   // ─── Students ───
   students: router({
-    list: adminProcedure.input(z.object({ classId: z.number() })).query(async ({ ctx, input }) => {
+    list: coordinatorProcedure.input(z.object({ classId: z.number() })).query(async ({ ctx, input }) => {
       const cls = await getClassById(input.classId);
       if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       return listStudentsByClass(input.classId);
     }),
-    create: adminProcedure.input(z.object({
+    create: coordinatorProcedure.input(z.object({
       classId: z.number(),
       name: z.string().min(1),
       enrollment: z.string().min(1),
@@ -335,7 +335,7 @@ export const appRouter = router({
       }
       return student;
     }),
-    update: adminProcedure.input(z.object({
+    update: coordinatorProcedure.input(z.object({
       studentId: z.number(),
       name: z.string().optional(),
       enrollment: z.string().optional(),
@@ -350,13 +350,13 @@ export const appRouter = router({
       }
       return updateStudent(input.studentId, { name: input.name, enrollment: input.enrollment, email: input.email });
     }),
-    removeFromClass: adminProcedure.input(z.object({ studentId: z.number(), classId: z.number() })).mutation(async ({ ctx, input }) => {
+    removeFromClass: coordinatorProcedure.input(z.object({ studentId: z.number(), classId: z.number() })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.classId);
       if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       await removeStudentFromClass(input.studentId, input.classId);
       return { success: true };
     }),
-    importCSV: adminProcedure.input(z.object({
+    importCSV: coordinatorProcedure.input(z.object({
       classId: z.number(),
       csvContent: z.string(),
     })).mutation(async ({ ctx, input }) => {
@@ -404,7 +404,7 @@ export const appRouter = router({
         students: parsedStudents,
       };
     }),
-    exportGoogleWorkspace: adminProcedure.input(z.object({
+    exportGoogleWorkspace: coordinatorProcedure.input(z.object({
       classIds: z.array(z.number()).min(1),
     })).query(async ({ ctx, input }) => {
       // Verify all classes belong to the professor
@@ -489,7 +489,7 @@ export const appRouter = router({
 
   // ─── Sessions ───
   sessions: router({
-    list: adminProcedure.input(z.object({ classId: z.number() })).query(async ({ ctx, input }) => {
+    list: coordinatorProcedure.input(z.object({ classId: z.number() })).query(async ({ ctx, input }) => {
       const cls = await getClassById(input.classId);
       if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       return listSessionsByClass(input.classId);
@@ -501,7 +501,7 @@ export const appRouter = router({
     get: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
       return getSessionById(input.id);
     }),
-    create: adminProcedure.input(z.object({
+    create: coordinatorProcedure.input(z.object({
       classId: z.number(),
       problemNumber: z.number().min(1).max(10),
       sessionNumber: z.number().min(1).max(10),
@@ -515,15 +515,15 @@ export const appRouter = router({
     getStudents: protectedProcedure.input(z.object({ sessionId: z.number() })).query(async ({ input }) => {
       return getSessionStudents(input.sessionId);
     }),
-    close: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+    close: coordinatorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
       await closeSession(input.id);
       return { success: true };
     }),
-    open: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+    open: coordinatorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
       await openSession(input.id);
       return { success: true };
     }),
-    delete: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+    delete: coordinatorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
       await deleteSession(input.id);
       return { success: true };
     }),
@@ -536,7 +536,7 @@ export const appRouter = router({
         submitted: submittedIds.has(s.studentId),
       }));
     }),
-    generateCode: adminProcedure.input(z.object({ sessionId: z.number() })).mutation(async ({ input }) => {
+    generateCode: coordinatorProcedure.input(z.object({ sessionId: z.number() })).mutation(async ({ input }) => {
       const session = await getSessionById(input.sessionId);
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
       const code = await generateAccessCode(input.sessionId);
@@ -687,7 +687,7 @@ export const appRouter = router({
       return hasStudentSubmitted(input.sessionId, input.studentId);
     }),
     // Professor releases a student to re-evaluate
-    allowReevaluation: adminProcedure.input(z.object({
+    allowReevaluation: coordinatorProcedure.input(z.object({
       sessionId: z.number(),
       studentId: z.number(),
     })).mutation(async ({ input }) => {
@@ -696,7 +696,7 @@ export const appRouter = router({
       return { success: true };
     }),
     // List students who have submitted evaluations for a session
-    submittedStudents: adminProcedure.input(z.object({
+    submittedStudents: coordinatorProcedure.input(z.object({
       sessionId: z.number(),
     })).query(async ({ input }) => {
       const evals = await getSessionEvaluations(input.sessionId);
@@ -706,7 +706,7 @@ export const appRouter = router({
 
   // ─── Tutorial Evaluation (professor evaluates session) ───
   tutorialEval: router({
-    submit: adminProcedure.input(z.object({
+    submit: coordinatorProcedure.input(z.object({
       sessionId: z.number(),
       organizacao: z.number().min(0).max(1),
       cooperacao: z.number().min(0).max(1),
@@ -736,29 +736,29 @@ export const appRouter = router({
     approved: approvedProcedure.query(async () => {
       return listApprovedProfessors();
     }),
-    approve: coordinatorProcedure.input(z.object({ userId: z.number() })).mutation(async ({ input }) => {
+    approve: adminProcedure.input(z.object({ userId: z.number() })).mutation(async ({ input }) => {
       await approveUser(input.userId);
       return { success: true };
     }),
-    reject: coordinatorProcedure.input(z.object({ userId: z.number() })).mutation(async ({ input }) => {
+    reject: adminProcedure.input(z.object({ userId: z.number() })).mutation(async ({ input }) => {
       await rejectUser(input.userId);
       return { success: true };
     }),
-    addComponent: coordinatorProcedure.input(z.object({
+    addComponent: adminProcedure.input(z.object({
       userId: z.number(),
       componentId: z.number(),
     })).mutation(async ({ ctx, input }) => {
       await addProfessorComponent(input.userId, input.componentId, ctx.user.id);
       return { success: true };
     }),
-    removeComponent: coordinatorProcedure.input(z.object({
+    removeComponent: adminProcedure.input(z.object({
       userId: z.number(),
       componentId: z.number(),
     })).mutation(async ({ input }) => {
       await removeProfessorComponent(input.userId, input.componentId);
       return { success: true };
     }),
-    components: adminProcedure.input(z.object({ userId: z.number() })).query(async ({ input }) => {
+    components: coordinatorProcedure.input(z.object({ userId: z.number() })).query(async ({ input }) => {
       return listProfessorComponents(input.userId);
     }),
     allComponents: approvedProcedure.query(async () => {
@@ -777,17 +777,17 @@ export const appRouter = router({
     sessionFinal: protectedProcedure.input(z.object({ sessionId: z.number() })).query(async ({ input }) => {
       return calculateFinalGrades(input.sessionId);
     }),
-    problem: adminProcedure.input(z.object({ classId: z.number(), problemNumber: z.number() })).query(async ({ input }) => {
+    problem: coordinatorProcedure.input(z.object({ classId: z.number(), problemNumber: z.number() })).query(async ({ input }) => {
       return calculateProblemResults(input.classId, input.problemNumber);
     }),
-    problemFinal: adminProcedure.input(z.object({ classId: z.number(), problemNumber: z.number() })).query(async ({ input }) => {
+    problemFinal: coordinatorProcedure.input(z.object({ classId: z.number(), problemNumber: z.number() })).query(async ({ input }) => {
       return calculateProblemFinalGrades(input.classId, input.problemNumber);
     }),
     // List sessions for any class (cross-class visibility)
-    sessionsForClass: adminProcedure.input(z.object({ classId: z.number() })).query(async ({ input }) => {
+    sessionsForClass: coordinatorProcedure.input(z.object({ classId: z.number() })).query(async ({ input }) => {
       return listSessionsByClass(input.classId);
     }),
-    dashboard: adminProcedure.query(async ({ ctx }) => {
+    dashboard: coordinatorProcedure.query(async ({ ctx }) => {
       return getDashboardStats(ctx.user.id);
     }),
   }),

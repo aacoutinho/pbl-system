@@ -23,7 +23,7 @@ function ProfessorsContent() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
-  const isCoordinator = user?.role === "coordinator";
+  const isAdmin = user?.role === "admin";
 
   const { data: pendingList, isLoading: loadingPending } = trpc.professors.pending.useQuery();
   const { data: approvedList, isLoading: loadingApproved } = trpc.professors.approved.useQuery();
@@ -67,7 +67,7 @@ function ProfessorsContent() {
       utils.professors.approved.invalidate();
       utils.coordination.current.invalidate();
       setTransferTarget(null);
-      toast.success("Coordenação transferida com sucesso! Faça login novamente para atualizar.");
+      toast.success("Administração transferida com sucesso! Faça login novamente para atualizar.");
       setTimeout(() => window.location.reload(), 1500);
     },
     onError: (err) => toast.error(err.message),
@@ -95,13 +95,13 @@ function ProfessorsContent() {
       </div>
 
       {/* SMTP Alert for coordinator */}
-      {isCoordinator && !smtpStatus?.configured && (
+      {isAdmin && !smtpStatus?.configured && (
         <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
           <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="text-sm font-medium text-amber-800">Configuração de e-mail pendente</p>
             <p className="text-xs text-amber-700 mt-1">
-              Como coordenador, você precisa configurar o servidor SMTP para que os professores possam recuperar suas senhas por e-mail.
+              Como administrador, você precisa configurar o servidor SMTP para que os professores possam recuperar suas senhas por e-mail.
             </p>
             <Button
               size="sm"
@@ -122,7 +122,7 @@ function ProfessorsContent() {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <Crown className="h-5 w-5 text-amber-500" />
-              Coordenador
+              Administrador
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -133,7 +133,7 @@ function ProfessorsContent() {
               </div>
               <Badge className="bg-amber-100 text-amber-800 border-amber-300">
                 <Crown className="h-3 w-3 mr-1" />
-                Coordenador
+                Administrador
               </Badge>
             </div>
           </CardContent>
@@ -165,7 +165,7 @@ function ProfessorsContent() {
                       Solicitado em {new Date(prof.createdAt).toLocaleDateString("pt-BR")}
                     </p>
                   </div>
-                  {isCoordinator && (
+                  {isAdmin && (
                   <div className="flex gap-2">
                     <Button
                       size="sm"
@@ -221,7 +221,7 @@ function ProfessorsContent() {
                   onRemoveComponent={(componentId) => removeComponentMut.mutate({ userId: prof.id, componentId })}
                   isAdding={addComponentMut.isPending}
                   isRemoving={removeComponentMut.isPending}
-                  isCoordinator={isCoordinator}
+                  isAdmin={isAdmin}
                   isCurrentUser={prof.id === user?.id}
                   coordinatorId={coordinator?.id}
                   onTransfer={() => setTransferTarget({ id: prof.id, name: prof.name || "Professor" })}
@@ -238,10 +238,10 @@ function ProfessorsContent() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ArrowRightLeft className="h-5 w-5" />
-              Transferir Coordenação
+              Transferir Administração
             </DialogTitle>
             <DialogDescription>
-              Tem certeza que deseja transferir a coordenação para <strong>{transferTarget?.name}</strong>?
+              Tem certeza que deseja transferir a administração para <strong>{transferTarget?.name}</strong>?
             </DialogDescription>
           </DialogHeader>
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
@@ -250,9 +250,9 @@ function ProfessorsContent() {
               Atenção
             </p>
             <ul className="text-xs text-amber-700 space-y-1 list-disc pl-4">
-              <li>Você perderá os privilégios de coordenador.</li>
+              <li>Você perderá os privilégios de administrador.</li>
               <li>Suas credenciais SMTP serão apagadas.</li>
-              <li>O novo coordenador precisará configurar suas próprias credenciais de e-mail.</li>
+              <li>O novo administrador precisará configurar suas próprias credenciais de e-mail.</li>
             </ul>
           </div>
           <DialogFooter>
@@ -281,7 +281,7 @@ function ProfessorCard({
   onRemoveComponent,
   isAdding,
   isRemoving,
-  isCoordinator,
+  isAdmin,
   isCurrentUser,
   coordinatorId,
   onTransfer,
@@ -293,7 +293,7 @@ function ProfessorCard({
   onRemoveComponent: (componentId: number) => void;
   isAdding: boolean;
   isRemoving: boolean;
-  isCoordinator: boolean;
+  isAdmin: boolean;
   isCurrentUser: boolean;
   coordinatorId?: number;
   onTransfer: () => void;
@@ -309,7 +309,7 @@ function ProfessorCard({
     setSelectedComponentId(null);
   };
 
-  const isProfCoordinator = professor.id === coordinatorId;
+  const isProfAdmin = professor.id === coordinatorId;
 
   return (
     <div className="p-4 border rounded-lg space-y-3">
@@ -317,17 +317,17 @@ function ProfessorCard({
         <div>
           <p className="font-medium flex items-center gap-2">
             {professor.name || "Sem nome"}
-            {isProfCoordinator && (
+            {isProfAdmin && (
               <Crown className="h-4 w-4 text-amber-500" />
             )}
           </p>
           <p className="text-sm text-muted-foreground">{professor.email || "Sem e-mail"}</p>
         </div>
         <div className="flex items-center gap-2">
-          {isProfCoordinator ? (
+          {isProfAdmin ? (
             <Badge className="bg-amber-100 text-amber-800 border-amber-300">
               <Crown className="h-3 w-3 mr-1" />
-              Coordenador
+              Administrador
             </Badge>
           ) : (
             <Badge variant="outline" className="text-green-600 border-green-300">
@@ -335,13 +335,13 @@ function ProfessorCard({
               Professor
             </Badge>
           )}
-          {isCoordinator && !isCurrentUser && !isProfCoordinator && (
+          {isAdmin && !isCurrentUser && !isProfAdmin && (
             <Button
               size="sm"
               variant="outline"
               onClick={onTransfer}
               className="gap-1 text-xs h-7"
-              title="Transferir coordenação"
+              title="Transferir administração"
             >
               <ArrowRightLeft className="h-3 w-3" />
               Transferir
@@ -361,9 +361,9 @@ function ProfessorCard({
             <p className="text-xs text-muted-foreground">Nenhum componente atribuído.</p>
           ) : (
             components.map((comp) => (
-              <Badge key={comp.id} variant="secondary" className={`gap-1 ${isCoordinator ? 'pr-1' : ''}`} title={comp.name || ""}>
+              <Badge key={comp.id} variant="secondary" className={`gap-1 ${isAdmin ? 'pr-1' : ''}`} title={comp.name || ""}>
                 {comp.code || "?"}
-                {isCoordinator && (
+                {isAdmin && (
                 <button
                   onClick={() => onRemoveComponent(comp.id)}
                   disabled={isRemoving}
@@ -376,7 +376,7 @@ function ProfessorCard({
             ))
           )}
         </div>
-        {isCoordinator && unassignedComponents.length > 0 && (
+        {isAdmin && unassignedComponents.length > 0 && (
         <div className="flex gap-2">
           <select
             value={selectedComponentId ?? ""}

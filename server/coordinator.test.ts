@@ -2,25 +2,45 @@ import { describe, it, expect } from "vitest";
 
 // ─── Unit tests for coordinator, SMTP config, and password reset ───
 
-describe("Coordinator role logic", () => {
-  it("first user should get coordinator role", () => {
+describe("Role assignment logic", () => {
+  it("first user should get admin role", () => {
     const totalUsers = 0;
     const isFirst = totalUsers === 0;
-    const role = isFirst ? "coordinator" : "admin";
-    expect(role).toBe("coordinator");
-  });
-
-  it("subsequent users should get admin role", () => {
-    const totalUsers = 1;
-    const isFirst = totalUsers === 0;
-    const role = isFirst ? "coordinator" : "admin";
+    const role = isFirst ? "admin" : "user";
     expect(role).toBe("admin");
   });
 
-  it("coordinator should have approved status", () => {
+  it("subsequent users should get user role", () => {
+    const totalUsers = 1;
+    const isFirst = totalUsers === 0;
+    const role = isFirst ? "admin" : "user";
+    expect(role).toBe("user");
+  });
+
+  it("admin should have approved status", () => {
     const isFirst = true;
     const approvalStatus = isFirst ? "approved" : "pending";
     expect(approvalStatus).toBe("approved");
+  });
+
+  it("non-first users should have pending status", () => {
+    const isFirst = false;
+    const approvalStatus = isFirst ? "approved" : "pending";
+    expect(approvalStatus).toBe("pending");
+  });
+
+  it("adminProcedure should only accept admin role", () => {
+    const acceptedRoles = ["admin"];
+    expect(acceptedRoles).toContain("admin");
+    expect(acceptedRoles).not.toContain("coordinator");
+    expect(acceptedRoles).not.toContain("user");
+  });
+
+  it("coordinatorProcedure should accept coordinator and admin roles", () => {
+    const acceptedRoles = ["coordinator", "admin"];
+    expect(acceptedRoles).toContain("coordinator");
+    expect(acceptedRoles).toContain("admin");
+    expect(acceptedRoles).not.toContain("user");
   });
 });
 

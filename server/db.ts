@@ -52,9 +52,9 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     if (user.lastSignedIn !== undefined) { values.lastSignedIn = user.lastSignedIn; updateSet.lastSignedIn = user.lastSignedIn; }
     if (user.role !== undefined) { values.role = user.role; updateSet.role = user.role; }
     else if (user.openId === ENV.ownerOpenId) {
-      // Only set admin if user doesn't already have a higher role (coordinator)
+      // Only set coordinator if user doesn't already have a higher role (admin)
       // Don't override role on update, only set on initial insert
-      values.role = 'admin';
+      values.role = 'coordinator';
       // Don't include role in updateSet - preserve existing role
     }
     if (!values.lastSignedIn) values.lastSignedIn = new Date();
@@ -948,7 +948,7 @@ export async function findStudentByEnrollmentInClass(enrollment: string, classId
 export async function approveUser(userId: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.update(users).set({ approvalStatus: "approved", role: "admin" }).where(eq(users.id, userId));
+  await db.update(users).set({ approvalStatus: "approved" }).where(eq(users.id, userId));
 }
 
 export async function rejectUser(userId: number) {
@@ -1039,7 +1039,7 @@ export async function createUserWithPassword(data: {
   email: string;
   name: string;
   passwordHash: string;
-  role: "user" | "admin" | "coordinator";
+  role: "user" | "coordinator" | "admin";
   approvalStatus: "pending" | "approved" | "rejected";
 }) {
   const db = await getDb();
@@ -1064,26 +1064,26 @@ export async function updateUserPassword(userId: number, passwordHash: string) {
   await db.update(users).set({ passwordHash }).where(eq(users.id, userId));
 }
 
-// ─── Coordinator helpers ───
-export async function getCoordinator() {
+// ─── Admin helpers ───
+export async function getAdmin() {
   const db = await getDb();
   if (!db) return undefined;
-  const [row] = await db.select().from(users).where(eq(users.role, "coordinator")).limit(1);
+  const [row] = await db.select().from(users).where(eq(users.role, "admin")).limit(1);
   return row;
 }
 
 export async function transferCoordination(fromUserId: number, toUserId: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  // Demote current coordinator to admin
-  await db.update(users).set({ role: "admin" }).where(eq(users.id, fromUserId));
-  // Promote target to coordinator
-  await db.update(users).set({ role: "coordinator" }).where(eq(users.id, toUserId));
-  // Delete old coordinator's SMTP config
+  // Demote current admin to coordinator
+  await db.update(users).set({ role: "coordinator" }).where(eq(users.id, fromUserId));
+  // Promote target to admin
+  await db.update(users).set({ role: "admin" }).where(eq(users.id, toUserId));
+  // Delete old admin's SMTP config
   await db.delete(smtpConfig).where(eq(smtpConfig.userId, fromUserId));
 }
 
-export async function updateUserRole(userId: number, role: "user" | "admin" | "coordinator") {
+export async function updateUserRole(userId: number, role: "user" | "coordinator" | "admin") {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db.update(users).set({ role }).where(eq(users.id, userId));
@@ -1100,8 +1100,8 @@ export async function getSmtpConfig(userId: number) {
 export async function getActiveSmtpConfig() {
   const db = await getDb();
   if (!db) return undefined;
-  // Get the coordinator's SMTP config
-  const coordinator = await getCoordinator();
+  // Get the admin's SMTP config
+  const coordinator = await getAdmin();
   if (!coordinator) return undefined;
   const [row] = await db.select().from(smtpConfig)
     .where(and(eq(smtpConfig.userId, coordinator.id), eq(smtpConfig.configured, true)))

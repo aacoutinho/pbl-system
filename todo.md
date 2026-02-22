@@ -157,3 +157,9 @@
 - [x] Frontend: atualizar seletores e listas para mostrar apenas código do componente
 - [x] Frontend: atualizar DashboardLayout com menu de Componentes
 - [x] Testes: CRUD de componentes e turmas com referência a componente
+- [x] Inverter nomes dos roles: 'coordinator' (mais poderes) → 'admin', 'admin' (intermediário) → 'coordinator'
+- [x] Atualizar schema enum de roles
+- [x] Atualizar backend (db.ts, routers.ts) com novos nomes de roles
+- [x] Atualizar frontend (DashboardLayout, ProfessorsPage, etc.) com novos nomes de roles
+- [x] Atualizar testes com novos nomes de roles
+- [x] Atualizar banco de dados: roles já estão corretos no banco (admin=admin, coordinator=coordinator)

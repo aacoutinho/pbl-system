@@ -34,7 +34,7 @@ import { Label } from "./ui/label";
 import { Separator } from "./ui/separator";
 import { toast } from "sonner";
 
-const adminMenuItems = [
+const coordinatorMenuItems = [
   { icon: LayoutDashboard, label: "Painel Geral", path: "/" },
   { icon: Layers, label: "Componentes", path: "/components" },
   { icon: BookOpen, label: "Turmas", path: "/classes" },
@@ -46,7 +46,7 @@ const adminMenuItems = [
   { icon: UserCheck, label: "Professores", path: "/professors" },
 ];
 
-const coordinatorMenuItems = [
+const adminMenuItems = [
   { icon: Mail, label: "Config. E-mail", path: "/smtp-config" },
 ];
 
@@ -169,7 +169,7 @@ function LoginScreen() {
         {/* Login / Register Form */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
           <p className="text-xs text-muted-foreground text-center font-medium uppercase tracking-wider">
-            {mode === "login" ? "Professor" : mode === "register" ? (isFirstUser ? "Criar Coordenador" : "Novo Professor") : "Recuperar Senha"}
+            {mode === "login" ? "Professor" : mode === "register" ? (isFirstUser ? "Criar Administrador" : "Novo Professor") : "Recuperar Senha"}
           </p>
 
           {mode === "register" && (
@@ -290,7 +290,7 @@ function LoginScreen() {
             {isSubmitting ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
             ) : null}
-            {mode === "login" ? "Entrar" : mode === "register" ? (isFirstUser ? "Criar Conta de Coordenador" : "Cadastrar") : mode === "forgot" ? "Enviar Código" : "Redefinir Senha"}
+            {mode === "login" ? "Entrar" : mode === "register" ? (isFirstUser ? "Criar Conta de Administrador" : "Cadastrar") : mode === "forgot" ? "Enviar Código" : "Redefinir Senha"}
           </Button>
         </form>
 
@@ -427,8 +427,8 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
 
-  const isCoordinator = user?.role === "coordinator";
-  const menuItems = isCoordinator ? [...adminMenuItems, ...coordinatorMenuItems] : adminMenuItems;
+  const isAdmin = user?.role === "admin";
+  const menuItems = isAdmin ? [...coordinatorMenuItems, ...adminMenuItems] : coordinatorMenuItems;
   const activeMenuItem = menuItems.find(item => item.path === location);
 
   // Class selector for admin
@@ -561,7 +561,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                   <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
                     <p className="text-sm font-medium truncate leading-none">{user?.name || "-"}</p>
                     <p className="text-xs text-muted-foreground truncate mt-1.5">
-                      {user?.role === "coordinator" ? "Coordenador" : "Professor"} · {user?.email || "-"}
+                      {user?.role === "admin" ? "Administrador" : user?.role === "coordinator" ? "Professor" : "Usuário"} · {user?.email || "-"}
                     </p>
                   </div>
                 </button>

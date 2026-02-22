@@ -1,0 +1,26 @@
+{
+  "query": "SELECT id, name, email, role, approvalStatus, loginMethod FROM users;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute SELECT id, name, email, role, approvalStatus, loginMethod FROM users;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "Antonio Coutinho",
+      "email": "aatrcoutinho@gmail.com",
+      "role": "admin",
+      "approvalStatus": "approved",
+      "loginMethod": "local"
+    },
+    {
+      "id": "540001",
+      "name": "Antonio Coutinho",
+      "email": "augusto@ecomp.uefs.br",
+      "role": "coordinator",
+      "approvalStatus": "approved",
+      "loginMethod": "email"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\trole\tapprovalStatus\tloginMethod\n1\tAntonio Coutinho\taatrcoutinho@gmail.com\tadmin\tapproved\tlocal\n540001\tAntonio Coutinho\taugusto@ecomp.uefs.br\tcoordinator\tapproved\temail\n",
+  "stderr": "",
+  "execution_time_ms": 373
+}
