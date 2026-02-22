@@ -32,7 +32,7 @@ import {
   createEmailVerificationCode, verifyEmailCode,
   transferStudentBetweenClasses,
   createAuditLog, listAuditLogs,
-  createNotification, listNotifications, countUnreadNotifications, markNotificationAsRead, markAllNotificationsAsRead,
+  createNotification, listNotifications, countUnreadNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification,
   getPeerGradesMatrix,
 } from "./db";
 import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml } from "./email";
@@ -1094,6 +1094,25 @@ export const appRouter = router({
         } catch (emailErr) {
           console.error("[Email] Failed to send new request notification to coordinators:", emailErr);
         }
+        // Create in-app notification for coordinators about the pending request
+        try {
+          const component = await getComponentById(input.componentId);
+          const coordinators = await getComponentCoordinators(input.componentId);
+          const requester = await getUserById(ctx.user.id);
+          if (component && requester && coordinators.length > 0) {
+            for (const coord of coordinators) {
+              await createNotification({
+                userId: coord.userId,
+                type: "pending_request",
+                title: `Nova Solicitação de Entrada`,
+                message: `${requester.name || requester.email || "Professor"} solicitou entrada em ${component.code} - ${component.name}`,
+                metadata: JSON.stringify({ componentId: input.componentId, requesterId: ctx.user.id }),
+              });
+            }
+          }
+        } catch (notifErr) {
+          console.error("[Notification] Failed to create pending request notification:", notifErr);
+        }
         return { success: true };
       } catch (e: any) {
         throw new TRPCError({ code: "CONFLICT", message: e.message || "Erro ao solicitar entrada no componente" });
@@ -1368,6 +1387,12 @@ export const appRouter = router({
     }),
     markAllAsRead: approvedProcedure.mutation(async ({ ctx }) => {
       await markAllNotificationsAsRead(ctx.user.id);
+      return { success: true };
+    }),
+    delete: approvedProcedure.input(z.object({
+      notificationId: z.number(),
+    })).mutation(async ({ ctx, input }) => {
+      await deleteNotification(input.notificationId, ctx.user.id);
       return { success: true };
     }),
   }),

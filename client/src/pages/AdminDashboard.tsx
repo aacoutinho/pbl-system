@@ -10,7 +10,6 @@ import {
   XCircle, ArrowRightLeft, Info,
 } from "lucide-react";
 import { useLocation } from "wouter";
-import { useMemo } from "react";
 
 const notifTypeConfig: Record<string, { icon: React.ElementType; color: string; bgColor: string }> = {
   component_approved: { icon: CheckCircle2, color: "text-green-600", bgColor: "bg-green-50" },
@@ -46,39 +45,29 @@ export default function AdminDashboard() {
     { classId: selectedClassId! },
     { enabled: !!selectedClassId }
   );
+  // Fetch more notifications but only show unread ones in "Recentes"
   const { data: notifData, isLoading: notifLoading } = trpc.notifications.list.useQuery(
-    { limit: 5, offset: 0 },
+    { limit: 20, offset: 0 },
     { refetchInterval: 30000 }
   );
   const { data: unreadData } = trpc.notifications.unreadCount.useQuery(
     undefined,
     { refetchInterval: 30000 }
   );
-  const { data: pendingRequests } = trpc.professors.pendingComponentRequests.useQuery(
-    undefined,
-    { refetchInterval: 30000 }
-  );
   const [, setLocation] = useLocation();
+  const utils = trpc.useUtils();
+
+  const markAsRead = trpc.notifications.markAsRead.useMutation({
+    onSuccess: () => {
+      utils.notifications.list.invalidate();
+      utils.notifications.unreadCount.invalidate();
+    },
+  });
 
   const unreadCount = unreadData?.count ?? 0;
-  const recentNotifications = notifData?.items ?? [];
-  const requests = pendingRequests ?? [];
-
-  // Merge pending requests as pseudo-notifications at the top, then real notifications
-  const mergedItems = useMemo(() => {
-    const requestItems = requests.map((req: any) => ({
-      id: `req-${req.userId}-${req.componentId}`,
-      type: "pending_request",
-      title: req.userName || req.userEmail,
-      message: `Solicitou entrada em ${req.componentCode}`,
-      read: false,
-      createdAt: req.createdAt || new Date().toISOString(),
-      _isRequest: true,
-    }));
-    return [...requestItems, ...recentNotifications].slice(0, 8);
-  }, [requests, recentNotifications]);
-
-  const totalUnread = unreadCount + requests.length;
+  const allNotifications = notifData?.items ?? [];
+  // Only show unread notifications in "Recentes"
+  const unreadNotifications = allNotifications.filter((n: any) => !n.read).slice(0, 5);
 
   if (isLoading) {
     return (
@@ -100,6 +89,17 @@ export default function AdminDashboard() {
 
   const openSessions = sessions?.filter(s => s.status === "open") ?? [];
   const closedSessions = sessions?.filter(s => s.status === "closed") ?? [];
+
+  const handleNotificationClick = (n: any) => {
+    // Mark as read (resolves it, removes from Recentes)
+    markAsRead.mutate({ notificationId: n.id });
+    // Navigate based on type
+    if (n.type === "pending_request") {
+      setLocation("/professors");
+    } else {
+      setLocation("/notifications");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -126,16 +126,16 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {/* Notificações Recentes (inclui solicitações pendentes) */}
+      {/* Notificações Recentes - only unread, clicking marks as read and removes from here */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
               <Bell className="h-4 w-4 text-primary" />
               Notificações Recentes
-              {totalUnread > 0 && (
+              {unreadCount > 0 && (
                 <Badge variant="default" className="text-[10px] px-1.5 py-0 ml-1">
-                  {totalUnread} nova{totalUnread > 1 ? "s" : ""}
+                  {unreadCount} nova{unreadCount > 1 ? "s" : ""}
                 </Badge>
               )}
             </CardTitle>
@@ -155,52 +155,48 @@ export default function AdminDashboard() {
             <div className="space-y-3">
               {[1, 2, 3].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}
             </div>
-          ) : mergedItems.length === 0 ? (
+          ) : unreadNotifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8">
               <BellOff className="h-8 w-8 text-muted-foreground/30 mb-2" />
-              <p className="text-sm text-muted-foreground">Nenhuma notificação.</p>
+              <p className="text-sm text-muted-foreground">Nenhuma notificação pendente.</p>
             </div>
           ) : (
             <div className="space-y-1.5">
-              {mergedItems.map((n: any) => {
+              {unreadNotifications.map((n: any) => {
                 const config = notifTypeConfig[n.type] || defaultNotifConfig;
                 const Icon = config.icon;
-                const isRequest = n._isRequest;
+                const isPendingRequest = n.type === "pending_request";
                 return (
                   <div
                     key={n.id}
                     className={`flex items-center gap-3 p-3 rounded-lg transition-colors cursor-pointer hover:bg-accent/50 ${
-                      isRequest
+                      isPendingRequest
                         ? "bg-amber-50/50 border-l-2 border-l-amber-400"
-                        : !n.read
-                        ? "bg-primary/[0.03] border-l-2 border-l-primary"
-                        : "bg-accent/20"
+                        : "bg-primary/[0.03] border-l-2 border-l-primary"
                     }`}
-                    onClick={() => setLocation(isRequest ? "/professors" : "/notifications")}
+                    onClick={() => handleNotificationClick(n)}
                   >
                     <div className={`flex-shrink-0 rounded-full p-2 ${config.bgColor}`}>
                       <Icon className={`h-3.5 w-3.5 ${config.color}`} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className={`text-sm font-medium truncate ${!n.read ? "text-foreground" : "text-muted-foreground"}`}>
+                        <span className="text-sm font-medium truncate text-foreground">
                           {n.title}
                         </span>
-                        {isRequest && (
+                        {isPendingRequest && (
                           <Badge variant="outline" className="border-amber-300 text-amber-700 text-[10px] px-1.5 py-0">
                             Pendente
                           </Badge>
                         )}
-                        {!n.read && !isRequest && (
-                          <span className="flex-shrink-0 h-1.5 w-1.5 rounded-full bg-primary" />
-                        )}
+                        <span className="flex-shrink-0 h-1.5 w-1.5 rounded-full bg-primary" />
                       </div>
-                      <p className={`text-xs truncate ${!n.read ? "text-foreground/70" : "text-muted-foreground/70"}`}>
+                      <p className="text-xs truncate text-foreground/70">
                         {n.message}
                       </p>
                     </div>
                     <span className="text-[10px] text-muted-foreground/60 flex-shrink-0">
-                      {isRequest ? "Pendente" : formatTimeAgo(n.createdAt)}
+                      {formatTimeAgo(n.createdAt)}
                     </span>
                   </div>
                 );

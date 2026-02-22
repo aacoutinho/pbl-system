@@ -1876,3 +1876,10 @@ export async function getPeerGradesMatrix(sessionId: number): Promise<{
 
   return { evaluators, rows };
 }
+
+export async function deleteNotification(notificationId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(notifications)
+    .where(and(eq(notifications.id, notificationId), eq(notifications.userId, userId)));
+}

@@ -254,3 +254,9 @@
 - [x] Bug: página de Notificações não exibe menu lateral (DashboardLayout) como nas outras páginas
 - [x] Exibir solicitações pendentes de professores na seção de Notificações Recentes do Painel Geral
 - [x] Remover quadro separado "Solicitações Pendentes" e integrar solicitações no quadro "Notificações Recentes" do Painel Geral
+- [x] Solicitações pendentes devem gerar notificações reais (não pseudo-notificações)
+- [x] Notificações Recentes mostra apenas notificações não resolvidas (unread)
+- [x] Ao clicar em uma notificação em Recentes, marcá-la como lida/resolvida (sai de Recentes)
+- [x] Notificações resolvidas ficam na página de Notificações até serem apagadas pelo usuário
+- [x] Adicionar funcionalidade de apagar notificação individual na página de Notificações
+- [x] Coordenadores recebem notificação real quando professor solicita entrada em componente

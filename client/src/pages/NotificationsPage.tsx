@@ -18,6 +18,7 @@ import {
   UserMinus,
   ArrowRightLeft,
   Eye,
+  Trash2,
   ChevronLeft,
   ChevronRight,
   Info,
@@ -25,18 +26,19 @@ import {
 
 const PAGE_SIZE = 20;
 
-const typeConfig: Record<string, { icon: React.ElementType; color: string; bgColor: string }> = {
-  component_approved: { icon: CheckCircle2, color: "text-green-600", bgColor: "bg-green-50" },
-  component_rejected: { icon: XCircle, color: "text-red-600", bgColor: "bg-red-50" },
-  promoted_to_coordinator: { icon: ShieldCheck, color: "text-blue-600", bgColor: "bg-blue-50" },
-  demoted_to_prof: { icon: ShieldOff, color: "text-orange-600", bgColor: "bg-orange-50" },
-  removed_from_component: { icon: UserMinus, color: "text-red-600", bgColor: "bg-red-50" },
-  eval_permission_granted: { icon: UserPlus, color: "text-emerald-600", bgColor: "bg-emerald-50" },
-  eval_permission_revoked: { icon: UserMinus, color: "text-amber-600", bgColor: "bg-amber-50" },
-  student_transferred: { icon: ArrowRightLeft, color: "text-purple-600", bgColor: "bg-purple-50" },
+const typeConfig: Record<string, { icon: React.ElementType; color: string; bgColor: string; label: string }> = {
+  component_approved: { icon: CheckCircle2, color: "text-green-600", bgColor: "bg-green-50", label: "Aprovação" },
+  component_rejected: { icon: XCircle, color: "text-red-600", bgColor: "bg-red-50", label: "Rejeição" },
+  promoted_to_coordinator: { icon: ShieldCheck, color: "text-blue-600", bgColor: "bg-blue-50", label: "Promoção" },
+  demoted_to_prof: { icon: ShieldOff, color: "text-orange-600", bgColor: "bg-orange-50", label: "Rebaixamento" },
+  removed_from_component: { icon: UserMinus, color: "text-red-600", bgColor: "bg-red-50", label: "Remoção" },
+  eval_permission_granted: { icon: UserPlus, color: "text-emerald-600", bgColor: "bg-emerald-50", label: "Permissão" },
+  eval_permission_revoked: { icon: UserMinus, color: "text-amber-600", bgColor: "bg-amber-50", label: "Revogação" },
+  student_transferred: { icon: ArrowRightLeft, color: "text-purple-600", bgColor: "bg-purple-50", label: "Transferência" },
+  pending_request: { icon: UserPlus, color: "text-amber-600", bgColor: "bg-amber-50", label: "Solicitação" },
 };
 
-const defaultTypeConfig = { icon: Info, color: "text-gray-600", bgColor: "bg-gray-50" };
+const defaultTypeConfig = { icon: Info, color: "text-gray-600", bgColor: "bg-gray-50", label: "Info" };
 
 function formatDate(date: string | Date) {
   const d = new Date(date);
@@ -97,6 +99,34 @@ export default function NotificationsPage() {
     },
   });
 
+  const deleteNotification = trpc.notifications.delete.useMutation({
+    onMutate: async ({ notificationId }) => {
+      await utils.notifications.list.cancel();
+      const prev = utils.notifications.list.getData({ limit: PAGE_SIZE, offset });
+      if (prev) {
+        utils.notifications.list.setData({ limit: PAGE_SIZE, offset }, {
+          ...prev,
+          items: prev.items.filter((n: any) => n.id !== notificationId),
+          total: prev.total - 1,
+        });
+      }
+      return { prev };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.prev) {
+        utils.notifications.list.setData({ limit: PAGE_SIZE, offset }, context.prev);
+      }
+      toast.error("Erro ao apagar notificação");
+    },
+    onSettled: () => {
+      utils.notifications.list.invalidate();
+      utils.notifications.unreadCount.invalidate();
+    },
+    onSuccess: () => {
+      toast.success("Notificação apagada");
+    },
+  });
+
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -152,17 +182,13 @@ export default function NotificationsPage() {
           {items.map((notification: any) => {
             const config = typeConfig[notification.type] || defaultTypeConfig;
             const Icon = config.icon;
+            const isUnread = !notification.read;
             return (
               <Card
                 key={notification.id}
-                className={`transition-all duration-200 hover:shadow-md cursor-pointer ${
-                  !notification.read ? "border-l-4 border-l-primary bg-primary/[0.02]" : "opacity-75"
+                className={`transition-all duration-200 hover:shadow-md ${
+                  isUnread ? "border-l-4 border-l-primary bg-primary/[0.02]" : ""
                 }`}
-                onClick={() => {
-                  if (!notification.read) {
-                    markAsRead.mutate({ notificationId: notification.id });
-                  }
-                }}
               >
                 <CardContent className="flex items-start gap-4 py-4 px-5">
                   <div className={`flex-shrink-0 rounded-full p-2.5 ${config.bgColor}`}>
@@ -170,36 +196,56 @@ export default function NotificationsPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className={`font-semibold text-sm ${!notification.read ? "text-foreground" : "text-muted-foreground"}`}>
+                      <span className={`font-semibold text-sm ${isUnread ? "text-foreground" : "text-muted-foreground"}`}>
                         {notification.title}
                       </span>
-                      {!notification.read && (
+                      {isUnread ? (
                         <Badge variant="default" className="text-[10px] px-1.5 py-0">
                           Nova
                         </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                          Lida
+                        </Badge>
                       )}
                     </div>
-                    <p className={`text-sm leading-relaxed ${!notification.read ? "text-foreground/80" : "text-muted-foreground"}`}>
+                    <p className={`text-sm leading-relaxed ${isUnread ? "text-foreground/80" : "text-muted-foreground"}`}>
                       {notification.message}
                     </p>
                     <p className="text-xs text-muted-foreground/60 mt-1.5">
                       {formatDate(notification.createdAt)}
                     </p>
                   </div>
-                  {!notification.read && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="flex-shrink-0 h-8 w-8"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        markAsRead.mutate({ notificationId: notification.id });
-                      }}
-                      title="Marcar como lida"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  )}
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {isUnread && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          markAsRead.mutate({ notificationId: notification.id });
+                        }}
+                        title="Marcar como lida"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {notification.read && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteNotification.mutate({ notificationId: notification.id });
+                        }}
+                        title="Apagar notificação"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             );
