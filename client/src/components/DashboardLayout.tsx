@@ -355,7 +355,7 @@ export default function DashboardLayout({
     const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY);
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
-  const { loading, user } = useAuth();
+  const { loading, user, logout } = useAuth();
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
@@ -385,12 +385,12 @@ export default function DashboardLayout({
               : "Você será notificado quando seu acesso for liberado. Tente novamente mais tarde."}
           </p>
           <Button
-            onClick={() => { window.location.href = "/"; }}
+            onClick={async () => { await logout(); window.location.href = "/"; }}
             variant="outline"
             className="w-full"
           >
             <LogOut className="h-4 w-4 mr-2" />
-            Voltar
+            Sair
           </Button>
         </div>
       </div>
