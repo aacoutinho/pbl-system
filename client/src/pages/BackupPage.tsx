@@ -235,7 +235,7 @@ export default function BackupPage() {
                 ) : (
                   <>
                     <Download className="h-4 w-4 mr-2" />
-                    Exportar Backup (JSON)
+                    Exportar JSON
                   </>
                 )}
               </Button>
@@ -273,7 +273,7 @@ export default function BackupPage() {
                 className="w-full border-amber-300 text-amber-700 hover:bg-amber-100"
               >
                 <Upload className="h-4 w-4 mr-2" />
-                Selecionar Arquivo de Backup
+                Selecionar JSON
               </Button>
             </CardContent>
           </Card>

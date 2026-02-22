@@ -278,3 +278,4 @@
 - [x] Importar estado do banco de dados a partir de backup JSON (restauração)
 - [x] Interface frontend para backup e restauração na área admin
 - [x] Testes para exportação e importação do banco
+- [x] Alterar texto dos botões de backup: "Exportar JSON" e "Selecionar JSON"
