@@ -1,0 +1,67 @@
+{
+  "query": "SHOW TABLES;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute SHOW TABLES;",
+  "rows": [
+    {
+      "Tables_in_heFGz3DQxSodUBP4B8NStG": "__drizzle_migrations"
+    },
+    {
+      "Tables_in_heFGz3DQxSodUBP4B8NStG": "audit_logs"
+    },
+    {
+      "Tables_in_heFGz3DQxSodUBP4B8NStG": "class_eval_permissions"
+    },
+    {
+      "Tables_in_heFGz3DQxSodUBP4B8NStG": "class_students"
+    },
+    {
+      "Tables_in_heFGz3DQxSodUBP4B8NStG": "classes"
+    },
+    {
+      "Tables_in_heFGz3DQxSodUBP4B8NStG": "components"
+    },
+    {
+      "Tables_in_heFGz3DQxSodUBP4B8NStG": "contact_tickets"
+    },
+    {
+      "Tables_in_heFGz3DQxSodUBP4B8NStG": "email_verification_codes"
+    },
+    {
+      "Tables_in_heFGz3DQxSodUBP4B8NStG": "evaluation_items"
+    },
+    {
+      "Tables_in_heFGz3DQxSodUBP4B8NStG": "evaluations"
+    },
+    {
+      "Tables_in_heFGz3DQxSodUBP4B8NStG": "notifications"
+    },
+    {
+      "Tables_in_heFGz3DQxSodUBP4B8NStG": "password_reset_codes"
+    },
+    {
+      "Tables_in_heFGz3DQxSodUBP4B8NStG": "professor_components"
+    },
+    {
+      "Tables_in_heFGz3DQxSodUBP4B8NStG": "session_students"
+    },
+    {
+      "Tables_in_heFGz3DQxSodUBP4B8NStG": "sessions"
+    },
+    {
+      "Tables_in_heFGz3DQxSodUBP4B8NStG": "smtp_config"
+    },
+    {
+      "Tables_in_heFGz3DQxSodUBP4B8NStG": "students"
+    },
+    {
+      "Tables_in_heFGz3DQxSodUBP4B8NStG": "tutorial_evaluations"
+    },
+    {
+      "Tables_in_heFGz3DQxSodUBP4B8NStG": "users"
+    }
+  ],
+  "messages": [],
+  "stdout": "Tables_in_heFGz3DQxSodUBP4B8NStG\n__drizzle_migrations\naudit_logs\nclass_eval_permissions\nclass_students\nclasses\ncomponents\ncontact_tickets\nemail_verification_codes\nevaluation_items\nevaluations\nnotifications\npassword_reset_codes\nprofessor_components\nsession_students\nsessions\nsmtp_config\nstudents\ntutorial_evaluations\nusers\n",
+  "stderr": "",
+  "execution_time_ms": 384
+}

@@ -2119,3 +2119,98 @@ export async function countOpenContactTickets(): Promise<number> {
     .where(eq(contactTickets.status, "open"));
   return row?.count ?? 0;
 }
+
+
+// ─── Database Backup / Restore helpers ───
+
+// Tables to export (order matters for import: parents first, children later)
+const BACKUP_TABLES = [
+  { name: "users", table: users },
+  { name: "components", table: components },
+  { name: "professorComponents", table: professorComponents },
+  { name: "classes", table: classes },
+  { name: "students", table: students },
+  { name: "classStudents", table: classStudents },
+  { name: "sessions", table: sessions },
+  { name: "sessionStudents", table: sessionStudents },
+  { name: "evaluations", table: evaluations },
+  { name: "evaluationItems", table: evaluationItems },
+  { name: "tutorialEvaluations", table: tutorialEvaluations },
+  { name: "classEvalPermissions", table: classEvalPermissions },
+  { name: "smtpConfig", table: smtpConfig },
+  { name: "auditLogs", table: auditLogs },
+  { name: "notifications", table: notifications },
+  { name: "contactTickets", table: contactTickets },
+] as const;
+
+// Tables to clear in reverse order (children first, parents last) to avoid FK issues
+const CLEAR_ORDER = [...BACKUP_TABLES].reverse();
+
+export interface BackupData {
+  version: string;
+  exportedAt: string;
+  tables: Record<string, unknown[]>;
+}
+
+export async function exportDatabase(): Promise<BackupData> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const backup: BackupData = {
+    version: "1.0",
+    exportedAt: new Date().toISOString(),
+    tables: {},
+  };
+
+  for (const { name, table } of BACKUP_TABLES) {
+    const rows = await db.select().from(table);
+    backup.tables[name] = rows;
+  }
+
+  return backup;
+}
+
+export async function importDatabase(data: BackupData, clearFirst: boolean): Promise<{ tablesImported: number; rowsImported: number }> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  let tablesImported = 0;
+  let rowsImported = 0;
+
+  if (clearFirst) {
+    // Delete all data in reverse order (children first)
+    for (const { table } of CLEAR_ORDER) {
+      await db.delete(table);
+    }
+  }
+
+  // Insert data in order (parents first)
+  for (const { name, table } of BACKUP_TABLES) {
+    const rows = data.tables[name];
+    if (!rows || rows.length === 0) continue;
+
+    // Insert in batches of 100 to avoid query size limits
+    const batchSize = 100;
+    for (let i = 0; i < rows.length; i += batchSize) {
+      const batch = rows.slice(i, i + batchSize);
+      await db.insert(table).values(batch as any[]);
+    }
+
+    tablesImported++;
+    rowsImported += rows.length;
+  }
+
+  return { tablesImported, rowsImported };
+}
+
+export async function getBackupStats(): Promise<Record<string, number>> {
+  const db = await getDb();
+  if (!db) return {};
+
+  const stats: Record<string, number> = {};
+  for (const { name, table } of BACKUP_TABLES) {
+    const [row] = await db.select({ count: sql<number>`count(*)` }).from(table);
+    stats[name] = row?.count ?? 0;
+  }
+  return stats;
+}

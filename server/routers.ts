@@ -37,6 +37,8 @@ import {
   getPeerGradesMatrix,
   syncPendingRequestNotifications,
   createContactTicket, listContactTickets, listMyContactTickets, resolveContactTicket, getContactTicketById, countOpenContactTickets,
+  exportDatabase, importDatabase, getBackupStats,
+  type BackupData,
 } from "./db";
 import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml, buildContactTicketEmailHtml } from "./email";
 
@@ -1487,6 +1489,49 @@ export const appRouter = router({
     openCount: adminProcedure.query(async () => {
       const count = await countOpenContactTickets();
       return { count };
+    }),
+  }),
+
+  // ─── Database Backup / Restore ───
+  backup: router({
+    // Export entire database as JSON
+    export: adminProcedure.mutation(async ({ ctx }) => {
+      const data = await exportDatabase();
+      await createAuditLog({
+        action: "database_export",
+        actorUserId: ctx.user.id,
+        details: JSON.stringify({ exportedAt: data.exportedAt, tableCount: Object.keys(data.tables).length }),
+      });
+      return data;
+    }),
+
+    // Import database from JSON backup
+    import: adminProcedure.input(z.object({
+      data: z.object({
+        version: z.string(),
+        exportedAt: z.string(),
+        tables: z.record(z.string(), z.array(z.any())),
+      }),
+      clearFirst: z.boolean().default(true),
+    })).mutation(async ({ ctx, input }) => {
+      const result = await importDatabase(input.data as BackupData, input.clearFirst);
+      // Log after import (note: audit log table may have been cleared)
+      await createAuditLog({
+        action: "database_import",
+        actorUserId: ctx.user.id,
+        details: JSON.stringify({
+          importedAt: new Date().toISOString(),
+          originalExportedAt: input.data.exportedAt,
+          clearFirst: input.clearFirst,
+          ...result,
+        }),
+      });
+      return result;
+    }),
+
+    // Get row counts for all tables
+    stats: adminProcedure.query(async () => {
+      return getBackupStats();
     }),
   }),
 });

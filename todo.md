@@ -274,3 +274,7 @@
 - [x] Menu lateral: adicionar aba Contato para todos os usuários
 - [x] Testes: tickets de contato (8 novos testes)
 - [x] Bug: na página de Professores, solicitação no quadro de componente não exibe nome nem e-mail do professor (campo userName/userEmail corrigido para professorName/professorEmail)
+- [x] Exportar estado completo do banco de dados (backup JSON)
+- [x] Importar estado do banco de dados a partir de backup JSON (restauração)
+- [x] Interface frontend para backup e restauração na área admin
+- [x] Testes para exportação e importação do banco

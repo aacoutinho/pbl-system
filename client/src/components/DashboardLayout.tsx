@@ -24,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useIsMobile } from "@/hooks/useMobile";
 import { useClassContext } from "@/contexts/ClassContext";
 import { trpc } from "@/lib/trpc";
-import { LayoutDashboard, Users, ClipboardList, BarChart3, LogOut, PanelLeft, GraduationCap, BookOpen, ClipboardCheck, Download, KeyRound, UserCheck, Clock, Eye, EyeOff, Loader2, Mail, ArrowRightLeft, Layers, User, History, Bell, MessageSquare } from "lucide-react";
+import { LayoutDashboard, Users, ClipboardList, BarChart3, LogOut, PanelLeft, GraduationCap, BookOpen, ClipboardCheck, Download, KeyRound, UserCheck, Clock, Eye, EyeOff, Loader2, Mail, ArrowRightLeft, Layers, User, History, Bell, MessageSquare, DatabaseBackup } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState, FormEvent } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -61,6 +61,7 @@ const contactItem = { icon: MessageSquare, label: "Contato", path: "/contact" };
 const adminOnlyItems = [
   { icon: Download, label: "Exportar Alunos", path: "/export-students" },
   { icon: Mail, label: "Config. E-mail", path: "/smtp-config" },
+  { icon: DatabaseBackup, label: "Backup / Restaurar", path: "/backup" },
 ];
 
 function getMenuItemsForRole(role: string) {
