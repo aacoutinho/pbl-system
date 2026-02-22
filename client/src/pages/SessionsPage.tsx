@@ -10,9 +10,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Plus, Lock, Unlock, Trash2, ClipboardList, Users, Eye, BookOpen, KeyRound, Copy, RefreshCw, RotateCcw, CheckCircle2, Clock } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 export default function SessionsPage() {
   return (
@@ -26,6 +27,26 @@ function SessionsContent() {
   const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
   const { selectedClassId } = useClassContext();
+  const { user } = useAuth();
+
+  // Get the class info to check ownership
+  const { data: classesList } = trpc.classes.list.useQuery();
+  const { data: myComponents } = trpc.professors.myComponents.useQuery();
+
+  const selectedClass = useMemo(() => {
+    if (!classesList || !selectedClassId) return null;
+    return classesList.find(c => c.id === selectedClassId) ?? null;
+  }, [classesList, selectedClassId]);
+
+  const isAdmin = user?.role === "admin";
+  const isOwner = selectedClass?.professorUserId === user?.id;
+  const isCoordinatorOfComponent = useMemo(() => {
+    if (!selectedClass || !myComponents) return false;
+    return myComponents.some(
+      c => c.componentId === selectedClass.componentId && c.componentRole === "coordinator" && c.status === "approved"
+    );
+  }, [selectedClass, myComponents]);
+  const canManage = isAdmin || isOwner || isCoordinatorOfComponent;
 
   const { data: sessionsList, isLoading } = trpc.sessions.list.useQuery(
     { classId: selectedClassId! },
@@ -97,62 +118,66 @@ function SessionsContent() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Sessões</h1>
-          <p className="text-muted-foreground mt-1">Crie e gerencie sessões de avaliação tutorial.</p>
+          <p className="text-muted-foreground mt-1">
+            {canManage ? "Crie e gerencie sessões de avaliação tutorial." : "Visualize as sessões de avaliação tutorial."}
+          </p>
         </div>
-        <Dialog open={showCreate} onOpenChange={setShowCreate}>
-          <DialogTrigger asChild>
-            <Button size="sm"><Plus className="h-4 w-4 mr-2" />Nova Sessão</Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Criar Nova Sessão</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Problema</Label>
-                  <Input type="number" min={1} max={10} value={problemNum} onChange={e => setProblemNum(e.target.value)} className="mt-1" />
+        {canManage && (
+          <Dialog open={showCreate} onOpenChange={setShowCreate}>
+            <DialogTrigger asChild>
+              <Button size="sm"><Plus className="h-4 w-4 mr-2" />Nova Sessão</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Criar Nova Sessão</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Problema</Label>
+                    <Input type="number" min={1} max={10} value={problemNum} onChange={e => setProblemNum(e.target.value)} className="mt-1" />
+                  </div>
+                  <div>
+                    <Label>Sessão</Label>
+                    <Input type="number" min={1} max={10} value={sessionNum} onChange={e => setSessionNum(e.target.value)} className="mt-1" />
+                  </div>
                 </div>
                 <div>
-                  <Label>Sessão</Label>
-                  <Input type="number" min={1} max={10} value={sessionNum} onChange={e => setSessionNum(e.target.value)} className="mt-1" />
+                  <div className="flex items-center justify-between mb-2">
+                    <Label>Alunos da Sessão</Label>
+                    <Button variant="ghost" size="sm" onClick={selectAll} className="text-xs h-7">
+                      {selectedStudents.length === (studentsList?.length ?? 0) ? "Desmarcar todos" : "Selecionar todos"}
+                    </Button>
+                  </div>
+                  <div className="border rounded-lg max-h-60 overflow-y-auto">
+                    {!studentsList || studentsList.length === 0 ? (
+                      <p className="p-4 text-sm text-muted-foreground text-center">Nenhum aluno cadastrado. Cadastre alunos primeiro.</p>
+                    ) : (
+                      studentsList.map(student => (
+                        <label key={student.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-accent/30 cursor-pointer transition-colors">
+                          <Checkbox
+                            checked={selectedStudents.includes(student.id)}
+                            onCheckedChange={() => toggleStudent(student.id)}
+                          />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">{student.name}</p>
+                            <p className="text-xs text-muted-foreground truncate">{student.enrollment}</p>
+                          </div>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">{selectedStudents.length} aluno(s) selecionado(s)</p>
                 </div>
               </div>
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <Label>Alunos da Sessão</Label>
-                  <Button variant="ghost" size="sm" onClick={selectAll} className="text-xs h-7">
-                    {selectedStudents.length === (studentsList?.length ?? 0) ? "Desmarcar todos" : "Selecionar todos"}
-                  </Button>
-                </div>
-                <div className="border rounded-lg max-h-60 overflow-y-auto">
-                  {!studentsList || studentsList.length === 0 ? (
-                    <p className="p-4 text-sm text-muted-foreground text-center">Nenhum aluno cadastrado. Cadastre alunos primeiro.</p>
-                  ) : (
-                    studentsList.map(student => (
-                      <label key={student.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-accent/30 cursor-pointer transition-colors">
-                        <Checkbox
-                          checked={selectedStudents.includes(student.id)}
-                          onCheckedChange={() => toggleStudent(student.id)}
-                        />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">{student.name}</p>
-                          <p className="text-xs text-muted-foreground truncate">{student.enrollment}</p>
-                        </div>
-                      </label>
-                    ))
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">{selectedStudents.length} aluno(s) selecionado(s)</p>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button onClick={handleCreate} disabled={createMutation.isPending}>
-                {createMutation.isPending ? "Criando..." : "Criar Sessão"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter>
+                <Button onClick={handleCreate} disabled={createMutation.isPending}>
+                  {createMutation.isPending ? "Criando..." : "Criar Sessão"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       <Card>
@@ -177,6 +202,7 @@ function SessionsContent() {
                 <SessionRow
                   key={session.id}
                   session={session}
+                  canManage={canManage}
                   onClose={() => closeMutation.mutate({ id: session.id })}
                   onOpen={() => openMutation.mutate({ id: session.id })}
                   onDelete={() => { if (confirm(`Excluir "${session.label}"? Todas as avaliações serão perdidas.`)) deleteMutation.mutate({ id: session.id }); }}
@@ -191,8 +217,9 @@ function SessionsContent() {
   );
 }
 
-function SessionRow({ session, onClose, onOpen, onDelete, onViewResults }: {
+function SessionRow({ session, canManage, onClose, onOpen, onDelete, onViewResults }: {
   session: { id: number; label: string; problemNumber: number; sessionNumber: number; status: string; accessCode?: string | null };
+  canManage: boolean;
   onClose: () => void;
   onOpen: () => void;
   onDelete: () => void;
@@ -258,7 +285,7 @@ function SessionRow({ session, onClose, onOpen, onDelete, onViewResults }: {
         </div>
       </div>
       <div className="flex items-center gap-1">
-        {session.status === "open" && (
+        {canManage && session.status === "open" && (
           <Button
             variant="ghost"
             size="icon"
@@ -270,74 +297,80 @@ function SessionRow({ session, onClose, onOpen, onDelete, onViewResults }: {
           </Button>
         )}
 
-        {/* Reevaluation dialog */}
-        <Dialog open={showReevalDialog} onOpenChange={setShowReevalDialog}>
-          <DialogTrigger asChild>
-            <Button variant="ghost" size="icon" title="Gerenciar avaliações / Liberar reavaliação" disabled={submitted === 0}>
-              <RotateCcw className="h-4 w-4" />
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Avaliações da Sessão</DialogTitle>
-              <DialogDescription>
-                {session.label} — {submitted}/{total} alunos avaliaram. Libere a reavaliação para permitir que um aluno envie novamente.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="border rounded-lg max-h-80 overflow-y-auto divide-y">
-              {status?.map(s => (
-                <div key={s.studentId} className="flex items-center justify-between px-4 py-3">
-                  <div className="flex items-center gap-2 min-w-0">
-                    {s.submitted ? (
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                    ) : (
-                      <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
-                    )}
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{s.studentName}</p>
-                      <p className="text-xs text-muted-foreground truncate">{s.studentEnrollment}</p>
+        {/* Reevaluation dialog - only for managers */}
+        {canManage && (
+          <Dialog open={showReevalDialog} onOpenChange={setShowReevalDialog}>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="icon" title="Gerenciar avaliações / Liberar reavaliação" disabled={submitted === 0}>
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Avaliações da Sessão</DialogTitle>
+                <DialogDescription>
+                  {session.label} — {submitted}/{total} alunos avaliaram. Libere a reavaliação para permitir que um aluno envie novamente.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="border rounded-lg max-h-80 overflow-y-auto divide-y">
+                {status?.map(s => (
+                  <div key={s.studentId} className="flex items-center justify-between px-4 py-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {s.submitted ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                      ) : (
+                        <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{s.studentName}</p>
+                        <p className="text-xs text-muted-foreground truncate">{s.studentEnrollment}</p>
+                      </div>
+                    </div>
+                    <div className="shrink-0 ml-2">
+                      {s.submitted ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs h-7"
+                          onClick={() => handleAllowReevaluation(s.studentId)}
+                          disabled={allowReevalMutation.isPending}
+                        >
+                          <RotateCcw className="h-3 w-3 mr-1" />
+                          Liberar
+                        </Button>
+                      ) : (
+                        <Badge variant="outline" className="text-xs text-muted-foreground">Pendente</Badge>
+                      )}
                     </div>
                   </div>
-                  <div className="shrink-0 ml-2">
-                    {s.submitted ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-xs h-7"
-                        onClick={() => handleAllowReevaluation(s.studentId)}
-                        disabled={allowReevalMutation.isPending}
-                      >
-                        <RotateCcw className="h-3 w-3 mr-1" />
-                        Liberar
-                      </Button>
-                    ) : (
-                      <Badge variant="outline" className="text-xs text-muted-foreground">Pendente</Badge>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {(!status || status.length === 0) && (
-                <p className="p-4 text-sm text-muted-foreground text-center">Nenhum aluno nesta sessão.</p>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
+                ))}
+                {(!status || status.length === 0) && (
+                  <p className="p-4 text-sm text-muted-foreground text-center">Nenhum aluno nesta sessão.</p>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
 
         <Button variant="ghost" size="icon" onClick={onViewResults} title="Ver resultados">
           <Eye className="h-4 w-4" />
         </Button>
-        {session.status === "open" ? (
-          <Button variant="ghost" size="icon" onClick={onClose} title="Encerrar sessão">
-            <Lock className="h-4 w-4" />
-          </Button>
-        ) : (
-          <Button variant="ghost" size="icon" onClick={onOpen} title="Reabrir sessão">
-            <Unlock className="h-4 w-4" />
-          </Button>
+        {canManage && (
+          <>
+            {session.status === "open" ? (
+              <Button variant="ghost" size="icon" onClick={onClose} title="Encerrar sessão">
+                <Lock className="h-4 w-4" />
+              </Button>
+            ) : (
+              <Button variant="ghost" size="icon" onClick={onOpen} title="Reabrir sessão">
+                <Unlock className="h-4 w-4" />
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={onDelete} title="Excluir sessão">
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </>
         )}
-        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={onDelete} title="Excluir sessão">
-          <Trash2 className="h-4 w-4" />
-        </Button>
       </div>
     </div>
   );

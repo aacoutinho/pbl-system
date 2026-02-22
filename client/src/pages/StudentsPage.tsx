@@ -9,8 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Plus, Trash2, Upload, Users, BookOpen, FileSpreadsheet, Check, Pencil } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 export default function StudentsPage() {
   return (
@@ -23,6 +24,26 @@ export default function StudentsPage() {
 function StudentsContent() {
   const utils = trpc.useUtils();
   const { selectedClassId } = useClassContext();
+  const { user } = useAuth();
+
+  // Check permissions for the selected class
+  const { data: classesList } = trpc.classes.list.useQuery();
+  const { data: myComponents } = trpc.professors.myComponents.useQuery();
+
+  const selectedClass = useMemo(() => {
+    if (!classesList || !selectedClassId) return null;
+    return classesList.find(c => c.id === selectedClassId) ?? null;
+  }, [classesList, selectedClassId]);
+
+  const isAdmin = user?.role === "admin";
+  const isOwner = selectedClass?.professorUserId === user?.id;
+  const isCoordinatorOfComponent = useMemo(() => {
+    if (!selectedClass || !myComponents) return false;
+    return myComponents.some(
+      c => c.componentId === selectedClass.componentId && c.componentRole === "coordinator" && c.status === "approved"
+    );
+  }, [selectedClass, myComponents]);
+  const canManage = isAdmin || isOwner || isCoordinatorOfComponent;
 
   const { data: studentsList, isLoading } = trpc.students.list.useQuery(
     { classId: selectedClassId! },
@@ -153,9 +174,11 @@ function StudentsContent() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Alunos</h1>
-          <p className="text-muted-foreground mt-1">Gerencie os alunos da turma selecionada.</p>
+          <p className="text-muted-foreground mt-1">
+            {canManage ? "Gerencie os alunos da turma selecionada." : "Visualize os alunos da turma selecionada."}
+          </p>
         </div>
-        <div className="flex gap-2">
+        {canManage && <div className="flex gap-2">
           {/* CSV Import from SAGRES */}
           <Dialog open={showCSVImport} onOpenChange={(open) => {
             setShowCSVImport(open);
@@ -276,7 +299,7 @@ function StudentsContent() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        </div>
+        </div>}
       </div>
 
       {/* Edit student dialog */}
@@ -342,24 +365,28 @@ function StudentsContent() {
                       <td className="py-3 pr-4 font-medium">{student.name}</td>
                       <td className="py-3 pr-4 text-sm text-muted-foreground">{student.email || <span className="italic text-muted-foreground/50">não informado</span>}</td>
                       <td className="py-3 flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => startEdit({ id: student.id, name: student.name, enrollment: student.enrollment, email: student.email })}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => {
-                            if (confirm(`Remover ${student.name} desta turma?`)) removeMutation.mutate({ studentId: student.id, classId: selectedClassId });
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {canManage && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => startEdit({ id: student.id, name: student.name, enrollment: student.enrollment, email: student.email })}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => {
+                                if (confirm(`Remover ${student.name} desta turma?`)) removeMutation.mutate({ studentId: student.id, classId: selectedClassId });
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
                       </td>
                     </tr>
                   ))}

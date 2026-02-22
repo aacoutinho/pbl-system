@@ -333,31 +333,32 @@ export const appRouter = router({
       return listClassesByComponents(componentIds);
     }),
     // Create: admin can create for any component, coordinator for their components
-    create: coordinatorOrAdminProcedure.input(z.object({
+    create: approvedProcedure.input(z.object({
       classCode: z.string().min(1),
       componentId: z.number(),
       semester: z.string().min(1),
     })).mutation(async ({ ctx, input }) => {
-      await assertComponentCoordinator(ctx.user.id, ctx.user.role, input.componentId);
+      // Any approved professor who is member of the component can create a class
+      await assertComponentAccess(ctx.user.id, ctx.user.role, input.componentId);
       return createClass({ ...input, professorUserId: ctx.user.id });
     }),
     // Update: admin can update any, coordinator can update classes of their components
-    update: coordinatorOrAdminProcedure.input(z.object({
+    update: approvedProcedure.input(z.object({
       id: z.number(),
-      classCode: z.string().min(1).optional(),
-      componentId: z.number().optional(),
-      semester: z.string().min(1).optional(),
+      classCode: z.string().min(1),
+      componentId: z.number(),
+      semester: z.string().min(1),
     })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.id);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
-      await assertComponentCoordinator(ctx.user.id, ctx.user.role, cls.componentId);
+      await assertClassManager(ctx.user.id, ctx.user.role, cls);
       return updateClass(input.id, { classCode: input.classCode, componentId: input.componentId, semester: input.semester });
     }),
     // Delete: admin can delete any, coordinator can delete classes of their components
-    delete: coordinatorOrAdminProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+    delete: approvedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.id);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
-      await assertComponentCoordinator(ctx.user.id, ctx.user.role, cls.componentId);
+      await assertClassManager(ctx.user.id, ctx.user.role, cls);
       await deleteClass(input.id);
       return { success: true };
     }),
@@ -544,8 +545,8 @@ export const appRouter = router({
     get: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
       return getSessionById(input.id);
     }),
-    // Create session: coordinator of component or admin
-    create: coordinatorOrAdminProcedure.input(z.object({
+    // Create session: admin, coordinator of component, or prof who created the class
+    create: approvedProcedure.input(z.object({
       classId: z.number(),
       problemNumber: z.number().min(1).max(10),
       sessionNumber: z.number().min(1).max(10),
@@ -554,37 +555,37 @@ export const appRouter = router({
     })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
-      await assertComponentCoordinator(ctx.user.id, ctx.user.role, cls.componentId);
+      await assertClassManager(ctx.user.id, ctx.user.role, cls);
       return createSession(input);
     }),
     getStudents: protectedProcedure.input(z.object({ sessionId: z.number() })).query(async ({ input }) => {
       return getSessionStudents(input.sessionId);
     }),
-    // Close/Open/Delete: coordinator of component or admin
-    close: coordinatorOrAdminProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+    // Close/Open/Delete: admin, coordinator of component, or prof who created the class
+    close: approvedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
       const session = await getSessionById(input.id);
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
       const cls = await getClassById(session.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
-      await assertComponentCoordinator(ctx.user.id, ctx.user.role, cls.componentId);
+      await assertClassManager(ctx.user.id, ctx.user.role, cls);
       await closeSession(input.id);
       return { success: true };
     }),
-    open: coordinatorOrAdminProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+    open: approvedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
       const session = await getSessionById(input.id);
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
       const cls = await getClassById(session.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
-      await assertComponentCoordinator(ctx.user.id, ctx.user.role, cls.componentId);
+      await assertClassManager(ctx.user.id, ctx.user.role, cls);
       await openSession(input.id);
       return { success: true };
     }),
-    delete: coordinatorOrAdminProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+    delete: approvedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
       const session = await getSessionById(input.id);
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
       const cls = await getClassById(session.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
-      await assertComponentCoordinator(ctx.user.id, ctx.user.role, cls.componentId);
+      await assertClassManager(ctx.user.id, ctx.user.role, cls);
       await deleteSession(input.id);
       return { success: true };
     }),
@@ -597,12 +598,12 @@ export const appRouter = router({
         submitted: submittedIds.has(s.studentId),
       }));
     }),
-    generateCode: coordinatorOrAdminProcedure.input(z.object({ sessionId: z.number() })).mutation(async ({ ctx, input }) => {
+    generateCode: approvedProcedure.input(z.object({ sessionId: z.number() })).mutation(async ({ ctx, input }) => {
       const session = await getSessionById(input.sessionId);
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
       const cls = await getClassById(session.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
-      await assertComponentCoordinator(ctx.user.id, ctx.user.role, cls.componentId);
+      await assertClassManager(ctx.user.id, ctx.user.role, cls);
       const code = await generateAccessCode(input.sessionId);
       return { accessCode: code };
     }),
@@ -737,8 +738,8 @@ export const appRouter = router({
     })).query(async ({ input }) => {
       return hasStudentSubmitted(input.sessionId, input.studentId);
     }),
-    // Allow re-evaluation: coordinator of component or admin
-    allowReevaluation: coordinatorOrAdminProcedure.input(z.object({
+    // Allow re-evaluation: admin, coordinator of component, or prof who created the class
+    allowReevaluation: approvedProcedure.input(z.object({
       sessionId: z.number(),
       studentId: z.number(),
     })).mutation(async ({ ctx, input }) => {
@@ -746,7 +747,7 @@ export const appRouter = router({
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
       const cls = await getClassById(session.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
-      await assertComponentCoordinator(ctx.user.id, ctx.user.role, cls.componentId);
+      await assertClassManager(ctx.user.id, ctx.user.role, cls);
       const deleted = await deleteStudentEvaluation(input.sessionId, input.studentId);
       if (!deleted) throw new TRPCError({ code: "NOT_FOUND", message: "Avaliação não encontrada para este aluno nesta sessão" });
       return { success: true };

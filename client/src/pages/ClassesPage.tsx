@@ -11,7 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BookOpen, Plus, Pencil, Trash2, ShieldCheck, UserPlus, X } from "lucide-react";
+import { BookOpen, Plus, Pencil, Trash2, ShieldCheck, UserPlus, X, User } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -171,7 +171,7 @@ function ClassesContent() {
             const isCoordinatorOfComponent = myComponents?.some(
               c => c.componentId === cls.componentId && c.componentRole === "coordinator" && c.status === "approved"
             ) ?? false;
-            const canManagePerms = isOwner || isAdmin || isCoordinatorOfComponent;
+            const canManage = isOwner || isAdmin || isCoordinatorOfComponent;
             return (
               <Card key={cls.id} className={`hover:shadow-md transition-all cursor-pointer ${selectedClassId === cls.id ? "ring-2 ring-primary" : ""}`}
                 onClick={() => setSelectedClassId(cls.id)}>
@@ -185,44 +185,52 @@ function ClassesContent() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground mb-1">{comp?.name ?? ""}</p>
-                  <p className="text-sm text-muted-foreground mb-4">Semestre: {cls.semester}</p>
+                  <p className="text-sm text-muted-foreground">Semestre: {cls.semester}</p>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1 mb-4">
+                    <User className="h-3 w-3" />
+                    <span>Prof. {(cls as any).professorName ?? "Desconhecido"}{isOwner ? " (você)" : ""}</span>
+                  </div>
                   <div className="flex gap-2 flex-wrap" onClick={e => e.stopPropagation()}>
-                    <Button variant="outline" size="sm" onClick={() => {
-                      setEditId(cls.id); 
-                      setEditClassCode(cls.classCode); 
-                      setEditComponentId(cls.componentId ?? null); 
-                      setEditSemester(cls.semester); 
-                      setEditOpen(true);
-                    }}>
-                      <Pencil className="h-3 w-3 mr-1" />Editar
-                    </Button>
+                    {canManage && (
+                      <Button variant="outline" size="sm" onClick={() => {
+                        setEditId(cls.id); 
+                        setEditClassCode(cls.classCode); 
+                        setEditComponentId(cls.componentId ?? null); 
+                        setEditSemester(cls.semester); 
+                        setEditOpen(true);
+                      }}>
+                        <Pencil className="h-3 w-3 mr-1" />Editar
+                      </Button>
+                    )}
                     {/* Eval permissions button - visible for class owner, coordinator of component, admin */}
-                    {canManagePerms && (
+                    {canManage && (
                       <Button variant="outline" size="sm" onClick={() => setPermDialogClassId(cls.id)}>
                         <ShieldCheck className="h-3 w-3 mr-1" />Autorizações
                       </Button>
                     )}
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
-                          <Trash2 className="h-3 w-3 mr-1" />Excluir
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Excluir Turma?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Todos os alunos, sessões e avaliações desta turma serão excluídos permanentemente.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => deleteMutation.mutate({ id: cls.id })} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                            Excluir
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    {canManage && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
+                            <Trash2 className="h-3 w-3 mr-1" />Excluir
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir Turma?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Todos os alunos, sessões e avaliações desta turma serão excluídos permanentemente.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => deleteMutation.mutate({ id: cls.id })} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                              Excluir
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
                   </div>
                 </CardContent>
               </Card>

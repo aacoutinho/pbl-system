@@ -197,3 +197,6 @@
 - [x] Interface no frontend para gerenciar autorizações de avaliação
 - [x] Testes para autorização de avaliação entre professores (279 testes passando)
 - [x] Coordenador do componente também pode autorizar/revogar professores a avaliar sessões de turmas do componente
+- [x] Professor pode criar, abrir, fechar e excluir sessões nas turmas que ele criou
+- [x] Esconder botões de edição/exclusão no frontend quando o professor não é dono da turma
+- [x] Indicação visual na lista de turmas mostrando quem criou cada turma
