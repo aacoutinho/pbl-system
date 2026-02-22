@@ -71,6 +71,13 @@
       "when": 1771719080091,
       "tag": "0009_fancy_eternity",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1771720792903,
+      "tag": "0010_numerous_legion",
+      "breakpoints": true
     }
   ]
 }

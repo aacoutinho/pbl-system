@@ -46,15 +46,15 @@ describe("OpenId generation for local users", () => {
 });
 
 describe("First user detection logic", () => {
-  it("first user should be admin and auto-approved", () => {
+  it("first user should be coordinator and auto-approved", () => {
     const totalUsers = 0;
     const isFirst = totalUsers === 0;
     expect(isFirst).toBe(true);
 
-    // First user gets admin role and approved status
-    const role = "admin";
+    // First user gets coordinator role and approved status
+    const role = isFirst ? "coordinator" : "admin";
     const approvalStatus = isFirst ? "approved" : "pending";
-    expect(role).toBe("admin");
+    expect(role).toBe("coordinator");
     expect(approvalStatus).toBe("approved");
   });
 

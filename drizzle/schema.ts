@@ -7,7 +7,7 @@ export const users = mysqlTable("users", {
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  role: mysqlEnum("role", ["user", "admin", "coordinator"]).default("user").notNull(),
   approvalStatus: mysqlEnum("approvalStatus", ["pending", "approved", "rejected"]).default("pending").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -140,3 +140,34 @@ export const tutorialEvaluations = mysqlTable("tutorial_evaluations", {
 
 export type TutorialEvaluation = typeof tutorialEvaluations.$inferSelect;
 export type InsertTutorialEvaluation = typeof tutorialEvaluations.$inferInsert;
+
+// ─── SMTP Configuration (coordinator's email credentials) ───
+export const smtpConfig = mysqlTable("smtp_config", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique(), // Only coordinator can have this
+  host: varchar("host", { length: 255 }).notNull(),
+  port: int("port").notNull().default(587),
+  secure: boolean("secure").default(false).notNull(), // true for 465, false for 587/STARTTLS
+  username: varchar("username", { length: 320 }).notNull(),
+  password: varchar("password", { length: 512 }).notNull(), // encrypted in practice
+  fromEmail: varchar("fromEmail", { length: 320 }).notNull(),
+  fromName: varchar("fromName", { length: 255 }).default("Avaliação Tutorial").notNull(),
+  configured: boolean("configured").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type SmtpConfig = typeof smtpConfig.$inferSelect;
+export type InsertSmtpConfig = typeof smtpConfig.$inferInsert;
+
+// ─── Password Reset Codes ───
+export const passwordResetCodes = mysqlTable("password_reset_codes", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  code: varchar("code", { length: 6 }).notNull(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  used: boolean("used").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type PasswordResetCode = typeof passwordResetCodes.$inferSelect;

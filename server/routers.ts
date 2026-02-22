@@ -20,7 +20,10 @@ import {
   approveUser, rejectUser, listPendingProfessors, listApprovedProfessors,
   addProfessorComponent, removeProfessorComponent, listProfessorComponents, listAllProfessorComponents,
   getUserById, getUserByEmail, countUsers, createUserWithPassword, updateUserPassword,
+  getCoordinator, transferCoordination, getSmtpConfig, upsertSmtpConfig, deleteSmtpConfig,
+  createPasswordResetCode, verifyPasswordResetCode, markResetCodeUsed, isSmtpConfigured,
 } from "./db";
+import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml } from "./email";
 
 const approvedProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (ctx.user.approvalStatus !== "approved") throw new TRPCError({ code: "FORBIDDEN", message: "Acesso pendente de aprovação" });
@@ -28,7 +31,12 @@ const approvedProcedure = protectedProcedure.use(({ ctx, next }) => {
 });
 
 const adminProcedure = approvedProcedure.use(({ ctx, next }) => {
-  if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a professores" });
+  if (ctx.user.role !== "admin" && ctx.user.role !== "coordinator") throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a professores" });
+  return next({ ctx });
+});
+
+const coordinatorProcedure = approvedProcedure.use(({ ctx, next }) => {
+  if (ctx.user.role !== "coordinator") throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito ao coordenador" });
   return next({ ctx });
 });
 
@@ -61,7 +69,7 @@ export const appRouter = router({
         email: input.email.toLowerCase(),
         name: input.name,
         passwordHash,
-        role: "admin",
+        role: isFirst ? "coordinator" : "admin",
         approvalStatus: isFirst ? "approved" : "pending",
       });
       if (!user) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Erro ao criar usuário" });
@@ -104,6 +112,115 @@ export const appRouter = router({
       if (!valid) throw new TRPCError({ code: "UNAUTHORIZED", message: "Senha atual incorreta" });
       const newHash = await bcrypt.hash(input.newPassword, 10);
       await updateUserPassword(user.id, newHash);
+      return { success: true };
+    }),
+    // Request password reset code (public - sends email)
+    requestResetCode: publicProcedure.input(z.object({
+      email: z.string().email(),
+    })).mutation(async ({ input }) => {
+      const user = await getUserByEmail(input.email.toLowerCase());
+      if (!user) {
+        // Don't reveal if email exists - always return success
+        return { success: true };
+      }
+      const smtpReady = await isSmtpConfigured();
+      if (!smtpReady) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "O sistema de e-mail não está configurado. Contacte o coordenador." });
+      }
+      const code = generateResetCode();
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+      await createPasswordResetCode(user.id, code, expiresAt);
+      const result = await sendEmail({
+        to: user.email!,
+        subject: "Código de Recuperação de Senha - Avaliação Tutorial",
+        text: `Seu código de recuperação é: ${code}. Válido por 15 minutos.`,
+        html: buildResetEmailHtml(code, user.name || "Professor"),
+      });
+      if (!result.success) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Erro ao enviar e-mail: " + (result.error || "desconhecido") });
+      }
+      return { success: true };
+    }),
+    // Verify reset code and set new password
+    resetPassword: publicProcedure.input(z.object({
+      email: z.string().email(),
+      code: z.string().length(6),
+      newPassword: z.string().min(6),
+    })).mutation(async ({ input }) => {
+      const user = await getUserByEmail(input.email.toLowerCase());
+      if (!user) throw new TRPCError({ code: "BAD_REQUEST", message: "E-mail não encontrado" });
+      const valid = await verifyPasswordResetCode(user.id, input.code);
+      if (!valid) throw new TRPCError({ code: "BAD_REQUEST", message: "Código inválido ou expirado" });
+      const newHash = await bcrypt.hash(input.newPassword, 10);
+      await updateUserPassword(user.id, newHash);
+      await markResetCodeUsed(user.id, input.code);
+      return { success: true };
+    }),
+    // Check if SMTP is configured (for showing "forgot password" link)
+    smtpStatus: publicProcedure.query(async () => {
+      const configured = await isSmtpConfigured();
+      return { configured };
+    }),
+  }),
+
+  // ─── SMTP Configuration (coordinator only) ───
+  smtp: router({
+    get: coordinatorProcedure.query(async ({ ctx }) => {
+      const config = await getSmtpConfig(ctx.user.id);
+      if (!config) return null;
+      // Don't return the actual password
+      return {
+        host: config.host,
+        port: config.port,
+        secure: config.secure,
+        username: config.username,
+        fromEmail: config.fromEmail,
+        fromName: config.fromName,
+        configured: config.configured,
+      };
+    }),
+    save: coordinatorProcedure.input(z.object({
+      host: z.string().min(1),
+      port: z.number().int().min(1).max(65535),
+      secure: z.boolean(),
+      username: z.string().min(1),
+      password: z.string().min(1),
+      fromEmail: z.string().email(),
+      fromName: z.string().min(1),
+    })).mutation(async ({ ctx, input }) => {
+      await upsertSmtpConfig({ userId: ctx.user.id, ...input });
+      return { success: true };
+    }),
+    test: coordinatorProcedure.input(z.object({
+      host: z.string().min(1),
+      port: z.number().int().min(1).max(65535),
+      secure: z.boolean(),
+      username: z.string().min(1),
+      password: z.string().min(1),
+    })).mutation(async ({ input }) => {
+      return testSmtpConnection(input);
+    }),
+    delete: coordinatorProcedure.mutation(async ({ ctx }) => {
+      await deleteSmtpConfig(ctx.user.id);
+      return { success: true };
+    }),
+  }),
+
+  // ─── Coordination (coordinator only) ───
+  coordination: router({
+    current: adminProcedure.query(async () => {
+      const coord = await getCoordinator();
+      if (!coord) return null;
+      return { id: coord.id, name: coord.name, email: coord.email };
+    }),
+    transfer: coordinatorProcedure.input(z.object({
+      toUserId: z.number().int(),
+    })).mutation(async ({ ctx, input }) => {
+      if (input.toUserId === ctx.user.id) throw new TRPCError({ code: "BAD_REQUEST", message: "Você já é o coordenador" });
+      const target = await getUserById(input.toUserId);
+      if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "Professor não encontrado" });
+      if (target.approvalStatus !== "approved") throw new TRPCError({ code: "BAD_REQUEST", message: "O professor precisa estar aprovado" });
+      await transferCoordination(ctx.user.id, input.toUserId);
       return { success: true };
     }),
   }),

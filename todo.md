@@ -116,3 +116,25 @@
 - [x] Frontend: fluxo de primeiro acesso (setup inicial do admin)
 - [x] Atualizar fluxo de aprovação de professores para novo sistema de auth
 - [x] Testes: login/registro com email e senha
+- [x] Schema: tabela de códigos de recuperação de senha (password_reset_codes)
+- [x] Backend: rota para solicitar código de recuperação (envia e-mail)
+- [x] Backend: rota para verificar código e redefinir senha
+- [x] Backend: envio de e-mail com código via nodemailer SMTP
+- [x] Frontend: tela de "Esqueci minha senha" com fluxo de código
+- [x] Testes: recuperação de senha
+- [x] Schema: role 'coordinator' para o primeiro professor cadastrado
+- [x] Schema: tabela smtp_config para credenciais SMTP do coordenador
+- [x] Schema: tabela password_reset_codes para códigos de recuperação
+- [x] Backend: primeiro professor cadastrado recebe role 'coordinator' (não mais 'admin')
+- [x] Backend: helpers DB para SMTP config (salvar, ler, apagar)
+- [x] Backend: helpers DB para password reset codes (criar, verificar, expirar)
+- [x] Backend: rota SMTP config (salvar/ler credenciais do coordenador)
+- [x] Backend: rota de transferência de coordenação para outro professor
+- [x] Backend: rota de solicitação de código de recuperação (envia e-mail via SMTP)
+- [x] Backend: rota de verificação de código e redefinição de senha
+- [x] Backend: envio de e-mail via nodemailer com credenciais SMTP do coordenador
+- [x] Frontend: página de configuração SMTP no perfil do coordenador
+- [x] Frontend: tela de recuperação de senha (solicitar código, verificar, redefinir)
+- [x] Frontend: transferência de coordenação na página de Professores
+- [x] Frontend: alerta ao coordenador para configurar SMTP após login
+- [x] Testes: coordenador, SMTP config, recuperação de senha

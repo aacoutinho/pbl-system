@@ -14,6 +14,7 @@ import TutorialEvalPage from "./pages/TutorialEvalPage";
 import ExportStudentsPage from "./pages/ExportStudentsPage";
 import StudentAccessPage from "./pages/StudentAccessPage";
 import ProfessorsPage from "./pages/ProfessorsPage";
+import SmtpConfigPage from "./pages/SmtpConfigPage";
 
 function Router() {
   return (
@@ -27,6 +28,7 @@ function Router() {
       <Route path={"/results"} component={ResultsPage} />
       <Route path={"/export-students"} component={ExportStudentsPage} />
       <Route path={"/professors"} component={ProfessorsPage} />
+      <Route path={"/smtp-config"} component={SmtpConfigPage} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

@@ -11,6 +11,8 @@ import {
   evaluationItems, EvaluationItem,
   tutorialEvaluations, TutorialEvaluation,
   professorComponents, InsertProfessorComponent,
+  smtpConfig, InsertSmtpConfig,
+  passwordResetCodes,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -48,7 +50,12 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     textFields.forEach(assignNullable);
     if (user.lastSignedIn !== undefined) { values.lastSignedIn = user.lastSignedIn; updateSet.lastSignedIn = user.lastSignedIn; }
     if (user.role !== undefined) { values.role = user.role; updateSet.role = user.role; }
-    else if (user.openId === ENV.ownerOpenId) { values.role = 'admin'; updateSet.role = 'admin'; }
+    else if (user.openId === ENV.ownerOpenId) {
+      // Only set admin if user doesn't already have a higher role (coordinator)
+      // Don't override role on update, only set on initial insert
+      values.role = 'admin';
+      // Don't include role in updateSet - preserve existing role
+    }
     if (!values.lastSignedIn) values.lastSignedIn = new Date();
     if (Object.keys(updateSet).length === 0) updateSet.lastSignedIn = new Date();
     await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
@@ -1011,7 +1018,7 @@ export async function createUserWithPassword(data: {
   email: string;
   name: string;
   passwordHash: string;
-  role: "user" | "admin";
+  role: "user" | "admin" | "coordinator";
   approvalStatus: "pending" | "approved" | "rejected";
 }) {
   const db = await getDb();
@@ -1034,4 +1041,138 @@ export async function updateUserPassword(userId: number, passwordHash: string) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db.update(users).set({ passwordHash }).where(eq(users.id, userId));
+}
+
+// ─── Coordinator helpers ───
+export async function getCoordinator() {
+  const db = await getDb();
+  if (!db) return undefined;
+  const [row] = await db.select().from(users).where(eq(users.role, "coordinator")).limit(1);
+  return row;
+}
+
+export async function transferCoordination(fromUserId: number, toUserId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  // Demote current coordinator to admin
+  await db.update(users).set({ role: "admin" }).where(eq(users.id, fromUserId));
+  // Promote target to coordinator
+  await db.update(users).set({ role: "coordinator" }).where(eq(users.id, toUserId));
+  // Delete old coordinator's SMTP config
+  await db.delete(smtpConfig).where(eq(smtpConfig.userId, fromUserId));
+}
+
+export async function updateUserRole(userId: number, role: "user" | "admin" | "coordinator") {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(users).set({ role }).where(eq(users.id, userId));
+}
+
+// ─── SMTP Config helpers ───
+export async function getSmtpConfig(userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const [row] = await db.select().from(smtpConfig).where(eq(smtpConfig.userId, userId)).limit(1);
+  return row;
+}
+
+export async function getActiveSmtpConfig() {
+  const db = await getDb();
+  if (!db) return undefined;
+  // Get the coordinator's SMTP config
+  const coordinator = await getCoordinator();
+  if (!coordinator) return undefined;
+  const [row] = await db.select().from(smtpConfig)
+    .where(and(eq(smtpConfig.userId, coordinator.id), eq(smtpConfig.configured, true)))
+    .limit(1);
+  return row;
+}
+
+export async function upsertSmtpConfig(data: {
+  userId: number;
+  host: string;
+  port: number;
+  secure: boolean;
+  username: string;
+  password: string;
+  fromEmail: string;
+  fromName: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const existing = await getSmtpConfig(data.userId);
+  if (existing) {
+    await db.update(smtpConfig).set({
+      host: data.host,
+      port: data.port,
+      secure: data.secure,
+      username: data.username,
+      password: data.password,
+      fromEmail: data.fromEmail,
+      fromName: data.fromName,
+      configured: true,
+    }).where(eq(smtpConfig.userId, data.userId));
+  } else {
+    await db.insert(smtpConfig).values({
+      userId: data.userId,
+      host: data.host,
+      port: data.port,
+      secure: data.secure,
+      username: data.username,
+      password: data.password,
+      fromEmail: data.fromEmail,
+      fromName: data.fromName,
+      configured: true,
+    });
+  }
+}
+
+export async function deleteSmtpConfig(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(smtpConfig).where(eq(smtpConfig.userId, userId));
+}
+
+// ─── Password Reset Code helpers ───
+export async function createPasswordResetCode(userId: number, code: string, expiresAt: Date) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  // Invalidate any existing unused codes for this user
+  await db.update(passwordResetCodes)
+    .set({ used: true })
+    .where(and(eq(passwordResetCodes.userId, userId), eq(passwordResetCodes.used, false)));
+  // Create new code
+  await db.insert(passwordResetCodes).values({ userId, code, expiresAt });
+}
+
+export async function verifyPasswordResetCode(userId: number, code: string) {
+  const db = await getDb();
+  if (!db) return false;
+  const [row] = await db.select().from(passwordResetCodes)
+    .where(and(
+      eq(passwordResetCodes.userId, userId),
+      eq(passwordResetCodes.code, code),
+      eq(passwordResetCodes.used, false),
+    ))
+    .limit(1);
+  if (!row) return false;
+  // Check expiration
+  if (new Date() > row.expiresAt) return false;
+  return true;
+}
+
+export async function markResetCodeUsed(userId: number, code: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(passwordResetCodes)
+    .set({ used: true })
+    .where(and(
+      eq(passwordResetCodes.userId, userId),
+      eq(passwordResetCodes.code, code),
+    ));
+}
+
+export async function isSmtpConfigured() {
+  const config = await getActiveSmtpConfig();
+  return !!config;
 }

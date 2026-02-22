@@ -24,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useIsMobile } from "@/hooks/useMobile";
 import { useClassContext } from "@/contexts/ClassContext";
 import { trpc } from "@/lib/trpc";
-import { LayoutDashboard, Users, ClipboardList, BarChart3, LogOut, PanelLeft, GraduationCap, BookOpen, ClipboardCheck, Download, KeyRound, UserCheck, Clock, Eye, EyeOff, Loader2 } from "lucide-react";
+import { LayoutDashboard, Users, ClipboardList, BarChart3, LogOut, PanelLeft, GraduationCap, BookOpen, ClipboardCheck, Download, KeyRound, UserCheck, Clock, Eye, EyeOff, Loader2, Mail, ArrowRightLeft } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState, FormEvent } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -45,6 +45,10 @@ const adminMenuItems = [
   { icon: UserCheck, label: "Professores", path: "/professors" },
 ];
 
+const coordinatorMenuItems = [
+  { icon: Mail, label: "Config. E-mail", path: "/smtp-config" },
+];
+
 // Students access only via session code — no dashboard menu needed
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
@@ -53,15 +57,19 @@ const MIN_WIDTH = 200;
 const MAX_WIDTH = 400;
 
 function LoginScreen() {
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register" | "forgot" | "code" | "newpass">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [resetCode, setResetCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
 
   const { data: firstUserData } = trpc.auth.isFirstUser.useQuery();
   const isFirstUser = firstUserData?.isFirstUser ?? false;
+  const { data: smtpStatus } = trpc.auth.smtpStatus.useQuery();
+  const smtpConfigured = smtpStatus?.configured ?? false;
 
   const loginMutation = trpc.auth.login.useMutation({
     onSuccess: () => {
@@ -88,13 +96,44 @@ function LoginScreen() {
     },
   });
 
+  const requestResetMutation = trpc.auth.requestResetCode.useMutation({
+    onSuccess: () => {
+      toast.success("Código enviado para seu e-mail!");
+      setMode("code");
+      setIsSubmitting(false);
+    },
+    onError: (err) => {
+      toast.error(err.message);
+      setIsSubmitting(false);
+    },
+  });
+
+  const resetPasswordMutation = trpc.auth.resetPassword.useMutation({
+    onSuccess: () => {
+      toast.success("Senha redefinida com sucesso! Faça login.");
+      setMode("login");
+      setPassword("");
+      setResetCode("");
+      setNewPassword("");
+      setIsSubmitting(false);
+    },
+    onError: (err) => {
+      toast.error(err.message);
+      setIsSubmitting(false);
+    },
+  });
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     if (mode === "login") {
       loginMutation.mutate({ email, password });
-    } else {
+    } else if (mode === "register") {
       registerMutation.mutate({ email, name, password });
+    } else if (mode === "forgot") {
+      requestResetMutation.mutate({ email });
+    } else if (mode === "code" || mode === "newpass") {
+      resetPasswordMutation.mutate({ email, code: resetCode, newPassword });
     }
   };
 
@@ -129,7 +168,7 @@ function LoginScreen() {
         {/* Login / Register Form */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
           <p className="text-xs text-muted-foreground text-center font-medium uppercase tracking-wider">
-            {mode === "login" ? "Professor" : isFirstUser ? "Criar Administrador" : "Novo Professor"}
+            {mode === "login" ? "Professor" : mode === "register" ? (isFirstUser ? "Criar Coordenador" : "Novo Professor") : "Recuperar Senha"}
           </p>
 
           {mode === "register" && (
@@ -147,43 +186,99 @@ function LoginScreen() {
             </div>
           )}
 
-          <div className="space-y-1.5">
-            <Label htmlFor="email" className="text-sm">E-mail</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="professor@exemplo.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="password" className="text-sm">Senha</Label>
-            <div className="relative">
+          {(mode === "login" || mode === "register" || mode === "forgot") && (
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-sm">E-mail</Label>
               <Input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                placeholder={mode === "register" ? "Mínimo 6 caracteres" : "Sua senha"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                id="email"
+                type="email"
+                placeholder="professor@exemplo.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
-                minLength={mode === "register" ? 6 : 1}
-                autoComplete={mode === "login" ? "current-password" : "new-password"}
-                className="pr-10"
+                autoComplete="email"
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                tabIndex={-1}
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
             </div>
-          </div>
+          )}
+
+          {(mode === "login" || mode === "register") && (
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-sm">Senha</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder={mode === "register" ? "Mínimo 6 caracteres" : "Sua senha"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={mode === "register" ? 6 : 1}
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {mode === "forgot" && (
+            <p className="text-sm text-muted-foreground text-center">
+              Informe seu e-mail e enviaremos um código de 6 dígitos para redefinir sua senha.
+            </p>
+          )}
+
+          {(mode === "code" || mode === "newpass") && (
+            <>
+              <p className="text-sm text-muted-foreground text-center">
+                Um código foi enviado para <strong>{email}</strong>. Informe o código e a nova senha.
+              </p>
+              <div className="space-y-1.5">
+                <Label htmlFor="resetCode" className="text-sm">Código de 6 dígitos</Label>
+                <Input
+                  id="resetCode"
+                  type="text"
+                  placeholder="000000"
+                  value={resetCode}
+                  onChange={(e) => setResetCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  required
+                  maxLength={6}
+                  className="text-center text-2xl tracking-[0.5em] font-mono"
+                  autoComplete="one-time-code"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="newPassword" className="text-sm">Nova senha</Label>
+                <div className="relative">
+                  <Input
+                    id="newPassword"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Mínimo 6 caracteres"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    autoComplete="new-password"
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
 
           <Button
             type="submit"
@@ -194,17 +289,38 @@ function LoginScreen() {
             {isSubmitting ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
             ) : null}
-            {mode === "login" ? "Entrar" : isFirstUser ? "Criar Conta de Administrador" : "Cadastrar"}
+            {mode === "login" ? "Entrar" : mode === "register" ? (isFirstUser ? "Criar Conta de Coordenador" : "Cadastrar") : mode === "forgot" ? "Enviar Código" : "Redefinir Senha"}
           </Button>
         </form>
 
-        {!isFirstUser && (
+        {!isFirstUser && (mode === "login" || mode === "register") && (
+          <div className="flex flex-col items-center gap-2">
+            <button
+              type="button"
+              onClick={() => { setMode(mode === "login" ? "register" : "login"); setIsSubmitting(false); }}
+              className="text-sm text-primary hover:underline transition-colors"
+            >
+              {mode === "login" ? "Não tem conta? Cadastre-se" : "Já tem conta? Faça login"}
+            </button>
+            {mode === "login" && smtpConfigured && (
+              <button
+                type="button"
+                onClick={() => { setMode("forgot"); setIsSubmitting(false); }}
+                className="text-xs text-muted-foreground hover:text-primary hover:underline transition-colors"
+              >
+                Esqueceu sua senha?
+              </button>
+            )}
+          </div>
+        )}
+
+        {(mode === "forgot" || mode === "code" || mode === "newpass") && (
           <button
             type="button"
-            onClick={() => { setMode(mode === "login" ? "register" : "login"); setIsSubmitting(false); }}
+            onClick={() => { setMode("login"); setIsSubmitting(false); setResetCode(""); setNewPassword(""); }}
             className="text-sm text-primary hover:underline transition-colors"
           >
-            {mode === "login" ? "Não tem conta? Cadastre-se" : "Já tem conta? Faça login"}
+            Voltar ao login
           </button>
         )}
 
@@ -310,7 +426,8 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
 
-  const menuItems = adminMenuItems;
+  const isCoordinator = user?.role === "coordinator";
+  const menuItems = isCoordinator ? [...adminMenuItems, ...coordinatorMenuItems] : adminMenuItems;
   const activeMenuItem = menuItems.find(item => item.path === location);
 
   // Class selector for admin
@@ -432,7 +549,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                   <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
                     <p className="text-sm font-medium truncate leading-none">{user?.name || "-"}</p>
                     <p className="text-xs text-muted-foreground truncate mt-1.5">
-                      Professor · {user?.email || "-"}
+                      {user?.role === "coordinator" ? "Coordenador" : "Professor"} · {user?.email || "-"}
                     </p>
                   </div>
                 </button>

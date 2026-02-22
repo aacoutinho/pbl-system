@@ -1,0 +1,13 @@
+{
+  "query": "SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'users' AND COLUMN_NAME = 'role';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'users' AND COLUMN_NAME = 'role';",
+  "rows": [
+    {
+      "COLUMN_TYPE": "enum('user','admin','coordinator')"
+    }
+  ],
+  "messages": [],
+  "stdout": "COLUMN_TYPE\nenum('user','admin','coordinator')\n",
+  "stderr": "",
+  "execution_time_ms": 349
+}
