@@ -30,7 +30,6 @@ function ProfessorsContent() {
   const [filterComponentId, setFilterComponentId] = useState<string>("all");
 
   // Data queries
-  const { data: pendingSystemList, isLoading: loadingPending } = trpc.professors.pending.useQuery(undefined, { enabled: isAdmin });
   const { data: approvedList, isLoading: loadingApproved } = trpc.professors.approved.useQuery();
   const { data: allProfComponents } = trpc.professors.allComponents.useQuery();
   const { data: coordinator } = trpc.coordination.current.useQuery();
@@ -43,12 +42,6 @@ function ProfessorsContent() {
   const [requestComponentId, setRequestComponentId] = useState<string>("");
 
   // ─── Mutations ───
-  const approveMut = trpc.professors.approve.useMutation({
-    onSuccess: () => { utils.professors.pending.invalidate(); utils.professors.approved.invalidate(); toast.success("Professor aprovado com sucesso"); },
-  });
-  const rejectMut = trpc.professors.reject.useMutation({
-    onSuccess: () => { utils.professors.pending.invalidate(); toast.success("Solicitação rejeitada"); },
-  });
   const deleteUserMut = trpc.professors.deleteUser.useMutation({
     onSuccess: () => { utils.professors.approved.invalidate(); utils.professors.allComponents.invalidate(); toast.success("Professor removido do sistema"); },
     onError: (err) => toast.error(err.message),
@@ -73,7 +66,7 @@ function ProfessorsContent() {
     onError: (err) => toast.error(err.message),
   });
   const approveCompReqMut = trpc.professors.approveComponentRequest.useMutation({
-    onSuccess: () => { utils.professors.pendingComponentRequests.invalidate(); utils.professors.allComponents.invalidate(); toast.success("Professor aprovado no componente"); },
+    onSuccess: () => { utils.professors.pendingComponentRequests.invalidate(); utils.professors.allComponents.invalidate(); utils.professors.approved.invalidate(); toast.success("Professor aprovado no componente"); },
     onError: (err) => toast.error(err.message),
   });
   const rejectCompReqMut = trpc.professors.rejectComponentRequest.useMutation({
@@ -220,51 +213,8 @@ function ProfessorsContent() {
         </Card>
       )}
 
-      {/* Pending System Requests - admin only */}
-      {isAdmin && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-amber-500" />
-              Solicitações Pendentes (Sistema)
-            </CardTitle>
-            <CardDescription>Usuários que se cadastraram e aguardam aprovação para entrar no sistema.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loadingPending ? (
-              <p className="text-sm text-muted-foreground">Carregando...</p>
-            ) : !pendingSystemList || pendingSystemList.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhuma solicitação pendente.</p>
-            ) : (
-              <div className="space-y-3">
-                {pendingSystemList.map((prof) => (
-                  <div key={prof.id} className="flex items-center justify-between p-3 border rounded-lg bg-amber-50/50">
-                    <div>
-                      <p className="font-medium">{prof.name || "Sem nome"}</p>
-                      <p className="text-sm text-muted-foreground">{prof.email || "Sem e-mail"}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Solicitado em {new Date(prof.createdAt).toLocaleDateString("pt-BR")}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" onClick={() => approveMut.mutate({ userId: prof.id })} disabled={approveMut.isPending} className="gap-1">
-                        <CheckCircle className="h-4 w-4" />
-                        Aprovar
-                      </Button>
-                      <Button size="sm" variant="destructive" onClick={() => rejectMut.mutate({ userId: prof.id })} disabled={rejectMut.isPending} className="gap-1">
-                        <XCircle className="h-4 w-4" />
-                        Rejeitar
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
       {/* Pending Component Requests - for coordinators of those components */}
+      {/* Approving a component request also auto-approves the user in the system if still pending */}
       {(isAdmin || isCoordinator) && pendingComponentRequests && pendingComponentRequests.length > 0 && (
         <Card>
           <CardHeader>
@@ -272,14 +222,22 @@ function ProfessorsContent() {
               <Clock className="h-5 w-5 text-blue-500" />
               Solicitações de Entrada em Componentes
             </CardTitle>
-            <CardDescription>Professores que solicitaram entrada nos seus componentes.</CardDescription>
+            <CardDescription>Professores que solicitaram entrada nos seus componentes. Ao aprovar, o professor também é automaticamente aprovado no sistema se ainda estiver pendente.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {pendingComponentRequests.map((req: any) => (
                 <div key={`${req.userId}-${req.componentId}`} className="flex items-center justify-between p-3 border rounded-lg bg-blue-50/50">
                   <div>
-                    <p className="font-medium">{req.professorName || "Sem nome"}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">{req.professorName || "Sem nome"}</p>
+                      {req.userApprovalStatus === "pending" && (
+                        <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-300">
+                          <UserPlus className="h-3 w-3 mr-1" />
+                          Novo usuário
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-sm text-muted-foreground">{req.professorEmail || "Sem e-mail"}</p>
                     <Badge variant="outline" className="mt-1 text-xs">
                       <BookOpen className="h-3 w-3 mr-1" />

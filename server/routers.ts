@@ -1145,31 +1145,50 @@ export const appRouter = router({
       await assertComponentCoordinator(ctx.user.id, ctx.user.role, input.componentId);
       await approveComponentRequest(input.userId, input.componentId, ctx.user.id);
       await createAuditLog({ action: "approve_component_request", actorUserId: ctx.user.id, targetUserId: input.userId, componentId: input.componentId, details: JSON.stringify({ componentId: input.componentId }) });
+
+      // Auto-approve user in the system if still pending
+      const targetUser = await getUserById(input.userId);
+      let autoApprovedInSystem = false;
+      if (targetUser && targetUser.approvalStatus === "pending") {
+        await approveUser(input.userId);
+        autoApprovedInSystem = true;
+        await createAuditLog({
+          action: "auto_approve_user",
+          actorUserId: ctx.user.id,
+          targetUserId: input.userId,
+          componentId: input.componentId,
+          details: JSON.stringify({ reason: "Aprovado automaticamente ao ter componente aprovado", componentId: input.componentId }),
+        });
+      }
+
       // In-app notification
       const approvedComponent = await getComponentById(input.componentId);
+      const notifMessage = autoApprovedInSystem
+        ? `Sua solicitação de entrada no componente ${approvedComponent?.code || ""} - ${approvedComponent?.name || ""} foi aprovada. Você também foi aprovado no sistema como professor.`
+        : `Sua solicitação de entrada no componente ${approvedComponent?.code || ""} - ${approvedComponent?.name || ""} foi aprovada.`;
       await createNotification({
         userId: input.userId,
         type: "component_approved",
-        title: "Solicitação Aprovada",
-        message: `Sua solicitação de entrada no componente ${approvedComponent?.code || ""} - ${approvedComponent?.name || ""} foi aprovada.`,
-        metadata: JSON.stringify({ componentId: input.componentId }),
+        title: autoApprovedInSystem ? "Solicitação Aprovada - Acesso ao Sistema Liberado" : "Solicitação Aprovada",
+        message: notifMessage,
+        metadata: JSON.stringify({ componentId: input.componentId, autoApprovedInSystem }),
       });
       // Send notification email
       try {
-        const user = await getUserById(input.userId);
+        const user = targetUser || await getUserById(input.userId);
         const component = approvedComponent;
         if (user?.email && component) {
           await sendEmail({
             to: user.email,
             subject: `Solicitação Aprovada - ${component.code}`,
-            text: `Olá ${user.name || ""}, sua solicitação de entrada no componente ${component.code} - ${component.name} foi aprovada.`,
+            text: `Olá ${user.name || ""}, sua solicitação de entrada no componente ${component.code} - ${component.name} foi aprovada.${autoApprovedInSystem ? " Você também foi aprovado no sistema como professor." : ""}`,
             html: buildComponentApprovalEmailHtml(user.name || user.email, component.code, component.name),
           });
         }
       } catch (e) {
         console.error("[Email] Failed to send approval notification:", e);
       }
-      return { success: true };
+      return { success: true, autoApprovedInSystem };
     }),
     // Reject component request (admin or coordinator of that component)
     rejectComponentRequest: approvedProcedure.input(z.object({

@@ -280,3 +280,6 @@
 - [x] Testes para exportação e importação do banco
 - [x] Alterar texto dos botões de backup: "Exportar JSON" e "Selecionar JSON"
 - [x] Opção de reconstruir banco de dados (zerar completamente e recriar tabelas vazias) na página de Backup
+- [x] Unificar fluxo: aprovação de componente auto-aprova usuário pendente no sistema
+- [x] Remover/simplificar seção "Solicitações Pendentes (Sistema)" na página de Professores
+- [x] Atualizar testes para o novo fluxo unificado de aprovação

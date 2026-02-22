@@ -297,6 +297,7 @@ export async function listPendingRequestsByComponents(componentIds: number[]) {
     professorName: users.name,
     professorEmail: users.email,
     userCreatedAt: users.createdAt,
+    userApprovalStatus: users.approvalStatus,
   })
     .from(professorComponents)
     .innerJoin(users, eq(professorComponents.userId, users.id))
