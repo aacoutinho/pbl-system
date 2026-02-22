@@ -163,3 +163,4 @@
 - [x] Atualizar frontend (DashboardLayout, ProfessorsPage, etc.) com novos nomes de roles
 - [x] Atualizar testes com novos nomes de roles
 - [x] Atualizar banco de dados: roles já estão corretos no banco (admin=admin, coordinator=coordinator)
+- [x] Esconder seção de Solicitações Pendentes na página de Professores para não-admins

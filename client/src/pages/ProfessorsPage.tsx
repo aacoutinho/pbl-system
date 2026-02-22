@@ -140,7 +140,8 @@ function ProfessorsContent() {
         </Card>
       )}
 
-      {/* Pending Requests */}
+      {/* Pending Requests - only visible to admin */}
+      {isAdmin && (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -165,7 +166,6 @@ function ProfessorsContent() {
                       Solicitado em {new Date(prof.createdAt).toLocaleDateString("pt-BR")}
                     </p>
                   </div>
-                  {isAdmin && (
                   <div className="flex gap-2">
                     <Button
                       size="sm"
@@ -187,13 +187,13 @@ function ProfessorsContent() {
                       Rejeitar
                     </Button>
                   </div>
-                  )}
                 </div>
               ))}
             </div>
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* Approved Professors with Components */}
       <Card>
