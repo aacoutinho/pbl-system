@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, Download, Trophy, UserX, BookOpen, Info, Eye, FileSpreadsheet } from "lucide-react";
+import { BarChart3, Download, Trophy, UserX, BookOpen, Info, Eye, FileSpreadsheet, Table2 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useMemo, useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import React from "react";
@@ -78,6 +79,12 @@ function ResultsContent() {
 
   // Tutorial evaluation info
   const { data: tutorialEval } = trpc.tutorialEval.get.useQuery(
+    { sessionId: parseInt(selectedSessionId) },
+    { enabled: !!selectedSessionId }
+  );
+
+  // Peer grades matrix (individual grades from each evaluator)
+  const { data: peerMatrix, isLoading: peerMatrixLoading } = trpc.results.peerGradesMatrix.useQuery(
     { sessionId: parseInt(selectedSessionId) },
     { enabled: !!selectedSessionId }
   );
@@ -407,6 +414,115 @@ function ResultsContent() {
                         </tbody>
                       </table>
                     </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* ─── Peer Grades Matrix ─── */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Table2 className="h-5 w-5" />
+                    Notas Individuais dos Pares
+                  </CardTitle>
+                  <CardDescription>
+                    Tabela detalhada com as notas que cada aluno recebeu de cada avaliador. Colunas identificadas pelo número serial do avaliador.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {peerMatrixLoading ? (
+                    <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}</div>
+                  ) : !peerMatrix || peerMatrix.rows.length === 0 || peerMatrix.evaluators.length === 0 ? (
+                    <p className="text-center py-8 text-muted-foreground">Nenhuma avaliação entre pares encontrada para esta sessão.</p>
+                  ) : (
+                    <TooltipProvider>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm border-collapse">
+                          <thead>
+                            <tr className="border-b text-left">
+                              <th className="pb-3 pr-3 font-semibold text-center w-12">Nº</th>
+                              <th className="pb-3 pr-3 font-semibold">Matrícula</th>
+                              <th className="pb-3 pr-3 font-semibold">Nome</th>
+                              {peerMatrix.evaluators.map(ev => (
+                                <th key={ev.studentId} className="pb-3 px-1 font-semibold text-center min-w-[48px]">
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="cursor-help underline decoration-dotted decoration-muted-foreground/50">
+                                        A{ev.serial}
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">
+                                      <p className="text-xs"><strong>{ev.name}</strong></p>
+                                      <p className="text-xs text-muted-foreground">{ev.enrollment}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </th>
+                              ))}
+                              <th className="pb-3 pl-2 font-semibold text-center">Média Pares</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {peerMatrix.rows.map((row) => (
+                              <tr key={row.studentId} className="border-b last:border-0 hover:bg-accent/20 transition-colors">
+                                <td className="py-2.5 pr-3 text-center text-muted-foreground font-medium">{row.serial}</td>
+                                <td className="py-2.5 pr-3 font-mono text-xs">{row.studentEnrollment}</td>
+                                <td className="py-2.5 pr-3">
+                                  <span className="font-medium">{row.studentName}</span>
+                                  {row.absent && (
+                                    <Badge variant="outline" className="ml-2 bg-red-50 text-red-600 border-red-200 text-[10px] py-0">
+                                      Faltou
+                                    </Badge>
+                                  )}
+                                </td>
+                                {peerMatrix.evaluators.map(ev => {
+                                  // Skip self-evaluation column
+                                  if (ev.studentId === row.studentId) {
+                                    return (
+                                      <td key={ev.studentId} className="py-2.5 px-1 text-center">
+                                        <span className="text-muted-foreground/40">—</span>
+                                      </td>
+                                    );
+                                  }
+                                  const grade = row.peerGrades.find(g => g.evaluatorStudentId === ev.studentId);
+                                  if (!grade) {
+                                    return (
+                                      <td key={ev.studentId} className="py-2.5 px-1 text-center">
+                                        <span className="text-muted-foreground/30">-</span>
+                                      </td>
+                                    );
+                                  }
+                                  return (
+                                    <td key={ev.studentId} className="py-2.5 px-1 text-center">
+                                      <span className={`text-sm ${
+                                        grade.absent ? "text-red-400 italic" :
+                                        grade.score >= 8 ? "text-emerald-600 font-medium" :
+                                        grade.score >= 5 ? "text-amber-600" :
+                                        "text-red-600"
+                                      }`}>
+                                        {grade.absent ? "F" : grade.score.toFixed(1)}
+                                      </span>
+                                    </td>
+                                  );
+                                })}
+                                <td className="py-2.5 pl-2 text-center">
+                                  <span className={`font-bold ${
+                                    row.absent ? "text-muted-foreground" :
+                                    row.peerAverage >= 8 ? "text-emerald-600" :
+                                    row.peerAverage >= 5 ? "text-amber-600" :
+                                    "text-red-600"
+                                  }`}>
+                                    {row.peerAverage.toFixed(1)}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="mt-4 pt-3 border-t text-xs text-muted-foreground space-y-1">
+                        <p><strong>Legenda:</strong> A1, A2, ... = Número serial do avaliador (passe o mouse para ver o nome). <strong>—</strong> = Autoavaliação (excluída). <strong>F</strong> = Marcado como faltou. <strong>-</strong> = Sem avaliação.</p>
+                      </div>
+                    </TooltipProvider>
                   )}
                 </CardContent>
               </Card>

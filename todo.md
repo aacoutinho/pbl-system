@@ -8,7 +8,7 @@
 - [x] API: Role management with exclusivity rules (1 Coordenador, 1 Mesa, 1 Quadro per session)
 - [x] API: Export results (CSV)
 - [x] API: Dashboard data aggregation (averages, rankings, participation status)
-- [ ] API: Notification system for professor alerts
+- [x] API: Notification system for professor alerts (implementado como notificações in-app)
 - [x] Frontend: Authentication flow with automatic email identification
 - [x] Frontend: Dynamic evaluation form excluding self from evaluated list
 - [x] Frontend: Real-time validation of grades (0-10) with visual feedback
@@ -17,7 +17,6 @@
 - [x] Frontend: Professor dashboard with real-time averages, rankings, participation
 - [x] Frontend: Export functionality (CSV)
 - [x] Frontend: Student results page with session details
-- [ ] Frontend: Notification alerts for submissions and anomalies
 - [x] Frontend: Landing page / Home
 - [x] Tests: Backend calculation engine tests
 - [x] Tests: API endpoint tests (22 tests passing)
@@ -249,3 +248,6 @@
 - [x] Frontend: aba Notificações no menu lateral com badge de contagem de não lidas
 - [x] Testes: notificações in-app (19 novos testes)
 - [x] Exibir notificações recentes no Painel Geral (Home)
+- [x] Tabela detalhada de notas dos pares nos resultados da sessão
+- [x] Backend: rota para retornar notas individuais dos pares por sessão
+- [x] Frontend: tabela com serial, matrícula, nome, notas individuais (coluna por avaliador com serial) e média dos pares

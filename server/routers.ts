@@ -33,6 +33,7 @@ import {
   transferStudentBetweenClasses,
   createAuditLog, listAuditLogs,
   createNotification, listNotifications, countUnreadNotifications, markNotificationAsRead, markAllNotificationsAsRead,
+  getPeerGradesMatrix,
 } from "./db";
 import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml } from "./email";
 
@@ -1288,6 +1289,9 @@ export const appRouter = router({
   results: router({
     session: protectedProcedure.input(z.object({ sessionId: z.number() })).query(async ({ input }) => {
       return calculateSessionResults(input.sessionId);
+    }),
+    peerGradesMatrix: protectedProcedure.input(z.object({ sessionId: z.number() })).query(async ({ input }) => {
+      return getPeerGradesMatrix(input.sessionId);
     }),
     sessionFinal: protectedProcedure.input(z.object({ sessionId: z.number() })).query(async ({ input }) => {
       return calculateFinalGrades(input.sessionId);

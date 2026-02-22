@@ -1742,3 +1742,137 @@ export async function markAllNotificationsAsRead(userId: number) {
     .set({ read: true })
     .where(and(eq(notifications.userId, userId), eq(notifications.read, false)));
 }
+
+// ─── Peer Grades Matrix (notas individuais dos pares) ───
+export interface PeerGradeDetail {
+  evaluatorStudentId: number;
+  evaluatorSerial: number;
+  score: number; // soma dos 5 critérios
+  absent: boolean;
+}
+
+export interface PeerGradesMatrixRow {
+  serial: number;
+  studentId: number;
+  studentName: string;
+  studentEnrollment: string;
+  peerGrades: PeerGradeDetail[]; // uma entrada por avaliador (excluindo autoavaliação)
+  peerAverage: number;
+  absent: boolean;
+}
+
+export async function getPeerGradesMatrix(sessionId: number): Promise<{
+  evaluators: { studentId: number; serial: number; name: string; enrollment: string }[];
+  rows: PeerGradesMatrixRow[];
+}> {
+  const db = await getDb();
+  if (!db) return { evaluators: [], rows: [] };
+
+  const sessionStudentsList = await getSessionStudents(sessionId);
+  const evals = await db.select().from(evaluations).where(eq(evaluations.sessionId, sessionId));
+
+  if (evals.length === 0) {
+    return {
+      evaluators: [],
+      rows: sessionStudentsList.map((s, i) => ({
+        serial: i + 1,
+        studentId: s.studentId,
+        studentName: s.studentName,
+        studentEnrollment: s.studentEnrollment,
+        peerGrades: [],
+        peerAverage: 0,
+        absent: false,
+      })),
+    };
+  }
+
+  const evalIds = evals.map(e => e.id);
+  const allItems = await db.select({
+    evaluationId: evaluationItems.evaluationId,
+    evaluatedStudentId: evaluationItems.evaluatedStudentId,
+    absent: evaluationItems.absent,
+    atuacao: evaluationItems.atuacao,
+    pontualidade: evaluationItems.pontualidade,
+    dominio: evaluationItems.dominio,
+    metas: evaluationItems.metas,
+    participacao: evaluationItems.participacao,
+  }).from(evaluationItems).where(inArray(evaluationItems.evaluationId, evalIds));
+
+  const evalToEvaluator = new Map<number, number>();
+  for (const e of evals) evalToEvaluator.set(e.id, e.evaluatorStudentId);
+
+  // Assign serial numbers to all students in the session (alphabetical order by name)
+  const serialMap = new Map<number, number>();
+  sessionStudentsList.forEach((s, i) => serialMap.set(s.studentId, i + 1));
+
+  // Build evaluator list (only students who actually submitted evaluations)
+  const evaluatorIds = new Set(evals.map(e => e.evaluatorStudentId));
+  const evaluators = sessionStudentsList
+    .filter(s => evaluatorIds.has(s.studentId))
+    .map(s => ({
+      studentId: s.studentId,
+      serial: serialMap.get(s.studentId) || 0,
+      name: s.studentName,
+      enrollment: s.studentEnrollment,
+    }))
+    .sort((a, b) => a.serial - b.serial);
+
+  // Determine absent students
+  const absentStudents = new Set<number>();
+  for (const s of sessionStudentsList) {
+    const itemsForStudent = allItems.filter(i => {
+      const evaluatorId = evalToEvaluator.get(i.evaluationId);
+      return i.evaluatedStudentId === s.studentId && evaluatorId !== s.studentId;
+    });
+    const absentCount = itemsForStudent.filter(i => i.absent).length;
+    const presentCount = itemsForStudent.filter(i => !i.absent).length;
+    if (itemsForStudent.length > 0 && absentCount > presentCount) {
+      absentStudents.add(s.studentId);
+    }
+  }
+
+  // Build rows
+  const rows: PeerGradesMatrixRow[] = sessionStudentsList.map(s => {
+    const isAbsent = absentStudents.has(s.studentId);
+
+    // Get individual grades from each evaluator (excluding self-evaluation)
+    const peerGrades: PeerGradeDetail[] = [];
+    for (const evaluator of evaluators) {
+      if (evaluator.studentId === s.studentId) continue; // skip self
+      // Find the evaluation item from this evaluator for this student
+      const eval_ = evals.find(e => e.evaluatorStudentId === evaluator.studentId);
+      if (!eval_) continue;
+      const item = allItems.find(
+        i => i.evaluationId === eval_.id && i.evaluatedStudentId === s.studentId
+      );
+      if (item) {
+        const score = item.absent ? 0 :
+          Number(item.atuacao) + Number(item.pontualidade) + Number(item.dominio) + Number(item.metas) + Number(item.participacao);
+        peerGrades.push({
+          evaluatorStudentId: evaluator.studentId,
+          evaluatorSerial: evaluator.serial,
+          score: Math.round(score * 100) / 100,
+          absent: item.absent,
+        });
+      }
+    }
+
+    // Calculate average (only from non-absent grades)
+    const validGrades = peerGrades.filter(g => !g.absent);
+    const peerAverage = validGrades.length > 0
+      ? Math.round((validGrades.reduce((sum, g) => sum + g.score, 0) / validGrades.length) * 100) / 100
+      : 0;
+
+    return {
+      serial: serialMap.get(s.studentId) || 0,
+      studentId: s.studentId,
+      studentName: s.studentName,
+      studentEnrollment: s.studentEnrollment,
+      peerGrades,
+      peerAverage,
+      absent: isAbsent,
+    };
+  });
+
+  return { evaluators, rows };
+}
