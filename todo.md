@@ -141,3 +141,4 @@
 - [x] Bug: botão "Voltar" na tela de acesso pendente deve fazer logout em vez de apenas navegar
 - [x] Backend: restringir rotas de aprovar/rejeitar/excluir professor apenas ao coordenador
 - [x] Frontend: esconder botões de aprovação/rejeição/exclusão para não-coordenadores
+- [x] Bug: erro "Turma não encontrada" na página /sessions quando turma selecionada não existe para o usuário

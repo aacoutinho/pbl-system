@@ -434,9 +434,20 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
   const { selectedClassId, setSelectedClassId } = useClassContext();
   const { data: classesList } = trpc.classes.list.useQuery();
 
-  // Auto-select first class if none selected
+  // Validate selectedClassId belongs to current user's classes, auto-select first if invalid
   useEffect(() => {
-    if (classesList && classesList.length > 0 && selectedClassId === null) {
+    if (!classesList) return;
+    if (classesList.length === 0) {
+      if (selectedClassId !== null) setSelectedClassId(null);
+      return;
+    }
+    // If selectedClassId is not in the user's classes, reset it
+    if (selectedClassId !== null && !classesList.some(c => c.id === selectedClassId)) {
+      setSelectedClassId(classesList[0].id);
+      return;
+    }
+    // Auto-select first class if none selected
+    if (selectedClassId === null) {
       setSelectedClassId(classesList[0].id);
     }
   }, [classesList, selectedClassId, setSelectedClassId]);
