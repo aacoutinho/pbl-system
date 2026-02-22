@@ -144,3 +144,5 @@
 - [x] Bug: erro "Turma não encontrada" na página /sessions quando turma selecionada não existe para o usuário
 - [x] Frontend: adicionar seção de ajuda na página Config. E-mail com instruções do Gmail SMTP
 - [x] Frontend: valores padrão do Gmail SMTP nos campos de configuração de e-mail
+- [x] Backend: teste de conexão SMTP também envia e-mail de teste ao coordenador
+- [x] Frontend: feedback sobre e-mail de teste enviado

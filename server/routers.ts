@@ -197,8 +197,13 @@ export const appRouter = router({
       secure: z.boolean(),
       username: z.string().min(1),
       password: z.string().min(1),
-    })).mutation(async ({ input }) => {
-      return testSmtpConnection(input);
+      fromEmail: z.string().email().optional(),
+      fromName: z.string().optional(),
+    })).mutation(async ({ ctx, input }) => {
+      return testSmtpConnection({
+        ...input,
+        testRecipient: ctx.user.email ?? undefined,
+      });
     }),
     delete: coordinatorProcedure.mutation(async ({ ctx }) => {
       await deleteSmtpConfig(ctx.user.id);

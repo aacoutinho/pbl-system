@@ -143,8 +143,10 @@ function SmtpConfigContent() {
 
   const testMut = trpc.smtp.test.useMutation({
     onSuccess: (data) => {
-      if (data.success) {
-        toast.success("Conexão SMTP testada com sucesso!");
+      if (data.success && data.emailSent) {
+        toast.success("Conexão testada com sucesso! Um e-mail de teste foi enviado para sua caixa de entrada.");
+      } else if (data.success) {
+        toast.success("Conexão SMTP testada com sucesso! Preencha o e-mail do remetente para receber um e-mail de teste.");
       } else {
         toast.error("Falha na conexão: " + (data.error || "desconhecido"));
       }
@@ -174,7 +176,7 @@ function SmtpConfigContent() {
       toast.error("Preencha host, usuário e senha para testar");
       return;
     }
-    testMut.mutate({ host, port, secure, username, password });
+    testMut.mutate({ host, port, secure, username, password, fromEmail: fromEmail || undefined, fromName: fromName || undefined });
   };
 
   if (isLoading) {
