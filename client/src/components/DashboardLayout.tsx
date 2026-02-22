@@ -74,7 +74,7 @@ const MIN_WIDTH = 200;
 const MAX_WIDTH = 400;
 
 function LoginScreen() {
-  const [mode, setMode] = useState<"login" | "register" | "forgot" | "code" | "newpass">("login");
+  const [mode, setMode] = useState<"login" | "register" | "verify" | "forgot" | "code" | "newpass">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -83,6 +83,7 @@ function LoginScreen() {
   const [resetCode, setResetCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [selectedComponentIds, setSelectedComponentIds] = useState<number[]>([]);
+  const [verificationCode, setVerificationCode] = useState("");
 
   const { data: firstUserData } = trpc.auth.isFirstUser.useQuery();
   const { data: componentsList } = trpc.components.list.useQuery();
@@ -93,6 +94,23 @@ function LoginScreen() {
   const loginMutation = trpc.auth.login.useMutation({
     onSuccess: () => {
       window.location.reload();
+    },
+    onError: (err) => {
+      toast.error(err.message);
+      setIsSubmitting(false);
+    },
+  });
+
+  const sendVerificationCodeMutation = trpc.auth.sendVerificationCode.useMutation({
+    onSuccess: (data) => {
+      if (data.smtpSkipped) {
+        // First user, SMTP not configured - register directly without code
+        registerMutation.mutate({ email, name, password, componentIds: [] });
+      } else {
+        toast.success("Código de verificação enviado para seu e-mail!");
+        setMode("verify");
+        setIsSubmitting(false);
+      }
     },
     onError: (err) => {
       toast.error(err.message);
@@ -148,7 +166,11 @@ function LoginScreen() {
     if (mode === "login") {
       loginMutation.mutate({ email, password });
     } else if (mode === "register") {
-      registerMutation.mutate({ email, name, password, componentIds: isFirstUser ? [] : selectedComponentIds });
+      // Step 1: Send verification code
+      sendVerificationCodeMutation.mutate({ email });
+    } else if (mode === "verify") {
+      // Step 2: Confirm code and complete registration
+      registerMutation.mutate({ email, name, password, verificationCode, componentIds: isFirstUser ? [] : selectedComponentIds });
     } else if (mode === "forgot") {
       requestResetMutation.mutate({ email });
     } else if (mode === "code" || mode === "newpass") {
@@ -187,7 +209,7 @@ function LoginScreen() {
         {/* Login / Register Form */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
           <p className="text-xs text-muted-foreground text-center font-medium uppercase tracking-wider">
-            {mode === "login" ? "Professor" : mode === "register" ? (isFirstUser ? "Criar Administrador" : "Novo Professor") : "Recuperar Senha"}
+            {mode === "login" ? "Professor" : mode === "register" ? (isFirstUser ? "Criar Administrador" : "Novo Professor") : mode === "verify" ? "Verificar E-mail" : "Recuperar Senha"}
           </p>
 
           {mode === "register" && (
@@ -242,6 +264,40 @@ function LoginScreen() {
                 })}
               </div>
             </div>
+          )}
+
+          {mode === "verify" && (
+            <>
+              <p className="text-sm text-muted-foreground text-center">
+                Um código de 6 dígitos foi enviado para <strong>{email}</strong>. Informe o código abaixo para confirmar seu cadastro.
+              </p>
+              <div className="space-y-1.5">
+                <Label htmlFor="verifyCode" className="text-sm">Código de verificação</Label>
+                <Input
+                  id="verifyCode"
+                  type="text"
+                  placeholder="000000"
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  required
+                  maxLength={6}
+                  className="text-center text-2xl tracking-[0.5em] font-mono"
+                  autoComplete="one-time-code"
+                  autoFocus
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSubmitting(true);
+                  sendVerificationCodeMutation.mutate({ email });
+                }}
+                className="text-xs text-primary hover:underline transition-colors text-center"
+                disabled={isSubmitting}
+              >
+                Reenviar código
+              </button>
+            </>
           )}
 
           {(mode === "login" || mode === "register") && (
@@ -332,7 +388,7 @@ function LoginScreen() {
             {isSubmitting ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
             ) : null}
-            {mode === "login" ? "Entrar" : mode === "register" ? (isFirstUser ? "Criar Conta de Administrador" : "Cadastrar") : mode === "forgot" ? "Enviar Código" : "Redefinir Senha"}
+            {mode === "login" ? "Entrar" : mode === "register" ? (isFirstUser ? "Criar Conta de Administrador" : "Enviar Código de Verificação") : mode === "verify" ? "Confirmar Cadastro" : mode === "forgot" ? "Enviar Código" : "Redefinir Senha"}
           </Button>
         </form>
 
@@ -355,6 +411,16 @@ function LoginScreen() {
               </button>
             )}
           </div>
+        )}
+
+        {mode === "verify" && (
+          <button
+            type="button"
+            onClick={() => { setMode("register"); setIsSubmitting(false); setVerificationCode(""); }}
+            className="text-sm text-primary hover:underline transition-colors"
+          >
+            Voltar ao cadastro
+          </button>
         )}
 
         {(mode === "forgot" || mode === "code" || mode === "newpass") && (

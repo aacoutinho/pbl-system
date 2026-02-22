@@ -15,6 +15,7 @@ import {
   smtpConfig, InsertSmtpConfig,
   passwordResetCodes,
   classEvalPermissions,
+  emailVerificationCodes,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1542,4 +1543,34 @@ export async function listComponentProfessorsForClass(classId: number) {
       not(eq(professorComponents.userId, classOwnerUserId)),
     ));
   return rows;
+}
+
+// ─── Email Verification Codes ───
+
+export async function createEmailVerificationCode(email: string, code: string, expiresAt: Date) {
+  const db = (await getDb())!;
+  // Invalidate any previous codes for this email
+  await db.update(emailVerificationCodes)
+    .set({ used: true })
+    .where(and(eq(emailVerificationCodes.email, email), eq(emailVerificationCodes.used, false)));
+  // Create new code
+  await db.insert(emailVerificationCodes).values({ email, code, expiresAt });
+}
+
+export async function verifyEmailCode(email: string, code: string): Promise<boolean> {
+  const db = (await getDb())!;
+  const [record] = await db.select().from(emailVerificationCodes)
+    .where(and(
+      eq(emailVerificationCodes.email, email),
+      eq(emailVerificationCodes.code, code),
+      eq(emailVerificationCodes.used, false),
+    ))
+    .limit(1);
+  if (!record) return false;
+  if (record.expiresAt < new Date()) return false;
+  // Mark as used
+  await db.update(emailVerificationCodes)
+    .set({ used: true })
+    .where(eq(emailVerificationCodes.id, record.id));
+  return true;
 }

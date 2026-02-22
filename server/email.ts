@@ -107,6 +107,35 @@ export function generateResetCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+export function buildVerificationEmailHtml(code: string, email: string): string {
+  return `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <h2 style="color: #1f2937; margin: 0 0 8px;">Verificação de E-mail</h2>
+        <p style="color: #6b7280; margin: 0; font-size: 14px;">Avaliação Tutorial</p>
+      </div>
+      <p style="color: #374151; font-size: 15px; line-height: 1.6;">
+        Olá,
+      </p>
+      <p style="color: #374151; font-size: 15px; line-height: 1.6;">
+        Para confirmar seu cadastro com o e-mail <strong>${email}</strong>, use o código abaixo:
+      </p>
+      <div style="text-align: center; margin: 24px 0;">
+        <div style="display: inline-block; background: #eff6ff; border: 2px dashed #3b82f6; border-radius: 8px; padding: 16px 32px;">
+          <span style="font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #1e40af;">${code}</span>
+        </div>
+      </div>
+      <p style="color: #6b7280; font-size: 13px; line-height: 1.5;">
+        Este código expira em <strong>15 minutos</strong>. Se você não solicitou este cadastro, ignore este e-mail.
+      </p>
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+      <p style="color: #9ca3af; font-size: 12px; text-align: center;">
+        Sistema de Avaliação de Desempenho Tutorial
+      </p>
+    </div>
+  `;
+}
+
 export function buildResetEmailHtml(code: string, userName: string): string {
   return `
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb;">

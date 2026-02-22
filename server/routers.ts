@@ -28,8 +28,9 @@ import {
   approveComponentRequest, rejectComponentRequest, setComponentRole, removeProfessorFromComponent,
   getCoordinatorComponentIds,
   grantEvalPermission, revokeEvalPermission, hasEvalPermission, listEvalPermissions, listComponentProfessorsForClass,
+  createEmailVerificationCode, verifyEmailCode,
 } from "./db";
-import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml } from "./email";
+import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml } from "./email";
 
 // Base: approved user (any role except "user" pending)
 const approvedProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -105,16 +106,57 @@ export const appRouter = router({
       const total = await countUsers();
       return { isFirstUser: total === 0 };
     }),
+    // Step 1: Send verification code to email
+    sendVerificationCode: publicProcedure.input(z.object({
+      email: z.string().email(),
+    })).mutation(async ({ input }) => {
+      const existing = await getUserByEmail(input.email.toLowerCase());
+      if (existing) throw new TRPCError({ code: "CONFLICT", message: "Este e-mail já está cadastrado" });
+      const smtpOk = await isSmtpConfigured();
+      if (!smtpOk) {
+        // If SMTP is not configured and this is the first user, skip verification
+        const total = await countUsers();
+        if (total === 0) {
+          return { success: true, smtpSkipped: true };
+        }
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "O servidor de e-mail não está configurado. Contacte o administrador." });
+      }
+      const code = generateResetCode(); // reuse 6-digit code generator
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+      await createEmailVerificationCode(input.email.toLowerCase(), code, expiresAt);
+      const result = await sendEmail({
+        to: input.email.toLowerCase(),
+        subject: "Código de Verificação - Avaliação Tutorial",
+        text: `Seu código de verificação é: ${code}. Válido por 15 minutos.`,
+        html: buildVerificationEmailHtml(code, input.email.toLowerCase()),
+      });
+      if (!result.success) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Erro ao enviar e-mail de verificação: " + (result.error || "desconhecido") });
+      }
+      return { success: true, smtpSkipped: false };
+    }),
+    // Step 2: Verify code and complete registration
     register: publicProcedure.input(z.object({
       email: z.string().email(),
       name: z.string().min(1),
       password: z.string().min(6),
-      componentIds: z.array(z.number()).optional(), // Components the user wants to join
+      verificationCode: z.string().length(6).optional(), // Optional for first user when SMTP not configured
+      componentIds: z.array(z.number()).optional(),
     })).mutation(async ({ ctx, input }) => {
       const existing = await getUserByEmail(input.email.toLowerCase());
       if (existing) throw new TRPCError({ code: "CONFLICT", message: "Este e-mail já está cadastrado" });
       const total = await countUsers();
       const isFirst = total === 0;
+      // Verify email code (skip for first user if SMTP not configured)
+      if (!isFirst || await isSmtpConfigured()) {
+        if (!input.verificationCode) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Código de verificação é obrigatório" });
+        }
+        const valid = await verifyEmailCode(input.email.toLowerCase(), input.verificationCode);
+        if (!valid) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Código de verificação inválido ou expirado" });
+        }
+      }
       const passwordHash = await bcrypt.hash(input.password, 10);
       const user = await createUserWithPassword({
         email: input.email.toLowerCase(),

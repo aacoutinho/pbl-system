@@ -170,6 +170,18 @@ export const classEvalPermissions = mysqlTable("class_eval_permissions", {
 export type ClassEvalPermission = typeof classEvalPermissions.$inferSelect;
 export type InsertClassEvalPermission = typeof classEvalPermissions.$inferInsert;
 
+// ─── Email Verification Codes (for registration) ───
+export const emailVerificationCodes = mysqlTable("email_verification_codes", {
+  id: int("id").autoincrement().primaryKey(),
+  email: varchar("email", { length: 320 }).notNull(),
+  code: varchar("code", { length: 6 }).notNull(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  used: boolean("used").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type EmailVerificationCode = typeof emailVerificationCodes.$inferSelect;
+
 // ─── SMTP Configuration (admin's email credentials) ───
 export const smtpConfig = mysqlTable("smtp_config", {
   id: int("id").autoincrement().primaryKey(),

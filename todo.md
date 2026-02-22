@@ -201,3 +201,8 @@
 - [x] Esconder botões de edição/exclusão no frontend quando o professor não é dono da turma
 - [x] Indicação visual na lista de turmas mostrando quem criou cada turma
 - [x] Mover ajuda 'Como configurar o Gmail como servidor SMTP?' para logo abaixo da mensagem de status
+- [x] Verificação de e-mail por código durante o cadastro
+- [x] Tabela de códigos de verificação no schema
+- [x] Rota para enviar código de verificação por e-mail
+- [x] Rota para validar código e completar registro
+- [x] Frontend: fluxo de registro com etapa de verificação
