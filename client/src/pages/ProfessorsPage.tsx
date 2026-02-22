@@ -279,8 +279,8 @@ function ProfessorsContent() {
               {pendingComponentRequests.map((req: any) => (
                 <div key={`${req.userId}-${req.componentId}`} className="flex items-center justify-between p-3 border rounded-lg bg-blue-50/50">
                   <div>
-                    <p className="font-medium">{req.userName || "Sem nome"}</p>
-                    <p className="text-sm text-muted-foreground">{req.userEmail || "Sem e-mail"}</p>
+                    <p className="font-medium">{req.professorName || "Sem nome"}</p>
+                    <p className="text-sm text-muted-foreground">{req.professorEmail || "Sem e-mail"}</p>
                     <Badge variant="outline" className="mt-1 text-xs">
                       <BookOpen className="h-3 w-3 mr-1" />
                       {req.componentCode}

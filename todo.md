@@ -273,3 +273,4 @@
 - [x] Frontend: página de Contato para admin (lista de tickets com opção de marcar como resolvido)
 - [x] Menu lateral: adicionar aba Contato para todos os usuários
 - [x] Testes: tickets de contato (8 novos testes)
+- [x] Bug: na página de Professores, solicitação no quadro de componente não exibe nome nem e-mail do professor (campo userName/userEmail corrigido para professorName/professorEmail)
