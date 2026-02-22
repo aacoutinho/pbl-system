@@ -142,3 +142,4 @@
 - [x] Backend: restringir rotas de aprovar/rejeitar/excluir professor apenas ao coordenador
 - [x] Frontend: esconder botões de aprovação/rejeição/exclusão para não-coordenadores
 - [x] Bug: erro "Turma não encontrada" na página /sessions quando turma selecionada não existe para o usuário
+- [x] Frontend: adicionar seção de ajuda na página Config. E-mail com instruções do Gmail SMTP
