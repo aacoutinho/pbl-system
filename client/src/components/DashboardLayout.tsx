@@ -24,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useIsMobile } from "@/hooks/useMobile";
 import { useClassContext } from "@/contexts/ClassContext";
 import { trpc } from "@/lib/trpc";
-import { LayoutDashboard, Users, ClipboardList, BarChart3, LogOut, PanelLeft, GraduationCap, BookOpen, ClipboardCheck, Download, KeyRound, UserCheck, Clock, Eye, EyeOff, Loader2, Mail, ArrowRightLeft, Layers, User, History, Bell } from "lucide-react";
+import { LayoutDashboard, Users, ClipboardList, BarChart3, LogOut, PanelLeft, GraduationCap, BookOpen, ClipboardCheck, Download, KeyRound, UserCheck, Clock, Eye, EyeOff, Loader2, Mail, ArrowRightLeft, Layers, User, History, Bell, MessageSquare } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState, FormEvent } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -54,6 +54,9 @@ const auditLogItem = { icon: History, label: "Histórico de Ações", path: "/au
 // Notifications: for all approved users
 const notificationsItem = { icon: Bell, label: "Notificações", path: "/notifications" };
 
+// Contact: for all approved users
+const contactItem = { icon: MessageSquare, label: "Contato", path: "/contact" };
+
 // Admin-only items
 const adminOnlyItems = [
   { icon: Download, label: "Exportar Alunos", path: "/export-students" },
@@ -62,15 +65,16 @@ const adminOnlyItems = [
 
 function getMenuItemsForRole(role: string) {
   if (role === "admin") {
-    return [...baseMenuItems, notificationsItem, auditLogItem, ...adminOnlyItems];
+    return [...baseMenuItems, notificationsItem, contactItem, auditLogItem, ...adminOnlyItems];
   }
   // coordinator and prof: include tutorial eval
   const items = [...baseMenuItems];
   // Insert tutorial eval after Sessões
   const sessionsIdx = items.findIndex(i => i.path === "/sessions");
   items.splice(sessionsIdx + 1, 0, tutorialEvalItem);
-  // All approved users get notifications
+  // All approved users get notifications and contact
   items.push(notificationsItem);
+  items.push(contactItem);
   // Coordinators also get audit log
   if (role === "coordinator") {
     items.push(auditLogItem);

@@ -36,8 +36,9 @@ import {
   listPendingNotifications, countPendingNotifications,
   getPeerGradesMatrix,
   syncPendingRequestNotifications,
+  createContactTicket, listContactTickets, listMyContactTickets, resolveContactTicket, getContactTicketById, countOpenContactTickets,
 } from "./db";
-import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml } from "./email";
+import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml, buildContactTicketEmailHtml } from "./email";
 
 // Base: approved user (any role except "user" pending)
 const approvedProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -1410,6 +1411,81 @@ export const appRouter = router({
     pendingCount: approvedProcedure.query(async ({ ctx }) => {
       try { await syncPendingRequestNotifications(ctx.user.id); } catch {}
       const count = await countPendingNotifications(ctx.user.id);
+      return { count };
+    }),
+  }),
+
+  // ─── Contact Tickets ───
+  contactTickets: router({
+    // Professor submits a bug report or feature request
+    create: approvedProcedure.input(z.object({
+      type: z.enum(["bug", "feature"]),
+      subject: z.string().min(3).max(255),
+      message: z.string().min(10).max(5000),
+    })).mutation(async ({ ctx, input }) => {
+      const ticket = await createContactTicket({
+        userId: ctx.user.id,
+        type: input.type,
+        subject: input.subject,
+        message: input.message,
+      });
+
+      // Send email to all admins
+      try {
+        const admin = await getAdmin();
+        if (admin?.email) {
+          const html = buildContactTicketEmailHtml({
+            ticketType: input.type,
+            subject: input.subject,
+            message: input.message,
+            userName: ctx.user.name || "Professor",
+            userEmail: ctx.user.email || "",
+          });
+          const typeLabel = input.type === "bug" ? "Bug" : "Funcionalidade";
+          await sendEmail({
+            to: admin.email,
+            subject: `[${typeLabel}] ${input.subject}`,
+            text: `${ctx.user.name || "Professor"} (${ctx.user.email}) enviou: ${input.subject}\n\n${input.message}`,
+            html,
+          });
+        }
+      } catch (err) {
+        console.error("[ContactTicket] Failed to send email:", err);
+      }
+
+      return ticket;
+    }),
+
+    // Professor sees their own tickets
+    myList: approvedProcedure.input(z.object({
+      limit: z.number().min(1).max(100).optional().default(50),
+      offset: z.number().min(0).optional().default(0),
+    })).query(async ({ ctx, input }) => {
+      return listMyContactTickets(ctx.user.id, { limit: input.limit, offset: input.offset });
+    }),
+
+    // Admin sees all tickets
+    list: adminProcedure.input(z.object({
+      status: z.enum(["open", "resolved"]).optional(),
+      limit: z.number().min(1).max(100).optional().default(50),
+      offset: z.number().min(0).optional().default(0),
+    })).query(async ({ input }) => {
+      return listContactTickets({ status: input.status, limit: input.limit, offset: input.offset });
+    }),
+
+    // Admin resolves a ticket
+    resolve: adminProcedure.input(z.object({
+      ticketId: z.number(),
+    })).mutation(async ({ input }) => {
+      const ticket = await getContactTicketById(input.ticketId);
+      if (!ticket) throw new TRPCError({ code: "NOT_FOUND", message: "Ticket não encontrado" });
+      await resolveContactTicket(input.ticketId);
+      return { success: true };
+    }),
+
+    // Admin gets count of open tickets
+    openCount: adminProcedure.query(async () => {
+      const count = await countOpenContactTickets();
       return { count };
     }),
   }),

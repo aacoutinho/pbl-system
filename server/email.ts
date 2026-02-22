@@ -295,3 +295,43 @@ export function buildEvalPermissionGrantedEmailHtml(
     </div>
   `;
 }
+
+
+// ─── Contact Ticket Email Template ───
+export function buildContactTicketEmailHtml(data: {
+  ticketType: "bug" | "feature";
+  subject: string;
+  message: string;
+  userName: string;
+  userEmail: string;
+}): string {
+  const typeLabel = data.ticketType === "bug" ? "Relatório de Bug" : "Pedido de Funcionalidade";
+  const typeColor = data.ticketType === "bug" ? "#dc2626" : "#2563eb";
+  const typeIcon = data.ticketType === "bug" ? "🐛" : "💡";
+
+  return `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+      <div style="background: ${typeColor}; padding: 24px 32px; text-align: center;">
+        <h1 style="color: #ffffff; margin: 0; font-size: 22px;">${typeIcon} ${typeLabel}</h1>
+      </div>
+      <div style="padding: 32px;">
+        <div style="background: #f8fafc; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+          <p style="margin: 0 0 8px 0; font-size: 14px; color: #64748b;">Enviado por:</p>
+          <p style="margin: 0; font-size: 16px; font-weight: 600; color: #1e293b;">${data.userName}</p>
+          <p style="margin: 4px 0 0 0; font-size: 14px; color: #64748b;">${data.userEmail}</p>
+        </div>
+        <div style="margin-bottom: 20px;">
+          <p style="margin: 0 0 8px 0; font-size: 14px; color: #64748b; font-weight: 600;">Assunto:</p>
+          <p style="margin: 0; font-size: 16px; color: #1e293b;">${data.subject}</p>
+        </div>
+        <div style="background: #f1f5f9; border-left: 4px solid ${typeColor}; padding: 16px; border-radius: 0 8px 8px 0;">
+          <p style="margin: 0 0 8px 0; font-size: 14px; color: #64748b; font-weight: 600;">Mensagem:</p>
+          <p style="margin: 0; font-size: 14px; color: #334155; line-height: 1.6; white-space: pre-wrap;">${data.message}</p>
+        </div>
+        <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; text-align: center;">
+          <p style="margin: 0; font-size: 12px; color: #94a3b8;">Acesse o sistema para gerenciar este ticket.</p>
+        </div>
+      </div>
+    </div>
+  `;
+}

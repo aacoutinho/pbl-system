@@ -19,6 +19,7 @@ import ComponentsPage from "./pages/ComponentsPage";
 import ProfilePage from "./pages/ProfilePage";
 import AuditLogPage from "./pages/AuditLogPage";
 import NotificationsPage from "./pages/NotificationsPage";
+import ContactPage from "./pages/ContactPage";
 
 function Router() {
   return (
@@ -37,6 +38,7 @@ function Router() {
       <Route path={"/profile"} component={ProfilePage} />
       <Route path={"/audit-log"} component={AuditLogPage} />
       <Route path={"/notifications"} component={NotificationsPage} />
+      <Route path={"/contact"} component={ContactPage} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

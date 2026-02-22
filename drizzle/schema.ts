@@ -242,3 +242,18 @@ export const notifications = mysqlTable("notifications", {
 
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
+
+// ─── Contact Tickets (bug reports and feature requests) ───
+export const contactTickets = mysqlTable("contact_tickets", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(), // The professor who submitted the ticket
+  type: mysqlEnum("type", ["bug", "feature"]).notNull(),
+  subject: varchar("subject", { length: 255 }).notNull(),
+  message: text("message").notNull(),
+  status: mysqlEnum("status", ["open", "resolved"]).default("open").notNull(),
+  resolvedAt: timestamp("resolvedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ContactTicket = typeof contactTickets.$inferSelect;
+export type InsertContactTicket = typeof contactTickets.$inferInsert;

@@ -264,3 +264,12 @@
 - [x] Renomear "Notificações Recentes" para "Notificações Pendentes" no Painel Geral
 - [x] Notificações pendentes (ex: solicitações) devem permanecer visíveis mesmo se lidas, até serem resolvidas
 - [x] Bug: solicitações pendentes de professores não aparecem em Notificações Pendentes nem em Notificações (corrigido: admins agora recebem notificações de solicitações)
+- [x] Aba Contato: professores enviam bugs/pedidos de funcionalidade ao admin por e-mail
+- [x] Schema: tabela contact_tickets (id, userId, type bug/feature, subject, message, status open/resolved, resolvedAt, createdAt)
+- [x] Backend: helpers DB para criar, listar e resolver tickets
+- [x] Backend: rotas tRPC para enviar ticket, listar tickets (admin), resolver ticket (admin)
+- [x] Backend: enviar e-mail ao admin quando ticket é criado
+- [x] Frontend: página de Contato para professores (formulário de envio de bug/pedido)
+- [x] Frontend: página de Contato para admin (lista de tickets com opção de marcar como resolvido)
+- [x] Menu lateral: adicionar aba Contato para todos os usuários
+- [x] Testes: tickets de contato (8 novos testes)

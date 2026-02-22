@@ -18,6 +18,7 @@ import {
   emailVerificationCodes,
   auditLogs,
   notifications,
+  contactTickets,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -2018,4 +2019,103 @@ export async function listPendingNotifications(userId: number, limit: number = 5
 export async function countPendingNotifications(userId: number): Promise<number> {
   const items = await listPendingNotifications(userId, 100);
   return items.length;
+}
+
+
+// ─── Contact Tickets helpers ───
+export async function createContactTicket(data: {
+  userId: number;
+  type: "bug" | "feature";
+  subject: string;
+  message: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [result] = await db.insert(contactTickets).values({
+    userId: data.userId,
+    type: data.type,
+    subject: data.subject,
+    message: data.message,
+  }).$returningId();
+  return result;
+}
+
+export async function listContactTickets(options?: { status?: "open" | "resolved"; limit?: number; offset?: number }) {
+  const db = await getDb();
+  if (!db) return { items: [], total: 0 };
+  const conditions = [];
+  if (options?.status) {
+    conditions.push(eq(contactTickets.status, options.status));
+  }
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const items = await db.select({
+    id: contactTickets.id,
+    userId: contactTickets.userId,
+    type: contactTickets.type,
+    subject: contactTickets.subject,
+    message: contactTickets.message,
+    status: contactTickets.status,
+    resolvedAt: contactTickets.resolvedAt,
+    createdAt: contactTickets.createdAt,
+    userName: users.name,
+    userEmail: users.email,
+  })
+    .from(contactTickets)
+    .leftJoin(users, eq(contactTickets.userId, users.id))
+    .where(whereClause)
+    .orderBy(desc(contactTickets.createdAt))
+    .limit(options?.limit ?? 50)
+    .offset(options?.offset ?? 0);
+
+  const [countRow] = await db.select({ count: sql<number>`count(*)` })
+    .from(contactTickets)
+    .where(whereClause);
+
+  return { items, total: countRow?.count ?? 0 };
+}
+
+export async function listMyContactTickets(userId: number, options?: { limit?: number; offset?: number }) {
+  const db = await getDb();
+  if (!db) return { items: [], total: 0 };
+
+  const items = await db.select()
+    .from(contactTickets)
+    .where(eq(contactTickets.userId, userId))
+    .orderBy(desc(contactTickets.createdAt))
+    .limit(options?.limit ?? 50)
+    .offset(options?.offset ?? 0);
+
+  const [countRow] = await db.select({ count: sql<number>`count(*)` })
+    .from(contactTickets)
+    .where(eq(contactTickets.userId, userId));
+
+  return { items, total: countRow?.count ?? 0 };
+}
+
+export async function resolveContactTicket(ticketId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(contactTickets)
+    .set({ status: "resolved", resolvedAt: new Date() })
+    .where(eq(contactTickets.id, ticketId));
+}
+
+export async function getContactTicketById(ticketId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.select()
+    .from(contactTickets)
+    .where(eq(contactTickets.id, ticketId))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function countOpenContactTickets(): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const [row] = await db.select({ count: sql<number>`count(*)` })
+    .from(contactTickets)
+    .where(eq(contactTickets.status, "open"));
+  return row?.count ?? 0;
 }
