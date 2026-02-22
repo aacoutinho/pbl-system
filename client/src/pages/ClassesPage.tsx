@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BookOpen, Plus, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -24,6 +25,7 @@ export default function ClassesPage() {
 function ClassesContent() {
   const utils = trpc.useUtils();
   const { data: classes, isLoading } = trpc.classes.list.useQuery();
+  const { data: componentsList } = trpc.components.list.useQuery();
   const { selectedClassId, setSelectedClassId } = useClassContext();
 
   const createMutation = trpc.classes.create.useMutation({
@@ -44,34 +46,42 @@ function ClassesContent() {
   });
 
   const [newClassCode, setNewClassCode] = useState("");
-  const [newComponentCode, setNewComponentCode] = useState("");
+  const [newComponentId, setNewComponentId] = useState<number | null>(null);
   const [newSemester, setNewSemester] = useState("");
   const [editId, setEditId] = useState<number | null>(null);
   const [editClassCode, setEditClassCode] = useState("");
-  const [editComponentCode, setEditComponentCode] = useState("");
+  const [editComponentId, setEditComponentId] = useState<number | null>(null);
   const [editSemester, setEditSemester] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
 
+  // Build a map from componentId to component code for display
+  const componentMap = new Map<number, { code: string; name: string }>();
+  if (componentsList) {
+    for (const c of componentsList) {
+      componentMap.set(c.id, { code: c.code, name: c.name });
+    }
+  }
+
   const handleCreate = () => {
-    if (!newClassCode.trim() || !newComponentCode.trim() || !newSemester.trim()) { 
+    if (!newClassCode.trim() || !newComponentId || !newSemester.trim()) { 
       toast.error("Preencha todos os campos"); 
       return; 
     }
     createMutation.mutate({ 
       classCode: newClassCode.trim(), 
-      componentCode: newComponentCode.trim(), 
+      componentId: newComponentId, 
       semester: newSemester.trim() 
     });
-    setNewClassCode(""); setNewComponentCode(""); setNewSemester(""); setCreateOpen(false);
+    setNewClassCode(""); setNewComponentId(null); setNewSemester(""); setCreateOpen(false);
   };
 
   const handleEdit = () => {
-    if (!editId || !editClassCode.trim() || !editComponentCode.trim() || !editSemester.trim()) return;
+    if (!editId || !editClassCode.trim() || !editComponentId || !editSemester.trim()) return;
     updateMutation.mutate({ 
       id: editId, 
       classCode: editClassCode.trim(), 
-      componentCode: editComponentCode.trim(), 
+      componentId: editComponentId, 
       semester: editSemester.trim() 
     });
     setEditOpen(false);
@@ -105,12 +115,25 @@ function ClassesContent() {
             </DialogHeader>
             <div className="space-y-4 py-2">
               <div className="space-y-2">
-                <Label>Código da Turma</Label>
-                <Input placeholder="Ex: TP01" value={newClassCode} onChange={e => setNewClassCode(e.target.value)} />
+                <Label>Componente</Label>
+                {(!componentsList || componentsList.length === 0) ? (
+                  <p className="text-sm text-muted-foreground">Nenhum componente cadastrado. Cadastre componentes primeiro.</p>
+                ) : (
+                  <Select value={newComponentId ? String(newComponentId) : ""} onValueChange={(v) => setNewComponentId(Number(v))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o componente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {componentsList.map(c => (
+                        <SelectItem key={c.id} value={String(c.id)}>{c.code} - {c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div className="space-y-2">
-                <Label>Código do Componente</Label>
-                <Input placeholder="Ex: TEC502" value={newComponentCode} onChange={e => setNewComponentCode(e.target.value)} />
+                <Label>Código da Turma</Label>
+                <Input placeholder="Ex: TP01" value={newClassCode} onChange={e => setNewClassCode(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label>Semestre</Label>
@@ -119,7 +142,7 @@ function ClassesContent() {
             </div>
             <DialogFooter>
               <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
-              <Button onClick={handleCreate} disabled={createMutation.isPending}>
+              <Button onClick={handleCreate} disabled={createMutation.isPending || !newComponentId}>
                 {createMutation.isPending ? "Criando..." : "Criar Turma"}
               </Button>
             </DialogFooter>
@@ -137,54 +160,58 @@ function ClassesContent() {
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {classes.map(cls => (
-            <Card key={cls.id} className={`hover:shadow-md transition-all cursor-pointer ${selectedClassId === cls.id ? "ring-2 ring-primary" : ""}`}
-              onClick={() => setSelectedClassId(cls.id)}>
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">{cls.componentCode} - {cls.classCode}</CardTitle>
-                  {selectedClassId === cls.id && (
-                    <Badge variant="default" className="text-xs">Selecionada</Badge>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">Semestre: {cls.semester}</p>
-                <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                  <Button variant="outline" size="sm" onClick={() => {
-                    setEditId(cls.id); 
-                    setEditClassCode(cls.classCode); 
-                    setEditComponentCode(cls.componentCode); 
-                    setEditSemester(cls.semester); 
-                    setEditOpen(true);
-                  }}>
-                    <Pencil className="h-3 w-3 mr-1" />Editar
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
-                        <Trash2 className="h-3 w-3 mr-1" />Excluir
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Excluir Turma?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Todos os alunos, sessões e avaliações desta turma serão excluídos permanentemente.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => deleteMutation.mutate({ id: cls.id })} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                          Excluir
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          {classes.map(cls => {
+            const comp = cls.componentId ? componentMap.get(cls.componentId) : null;
+            return (
+              <Card key={cls.id} className={`hover:shadow-md transition-all cursor-pointer ${selectedClassId === cls.id ? "ring-2 ring-primary" : ""}`}
+                onClick={() => setSelectedClassId(cls.id)}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">{comp?.code ?? "?"} - {cls.classCode}</CardTitle>
+                    {selectedClassId === cls.id && (
+                      <Badge variant="default" className="text-xs">Selecionada</Badge>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-1">{comp?.name ?? ""}</p>
+                  <p className="text-sm text-muted-foreground mb-4">Semestre: {cls.semester}</p>
+                  <div className="flex gap-2" onClick={e => e.stopPropagation()}>
+                    <Button variant="outline" size="sm" onClick={() => {
+                      setEditId(cls.id); 
+                      setEditClassCode(cls.classCode); 
+                      setEditComponentId(cls.componentId ?? null); 
+                      setEditSemester(cls.semester); 
+                      setEditOpen(true);
+                    }}>
+                      <Pencil className="h-3 w-3 mr-1" />Editar
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
+                          <Trash2 className="h-3 w-3 mr-1" />Excluir
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Excluir Turma?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Todos os alunos, sessões e avaliações desta turma serão excluídos permanentemente.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => deleteMutation.mutate({ id: cls.id })} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Excluir
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
@@ -196,12 +223,25 @@ function ClassesContent() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label>Código da Turma</Label>
-              <Input placeholder="Ex: TP01" value={editClassCode} onChange={e => setEditClassCode(e.target.value)} />
+              <Label>Componente</Label>
+              {(!componentsList || componentsList.length === 0) ? (
+                <p className="text-sm text-muted-foreground">Nenhum componente cadastrado.</p>
+              ) : (
+                <Select value={editComponentId ? String(editComponentId) : ""} onValueChange={(v) => setEditComponentId(Number(v))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o componente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {componentsList.map(c => (
+                      <SelectItem key={c.id} value={String(c.id)}>{c.code} - {c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div className="space-y-2">
-              <Label>Código do Componente</Label>
-              <Input placeholder="Ex: TEC502" value={editComponentCode} onChange={e => setEditComponentCode(e.target.value)} />
+              <Label>Código da Turma</Label>
+              <Input placeholder="Ex: TP01" value={editClassCode} onChange={e => setEditClassCode(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>Semestre</Label>

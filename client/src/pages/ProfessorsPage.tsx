@@ -73,14 +73,17 @@ function ProfessorsContent() {
     onError: (err) => toast.error(err.message),
   });
 
+  // Fetch available components for the selector
+  const { data: availableComponents } = trpc.components.list.useQuery();
+
   // Group components by professor
-  const componentsByProfessor: Record<number, { name: string; email: string; components: string[] }> = {};
+  const componentsByProfessor: Record<number, { name: string; email: string; components: { id: number; code: string | null; name: string | null }[] }> = {};
   if (allComponents) {
     for (const c of allComponents) {
       if (!componentsByProfessor[c.userId]) {
         componentsByProfessor[c.userId] = { name: c.professorName || "-", email: c.professorEmail || "-", components: [] };
       }
-      componentsByProfessor[c.userId].components.push(c.componentCode);
+      componentsByProfessor[c.userId].components.push({ id: c.componentId, code: c.componentCode, name: c.componentName });
     }
   }
 
@@ -213,8 +216,9 @@ function ProfessorsContent() {
                   key={prof.id}
                   professor={prof}
                   components={componentsByProfessor[prof.id]?.components || []}
-                  onAddComponent={(componentCode) => addComponentMut.mutate({ userId: prof.id, componentCode })}
-                  onRemoveComponent={(componentCode) => removeComponentMut.mutate({ userId: prof.id, componentCode })}
+                  availableComponents={availableComponents || []}
+                  onAddComponent={(componentId) => addComponentMut.mutate({ userId: prof.id, componentId })}
+                  onRemoveComponent={(componentId) => removeComponentMut.mutate({ userId: prof.id, componentId })}
                   isAdding={addComponentMut.isPending}
                   isRemoving={removeComponentMut.isPending}
                   isCoordinator={isCoordinator}
@@ -272,6 +276,7 @@ function ProfessorsContent() {
 function ProfessorCard({
   professor,
   components,
+  availableComponents,
   onAddComponent,
   onRemoveComponent,
   isAdding,
@@ -282,9 +287,10 @@ function ProfessorCard({
   onTransfer,
 }: {
   professor: { id: number; name: string | null; email: string | null; role: string; createdAt: Date };
-  components: string[];
-  onAddComponent: (code: string) => void;
-  onRemoveComponent: (code: string) => void;
+  components: { id: number; code: string | null; name: string | null }[];
+  availableComponents: { id: number; code: string; name: string }[];
+  onAddComponent: (componentId: number) => void;
+  onRemoveComponent: (componentId: number) => void;
   isAdding: boolean;
   isRemoving: boolean;
   isCoordinator: boolean;
@@ -292,13 +298,15 @@ function ProfessorCard({
   coordinatorId?: number;
   onTransfer: () => void;
 }) {
-  const [newComponent, setNewComponent] = useState("");
+  const [selectedComponentId, setSelectedComponentId] = useState<number | null>(null);
+
+  const assignedIds = new Set(components.map(c => c.id));
+  const unassignedComponents = availableComponents.filter(c => !assignedIds.has(c.id));
 
   const handleAdd = () => {
-    const code = newComponent.trim().toUpperCase();
-    if (!code) return;
-    onAddComponent(code);
-    setNewComponent("");
+    if (!selectedComponentId) return;
+    onAddComponent(selectedComponentId);
+    setSelectedComponentId(null);
   };
 
   const isProfCoordinator = professor.id === coordinatorId;
@@ -352,12 +360,12 @@ function ProfessorCard({
           {components.length === 0 ? (
             <p className="text-xs text-muted-foreground">Nenhum componente atribuído.</p>
           ) : (
-            components.map((code) => (
-              <Badge key={code} variant="secondary" className={`gap-1 ${isCoordinator ? 'pr-1' : ''}`}>
-                {code}
+            components.map((comp) => (
+              <Badge key={comp.id} variant="secondary" className={`gap-1 ${isCoordinator ? 'pr-1' : ''}`} title={comp.name || ""}>
+                {comp.code || "?"}
                 {isCoordinator && (
                 <button
-                  onClick={() => onRemoveComponent(code)}
+                  onClick={() => onRemoveComponent(comp.id)}
                   disabled={isRemoving}
                   className="ml-1 hover:text-destructive transition-colors"
                 >
@@ -368,16 +376,19 @@ function ProfessorCard({
             ))
           )}
         </div>
-        {isCoordinator && (
+        {isCoordinator && unassignedComponents.length > 0 && (
         <div className="flex gap-2">
-          <Input
-            placeholder="Ex: TEC502"
-            value={newComponent}
-            onChange={(e) => setNewComponent(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-            className="max-w-[160px] h-8 text-sm"
-          />
-          <Button size="sm" variant="outline" onClick={handleAdd} disabled={isAdding || !newComponent.trim()} className="gap-1 h-8">
+          <select
+            value={selectedComponentId ?? ""}
+            onChange={(e) => setSelectedComponentId(e.target.value ? Number(e.target.value) : null)}
+            className="max-w-[200px] h-8 text-sm border rounded-md px-2 bg-background"
+          >
+            <option value="">Selecionar componente...</option>
+            {unassignedComponents.map((c) => (
+              <option key={c.id} value={c.id}>{c.code} - {c.name}</option>
+            ))}
+          </select>
+          <Button size="sm" variant="outline" onClick={handleAdd} disabled={isAdding || !selectedComponentId} className="gap-1 h-8">
             <Plus className="h-3 w-3" />
             Adicionar
           </Button>

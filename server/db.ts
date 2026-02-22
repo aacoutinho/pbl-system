@@ -2,6 +2,7 @@ import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser, users,
+  components, Component, InsertComponent,
   classes, InsertClass, Class,
   students, InsertStudent, Student,
   classStudents,
@@ -70,7 +71,7 @@ export async function getUserByOpenId(openId: string) {
 }
 
 // ─── Class helpers ───
-export async function createClass(data: { classCode: string; componentCode: string; semester: string; professorUserId: number }) {
+export async function createClass(data: { classCode: string; componentId: number; semester: string; professorUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   const [result] = await db.insert(classes).values(data).$returningId();
@@ -87,15 +88,28 @@ export async function getClassById(id: number) {
 export async function listClassesByProfessor(professorUserId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(classes).where(eq(classes.professorUserId, professorUserId)).orderBy(classes.componentCode, classes.classCode);
+  return db.select({
+    id: classes.id,
+    classCode: classes.classCode,
+    componentId: classes.componentId,
+    semester: classes.semester,
+    professorUserId: classes.professorUserId,
+    createdAt: classes.createdAt,
+    componentCode: components.code,
+    componentName: components.name,
+  })
+    .from(classes)
+    .leftJoin(components, eq(classes.componentId, components.id))
+    .where(eq(classes.professorUserId, professorUserId))
+    .orderBy(components.code, classes.classCode);
 }
 
-export async function updateClass(id: number, data: { classCode?: string; componentCode?: string; semester?: string }) {
+export async function updateClass(id: number, data: { classCode?: string; componentId?: number; semester?: string }) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   const updateSet: Record<string, unknown> = {};
   if (data.classCode !== undefined) updateSet.classCode = data.classCode;
-  if (data.componentCode !== undefined) updateSet.componentCode = data.componentCode;
+  if (data.componentId !== undefined) updateSet.componentId = data.componentId;
   if (data.semester !== undefined) updateSet.semester = data.semester;
   if (Object.keys(updateSet).length > 0) {
     await db.update(classes).set(updateSet).where(eq(classes.id, id));
@@ -196,18 +210,18 @@ export async function addStudentToClass(studentId: number, classId: number) {
 }
 
 // Check if student is already in a class of the same component
-export async function isStudentInComponentClass(studentId: number, componentCode: string, excludeClassId?: number) {
+export async function isStudentInComponentClass(studentId: number, componentId: number, excludeClassId?: number) {
   const db = await getDb();
   if (!db) return false;
   const links = await db.select({
     classId: classStudents.classId,
-    componentCode: classes.componentCode,
+    componentId: classes.componentId,
   })
     .from(classStudents)
     .innerJoin(classes, eq(classStudents.classId, classes.id))
     .where(and(
       eq(classStudents.studentId, studentId),
-      eq(classes.componentCode, componentCode),
+      eq(classes.componentId, componentId),
     ));
   if (excludeClassId) {
     return links.some(l => l.classId !== excludeClassId);
@@ -297,7 +311,7 @@ export async function bulkImportStudents(data: { name: string; enrollment: strin
       }
       
       // Check if student is already in another class of the same component
-      const inComponent = await isStudentInComponentClass(existing.id, cls.componentCode, s.classId);
+      const inComponent = await isStudentInComponentClass(existing.id, cls.componentId, s.classId);
       if (inComponent) {
         results.push({ name: s.name, enrollment: s.enrollment, status: "conflict" });
         continue;
@@ -824,7 +838,9 @@ export async function listAllClasses() {
   const rows = await db.select({
     id: classes.id,
     classCode: classes.classCode,
-    componentCode: classes.componentCode,
+    componentId: classes.componentId,
+    componentCode: components.code,
+    componentName: components.name,
     semester: classes.semester,
     professorUserId: classes.professorUserId,
     professorName: users.name,
@@ -832,7 +848,8 @@ export async function listAllClasses() {
   })
     .from(classes)
     .leftJoin(users, eq(classes.professorUserId, users.id))
-    .orderBy(classes.componentCode, classes.classCode);
+    .leftJoin(components, eq(classes.componentId, components.id))
+    .orderBy(components.code, classes.classCode);
   return rows;
 }
 
@@ -846,12 +863,13 @@ export async function listStudentsForExport(classIds: number[]) {
     studentEmail: students.email,
     studentEnrollment: students.enrollment,
     classCode: classes.classCode,
-    componentCode: classes.componentCode,
+    componentCode: components.code,
     semester: classes.semester,
   })
     .from(classStudents)
     .innerJoin(students, eq(classStudents.studentId, students.id))
     .innerJoin(classes, eq(classStudents.classId, classes.id))
+    .leftJoin(components, eq(classes.componentId, components.id))
     .where(inArray(classStudents.classId, classIds))
     .orderBy(students.name);
   return rows;
@@ -951,21 +969,21 @@ export async function listApprovedProfessors() {
   return db.select().from(users).where(eq(users.approvalStatus, "approved")).orderBy(users.name);
 }
 
-export async function addProfessorComponent(userId: number, componentCode: string, authorizedByUserId: number) {
+export async function addProfessorComponent(userId: number, componentId: number, authorizedByUserId: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db.insert(professorComponents).values({
     userId,
-    componentCode: componentCode.toUpperCase(),
+    componentId,
     authorizedByUserId,
   }).onDuplicateKeyUpdate({ set: { authorizedByUserId } });
 }
 
-export async function removeProfessorComponent(userId: number, componentCode: string) {
+export async function removeProfessorComponent(userId: number, componentId: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db.delete(professorComponents).where(
-    and(eq(professorComponents.userId, userId), eq(professorComponents.componentCode, componentCode.toUpperCase()))
+    and(eq(professorComponents.userId, userId), eq(professorComponents.componentId, componentId))
   );
 }
 
@@ -981,7 +999,9 @@ export async function listAllProfessorComponents() {
   return db.select({
     id: professorComponents.id,
     userId: professorComponents.userId,
-    componentCode: professorComponents.componentCode,
+    componentId: professorComponents.componentId,
+    componentCode: components.code,
+    componentName: components.name,
     authorizedAt: professorComponents.authorizedAt,
     authorizedByUserId: professorComponents.authorizedByUserId,
     professorName: users.name,
@@ -989,7 +1009,8 @@ export async function listAllProfessorComponents() {
   })
     .from(professorComponents)
     .innerJoin(users, eq(professorComponents.userId, users.id))
-    .orderBy(professorComponents.componentCode, users.name);
+    .leftJoin(components, eq(professorComponents.componentId, components.id))
+    .orderBy(components.code, users.name);
 }
 
 export async function getUserById(userId: number) {
@@ -1175,4 +1196,58 @@ export async function markResetCodeUsed(userId: number, code: string) {
 export async function isSmtpConfigured() {
   const config = await getActiveSmtpConfig();
   return !!config;
+}
+
+// ─── Component CRUD helpers ───
+export async function createComponent(data: { code: string; name: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [result] = await db.insert(components).values({
+    code: data.code.toUpperCase(),
+    name: data.name,
+  }).$returningId();
+  return getComponentById(result.id);
+}
+
+export async function getComponentById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const [row] = await db.select().from(components).where(eq(components.id, id)).limit(1);
+  return row;
+}
+
+export async function getComponentByCode(code: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const [row] = await db.select().from(components).where(eq(components.code, code.toUpperCase())).limit(1);
+  return row;
+}
+
+export async function listComponents() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(components).orderBy(components.code);
+}
+
+export async function updateComponent(id: number, data: { code?: string; name?: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const updateSet: Record<string, unknown> = {};
+  if (data.code !== undefined) updateSet.code = data.code.toUpperCase();
+  if (data.name !== undefined) updateSet.name = data.name;
+  if (Object.keys(updateSet).length > 0) {
+    await db.update(components).set(updateSet).where(eq(components.id, id));
+  }
+  return getComponentById(id);
+}
+
+export async function deleteComponent(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  // Check if component is used by any class
+  const classesUsingComponent = await db.select({ id: classes.id }).from(classes).where(eq(classes.componentId, id));
+  if (classesUsingComponent.length > 0) {
+    throw new Error("Componente está sendo usado por turmas e não pode ser excluído");
+  }
+  await db.delete(components).where(eq(components.id, id));
 }

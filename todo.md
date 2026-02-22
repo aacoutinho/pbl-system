@@ -147,3 +147,13 @@
 - [x] Backend: teste de conexão SMTP também envia e-mail de teste ao coordenador
 - [x] Frontend: feedback sobre e-mail de teste enviado
 - [x] Bug: erro "Acesso restrito ao coordenador" na página /professors para usuários admin (não coordenador)
+- [x] Schema: criar tabela components (id, code, name) separada
+- [x] Schema: alterar classes para referenciar componentId em vez de componentCode
+- [x] Backend: CRUD de componentes (criar, listar, editar, excluir)
+- [x] Backend: atualizar CRUD de turmas para usar componentId
+- [x] Backend: atualizar exportação e referências a componentCode
+- [x] Frontend: página de Componentes com CRUD
+- [x] Frontend: formulário de Turma com seleção de componente cadastrado
+- [x] Frontend: atualizar seletores e listas para mostrar apenas código do componente
+- [x] Frontend: atualizar DashboardLayout com menu de Componentes
+- [x] Testes: CRUD de componentes e turmas com referência a componente

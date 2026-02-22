@@ -18,15 +18,26 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
+// ─── Components (curricular components) ───
+export const components = mysqlTable("components", {
+  id: int("id").autoincrement().primaryKey(),
+  code: varchar("code", { length: 32 }).notNull().unique(), // Ex: TEC502
+  name: varchar("name", { length: 255 }).notNull(), // Ex: Concorrência e Conectividade
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Component = typeof components.$inferSelect;
+export type InsertComponent = typeof components.$inferInsert;
+
 // ─── Professor Component Authorizations ───
 export const professorComponents = mysqlTable("professor_components", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
-  componentCode: varchar("componentCode", { length: 32 }).notNull(), // Ex: TEC502
+  componentId: int("componentId").notNull(), // References components.id
   authorizedAt: timestamp("authorizedAt").defaultNow().notNull(),
   authorizedByUserId: int("authorizedByUserId"),
 }, (table) => [
-  unique("uq_professor_component").on(table.userId, table.componentCode),
+  unique("uq_professor_component").on(table.userId, table.componentId),
 ]);
 
 export type ProfessorComponent = typeof professorComponents.$inferSelect;
@@ -36,7 +47,7 @@ export type InsertProfessorComponent = typeof professorComponents.$inferInsert;
 export const classes = mysqlTable("classes", {
   id: int("id").autoincrement().primaryKey(),
   classCode: varchar("classCode", { length: 32 }).notNull(), // Ex: TP01
-  componentCode: varchar("componentCode", { length: 32 }).notNull(), // Ex: TEC502
+  componentId: int("componentId").notNull(), // References components.id
   semester: varchar("semester", { length: 16 }).notNull(), // Ex: 20262
   professorUserId: int("professorUserId").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

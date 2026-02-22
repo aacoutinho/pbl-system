@@ -22,6 +22,7 @@ import {
   getUserById, getUserByEmail, countUsers, createUserWithPassword, updateUserPassword,
   getCoordinator, transferCoordination, getSmtpConfig, upsertSmtpConfig, deleteSmtpConfig,
   createPasswordResetCode, verifyPasswordResetCode, markResetCodeUsed, isSmtpConfigured,
+  createComponent, getComponentById, getComponentByCode, listComponents, updateComponent, deleteComponent,
 } from "./db";
 import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml } from "./email";
 
@@ -230,6 +231,40 @@ export const appRouter = router({
     }),
   }),
 
+  // ─── Components (componentes curriculares) ───
+  components: router({
+    list: approvedProcedure.query(async () => {
+      return listComponents();
+    }),
+    create: coordinatorProcedure.input(z.object({
+      code: z.string().min(1),
+      name: z.string().min(1),
+    })).mutation(async ({ input }) => {
+      const existing = await getComponentByCode(input.code);
+      if (existing) throw new TRPCError({ code: "CONFLICT", message: "Já existe um componente com este código" });
+      return createComponent(input);
+    }),
+    update: coordinatorProcedure.input(z.object({
+      id: z.number(),
+      code: z.string().min(1).optional(),
+      name: z.string().min(1).optional(),
+    })).mutation(async ({ input }) => {
+      if (input.code) {
+        const existing = await getComponentByCode(input.code);
+        if (existing && existing.id !== input.id) throw new TRPCError({ code: "CONFLICT", message: "Já existe um componente com este código" });
+      }
+      return updateComponent(input.id, { code: input.code, name: input.name });
+    }),
+    delete: coordinatorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+      try {
+        await deleteComponent(input.id);
+        return { success: true };
+      } catch (e: any) {
+        throw new TRPCError({ code: "CONFLICT", message: e.message || "Erro ao excluir componente" });
+      }
+    }),
+  }),
+
   // ─── Classes (turmas) ───
   classes: router({
     list: adminProcedure.query(async ({ ctx }) => {
@@ -237,7 +272,7 @@ export const appRouter = router({
     }),
     create: adminProcedure.input(z.object({
       classCode: z.string().min(1),
-      componentCode: z.string().min(1),
+      componentId: z.number(),
       semester: z.string().min(1),
     })).mutation(async ({ ctx, input }) => {
       return createClass({ ...input, professorUserId: ctx.user.id });
@@ -245,12 +280,12 @@ export const appRouter = router({
     update: adminProcedure.input(z.object({
       id: z.number(),
       classCode: z.string().min(1).optional(),
-      componentCode: z.string().min(1).optional(),
+      componentId: z.number().optional(),
       semester: z.string().min(1).optional(),
     })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.id);
       if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
-      return updateClass(input.id, { classCode: input.classCode, componentCode: input.componentCode, semester: input.semester });
+      return updateClass(input.id, { classCode: input.classCode, componentId: input.componentId, semester: input.semester });
     }),
     delete: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.id);
@@ -289,7 +324,7 @@ export const appRouter = router({
           throw new TRPCError({ code: "CONFLICT", message: "Aluno já está nesta turma" });
         }
         // Check component conflict
-        const inComponent = await isStudentInComponentClass(student.id, cls.componentCode, input.classId);
+        const inComponent = await isStudentInComponentClass(student.id, cls.componentId, input.classId);
         if (inComponent) {
           throw new TRPCError({ code: "CONFLICT", message: "Aluno já está em outra turma deste componente" });
         }
@@ -519,11 +554,19 @@ export const appRouter = router({
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Código de acesso inválido" });
       if (session.status !== "open") throw new TRPCError({ code: "BAD_REQUEST", message: "Esta sessão já foi encerrada" });
       const cls = await getClassById(session.classId);
+      let componentCode = "";
+      let componentName = "";
+      if (cls?.componentId) {
+        const comp = await getComponentById(cls.componentId);
+        componentCode = comp?.code ?? "";
+        componentName = comp?.name ?? "";
+      }
       return {
         sessionId: session.id,
         label: session.label,
         classCode: cls?.classCode ?? "",
-        componentCode: cls?.componentCode ?? "",
+        componentCode,
+        componentName,
         semester: cls?.semester ?? "",
       };
     }),
@@ -703,16 +746,16 @@ export const appRouter = router({
     }),
     addComponent: coordinatorProcedure.input(z.object({
       userId: z.number(),
-      componentCode: z.string().min(1),
+      componentId: z.number(),
     })).mutation(async ({ ctx, input }) => {
-      await addProfessorComponent(input.userId, input.componentCode, ctx.user.id);
+      await addProfessorComponent(input.userId, input.componentId, ctx.user.id);
       return { success: true };
     }),
     removeComponent: coordinatorProcedure.input(z.object({
       userId: z.number(),
-      componentCode: z.string().min(1),
+      componentId: z.number(),
     })).mutation(async ({ input }) => {
-      await removeProfessorComponent(input.userId, input.componentCode);
+      await removeProfessorComponent(input.userId, input.componentId);
       return { success: true };
     }),
     components: adminProcedure.input(z.object({ userId: z.number() })).query(async ({ input }) => {

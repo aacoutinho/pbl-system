@@ -33,7 +33,7 @@ export default function StudentAccessPage() {
   const [enrollment, setEnrollment] = useState("");
   const [studentEmail, setStudentEmail] = useState("");
   const [sessionInfo, setSessionInfo] = useState<{
-    sessionId: number; label: string; classCode: string; componentCode: string; semester: string;
+    sessionId: number; label: string; classCode: string; componentCode: string; componentName: string; semester: string;
   } | null>(null);
   const [studentInfo, setStudentInfo] = useState<{
     studentId: number; studentName: string; studentEmail: string | null; sessionId: number; sessionLabel: string; classId: number;
@@ -234,7 +234,7 @@ export default function StudentAccessPage() {
 function EvaluationForm({ accessCode, studentInfo, sessionInfo, studentEmail, onEmailChange, onEmailSave, onDone, onBack }: {
   accessCode: string;
   studentInfo: { studentId: number; studentName: string; sessionId: number; sessionLabel: string; classId: number };
-  sessionInfo: { sessionId: number; label: string; classCode: string; componentCode: string; semester: string };
+  sessionInfo: { sessionId: number; label: string; classCode: string; componentCode: string; componentName: string; semester: string };
   studentEmail: string;
   onEmailChange: (email: string) => void;
   onEmailSave: (email: string) => void;

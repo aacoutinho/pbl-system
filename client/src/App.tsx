@@ -15,12 +15,14 @@ import ExportStudentsPage from "./pages/ExportStudentsPage";
 import StudentAccessPage from "./pages/StudentAccessPage";
 import ProfessorsPage from "./pages/ProfessorsPage";
 import SmtpConfigPage from "./pages/SmtpConfigPage";
+import ComponentsPage from "./pages/ComponentsPage";
 
 function Router() {
   return (
     <Switch>
       <Route path={"/"} component={Home} />
       <Route path={"/acesso"} component={StudentAccessPage} />
+      <Route path={"/components"} component={ComponentsPage} />
       <Route path={"/classes"} component={ClassesPage} />
       <Route path={"/students"} component={StudentsPage} />
       <Route path={"/sessions"} component={SessionsPage} />
