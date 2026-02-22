@@ -42,7 +42,6 @@ const baseMenuItems = [
   { icon: Users, label: "Alunos", path: "/students" },
   { icon: ClipboardList, label: "Sessões", path: "/sessions" },
   { icon: BarChart3, label: "Resultados", path: "/results" },
-  { icon: Download, label: "Exportar Alunos", path: "/export-students" },
   { icon: UserCheck, label: "Professores", path: "/professors" },
 ];
 
@@ -51,6 +50,7 @@ const tutorialEvalItem = { icon: ClipboardCheck, label: "Avaliar Tutorial", path
 
 // Admin-only items
 const adminOnlyItems = [
+  { icon: Download, label: "Exportar Alunos", path: "/export-students" },
   { icon: Mail, label: "Config. E-mail", path: "/smtp-config" },
 ];
 

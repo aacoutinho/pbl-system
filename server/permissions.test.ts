@@ -227,9 +227,9 @@ describe("Component request workflow", () => {
 
 describe("Menu items by role", () => {
   function getMenuItemsForRole(role: string) {
-    const base = ["Painel Geral", "Componentes", "Turmas", "Alunos", "Sessões", "Resultados", "Exportar Alunos", "Professores"];
+    const base = ["Painel Geral", "Componentes", "Turmas", "Alunos", "Sessões", "Resultados", "Professores"];
     if (role === "admin") {
-      return [...base, "Config. E-mail"];
+      return [...base, "Exportar Alunos", "Config. E-mail"];
     }
     // coordinator and prof get tutorial eval
     const items = [...base];
@@ -266,6 +266,21 @@ describe("Menu items by role", () => {
   it("prof menu does NOT include Config. E-mail", () => {
     const items = getMenuItemsForRole("prof");
     expect(items).not.toContain("Config. E-mail");
+  });
+
+  it("admin menu includes Exportar Alunos", () => {
+    const items = getMenuItemsForRole("admin");
+    expect(items).toContain("Exportar Alunos");
+  });
+
+  it("coordinator menu does NOT include Exportar Alunos", () => {
+    const items = getMenuItemsForRole("coordinator");
+    expect(items).not.toContain("Exportar Alunos");
+  });
+
+  it("prof menu does NOT include Exportar Alunos", () => {
+    const items = getMenuItemsForRole("prof");
+    expect(items).not.toContain("Exportar Alunos");
   });
 });
 

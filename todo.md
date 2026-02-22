@@ -189,3 +189,4 @@
 - [x] Listagem de professores com filtro por componente
 - [x] Atualizar frontend para novo sistema de permissões por componente
 - [x] Testes para novo sistema de permissões (253 testes passando)
+- [x] Exportar Alunos deve aparecer apenas no perfil do admin
