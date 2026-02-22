@@ -191,3 +191,9 @@
 - [x] Testes para novo sistema de permissões (253 testes passando)
 - [x] Exportar Alunos deve aparecer apenas no perfil do admin
 - [x] Professor (role prof) pode incluir, listar, editar e excluir alunos nas turmas que ele criou dos seus componentes
+- [x] Tabela de permissões de avaliação tutorial entre professores (classEvalPermissions)
+- [x] Professor dono da turma pode autorizar/revogar outros professores do componente para avaliar suas sessões
+- [x] Verificação de autorização na rota tutorialEval.submit
+- [x] Interface no frontend para gerenciar autorizações de avaliação
+- [x] Testes para autorização de avaliação entre professores (279 testes passando)
+- [x] Coordenador do componente também pode autorizar/revogar professores a avaliar sessões de turmas do componente

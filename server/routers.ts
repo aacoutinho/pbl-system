@@ -27,6 +27,7 @@ import {
   requestComponentMembership, listPendingRequestsByComponents,
   approveComponentRequest, rejectComponentRequest, setComponentRole, removeProfessorFromComponent,
   getCoordinatorComponentIds,
+  grantEvalPermission, revokeEvalPermission, hasEvalPermission, listEvalPermissions, listComponentProfessorsForClass,
 } from "./db";
 import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml } from "./email";
 
@@ -778,7 +779,16 @@ export const appRouter = router({
       const cls = await getClassById(session.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);
-      // TODO: If prof (not coordinator), check if authorized by the class professor
+      // If not the class owner and not coordinator of component, check eval permission
+      if (cls.professorUserId !== ctx.user.id) {
+        const compRole = await getUserComponentRole(ctx.user.id, cls.componentId);
+        if (compRole !== "coordinator") {
+          const permitted = await hasEvalPermission(cls.id, ctx.user.id);
+          if (!permitted) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem autorização para avaliar sessões desta turma. Solicite ao professor responsável ou ao coordenador do componente." });
+          }
+        }
+      }
       const evalId = await submitTutorialEvaluation({
         ...input,
         professorUserId: ctx.user.id,
@@ -790,6 +800,83 @@ export const appRouter = router({
       if (!eval_) return null;
       const grade = calculateTutorialGrade(eval_);
       return { ...eval_, tutorialGrade: Math.round(grade * 10) / 10 };
+    }),
+    // Check if current user can evaluate a specific session
+    canEvaluate: professorProcedure.input(z.object({ sessionId: z.number() })).query(async ({ ctx, input }) => {
+      if (ctx.user.role === "admin") return { canEvaluate: false, reason: "admin" };
+      const session = await getSessionById(input.sessionId);
+      if (!session) return { canEvaluate: false, reason: "session_not_found" };
+      const cls = await getClassById(session.classId);
+      if (!cls) return { canEvaluate: false, reason: "class_not_found" };
+      // Class owner can always evaluate
+      if (cls.professorUserId === ctx.user.id) return { canEvaluate: true, reason: "owner" };
+      // Coordinator of component can always evaluate
+      const compRole = await getUserComponentRole(ctx.user.id, cls.componentId);
+      if (compRole === "coordinator") return { canEvaluate: true, reason: "coordinator" };
+      // Check explicit permission
+      if (compRole === "prof") {
+        const permitted = await hasEvalPermission(cls.id, ctx.user.id);
+        return { canEvaluate: permitted, reason: permitted ? "authorized" : "not_authorized" };
+      }
+      return { canEvaluate: false, reason: "no_access" };
+    }),
+  }),
+
+  // ─── Evaluation Permissions (authorize professors to evaluate sessions of a class) ───
+  evalPermissions: router({
+    // List authorized professors for a class
+    list: approvedProcedure.input(z.object({ classId: z.number() })).query(async ({ ctx, input }) => {
+      const cls = await getClassById(input.classId);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);
+      return listEvalPermissions(input.classId);
+    }),
+    // List candidate professors (same component, not the class owner)
+    candidates: approvedProcedure.input(z.object({ classId: z.number() })).query(async ({ ctx, input }) => {
+      const cls = await getClassById(input.classId);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      // Only class owner, coordinator of component, or admin can see candidates
+      if (ctx.user.role !== "admin" && cls.professorUserId !== ctx.user.id) {
+        const compRole = await getUserComponentRole(ctx.user.id, cls.componentId);
+        if (compRole !== "coordinator") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Apenas o professor da turma ou coordenador do componente pode gerenciar autorizações" });
+        }
+      }
+      return listComponentProfessorsForClass(input.classId);
+    }),
+    // Grant permission: class owner or coordinator of component can authorize
+    grant: approvedProcedure.input(z.object({
+      classId: z.number(),
+      authorizedUserId: z.number(),
+    })).mutation(async ({ ctx, input }) => {
+      const cls = await getClassById(input.classId);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      // Only class owner, coordinator of component, or admin can grant
+      if (ctx.user.role !== "admin" && cls.professorUserId !== ctx.user.id) {
+        const compRole = await getUserComponentRole(ctx.user.id, cls.componentId);
+        if (compRole !== "coordinator") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Apenas o professor da turma ou coordenador do componente pode autorizar avaliações" });
+        }
+      }
+      await grantEvalPermission(input.classId, input.authorizedUserId, ctx.user.id);
+      return { success: true };
+    }),
+    // Revoke permission: class owner or coordinator of component can revoke
+    revoke: approvedProcedure.input(z.object({
+      classId: z.number(),
+      authorizedUserId: z.number(),
+    })).mutation(async ({ ctx, input }) => {
+      const cls = await getClassById(input.classId);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      // Only class owner, coordinator of component, or admin can revoke
+      if (ctx.user.role !== "admin" && cls.professorUserId !== ctx.user.id) {
+        const compRole = await getUserComponentRole(ctx.user.id, cls.componentId);
+        if (compRole !== "coordinator") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Apenas o professor da turma ou coordenador do componente pode revogar autorizações" });
+        }
+      }
+      await revokeEvalPermission(input.classId, input.authorizedUserId);
+      return { success: true };
     }),
   }),
 

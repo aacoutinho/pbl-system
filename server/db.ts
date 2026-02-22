@@ -1,4 +1,4 @@
-import { eq, and, desc, inArray, sql, or } from "drizzle-orm";
+import { eq, and, desc, inArray, sql, or, not } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser, users,
@@ -14,6 +14,7 @@ import {
   professorComponents, InsertProfessorComponent,
   smtpConfig, InsertSmtpConfig,
   passwordResetCodes,
+  classEvalPermissions,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1467,4 +1468,78 @@ export async function deleteComponent(id: number) {
   // Also remove professor component memberships
   await db.delete(professorComponents).where(eq(professorComponents.componentId, id));
   await db.delete(components).where(eq(components.id, id));
+}
+
+
+// ─── Class Evaluation Permissions ───
+
+// Grant a professor permission to evaluate sessions of a class
+export async function grantEvalPermission(classId: number, authorizedUserId: number, grantedByUserId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.insert(classEvalPermissions).values({ classId, authorizedUserId, grantedByUserId });
+}
+
+// Revoke a professor's permission to evaluate sessions of a class
+export async function revokeEvalPermission(classId: number, authorizedUserId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(classEvalPermissions).where(
+    and(eq(classEvalPermissions.classId, classId), eq(classEvalPermissions.authorizedUserId, authorizedUserId))
+  );
+}
+
+// Check if a professor has permission to evaluate sessions of a class
+export async function hasEvalPermission(classId: number, userId: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  const rows = await db.select({ id: classEvalPermissions.id })
+    .from(classEvalPermissions)
+    .where(and(eq(classEvalPermissions.classId, classId), eq(classEvalPermissions.authorizedUserId, userId)))
+    .limit(1);
+  return rows.length > 0;
+}
+
+// List all professors authorized to evaluate sessions of a class
+export async function listEvalPermissions(classId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.select({
+    id: classEvalPermissions.id,
+    classId: classEvalPermissions.classId,
+    authorizedUserId: classEvalPermissions.authorizedUserId,
+    grantedByUserId: classEvalPermissions.grantedByUserId,
+    grantedAt: classEvalPermissions.grantedAt,
+    authorizedUserName: users.name,
+    authorizedUserEmail: users.email,
+  })
+    .from(classEvalPermissions)
+    .innerJoin(users, eq(classEvalPermissions.authorizedUserId, users.id))
+    .where(eq(classEvalPermissions.classId, classId));
+  return rows;
+}
+
+// List professors in the same component as a class (potential candidates for eval permission)
+export async function listComponentProfessorsForClass(classId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const cls = await db.select().from(classes).where(eq(classes.id, classId)).limit(1);
+  if (cls.length === 0) return [];
+  const componentId = cls[0].componentId;
+  const classOwnerUserId = cls[0].professorUserId;
+  // Get all approved professors in this component except the class owner
+  const rows = await db.select({
+    userId: professorComponents.userId,
+    componentRole: professorComponents.componentRole,
+    userName: users.name,
+    userEmail: users.email,
+  })
+    .from(professorComponents)
+    .innerJoin(users, eq(professorComponents.userId, users.id))
+    .where(and(
+      eq(professorComponents.componentId, componentId),
+      eq(professorComponents.status, "approved"),
+      not(eq(professorComponents.userId, classOwnerUserId)),
+    ));
+  return rows;
 }

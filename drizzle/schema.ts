@@ -156,6 +156,20 @@ export const tutorialEvaluations = mysqlTable("tutorial_evaluations", {
 export type TutorialEvaluation = typeof tutorialEvaluations.$inferSelect;
 export type InsertTutorialEvaluation = typeof tutorialEvaluations.$inferInsert;
 
+// ─── Class Evaluation Permissions (professor authorizes another professor to evaluate sessions of a class) ───
+export const classEvalPermissions = mysqlTable("class_eval_permissions", {
+  id: int("id").autoincrement().primaryKey(),
+  classId: int("classId").notNull(), // The class whose sessions can be evaluated
+  authorizedUserId: int("authorizedUserId").notNull(), // The professor being authorized
+  grantedByUserId: int("grantedByUserId").notNull(), // The professor who granted the permission (class owner)
+  grantedAt: timestamp("grantedAt").defaultNow().notNull(),
+}, (table) => [
+  unique("uq_class_eval_perm").on(table.classId, table.authorizedUserId),
+]);
+
+export type ClassEvalPermission = typeof classEvalPermissions.$inferSelect;
+export type InsertClassEvalPermission = typeof classEvalPermissions.$inferInsert;
+
 // ─── SMTP Configuration (admin's email credentials) ───
 export const smtpConfig = mysqlTable("smtp_config", {
   id: int("id").autoincrement().primaryKey(),

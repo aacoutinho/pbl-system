@@ -368,3 +368,147 @@ describe("Router routes existence for new permissions", async () => {
     expect(appRouter._def.procedures["sessions.list"]).toBeDefined();
   });
 });
+
+describe("Evaluation permissions", () => {
+  // Simulate eval permissions data
+  const evalPermissions = [
+    { classId: 1, authorizedUserId: 2, grantedByUserId: 1 },
+    { classId: 1, authorizedUserId: 3, grantedByUserId: 4 }, // granted by coordinator
+  ];
+
+  const classes = [
+    { id: 1, componentId: 10, professorUserId: 1 },
+    { id: 2, componentId: 10, professorUserId: 2 },
+  ];
+
+  const professorComponents = [
+    { userId: 1, componentId: 10, componentRole: "prof", status: "approved" },
+    { userId: 2, componentId: 10, componentRole: "prof", status: "approved" },
+    { userId: 3, componentId: 10, componentRole: "prof", status: "approved" },
+    { userId: 4, componentId: 10, componentRole: "coordinator", status: "approved" },
+    { userId: 5, componentId: 10, componentRole: "prof", status: "approved" },
+  ];
+
+  function hasPermission(classId: number, userId: number): boolean {
+    return evalPermissions.some(p => p.classId === classId && p.authorizedUserId === userId);
+  }
+
+  function getComponentRole(userId: number, componentId: number): string | null {
+    const pc = professorComponents.find(p => p.userId === userId && p.componentId === componentId && p.status === "approved");
+    return pc?.componentRole ?? null;
+  }
+
+  function canEvaluateSession(userId: number, role: string, classId: number): { canEvaluate: boolean; reason: string } {
+    if (role === "admin") return { canEvaluate: false, reason: "admin" };
+    const cls = classes.find(c => c.id === classId);
+    if (!cls) return { canEvaluate: false, reason: "class_not_found" };
+    // Class owner can always evaluate
+    if (cls.professorUserId === userId) return { canEvaluate: true, reason: "owner" };
+    // Coordinator of component can always evaluate
+    const compRole = getComponentRole(userId, cls.componentId);
+    if (compRole === "coordinator") return { canEvaluate: true, reason: "coordinator" };
+    // Check explicit permission
+    if (compRole === "prof") {
+      const permitted = hasPermission(classId, userId);
+      return { canEvaluate: permitted, reason: permitted ? "authorized" : "not_authorized" };
+    }
+    return { canEvaluate: false, reason: "no_access" };
+  }
+
+  function canGrantPermission(userId: number, role: string, classId: number): boolean {
+    if (role === "admin") return true;
+    const cls = classes.find(c => c.id === classId);
+    if (!cls) return false;
+    if (cls.professorUserId === userId) return true;
+    const compRole = getComponentRole(userId, cls.componentId);
+    return compRole === "coordinator";
+  }
+
+  // ─── canEvaluateSession tests ───
+  it("class owner can always evaluate their own class sessions", () => {
+    const result = canEvaluateSession(1, "prof", 1);
+    expect(result.canEvaluate).toBe(true);
+    expect(result.reason).toBe("owner");
+  });
+
+  it("coordinator of component can evaluate any class in that component", () => {
+    const result = canEvaluateSession(4, "coordinator", 1);
+    expect(result.canEvaluate).toBe(true);
+    expect(result.reason).toBe("coordinator");
+  });
+
+  it("prof with explicit permission can evaluate", () => {
+    const result = canEvaluateSession(2, "prof", 1);
+    expect(result.canEvaluate).toBe(true);
+    expect(result.reason).toBe("authorized");
+  });
+
+  it("prof with explicit permission granted by coordinator can evaluate", () => {
+    const result = canEvaluateSession(3, "prof", 1);
+    expect(result.canEvaluate).toBe(true);
+    expect(result.reason).toBe("authorized");
+  });
+
+  it("prof WITHOUT permission cannot evaluate another prof's class", () => {
+    const result = canEvaluateSession(5, "prof", 1);
+    expect(result.canEvaluate).toBe(false);
+    expect(result.reason).toBe("not_authorized");
+  });
+
+  it("admin cannot evaluate sessions", () => {
+    const result = canEvaluateSession(99, "admin", 1);
+    expect(result.canEvaluate).toBe(false);
+    expect(result.reason).toBe("admin");
+  });
+
+  it("non-existent class returns class_not_found", () => {
+    const result = canEvaluateSession(1, "prof", 999);
+    expect(result.canEvaluate).toBe(false);
+    expect(result.reason).toBe("class_not_found");
+  });
+
+  // ─── canGrantPermission tests ───
+  it("class owner can grant eval permission", () => {
+    expect(canGrantPermission(1, "prof", 1)).toBe(true);
+  });
+
+  it("coordinator of component can grant eval permission", () => {
+    expect(canGrantPermission(4, "coordinator", 1)).toBe(true);
+  });
+
+  it("admin can grant eval permission", () => {
+    expect(canGrantPermission(99, "admin", 1)).toBe(true);
+  });
+
+  it("regular prof who is NOT class owner cannot grant eval permission", () => {
+    expect(canGrantPermission(5, "prof", 1)).toBe(false);
+  });
+
+  it("prof who is class owner of class 2 cannot grant permission for class 1", () => {
+    expect(canGrantPermission(2, "prof", 1)).toBe(false); // user 2 owns class 2, not class 1
+  });
+});
+
+describe("Router routes for eval permissions", async () => {
+  const { appRouter } = await import("./routers");
+
+  it("evalPermissions.list route exists", () => {
+    expect(appRouter._def.procedures["evalPermissions.list"]).toBeDefined();
+  });
+
+  it("evalPermissions.candidates route exists", () => {
+    expect(appRouter._def.procedures["evalPermissions.candidates"]).toBeDefined();
+  });
+
+  it("evalPermissions.grant route exists", () => {
+    expect(appRouter._def.procedures["evalPermissions.grant"]).toBeDefined();
+  });
+
+  it("evalPermissions.revoke route exists", () => {
+    expect(appRouter._def.procedures["evalPermissions.revoke"]).toBeDefined();
+  });
+
+  it("tutorialEval.canEvaluate route exists", () => {
+    expect(appRouter._def.procedures["tutorialEval.canEvaluate"]).toBeDefined();
+  });
+});

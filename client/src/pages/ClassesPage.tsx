@@ -1,5 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { useClassContext } from "@/contexts/ClassContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BookOpen, Plus, Pencil, Trash2 } from "lucide-react";
+import { BookOpen, Plus, Pencil, Trash2, ShieldCheck, UserPlus, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -23,9 +24,11 @@ export default function ClassesPage() {
 }
 
 function ClassesContent() {
+  const { user } = useAuth();
   const utils = trpc.useUtils();
   const { data: classes, isLoading } = trpc.classes.list.useQuery();
   const { data: componentsList } = trpc.components.list.useQuery();
+  const { data: myComponents } = trpc.professors.myComponents.useQuery();
   const { selectedClassId, setSelectedClassId } = useClassContext();
 
   const createMutation = trpc.classes.create.useMutation({
@@ -54,6 +57,7 @@ function ClassesContent() {
   const [editSemester, setEditSemester] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [permDialogClassId, setPermDialogClassId] = useState<number | null>(null);
 
   // Build a map from componentId to component code for display
   const componentMap = new Map<number, { code: string; name: string }>();
@@ -162,6 +166,12 @@ function ClassesContent() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {classes.map(cls => {
             const comp = cls.componentId ? componentMap.get(cls.componentId) : null;
+            const isOwner = cls.professorUserId === user?.id;
+            const isAdmin = user?.role === "admin";
+            const isCoordinatorOfComponent = myComponents?.some(
+              c => c.componentId === cls.componentId && c.componentRole === "coordinator" && c.status === "approved"
+            ) ?? false;
+            const canManagePerms = isOwner || isAdmin || isCoordinatorOfComponent;
             return (
               <Card key={cls.id} className={`hover:shadow-md transition-all cursor-pointer ${selectedClassId === cls.id ? "ring-2 ring-primary" : ""}`}
                 onClick={() => setSelectedClassId(cls.id)}>
@@ -176,7 +186,7 @@ function ClassesContent() {
                 <CardContent>
                   <p className="text-sm text-muted-foreground mb-1">{comp?.name ?? ""}</p>
                   <p className="text-sm text-muted-foreground mb-4">Semestre: {cls.semester}</p>
-                  <div className="flex gap-2" onClick={e => e.stopPropagation()}>
+                  <div className="flex gap-2 flex-wrap" onClick={e => e.stopPropagation()}>
                     <Button variant="outline" size="sm" onClick={() => {
                       setEditId(cls.id); 
                       setEditClassCode(cls.classCode); 
@@ -186,6 +196,12 @@ function ClassesContent() {
                     }}>
                       <Pencil className="h-3 w-3 mr-1" />Editar
                     </Button>
+                    {/* Eval permissions button - visible for class owner, coordinator of component, admin */}
+                    {canManagePerms && (
+                      <Button variant="outline" size="sm" onClick={() => setPermDialogClassId(cls.id)}>
+                        <ShieldCheck className="h-3 w-3 mr-1" />Autorizações
+                      </Button>
+                    )}
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
@@ -256,6 +272,133 @@ function ClassesContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Eval Permissions Dialog */}
+      {permDialogClassId && (
+        <EvalPermissionsDialog 
+          classId={permDialogClassId} 
+          onClose={() => setPermDialogClassId(null)} 
+        />
+      )}
     </div>
+  );
+}
+
+// ─── Eval Permissions Dialog ───
+function EvalPermissionsDialog({ classId, onClose }: { classId: number; onClose: () => void }) {
+  const utils = trpc.useUtils();
+  const { data: permissions, isLoading: loadingPerms } = trpc.evalPermissions.list.useQuery({ classId });
+  const { data: candidates, isLoading: loadingCandidates } = trpc.evalPermissions.candidates.useQuery({ classId });
+
+  const grantMutation = trpc.evalPermissions.grant.useMutation({
+    onSuccess: () => {
+      utils.evalPermissions.list.invalidate({ classId });
+      utils.evalPermissions.candidates.invalidate({ classId });
+      toast.success("Professor autorizado com sucesso!");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const revokeMutation = trpc.evalPermissions.revoke.useMutation({
+    onSuccess: () => {
+      utils.evalPermissions.list.invalidate({ classId });
+      utils.evalPermissions.candidates.invalidate({ classId });
+      toast.success("Autorização revogada!");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  // Filter out already authorized professors from candidates
+  const authorizedUserIds = new Set(permissions?.map(p => p.authorizedUserId) ?? []);
+  const availableCandidates = candidates?.filter(c => !authorizedUserIds.has(c.userId)) ?? [];
+
+  return (
+    <Dialog open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5" />
+            Autorizações de Avaliação
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-6 py-2">
+          {/* Currently authorized professors */}
+          <div>
+            <h3 className="text-sm font-semibold mb-3">Professores Autorizados</h3>
+            {loadingPerms ? (
+              <div className="space-y-2">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ) : (!permissions || permissions.length === 0) ? (
+              <p className="text-sm text-muted-foreground py-3 text-center">
+                Nenhum professor autorizado. Apenas o professor responsável e coordenadores do componente podem avaliar sessões desta turma.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {permissions.map(perm => (
+                  <div key={perm.id} className="flex items-center justify-between p-3 rounded-lg border bg-card">
+                    <div>
+                      <p className="text-sm font-medium">{perm.authorizedUserName}</p>
+                      <p className="text-xs text-muted-foreground">{perm.authorizedUserEmail}</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => revokeMutation.mutate({ classId, authorizedUserId: perm.authorizedUserId })}
+                      disabled={revokeMutation.isPending}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Add new authorization */}
+          <div>
+            <h3 className="text-sm font-semibold mb-3">Adicionar Autorização</h3>
+            {loadingCandidates ? (
+              <Skeleton className="h-10 w-full" />
+            ) : availableCandidates.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-3 text-center">
+                Não há outros professores disponíveis neste componente para autorizar.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {availableCandidates.map(candidate => (
+                  <div key={candidate.userId} className="flex items-center justify-between p-3 rounded-lg border">
+                    <div>
+                      <p className="text-sm font-medium">{candidate.userName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {candidate.userEmail}
+                        {candidate.componentRole === "coordinator" && (
+                          <Badge variant="secondary" className="ml-2 text-xs">Coordenador</Badge>
+                        )}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => grantMutation.mutate({ classId, authorizedUserId: candidate.userId })}
+                      disabled={grantMutation.isPending}
+                    >
+                      <UserPlus className="h-3 w-3 mr-1" />Autorizar
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Fechar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
