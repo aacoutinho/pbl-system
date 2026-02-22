@@ -258,7 +258,7 @@ function LoginScreen() {
                         selected ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted/50 hover:bg-muted border-border'
                       }`}
                     >
-                      {c.code} - {c.name}
+                      {c.code}
                     </button>
                   );
                 })}

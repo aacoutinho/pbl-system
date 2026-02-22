@@ -206,3 +206,4 @@
 - [x] Rota para enviar código de verificação por e-mail
 - [x] Rota para validar código e completar registro
 - [x] Frontend: fluxo de registro com etapa de verificação
+- [x] Nos combo/listbox da interface, mostrar apenas o código do componente em vez do nome completo

@@ -202,7 +202,7 @@ function ProfessorsContent() {
                 </SelectTrigger>
                 <SelectContent>
                   {requestableComponents.map(c => (
-                    <SelectItem key={c.id} value={String(c.id)}>{c.code} - {c.name}</SelectItem>
+                    <SelectItem key={c.id} value={String(c.id)} title={c.name}>{c.code}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -283,7 +283,7 @@ function ProfessorsContent() {
                     <p className="text-sm text-muted-foreground">{req.userEmail || "Sem e-mail"}</p>
                     <Badge variant="outline" className="mt-1 text-xs">
                       <BookOpen className="h-3 w-3 mr-1" />
-                      {req.componentCode} - {req.componentName}
+                      {req.componentCode}
                     </Badge>
                   </div>
                   <div className="flex gap-2">
@@ -334,9 +334,9 @@ function ProfessorsContent() {
                     <SelectValue placeholder="Filtrar por componente" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Todos os componentes</SelectItem>
-                    {availableComponents.map(c => (
-                      <SelectItem key={c.id} value={String(c.id)}>{c.code} - {c.name}</SelectItem>
+                    <SelectItem value="all">Todos</SelectItem>
+                     {availableComponents.map(c => (
+                       <SelectItem key={c.id} value={String(c.id)} title={c.name}>{c.code}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -562,7 +562,7 @@ function ProfessorCard({
               </SelectTrigger>
               <SelectContent>
                 {unassignedComponents.map((c) => (
-                  <SelectItem key={c.id} value={String(c.id)}>{c.code} - {c.name}</SelectItem>
+                  <SelectItem key={c.id} value={String(c.id)} title={c.name}>{c.code}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

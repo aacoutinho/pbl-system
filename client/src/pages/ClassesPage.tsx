@@ -129,7 +129,7 @@ function ClassesContent() {
                     </SelectTrigger>
                     <SelectContent>
                       {componentsList.map(c => (
-                        <SelectItem key={c.id} value={String(c.id)}>{c.code} - {c.name}</SelectItem>
+                        <SelectItem key={c.id} value={String(c.id)} title={c.name}>{c.code}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -257,7 +257,7 @@ function ClassesContent() {
                   </SelectTrigger>
                   <SelectContent>
                     {componentsList.map(c => (
-                      <SelectItem key={c.id} value={String(c.id)}>{c.code} - {c.name}</SelectItem>
+                      <SelectItem key={c.id} value={String(c.id)} title={c.name}>{c.code}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
