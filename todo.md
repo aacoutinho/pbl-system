@@ -251,3 +251,4 @@
 - [x] Tabela detalhada de notas dos pares nos resultados da sessão
 - [x] Backend: rota para retornar notas individuais dos pares por sessão
 - [x] Frontend: tabela com serial, matrícula, nome, notas individuais (coluna por avaliador com serial) e média dos pares
+- [x] Bug: página de Notificações não exibe menu lateral (DashboardLayout) como nas outras páginas
