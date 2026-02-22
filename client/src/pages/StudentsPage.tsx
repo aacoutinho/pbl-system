@@ -95,6 +95,7 @@ function StudentsContent() {
     if (!editName.trim() || !editEnrollment.trim()) { toast.error("Preencha nome e matrícula"); return; }
     updateMutation.mutate({
       studentId: editingStudent.id,
+      classId: selectedClassId,
       name: editName.trim(),
       enrollment: editEnrollment.trim(),
       email: editEmail.trim() || null,

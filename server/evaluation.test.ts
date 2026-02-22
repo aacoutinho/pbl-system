@@ -113,9 +113,12 @@ describe("Access control with classes", () => {
     expect(typeof stats.totalClasses).toBe("number");
   });
 
-  it("blocks student from accessing admin class routes", async () => {
+  it("approved user can list classes (returns empty for user with no components)", async () => {
     const caller = appRouter.createCaller(createStudentContext());
-    await expect(caller.classes.list()).rejects.toThrow();
+    // With new permission system, any approved user can call classes.list
+    // but gets filtered results based on their components (empty for user role)
+    const result = await caller.classes.list();
+    expect(Array.isArray(result)).toBe(true);
   });
 
   it("blocks student from creating classes", async () => {
@@ -147,9 +150,13 @@ describe("Access control with classes", () => {
     await expect(caller.sessions.close({ id: 1 })).rejects.toThrow();
   });
 
-  it("blocks student from accessing dashboard stats", async () => {
+  it("approved user can access dashboard stats (scoped to their components)", async () => {
     const caller = appRouter.createCaller(createStudentContext());
-    await expect(caller.results.dashboard()).rejects.toThrow();
+    // With new permission system, any approved user can access dashboard
+    // but stats are scoped to their components (0 for user with no components)
+    const stats = await caller.results.dashboard();
+    expect(stats).toHaveProperty("totalStudents");
+    expect(stats.totalClasses).toBe(0);
   });
 
   it("blocks student from accessing student routes (no longer available)", async () => {

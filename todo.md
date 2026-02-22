@@ -164,3 +164,28 @@
 - [x] Atualizar testes com novos nomes de roles
 - [x] Atualizar banco de dados: roles já estão corretos no banco (admin=admin, coordinator=coordinator)
 - [x] Esconder seção de Solicitações Pendentes na página de Professores para não-admins
+- [x] Criar role 'prof' (professor) no schema
+- [x] Atualizar professorComponents para ter role (coordinator/prof) por componente
+- [x] Novos usuários aprovados recebem role 'prof' por default
+- [x] Registro: usuário escolhe componentes ao se cadastrar (solicitação de entrada)
+- [x] Todos os usuários podem listar componentes cadastrados
+- [x] Apenas admin pode criar/editar/excluir componentes
+- [x] Apenas admin pode excluir alunos ou professores do sistema
+- [x] Professores podem solicitar entrada em componente a qualquer momento
+- [x] Solicitações pendentes visíveis apenas para coordenador(es) do componente
+- [x] Coordenador de componente pode autorizar professor no componente
+- [x] Admin pode autorizar professor em qualquer componente
+- [x] Coordenador pode promover professor a coordenador do componente
+- [x] Coordenador pode rebaixar outro coordenador a professor no componente
+- [x] Coordenador pode remover professor do componente (não do sistema)
+- [x] Coordenador de componente: CRUD turmas do seu componente
+- [x] Coordenador de componente: CRUD alunos nas turmas do seu componente
+- [x] Professor só lista informações dos seus componentes (turmas, alunos, resultados)
+- [x] Professor só avalia sessões dos seus componentes
+- [x] Professor pode avaliar sessão de outro professor se autorizado
+- [x] Admin não precisa avaliar sessões (remover do perfil admin)
+- [x] Painel geral mostra apenas visão dos componentes do usuário
+- [x] Admin pode CRUD qualquer configuração do sistema
+- [x] Listagem de professores com filtro por componente
+- [x] Atualizar frontend para novo sistema de permissões por componente
+- [x] Testes para novo sistema de permissões (253 testes passando)

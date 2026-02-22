@@ -7,7 +7,7 @@ export const users = mysqlTable("users", {
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin", "coordinator"]).default("user").notNull(),
+  role: mysqlEnum("role", ["user", "admin", "coordinator", "prof"]).default("user").notNull(),
   approvalStatus: mysqlEnum("approvalStatus", ["pending", "approved", "rejected"]).default("pending").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -29,11 +29,15 @@ export const components = mysqlTable("components", {
 export type Component = typeof components.$inferSelect;
 export type InsertComponent = typeof components.$inferInsert;
 
-// ─── Professor Component Authorizations ───
+// ─── Professor Component Memberships ───
+// Tracks which professors belong to which components, their role within the component,
+// and whether their membership is pending approval or approved.
 export const professorComponents = mysqlTable("professor_components", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
   componentId: int("componentId").notNull(), // References components.id
+  componentRole: mysqlEnum("componentRole", ["coordinator", "prof"]).default("prof").notNull(),
+  status: mysqlEnum("status", ["pending", "approved"]).default("pending").notNull(),
   authorizedAt: timestamp("authorizedAt").defaultNow().notNull(),
   authorizedByUserId: int("authorizedByUserId"),
 }, (table) => [
@@ -152,10 +156,10 @@ export const tutorialEvaluations = mysqlTable("tutorial_evaluations", {
 export type TutorialEvaluation = typeof tutorialEvaluations.$inferSelect;
 export type InsertTutorialEvaluation = typeof tutorialEvaluations.$inferInsert;
 
-// ─── SMTP Configuration (coordinator's email credentials) ───
+// ─── SMTP Configuration (admin's email credentials) ───
 export const smtpConfig = mysqlTable("smtp_config", {
   id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull().unique(), // Only coordinator can have this
+  userId: int("userId").notNull().unique(), // Only admin can have this
   host: varchar("host", { length: 255 }).notNull(),
   port: int("port").notNull().default(587),
   secure: boolean("secure").default(false).notNull(), // true for 465, false for 587/STARTTLS

@@ -7,39 +7,78 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import {
-  createClass, listClassesByProfessor, updateClass, deleteClass, getClassById,
+  createClass, listClassesByProfessor, listClassesByComponents, updateClass, deleteClass, getClassById,
   listStudentsByClass, createStudent, updateStudent, removeStudentFromClass, getStudentByEnrollment,
   addStudentToClass, isStudentInComponentClass, bulkImportStudents,
   listAllClasses, listStudentsForExport, updateStudentEmail,
   createSession, listSessionsByClass, getSessionStudents, closeSession, openSession, deleteSession, getSessionById,
   submitEvaluation, getSessionEvaluations, hasStudentSubmitted, deleteStudentEvaluation,
-  calculateSessionResults, calculateProblemResults, getDashboardStats,
+  calculateSessionResults, calculateProblemResults, getDashboardStats, getDashboardStatsByComponents,
   submitTutorialEvaluation, getTutorialEvaluation, calculateTutorialGrade,
   calculateFinalGrades, calculateProblemFinalGrades,
   generateAccessCode, getSessionByAccessCode, findStudentByEnrollmentInClass,
-  approveUser, rejectUser, listPendingProfessors, listApprovedProfessors,
+  approveUser, rejectUser, listPendingProfessors, listApprovedProfessors, deleteUser,
   addProfessorComponent, removeProfessorComponent, listProfessorComponents, listAllProfessorComponents,
   getUserById, getUserByEmail, countUsers, createUserWithPassword, updateUserPassword,
   getAdmin, transferCoordination, getSmtpConfig, upsertSmtpConfig, deleteSmtpConfig,
   createPasswordResetCode, verifyPasswordResetCode, markResetCodeUsed, isSmtpConfigured,
   createComponent, getComponentById, getComponentByCode, listComponents, updateComponent, deleteComponent,
+  getUserApprovedComponentIds, getUserComponentRole, getUserComponents,
+  requestComponentMembership, listPendingRequestsByComponents,
+  approveComponentRequest, rejectComponentRequest, setComponentRole, removeProfessorFromComponent,
+  getCoordinatorComponentIds,
 } from "./db";
 import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml } from "./email";
 
+// Base: approved user (any role except "user" pending)
 const approvedProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (ctx.user.approvalStatus !== "approved") throw new TRPCError({ code: "FORBIDDEN", message: "Acesso pendente de aprovação" });
   return next({ ctx });
 });
 
-const coordinatorProcedure = approvedProcedure.use(({ ctx, next }) => {
-  if (ctx.user.role !== "coordinator" && ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a professores" });
-  return next({ ctx });
-});
-
+// Admin only
 const adminProcedure = approvedProcedure.use(({ ctx, next }) => {
   if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito ao administrador" });
   return next({ ctx });
 });
+
+// Coordinator or Admin (for actions that require at least coordinator level)
+const coordinatorOrAdminProcedure = approvedProcedure.use(({ ctx, next }) => {
+  if (ctx.user.role !== "coordinator" && ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a coordenadores" });
+  return next({ ctx });
+});
+
+// Any approved professor (prof, coordinator, or admin)
+const professorProcedure = approvedProcedure.use(({ ctx, next }) => {
+  if (ctx.user.role !== "prof" && ctx.user.role !== "coordinator" && ctx.user.role !== "admin") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a professores" });
+  }
+  return next({ ctx });
+});
+
+// Helper: check if user has access to a component (is approved member or admin)
+async function assertComponentAccess(userId: number, role: string, componentId: number) {
+  if (role === "admin") return; // admin has access to everything
+  const compRole = await getUserComponentRole(userId, componentId);
+  if (!compRole) throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem acesso a este componente" });
+}
+
+// Helper: check if user is coordinator of a component (or admin)
+async function assertComponentCoordinator(userId: number, role: string, componentId: number) {
+  if (role === "admin") return;
+  const compRole = await getUserComponentRole(userId, componentId);
+  if (compRole !== "coordinator") throw new TRPCError({ code: "FORBIDDEN", message: "Apenas coordenadores deste componente podem realizar esta ação" });
+}
+
+// Helper: get accessible component IDs for user
+async function getAccessibleComponentIds(userId: number, role: string): Promise<number[]> {
+  if (role === "admin") {
+    // Admin sees all components
+    const allComps = await listComponents();
+    return allComps.map(c => c.id);
+  }
+  return getUserApprovedComponentIds(userId);
+}
 
 export const appRouter = router({
   system: systemRouter,
@@ -50,16 +89,15 @@ export const appRouter = router({
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
     }),
-    // Check if system has any users (for first-time setup)
     isFirstUser: publicProcedure.query(async () => {
       const total = await countUsers();
       return { isFirstUser: total === 0 };
     }),
-    // Register a new professor (first user becomes admin auto-approved)
     register: publicProcedure.input(z.object({
       email: z.string().email(),
       name: z.string().min(1),
       password: z.string().min(6),
+      componentIds: z.array(z.number()).optional(), // Components the user wants to join
     })).mutation(async ({ ctx, input }) => {
       const existing = await getUserByEmail(input.email.toLowerCase());
       if (existing) throw new TRPCError({ code: "CONFLICT", message: "Este e-mail já está cadastrado" });
@@ -74,6 +112,16 @@ export const appRouter = router({
         approvalStatus: isFirst ? "approved" : "pending",
       });
       if (!user) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Erro ao criar usuário" });
+      // Create pending component membership requests
+      if (input.componentIds && input.componentIds.length > 0 && !isFirst) {
+        for (const compId of input.componentIds) {
+          try {
+            await requestComponentMembership(user.id, compId);
+          } catch {
+            // Ignore errors (component may not exist)
+          }
+        }
+      }
       // Auto-login after registration
       const openId = `local:${input.email.toLowerCase()}`;
       const sessionToken = await sdk.createSessionToken(openId, {
@@ -84,7 +132,6 @@ export const appRouter = router({
       ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
       return { success: true, isFirstUser: isFirst, user: { id: user.id, name: user.name, email: user.email, role: user.role, approvalStatus: user.approvalStatus } };
     }),
-    // Login with email and password
     login: publicProcedure.input(z.object({
       email: z.string().email(),
       password: z.string().min(1),
@@ -93,7 +140,6 @@ export const appRouter = router({
       if (!user || !user.passwordHash) throw new TRPCError({ code: "UNAUTHORIZED", message: "E-mail ou senha incorretos" });
       const valid = await bcrypt.compare(input.password, user.passwordHash);
       if (!valid) throw new TRPCError({ code: "UNAUTHORIZED", message: "E-mail ou senha incorretos" });
-      // Create session
       const sessionToken = await sdk.createSessionToken(user.openId, {
         name: user.name || user.email || "",
         expiresInMs: ONE_YEAR_MS,
@@ -102,7 +148,6 @@ export const appRouter = router({
       ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
       return { success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role, approvalStatus: user.approvalStatus } };
     }),
-    // Change password (for logged-in user)
     changePassword: protectedProcedure.input(z.object({
       currentPassword: z.string().min(1),
       newPassword: z.string().min(6),
@@ -115,21 +160,17 @@ export const appRouter = router({
       await updateUserPassword(user.id, newHash);
       return { success: true };
     }),
-    // Request password reset code (public - sends email)
     requestResetCode: publicProcedure.input(z.object({
       email: z.string().email(),
     })).mutation(async ({ input }) => {
       const user = await getUserByEmail(input.email.toLowerCase());
-      if (!user) {
-        // Don't reveal if email exists - always return success
-        return { success: true };
-      }
+      if (!user) return { success: true };
       const smtpReady = await isSmtpConfigured();
       if (!smtpReady) {
         throw new TRPCError({ code: "PRECONDITION_FAILED", message: "O sistema de e-mail não está configurado. Contacte o administrador." });
       }
       const code = generateResetCode();
-      const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
       await createPasswordResetCode(user.id, code, expiresAt);
       const result = await sendEmail({
         to: user.email!,
@@ -142,7 +183,6 @@ export const appRouter = router({
       }
       return { success: true };
     }),
-    // Verify reset code and set new password
     resetPassword: publicProcedure.input(z.object({
       email: z.string().email(),
       code: z.string().length(6),
@@ -157,7 +197,6 @@ export const appRouter = router({
       await markResetCodeUsed(user.id, input.code);
       return { success: true };
     }),
-    // Check if SMTP is configured (for showing "forgot password" link)
     smtpStatus: publicProcedure.query(async () => {
       const configured = await isSmtpConfigured();
       return { configured };
@@ -169,7 +208,6 @@ export const appRouter = router({
     get: adminProcedure.query(async ({ ctx }) => {
       const config = await getSmtpConfig(ctx.user.id);
       if (!config) return null;
-      // Don't return the actual password
       return {
         host: config.host,
         port: config.port,
@@ -222,7 +260,7 @@ export const appRouter = router({
     transfer: adminProcedure.input(z.object({
       toUserId: z.number().int(),
     })).mutation(async ({ ctx, input }) => {
-      if (input.toUserId === ctx.user.id) throw new TRPCError({ code: "BAD_REQUEST", message: "Você já é o administrador" });
+      if (ctx.user.id === input.toUserId) throw new TRPCError({ code: "BAD_REQUEST", message: "Não é possível transferir para si mesmo" });
       const target = await getUserById(input.toUserId);
       if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "Professor não encontrado" });
       if (target.approvalStatus !== "approved") throw new TRPCError({ code: "BAD_REQUEST", message: "O professor precisa estar aprovado" });
@@ -233,9 +271,15 @@ export const appRouter = router({
 
   // ─── Components (componentes curriculares) ───
   components: router({
+    // ALL approved users can list components
     list: approvedProcedure.query(async () => {
       return listComponents();
     }),
+    // Also public list for registration page
+    listPublic: publicProcedure.query(async () => {
+      return listComponents();
+    }),
+    // Only admin can create/update/delete
     create: adminProcedure.input(z.object({
       code: z.string().min(1),
       name: z.string().min(1),
@@ -267,63 +311,80 @@ export const appRouter = router({
 
   // ─── Classes (turmas) ───
   classes: router({
-    list: coordinatorProcedure.query(async ({ ctx }) => {
-      return listClassesByProfessor(ctx.user.id);
+    // List classes: admin sees all, coordinator/prof see their component classes
+    list: approvedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role === "admin") {
+        return listAllClasses();
+      }
+      const componentIds = await getUserApprovedComponentIds(ctx.user.id);
+      if (componentIds.length === 0) return [];
+      return listClassesByComponents(componentIds);
     }),
-    create: coordinatorProcedure.input(z.object({
+    // Create: admin can create for any component, coordinator for their components
+    create: coordinatorOrAdminProcedure.input(z.object({
       classCode: z.string().min(1),
       componentId: z.number(),
       semester: z.string().min(1),
     })).mutation(async ({ ctx, input }) => {
+      await assertComponentCoordinator(ctx.user.id, ctx.user.role, input.componentId);
       return createClass({ ...input, professorUserId: ctx.user.id });
     }),
-    update: coordinatorProcedure.input(z.object({
+    // Update: admin can update any, coordinator can update classes of their components
+    update: coordinatorOrAdminProcedure.input(z.object({
       id: z.number(),
       classCode: z.string().min(1).optional(),
       componentId: z.number().optional(),
       semester: z.string().min(1).optional(),
     })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.id);
-      if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertComponentCoordinator(ctx.user.id, ctx.user.role, cls.componentId);
       return updateClass(input.id, { classCode: input.classCode, componentId: input.componentId, semester: input.semester });
     }),
-    delete: coordinatorProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+    // Delete: admin can delete any, coordinator can delete classes of their components
+    delete: coordinatorOrAdminProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.id);
-      if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertComponentCoordinator(ctx.user.id, ctx.user.role, cls.componentId);
       await deleteClass(input.id);
       return { success: true };
     }),
-
-    // All classes (for cross-class results visibility)
-    listAll: coordinatorProcedure.query(async () => {
-      return listAllClasses();
+    // All classes (for admin or cross-class results)
+    listAll: approvedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role === "admin") {
+        return listAllClasses();
+      }
+      const componentIds = await getUserApprovedComponentIds(ctx.user.id);
+      if (componentIds.length === 0) return [];
+      return listClassesByComponents(componentIds);
     }),
   }),
 
   // ─── Students ───
   students: router({
-    list: coordinatorProcedure.input(z.object({ classId: z.number() })).query(async ({ ctx, input }) => {
+    // List: scoped by component access
+    list: approvedProcedure.input(z.object({ classId: z.number() })).query(async ({ ctx, input }) => {
       const cls = await getClassById(input.classId);
-      if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);
       return listStudentsByClass(input.classId);
     }),
-    create: coordinatorProcedure.input(z.object({
+    // Create: admin or coordinator of component
+    create: coordinatorOrAdminProcedure.input(z.object({
       classId: z.number(),
       name: z.string().min(1),
       enrollment: z.string().min(1),
       email: z.string().optional(),
     })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.classId);
-      if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
-      // Check if student already exists by enrollment
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertComponentCoordinator(ctx.user.id, ctx.user.role, cls.componentId);
       let student = await getStudentByEnrollment(input.enrollment);
       if (student) {
-        // Check if already in this class
         const classStudentsList = await listStudentsByClass(input.classId);
         if (classStudentsList.some(s => s.id === student!.id)) {
           throw new TRPCError({ code: "CONFLICT", message: "Aluno já está nesta turma" });
         }
-        // Check component conflict
         const inComponent = await isStudentInComponentClass(student.id, cls.componentId, input.classId);
         if (inComponent) {
           throw new TRPCError({ code: "CONFLICT", message: "Aluno já está em outra turma deste componente" });
@@ -335,13 +396,16 @@ export const appRouter = router({
       }
       return student;
     }),
-    update: coordinatorProcedure.input(z.object({
+    update: coordinatorOrAdminProcedure.input(z.object({
       studentId: z.number(),
+      classId: z.number(), // needed to verify component access
       name: z.string().optional(),
       enrollment: z.string().optional(),
       email: z.string().nullable().optional(),
-    })).mutation(async ({ input }) => {
-      // Validate enrollment uniqueness if changing enrollment
+    })).mutation(async ({ ctx, input }) => {
+      const cls = await getClassById(input.classId);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertComponentCoordinator(ctx.user.id, ctx.user.role, cls.componentId);
       if (input.enrollment) {
         const existing = await getStudentByEnrollment(input.enrollment);
         if (existing && existing.id !== input.studentId) {
@@ -350,34 +414,33 @@ export const appRouter = router({
       }
       return updateStudent(input.studentId, { name: input.name, enrollment: input.enrollment, email: input.email });
     }),
-    removeFromClass: coordinatorProcedure.input(z.object({ studentId: z.number(), classId: z.number() })).mutation(async ({ ctx, input }) => {
+    // Remove from class: coordinator of component or admin
+    removeFromClass: coordinatorOrAdminProcedure.input(z.object({ studentId: z.number(), classId: z.number() })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.classId);
-      if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertComponentCoordinator(ctx.user.id, ctx.user.role, cls.componentId);
       await removeStudentFromClass(input.studentId, input.classId);
       return { success: true };
     }),
-    importCSV: coordinatorProcedure.input(z.object({
+    importCSV: coordinatorOrAdminProcedure.input(z.object({
       classId: z.number(),
       csvContent: z.string(),
     })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.classId);
-      if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertComponentCoordinator(ctx.user.id, ctx.user.role, cls.componentId);
 
-      // Parse CSV from SAGRES system (semicolon-separated)
       const lines = input.csvContent.split("\n");
       const parsedStudents: { name: string; enrollment: string }[] = [];
 
       for (const line of lines) {
         const cols = line.split(";");
-        // Student rows have a number in col[1] and name in col[4]
         const num = cols[1]?.trim();
         if (!num || isNaN(parseInt(num))) continue;
         const enrollment = cols[3]?.trim();
         const name = cols[4]?.trim();
         if (!name || !enrollment) continue;
-        // Skip header row
         if (name === "Aluno" || enrollment === "Matrícula") continue;
-
         parsedStudents.push({ name, enrollment });
       }
 
@@ -404,26 +467,22 @@ export const appRouter = router({
         students: parsedStudents,
       };
     }),
-    exportGoogleWorkspace: coordinatorProcedure.input(z.object({
+    exportGoogleWorkspace: approvedProcedure.input(z.object({
       classIds: z.array(z.number()).min(1),
     })).query(async ({ ctx, input }) => {
-      // Verify all classes belong to the professor
+      // Verify component access for all classes
       for (const classId of input.classIds) {
         const cls = await getClassById(classId);
-        if (!cls || cls.professorUserId !== ctx.user.id) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
-        }
+        if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+        await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);
       }
       const studentsData = await listStudentsForExport(input.classIds);
       if (studentsData.length === 0) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Nenhum aluno encontrado nas turmas selecionadas." });
       }
 
-      // Google Workspace CSV header (29 columns)
       const header = "First Name [Required];Last Name [Required];Email Address [Required];Password [Required];Password Hash Function [UPLOAD ONLY];Org Unit Path [Required];New Primary Email [UPLOAD ONLY];Recovery Email;Home Secondary Email;Work Secondary Email;Recovery Phone [MUST BE IN THE E.164 FORMAT];Work Phone;Home Phone;Mobile Phone;Work Address;Home Address;Employee ID;Employee Type;Employee Title;Manager Email;Department;Cost Center;Building ID;Floor Name;Floor Section;Change Password at Next Sign-In;New Status [UPLOAD ONLY];New Licenses [UPLOAD ONLY];Advanced Protection Program enrollment";
 
-      // Title Case: primeira letra maiúscula, resto minúscula
-      // Preposições portuguesas permanecem em minúscula
       const PREPOSITIONS = new Set(["de", "da", "do", "dos", "das", "e"]);
       const toTitleCase = (str: string) => {
         return str.toLowerCase().split(/\s+/).map((word) => {
@@ -436,45 +495,16 @@ export const appRouter = router({
         const nameParts = s.studentName.trim().split(/\s+/);
         const firstName = toTitleCase(nameParts[0] || "");
         const lastName = toTitleCase(nameParts.slice(1).join(" ") || "");
-        // Password: iniciais do nome + matrícula
         const initials = nameParts.map(p => p[0]?.toLowerCase() || "").join("");
         const enrollment = s.studentEnrollment || "";
         const password = `${initials}${enrollment}`;
-        // 29 columns: fill specified ones, rest empty
         return [
-          firstName,   // 1. First Name
-          lastName,    // 2. Last Name
-          s.studentEmail, // 3. Email Address
-          password,    // 4. Password
-          "",          // 5. Password Hash Function
-          "/Alunos",   // 6. Org Unit Path
-          "",          // 7. New Primary Email
-          "",          // 8. Recovery Email
-          "",          // 9. Home Secondary Email
-          "",          // 10. Work Secondary Email
-          "",          // 11. Recovery Phone
-          "",          // 12. Work Phone
-          "",          // 13. Home Phone
-          "",          // 14. Mobile Phone
-          "",          // 15. Work Address
-          "",          // 16. Home Address
-          "",          // 17. Employee ID
-          "",          // 18. Employee Type
-          "",          // 19. Employee Title
-          "",          // 20. Manager Email
-          "",          // 21. Department
-          "",          // 22. Cost Center
-          "",          // 23. Building ID
-          "",          // 24. Floor Name
-          "",          // 25. Floor Section
-          "True",      // 26. Change Password at Next Sign-In
-          "",          // 27. New Status
-          "",          // 28. New Licenses
-          "False",     // 29. Advanced Protection Program enrollment
+          firstName, lastName, s.studentEmail, password,
+          "", "/Alunos", "", "", "", "", "", "", "", "", "", "",
+          "", "", "", "", "", "", "", "", "", "True", "", "", "False",
         ].join(";");
       });
 
-      // Deduplicate by email (student may appear in multiple classes, use first occurrence)
       const seen = new Set<string>();
       const uniqueRows = rows.filter(row => {
         const email = row.split(";")[2];
@@ -489,19 +519,21 @@ export const appRouter = router({
 
   // ─── Sessions ───
   sessions: router({
-    list: coordinatorProcedure.input(z.object({ classId: z.number() })).query(async ({ ctx, input }) => {
+    // List sessions for a class: scoped by component access
+    list: approvedProcedure.input(z.object({ classId: z.number() })).query(async ({ ctx, input }) => {
       const cls = await getClassById(input.classId);
-      if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);
       return listSessionsByClass(input.classId);
     }),
-    // For students: list sessions for a class (no admin check)
     listForStudent: protectedProcedure.input(z.object({ classId: z.number() })).query(async ({ input }) => {
       return listSessionsByClass(input.classId);
     }),
     get: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
       return getSessionById(input.id);
     }),
-    create: coordinatorProcedure.input(z.object({
+    // Create session: coordinator of component or admin
+    create: coordinatorOrAdminProcedure.input(z.object({
       classId: z.number(),
       problemNumber: z.number().min(1).max(10),
       sessionNumber: z.number().min(1).max(10),
@@ -509,21 +541,38 @@ export const appRouter = router({
       studentIds: z.array(z.number()),
     })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.classId);
-      if (!cls || cls.professorUserId !== ctx.user.id) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertComponentCoordinator(ctx.user.id, ctx.user.role, cls.componentId);
       return createSession(input);
     }),
     getStudents: protectedProcedure.input(z.object({ sessionId: z.number() })).query(async ({ input }) => {
       return getSessionStudents(input.sessionId);
     }),
-    close: coordinatorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+    // Close/Open/Delete: coordinator of component or admin
+    close: coordinatorOrAdminProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+      const session = await getSessionById(input.id);
+      if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
+      const cls = await getClassById(session.classId);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertComponentCoordinator(ctx.user.id, ctx.user.role, cls.componentId);
       await closeSession(input.id);
       return { success: true };
     }),
-    open: coordinatorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+    open: coordinatorOrAdminProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+      const session = await getSessionById(input.id);
+      if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
+      const cls = await getClassById(session.classId);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertComponentCoordinator(ctx.user.id, ctx.user.role, cls.componentId);
       await openSession(input.id);
       return { success: true };
     }),
-    delete: coordinatorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+    delete: coordinatorOrAdminProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+      const session = await getSessionById(input.id);
+      if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
+      const cls = await getClassById(session.classId);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertComponentCoordinator(ctx.user.id, ctx.user.role, cls.componentId);
       await deleteSession(input.id);
       return { success: true };
     }),
@@ -536,9 +585,12 @@ export const appRouter = router({
         submitted: submittedIds.has(s.studentId),
       }));
     }),
-    generateCode: coordinatorProcedure.input(z.object({ sessionId: z.number() })).mutation(async ({ input }) => {
+    generateCode: coordinatorOrAdminProcedure.input(z.object({ sessionId: z.number() })).mutation(async ({ ctx, input }) => {
       const session = await getSessionById(input.sessionId);
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
+      const cls = await getClassById(session.classId);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertComponentCoordinator(ctx.user.id, ctx.user.role, cls.componentId);
       const code = await generateAccessCode(input.sessionId);
       return { accessCode: code };
     }),
@@ -546,7 +598,6 @@ export const appRouter = router({
 
   // ─── Student simplified access (no login required) ───
   studentAccess: router({
-    // Validate access code and return session info
     validateCode: publicProcedure.input(z.object({
       accessCode: z.string().min(1).max(8),
     })).query(async ({ input }) => {
@@ -570,7 +621,6 @@ export const appRouter = router({
         semester: cls?.semester ?? "",
       };
     }),
-    // Login with enrollment (matrícula)
     login: publicProcedure.input(z.object({
       accessCode: z.string().min(1).max(8),
       enrollment: z.string().min(1),
@@ -580,7 +630,6 @@ export const appRouter = router({
       if (session.status !== "open") throw new TRPCError({ code: "BAD_REQUEST", message: "Esta sessão já foi encerrada" });
       const student = await findStudentByEnrollmentInClass(input.enrollment.trim(), session.classId);
       if (!student) throw new TRPCError({ code: "NOT_FOUND", message: "Matrícula não encontrada nesta turma. Verifique se digitou corretamente." });
-      // Check if student is part of this session
       const sessionStudentsList = await getSessionStudents(session.id);
       const isInSession = sessionStudentsList.some(s => s.studentId === student.id);
       if (!isInSession) throw new TRPCError({ code: "NOT_FOUND", message: "Você não está inscrito nesta sessão." });
@@ -595,7 +644,6 @@ export const appRouter = router({
         alreadySubmitted: submitted,
       };
     }),
-    // Update student email during evaluation
     updateEmail: publicProcedure.input(z.object({
       studentId: z.number(),
       email: z.string().email(),
@@ -603,7 +651,6 @@ export const appRouter = router({
       await updateStudentEmail(input.studentId, input.email.toLowerCase());
       return { success: true };
     }),
-    // Get session students for evaluation (public, by access code)
     getSessionStudents: publicProcedure.input(z.object({
       accessCode: z.string().min(1).max(8),
     })).query(async ({ input }) => {
@@ -611,7 +658,6 @@ export const appRouter = router({
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Código inválido" });
       return getSessionStudents(session.id);
     }),
-    // Submit evaluation (public, by access code + student id)
     submitEvaluation: publicProcedure.input(z.object({
       accessCode: z.string().min(1).max(8),
       evaluatorStudentId: z.number(),
@@ -629,13 +675,10 @@ export const appRouter = router({
       const session = await getSessionByAccessCode(input.accessCode.toUpperCase());
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Código inválido" });
       if (session.status !== "open") throw new TRPCError({ code: "BAD_REQUEST", message: "Sessão encerrada" });
-      // Check if student already submitted
       const alreadySubmitted = await hasStudentSubmitted(session.id, input.evaluatorStudentId);
       if (alreadySubmitted) throw new TRPCError({ code: "BAD_REQUEST", message: "Você já realizou a avaliação desta sessão. Solicite ao professor a liberação para reavaliar." });
-      // Validate: evaluator cannot evaluate self
       const selfEval = input.items.find(i => i.evaluatedStudentId === input.evaluatorStudentId);
       if (selfEval) throw new TRPCError({ code: "BAD_REQUEST", message: "Autoavaliação não é permitida" });
-      // Validate exclusive roles
       const exclusiveRoles = ["COORDENADOR", "MESA", "QUADRO"];
       for (const role of exclusiveRoles) {
         const count = input.items.filter(i => i.role === role && !i.absent).length;
@@ -666,17 +709,13 @@ export const appRouter = router({
         participacao: z.number().min(0).max(2),
       })),
     })).mutation(async ({ input }) => {
-      // Validate: evaluator cannot evaluate self
       const selfEval = input.items.find(i => i.evaluatedStudentId === input.evaluatorStudentId);
       if (selfEval) throw new TRPCError({ code: "BAD_REQUEST", message: "Autoavaliação não é permitida" });
-
-      // Validate exclusive roles
       const exclusiveRoles = ["COORDENADOR", "MESA", "QUADRO"];
       for (const role of exclusiveRoles) {
         const count = input.items.filter(i => i.role === role && !i.absent).length;
         if (count > 1) throw new TRPCError({ code: "BAD_REQUEST", message: `O papel ${role} só pode ser atribuído a um aluno` });
       }
-
       const evalId = await submitEvaluation(input);
       return { success: true, evaluationId: evalId };
     }),
@@ -686,17 +725,21 @@ export const appRouter = router({
     })).query(async ({ input }) => {
       return hasStudentSubmitted(input.sessionId, input.studentId);
     }),
-    // Professor releases a student to re-evaluate
-    allowReevaluation: coordinatorProcedure.input(z.object({
+    // Allow re-evaluation: coordinator of component or admin
+    allowReevaluation: coordinatorOrAdminProcedure.input(z.object({
       sessionId: z.number(),
       studentId: z.number(),
-    })).mutation(async ({ input }) => {
+    })).mutation(async ({ ctx, input }) => {
+      const session = await getSessionById(input.sessionId);
+      if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
+      const cls = await getClassById(session.classId);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertComponentCoordinator(ctx.user.id, ctx.user.role, cls.componentId);
       const deleted = await deleteStudentEvaluation(input.sessionId, input.studentId);
       if (!deleted) throw new TRPCError({ code: "NOT_FOUND", message: "Avaliação não encontrada para este aluno nesta sessão" });
       return { success: true };
     }),
-    // List students who have submitted evaluations for a session
-    submittedStudents: coordinatorProcedure.input(z.object({
+    submittedStudents: approvedProcedure.input(z.object({
       sessionId: z.number(),
     })).query(async ({ input }) => {
       const evals = await getSessionEvaluations(input.sessionId);
@@ -705,8 +748,9 @@ export const appRouter = router({
   }),
 
   // ─── Tutorial Evaluation (professor evaluates session) ───
+  // Only coordinator/prof of the component can evaluate (NOT admin)
   tutorialEval: router({
-    submit: coordinatorProcedure.input(z.object({
+    submit: professorProcedure.input(z.object({
       sessionId: z.number(),
       organizacao: z.number().min(0).max(1),
       cooperacao: z.number().min(0).max(1),
@@ -714,6 +758,16 @@ export const appRouter = router({
       objetivo: z.number().min(0).max(1),
       metas: z.number().min(0).max(1),
     })).mutation(async ({ ctx, input }) => {
+      // Admin doesn't evaluate tutorials
+      if (ctx.user.role === "admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Administradores não avaliam sessões tutoriais" });
+      }
+      const session = await getSessionById(input.sessionId);
+      if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
+      const cls = await getClassById(session.classId);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);
+      // TODO: If prof (not coordinator), check if authorized by the class professor
       const evalId = await submitTutorialEvaluation({
         ...input,
         professorUserId: ctx.user.id,
@@ -728,22 +782,140 @@ export const appRouter = router({
     }),
   }),
 
-  // ─── Professor Authorization ───
+  // ─── Professor Management ───
   professors: router({
-    pending: approvedProcedure.query(async () => {
+    // System-level pending users (admin only)
+    pending: adminProcedure.query(async () => {
       return listPendingProfessors();
     }),
+    // All approved professors (any approved user can see)
     approved: approvedProcedure.query(async () => {
       return listApprovedProfessors();
     }),
+    // Approve user into system (admin only)
     approve: adminProcedure.input(z.object({ userId: z.number() })).mutation(async ({ input }) => {
       await approveUser(input.userId);
       return { success: true };
     }),
+    // Reject user (admin only)
     reject: adminProcedure.input(z.object({ userId: z.number() })).mutation(async ({ input }) => {
       await rejectUser(input.userId);
       return { success: true };
     }),
+    // Delete user from system (admin only)
+    deleteUser: adminProcedure.input(z.object({ userId: z.number() })).mutation(async ({ input }) => {
+      await deleteUser(input.userId);
+      return { success: true };
+    }),
+    // Get my component memberships
+    myComponents: approvedProcedure.query(async ({ ctx }) => {
+      return getUserComponents(ctx.user.id);
+    }),
+    // Get another user's components
+    components: approvedProcedure.input(z.object({ userId: z.number() })).query(async ({ input }) => {
+      return listProfessorComponents(input.userId);
+    }),
+    // All professor-component mappings
+    allComponents: approvedProcedure.query(async () => {
+      return listAllProfessorComponents();
+    }),
+    // Request to join a component (any approved user)
+    requestComponent: approvedProcedure.input(z.object({
+      componentId: z.number(),
+    })).mutation(async ({ ctx, input }) => {
+      try {
+        await requestComponentMembership(ctx.user.id, input.componentId);
+        return { success: true };
+      } catch (e: any) {
+        throw new TRPCError({ code: "CONFLICT", message: e.message || "Erro ao solicitar entrada no componente" });
+      }
+    }),
+    // Pending component requests (for coordinators: only their components; for admin: all)
+    pendingComponentRequests: approvedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role === "admin") {
+        // Admin sees all pending requests
+        const allComps = await listComponents();
+        const allIds = allComps.map(c => c.id);
+        if (allIds.length === 0) return [];
+        return listPendingRequestsByComponents(allIds);
+      }
+      // Coordinator sees pending requests for their coordinated components
+      const coordCompIds = await getCoordinatorComponentIds(ctx.user.id);
+      if (coordCompIds.length === 0) return [];
+      return listPendingRequestsByComponents(coordCompIds);
+    }),
+    // Approve component request (admin or coordinator of that component)
+    approveComponentRequest: approvedProcedure.input(z.object({
+      userId: z.number(),
+      componentId: z.number(),
+    })).mutation(async ({ ctx, input }) => {
+      await assertComponentCoordinator(ctx.user.id, ctx.user.role, input.componentId);
+      await approveComponentRequest(input.userId, input.componentId, ctx.user.id);
+      return { success: true };
+    }),
+    // Reject component request (admin or coordinator of that component)
+    rejectComponentRequest: approvedProcedure.input(z.object({
+      userId: z.number(),
+      componentId: z.number(),
+    })).mutation(async ({ ctx, input }) => {
+      await assertComponentCoordinator(ctx.user.id, ctx.user.role, input.componentId);
+      await rejectComponentRequest(input.userId, input.componentId);
+      return { success: true };
+    }),
+    // Promote prof to coordinator in a component (coordinator of that component or admin)
+    promoteToCoordinator: approvedProcedure.input(z.object({
+      userId: z.number(),
+      componentId: z.number(),
+    })).mutation(async ({ ctx, input }) => {
+      await assertComponentCoordinator(ctx.user.id, ctx.user.role, input.componentId);
+      await setComponentRole(input.userId, input.componentId, "coordinator");
+      // Also update user's system role to coordinator if they are currently prof
+      const user = await getUserById(input.userId);
+      if (user && user.role === "prof") {
+        const { updateUserRole } = await import("./db");
+        await updateUserRole(input.userId, "coordinator");
+      }
+      return { success: true };
+    }),
+    // Demote coordinator to prof in a component (coordinator of that component or admin)
+    demoteToProf: approvedProcedure.input(z.object({
+      userId: z.number(),
+      componentId: z.number(),
+    })).mutation(async ({ ctx, input }) => {
+      await assertComponentCoordinator(ctx.user.id, ctx.user.role, input.componentId);
+      await setComponentRole(input.userId, input.componentId, "prof");
+      // Check if user is still coordinator of any component, if not, demote system role
+      const userComps = await getUserComponents(input.userId);
+      const stillCoordinator = userComps.some(c => c.componentRole === "coordinator" && c.status === "approved" && c.componentId !== input.componentId);
+      if (!stillCoordinator) {
+        const user = await getUserById(input.userId);
+        if (user && user.role === "coordinator") {
+          const { updateUserRole } = await import("./db");
+          await updateUserRole(input.userId, "prof");
+        }
+      }
+      return { success: true };
+    }),
+    // Remove professor from component (coordinator of that component or admin)
+    removeFromComponent: approvedProcedure.input(z.object({
+      userId: z.number(),
+      componentId: z.number(),
+    })).mutation(async ({ ctx, input }) => {
+      await assertComponentCoordinator(ctx.user.id, ctx.user.role, input.componentId);
+      await removeProfessorFromComponent(input.userId, input.componentId);
+      // Check if user still has any approved components, if not, check system role
+      const userComps = await getUserComponents(input.userId);
+      const hasCoordinator = userComps.some(c => c.componentRole === "coordinator" && c.status === "approved");
+      if (!hasCoordinator) {
+        const user = await getUserById(input.userId);
+        if (user && user.role === "coordinator") {
+          const { updateUserRole } = await import("./db");
+          await updateUserRole(input.userId, "prof");
+        }
+      }
+      return { success: true };
+    }),
+    // Add professor to component directly (admin only)
     addComponent: adminProcedure.input(z.object({
       userId: z.number(),
       componentId: z.number(),
@@ -751,18 +923,13 @@ export const appRouter = router({
       await addProfessorComponent(input.userId, input.componentId, ctx.user.id);
       return { success: true };
     }),
+    // Remove component from professor (admin only)
     removeComponent: adminProcedure.input(z.object({
       userId: z.number(),
       componentId: z.number(),
     })).mutation(async ({ input }) => {
       await removeProfessorComponent(input.userId, input.componentId);
       return { success: true };
-    }),
-    components: coordinatorProcedure.input(z.object({ userId: z.number() })).query(async ({ input }) => {
-      return listProfessorComponents(input.userId);
-    }),
-    allComponents: approvedProcedure.query(async () => {
-      return listAllProfessorComponents();
     }),
     myStatus: protectedProcedure.query(async ({ ctx }) => {
       return { approvalStatus: ctx.user.approvalStatus, role: ctx.user.role };
@@ -777,18 +944,36 @@ export const appRouter = router({
     sessionFinal: protectedProcedure.input(z.object({ sessionId: z.number() })).query(async ({ input }) => {
       return calculateFinalGrades(input.sessionId);
     }),
-    problem: coordinatorProcedure.input(z.object({ classId: z.number(), problemNumber: z.number() })).query(async ({ input }) => {
+    problem: approvedProcedure.input(z.object({ classId: z.number(), problemNumber: z.number() })).query(async ({ ctx, input }) => {
+      const cls = await getClassById(input.classId);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);
       return calculateProblemResults(input.classId, input.problemNumber);
     }),
-    problemFinal: coordinatorProcedure.input(z.object({ classId: z.number(), problemNumber: z.number() })).query(async ({ input }) => {
+    problemFinal: approvedProcedure.input(z.object({ classId: z.number(), problemNumber: z.number() })).query(async ({ ctx, input }) => {
+      const cls = await getClassById(input.classId);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);
       return calculateProblemFinalGrades(input.classId, input.problemNumber);
     }),
-    // List sessions for any class (cross-class visibility)
-    sessionsForClass: coordinatorProcedure.input(z.object({ classId: z.number() })).query(async ({ input }) => {
+    sessionsForClass: approvedProcedure.input(z.object({ classId: z.number() })).query(async ({ ctx, input }) => {
+      const cls = await getClassById(input.classId);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);
       return listSessionsByClass(input.classId);
     }),
-    dashboard: coordinatorProcedure.query(async ({ ctx }) => {
-      return getDashboardStats(ctx.user.id);
+    // Dashboard: scoped by user's accessible components
+    dashboard: approvedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role === "admin") {
+        // Admin sees global stats
+        const allComps = await listComponents();
+        const allIds = allComps.map(c => c.id);
+        if (allIds.length === 0) return { totalStudents: 0, totalSessions: 0, openSessions: 0, totalEvaluations: 0, totalClasses: 0 };
+        return getDashboardStatsByComponents(allIds);
+      }
+      const componentIds = await getUserApprovedComponentIds(ctx.user.id);
+      if (componentIds.length === 0) return { totalStudents: 0, totalSessions: 0, openSessions: 0, totalEvaluations: 0, totalClasses: 0 };
+      return getDashboardStatsByComponents(componentIds);
     }),
   }),
 });

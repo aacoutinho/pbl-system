@@ -34,21 +34,37 @@ import { Label } from "./ui/label";
 import { Separator } from "./ui/separator";
 import { toast } from "sonner";
 
-const coordinatorMenuItems = [
+// Common menu items for all approved users (prof, coordinator, admin)
+const baseMenuItems = [
   { icon: LayoutDashboard, label: "Painel Geral", path: "/" },
   { icon: Layers, label: "Componentes", path: "/components" },
   { icon: BookOpen, label: "Turmas", path: "/classes" },
   { icon: Users, label: "Alunos", path: "/students" },
   { icon: ClipboardList, label: "Sessões", path: "/sessions" },
-  { icon: ClipboardCheck, label: "Avaliar Tutorial", path: "/tutorial-eval" },
   { icon: BarChart3, label: "Resultados", path: "/results" },
   { icon: Download, label: "Exportar Alunos", path: "/export-students" },
   { icon: UserCheck, label: "Professores", path: "/professors" },
 ];
 
-const adminMenuItems = [
+// Tutorial evaluation: only for prof and coordinator (NOT admin)
+const tutorialEvalItem = { icon: ClipboardCheck, label: "Avaliar Tutorial", path: "/tutorial-eval" };
+
+// Admin-only items
+const adminOnlyItems = [
   { icon: Mail, label: "Config. E-mail", path: "/smtp-config" },
 ];
+
+function getMenuItemsForRole(role: string) {
+  if (role === "admin") {
+    return [...baseMenuItems, ...adminOnlyItems];
+  }
+  // coordinator and prof: include tutorial eval
+  const items = [...baseMenuItems];
+  // Insert tutorial eval after Sessões
+  const sessionsIdx = items.findIndex(i => i.path === "/sessions");
+  items.splice(sessionsIdx + 1, 0, tutorialEvalItem);
+  return items;
+}
 
 // Students access only via session code — no dashboard menu needed
 
@@ -66,8 +82,10 @@ function LoginScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [resetCode, setResetCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [selectedComponentIds, setSelectedComponentIds] = useState<number[]>([]);
 
   const { data: firstUserData } = trpc.auth.isFirstUser.useQuery();
+  const { data: componentsList } = trpc.components.list.useQuery();
   const isFirstUser = firstUserData?.isFirstUser ?? false;
   const { data: smtpStatus } = trpc.auth.smtpStatus.useQuery();
   const smtpConfigured = smtpStatus?.configured ?? false;
@@ -130,7 +148,7 @@ function LoginScreen() {
     if (mode === "login") {
       loginMutation.mutate({ email, password });
     } else if (mode === "register") {
-      registerMutation.mutate({ email, name, password });
+      registerMutation.mutate({ email, name, password, componentIds: isFirstUser ? [] : selectedComponentIds });
     } else if (mode === "forgot") {
       requestResetMutation.mutate({ email });
     } else if (mode === "code" || mode === "newpass") {
@@ -199,6 +217,30 @@ function LoginScreen() {
                 required
                 autoComplete="email"
               />
+            </div>
+          )}
+
+          {mode === "register" && !isFirstUser && componentsList && componentsList.length > 0 && (
+            <div className="space-y-1.5">
+              <Label className="text-sm">Componentes desejados</Label>
+              <p className="text-xs text-muted-foreground">Selecione os componentes que deseja participar.</p>
+              <div className="flex flex-wrap gap-2 p-2 border rounded-md bg-background max-h-32 overflow-y-auto">
+                {componentsList.map(c => {
+                  const selected = selectedComponentIds.includes(c.id);
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setSelectedComponentIds(prev => selected ? prev.filter(id => id !== c.id) : [...prev, c.id])}
+                      className={`px-2 py-1 text-xs rounded-md border transition-colors ${
+                        selected ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted/50 hover:bg-muted border-border'
+                      }`}
+                    >
+                      {c.code} - {c.name}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
 
@@ -428,7 +470,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
   const isMobile = useIsMobile();
 
   const isAdmin = user?.role === "admin";
-  const menuItems = isAdmin ? [...coordinatorMenuItems, ...adminMenuItems] : coordinatorMenuItems;
+  const menuItems = getMenuItemsForRole(user?.role || "prof");
   const activeMenuItem = menuItems.find(item => item.path === location);
 
   // Class selector for admin
@@ -561,7 +603,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                   <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
                     <p className="text-sm font-medium truncate leading-none">{user?.name || "-"}</p>
                     <p className="text-xs text-muted-foreground truncate mt-1.5">
-                      {user?.role === "admin" ? "Administrador" : user?.role === "coordinator" ? "Professor" : "Usuário"} · {user?.email || "-"}
+                      {user?.role === "admin" ? "Administrador" : user?.role === "coordinator" ? "Coordenador" : user?.role === "prof" ? "Professor" : "Usuário"} · {user?.email || "-"}
                     </p>
                   </div>
                 </button>

@@ -1,4 +1,4 @@
-import { eq, and, desc, inArray, sql } from "drizzle-orm";
+import { eq, and, desc, inArray, sql, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser, users,
@@ -52,10 +52,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     if (user.lastSignedIn !== undefined) { values.lastSignedIn = user.lastSignedIn; updateSet.lastSignedIn = user.lastSignedIn; }
     if (user.role !== undefined) { values.role = user.role; updateSet.role = user.role; }
     else if (user.openId === ENV.ownerOpenId) {
-      // Only set coordinator if user doesn't already have a higher role (admin)
-      // Don't override role on update, only set on initial insert
       values.role = 'coordinator';
-      // Don't include role in updateSet - preserve existing role
     }
     if (!values.lastSignedIn) values.lastSignedIn = new Date();
     if (Object.keys(updateSet).length === 0) updateSet.lastSignedIn = new Date();
@@ -68,6 +65,350 @@ export async function getUserByOpenId(openId: string) {
   if (!db) return undefined;
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
   return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getUserById(userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const [row] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  return row;
+}
+
+export async function getUserByEmail(email: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const [row] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  return row;
+}
+
+export async function countUsers() {
+  const db = await getDb();
+  if (!db) return 0;
+  const result = await db.select({ count: sql<number>`count(*)` }).from(users);
+  return result[0]?.count ?? 0;
+}
+
+export async function createUserWithPassword(data: {
+  email: string;
+  name: string;
+  passwordHash: string;
+  role: "user" | "coordinator" | "admin" | "prof";
+  approvalStatus: "pending" | "approved" | "rejected";
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const openId = `local:${data.email}`;
+  const [result] = await db.insert(users).values({
+    openId,
+    email: data.email,
+    name: data.name,
+    passwordHash: data.passwordHash,
+    role: data.role,
+    approvalStatus: data.approvalStatus,
+    loginMethod: "email",
+    lastSignedIn: new Date(),
+  }).$returningId();
+  return getUserById(result.id);
+}
+
+export async function updateUserPassword(userId: number, passwordHash: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(users).set({ passwordHash }).where(eq(users.id, userId));
+}
+
+export async function updateUserRole(userId: number, role: "user" | "coordinator" | "admin" | "prof") {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(users).set({ role }).where(eq(users.id, userId));
+}
+
+// ─── Admin helpers ───
+export async function getAdmin() {
+  const db = await getDb();
+  if (!db) return undefined;
+  const [row] = await db.select().from(users).where(eq(users.role, "admin")).limit(1);
+  return row;
+}
+
+export async function transferCoordination(fromUserId: number, toUserId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  // Demote current admin to prof
+  await db.update(users).set({ role: "prof" }).where(eq(users.id, fromUserId));
+  // Promote target to admin
+  await db.update(users).set({ role: "admin" }).where(eq(users.id, toUserId));
+  // Delete old admin's SMTP config
+  await db.delete(smtpConfig).where(eq(smtpConfig.userId, fromUserId));
+}
+
+// ─── Professor Authorization helpers ───
+
+export async function approveUser(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  // When approving a user, set their role to "prof" and status to "approved"
+  await db.update(users).set({ approvalStatus: "approved", role: "prof" }).where(eq(users.id, userId));
+}
+
+export async function rejectUser(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(users).set({ approvalStatus: "rejected" }).where(eq(users.id, userId));
+}
+
+export async function deleteUser(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  // Remove all professor component memberships
+  await db.delete(professorComponents).where(eq(professorComponents.userId, userId));
+  // Remove SMTP config if any
+  await db.delete(smtpConfig).where(eq(smtpConfig.userId, userId));
+  // Remove password reset codes
+  await db.delete(passwordResetCodes).where(eq(passwordResetCodes.userId, userId));
+  // Delete user
+  await db.delete(users).where(eq(users.id, userId));
+}
+
+export async function listPendingProfessors() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(users).where(eq(users.approvalStatus, "pending")).orderBy(desc(users.createdAt));
+}
+
+export async function listApprovedProfessors() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    id: users.id,
+    name: users.name,
+    email: users.email,
+    role: users.role,
+    approvalStatus: users.approvalStatus,
+    createdAt: users.createdAt,
+  }).from(users).where(
+    and(eq(users.approvalStatus, "approved"), or(eq(users.role, "prof"), eq(users.role, "coordinator")))
+  ).orderBy(users.name);
+}
+
+// ─── Professor Component Membership helpers ───
+
+// Get user's approved component IDs
+export async function getUserApprovedComponentIds(userId: number): Promise<number[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.select({ componentId: professorComponents.componentId })
+    .from(professorComponents)
+    .where(and(eq(professorComponents.userId, userId), eq(professorComponents.status, "approved")));
+  return rows.map(r => r.componentId);
+}
+
+// Get user's role in a specific component
+export async function getUserComponentRole(userId: number, componentId: number): Promise<"coordinator" | "prof" | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.select({ componentRole: professorComponents.componentRole, status: professorComponents.status })
+    .from(professorComponents)
+    .where(and(eq(professorComponents.userId, userId), eq(professorComponents.componentId, componentId)))
+    .limit(1);
+  if (!row || row.status !== "approved") return null;
+  return row.componentRole;
+}
+
+// Get all component memberships for a user (approved + pending)
+export async function getUserComponents(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    id: professorComponents.id,
+    userId: professorComponents.userId,
+    componentId: professorComponents.componentId,
+    componentRole: professorComponents.componentRole,
+    status: professorComponents.status,
+    authorizedAt: professorComponents.authorizedAt,
+    authorizedByUserId: professorComponents.authorizedByUserId,
+    componentCode: components.code,
+    componentName: components.name,
+  })
+    .from(professorComponents)
+    .leftJoin(components, eq(professorComponents.componentId, components.id))
+    .where(eq(professorComponents.userId, userId))
+    .orderBy(components.code);
+}
+
+// Request to join a component (creates pending entry)
+export async function requestComponentMembership(userId: number, componentId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  // Check if already exists
+  const [existing] = await db.select().from(professorComponents)
+    .where(and(eq(professorComponents.userId, userId), eq(professorComponents.componentId, componentId)))
+    .limit(1);
+  if (existing) {
+    if (existing.status === "approved") throw new Error("Já faz parte deste componente");
+    throw new Error("Já existe uma solicitação pendente para este componente");
+  }
+  await db.insert(professorComponents).values({
+    userId,
+    componentId,
+    componentRole: "prof",
+    status: "pending",
+  });
+}
+
+// List pending requests for a specific component
+export async function listPendingRequestsByComponent(componentId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    id: professorComponents.id,
+    userId: professorComponents.userId,
+    componentId: professorComponents.componentId,
+    status: professorComponents.status,
+    authorizedAt: professorComponents.authorizedAt,
+    professorName: users.name,
+    professorEmail: users.email,
+    userCreatedAt: users.createdAt,
+  })
+    .from(professorComponents)
+    .innerJoin(users, eq(professorComponents.userId, users.id))
+    .where(and(eq(professorComponents.componentId, componentId), eq(professorComponents.status, "pending")))
+    .orderBy(desc(professorComponents.authorizedAt));
+}
+
+// List pending requests for multiple components (for coordinators)
+export async function listPendingRequestsByComponents(componentIds: number[]) {
+  const db = await getDb();
+  if (!db) return [];
+  if (componentIds.length === 0) return [];
+  return db.select({
+    id: professorComponents.id,
+    userId: professorComponents.userId,
+    componentId: professorComponents.componentId,
+    componentCode: components.code,
+    componentName: components.name,
+    status: professorComponents.status,
+    authorizedAt: professorComponents.authorizedAt,
+    professorName: users.name,
+    professorEmail: users.email,
+    userCreatedAt: users.createdAt,
+  })
+    .from(professorComponents)
+    .innerJoin(users, eq(professorComponents.userId, users.id))
+    .leftJoin(components, eq(professorComponents.componentId, components.id))
+    .where(and(inArray(professorComponents.componentId, componentIds), eq(professorComponents.status, "pending")))
+    .orderBy(desc(professorComponents.authorizedAt));
+}
+
+// Approve a component membership request
+export async function approveComponentRequest(userId: number, componentId: number, authorizedByUserId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(professorComponents).set({
+    status: "approved",
+    authorizedByUserId,
+    authorizedAt: new Date(),
+  }).where(and(eq(professorComponents.userId, userId), eq(professorComponents.componentId, componentId)));
+}
+
+// Reject (delete) a component membership request
+export async function rejectComponentRequest(userId: number, componentId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(professorComponents).where(
+    and(eq(professorComponents.userId, userId), eq(professorComponents.componentId, componentId))
+  );
+}
+
+// Set component role (promote/demote within component)
+export async function setComponentRole(userId: number, componentId: number, role: "coordinator" | "prof") {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(professorComponents).set({ componentRole: role }).where(
+    and(eq(professorComponents.userId, userId), eq(professorComponents.componentId, componentId))
+  );
+}
+
+// Remove professor from component (not from system)
+export async function removeProfessorFromComponent(userId: number, componentId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(professorComponents).where(
+    and(eq(professorComponents.userId, userId), eq(professorComponents.componentId, componentId))
+  );
+}
+
+// Add professor to component (directly approved, used by admin)
+export async function addProfessorComponent(userId: number, componentId: number, authorizedByUserId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.insert(professorComponents).values({
+    userId,
+    componentId,
+    componentRole: "prof",
+    status: "approved",
+    authorizedByUserId,
+  }).onDuplicateKeyUpdate({ set: { status: "approved", authorizedByUserId, authorizedAt: new Date() } });
+}
+
+// Legacy: removeProfessorComponent (alias)
+export async function removeProfessorComponent(userId: number, componentId: number) {
+  return removeProfessorFromComponent(userId, componentId);
+}
+
+export async function listProfessorComponents(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    id: professorComponents.id,
+    userId: professorComponents.userId,
+    componentId: professorComponents.componentId,
+    componentRole: professorComponents.componentRole,
+    status: professorComponents.status,
+    authorizedAt: professorComponents.authorizedAt,
+    authorizedByUserId: professorComponents.authorizedByUserId,
+    componentCode: components.code,
+    componentName: components.name,
+  })
+    .from(professorComponents)
+    .leftJoin(components, eq(professorComponents.componentId, components.id))
+    .where(eq(professorComponents.userId, userId));
+}
+
+export async function listAllProfessorComponents() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    id: professorComponents.id,
+    userId: professorComponents.userId,
+    componentId: professorComponents.componentId,
+    componentRole: professorComponents.componentRole,
+    status: professorComponents.status,
+    componentCode: components.code,
+    componentName: components.name,
+    authorizedAt: professorComponents.authorizedAt,
+    authorizedByUserId: professorComponents.authorizedByUserId,
+    professorName: users.name,
+    professorEmail: users.email,
+  })
+    .from(professorComponents)
+    .innerJoin(users, eq(professorComponents.userId, users.id))
+    .leftJoin(components, eq(professorComponents.componentId, components.id))
+    .orderBy(components.code, users.name);
+}
+
+// Get component IDs where user is coordinator
+export async function getCoordinatorComponentIds(userId: number): Promise<number[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.select({ componentId: professorComponents.componentId })
+    .from(professorComponents)
+    .where(and(
+      eq(professorComponents.userId, userId),
+      eq(professorComponents.componentRole, "coordinator"),
+      eq(professorComponents.status, "approved"),
+    ));
+  return rows.map(r => r.componentId);
 }
 
 // ─── Class helpers ───
@@ -104,6 +445,51 @@ export async function listClassesByProfessor(professorUserId: number) {
     .orderBy(components.code, classes.classCode);
 }
 
+// List classes by component IDs (for coordinators/profs who belong to specific components)
+export async function listClassesByComponents(componentIds: number[]) {
+  const db = await getDb();
+  if (!db) return [];
+  if (componentIds.length === 0) return [];
+  return db.select({
+    id: classes.id,
+    classCode: classes.classCode,
+    componentId: classes.componentId,
+    semester: classes.semester,
+    professorUserId: classes.professorUserId,
+    createdAt: classes.createdAt,
+    componentCode: components.code,
+    componentName: components.name,
+    professorName: users.name,
+  })
+    .from(classes)
+    .leftJoin(components, eq(classes.componentId, components.id))
+    .leftJoin(users, eq(classes.professorUserId, users.id))
+    .where(inArray(classes.componentId, componentIds))
+    .orderBy(components.code, classes.classCode);
+}
+
+// List ALL classes (for admin)
+export async function listAllClasses() {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.select({
+    id: classes.id,
+    classCode: classes.classCode,
+    componentId: classes.componentId,
+    componentCode: components.code,
+    componentName: components.name,
+    semester: classes.semester,
+    professorUserId: classes.professorUserId,
+    professorName: users.name,
+    createdAt: classes.createdAt,
+  })
+    .from(classes)
+    .leftJoin(users, eq(classes.professorUserId, users.id))
+    .leftJoin(components, eq(classes.componentId, components.id))
+    .orderBy(components.code, classes.classCode);
+  return rows;
+}
+
 export async function updateClass(id: number, data: { classCode?: string; componentId?: number; semester?: string }) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
@@ -120,7 +506,6 @@ export async function updateClass(id: number, data: { classCode?: string; compon
 export async function deleteClass(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  // Delete all related data: evaluationItems -> evaluations -> sessionStudents -> sessions -> classStudents -> class
   const classSessions = await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.classId, id));
   if (classSessions.length > 0) {
     const sessionIds = classSessions.map(s => s.id);
@@ -134,14 +519,12 @@ export async function deleteClass(id: number) {
     await db.delete(sessionStudents).where(inArray(sessionStudents.sessionId, sessionIds));
     await db.delete(sessions).where(eq(sessions.classId, id));
   }
-  // Remove class-student links
   await db.delete(classStudents).where(eq(classStudents.classId, id));
-  // Clean up orphan students (students not linked to any other class)
   await cleanupOrphanStudents();
   await db.delete(classes).where(eq(classes.id, id));
 }
 
-// ─── Student helpers (new structure: students identified by enrollment) ───
+// ─── Student helpers ───
 
 export async function getStudentByEnrollment(enrollment: string) {
   const db = await getDb();
@@ -185,7 +568,6 @@ export async function updateStudent(studentId: number, data: { name?: string; en
   return getStudentById(studentId);
 }
 
-// List students for a specific class (via classStudents join table)
 export async function listStudentsByClass(classId: number) {
   const db = await getDb();
   if (!db) return [];
@@ -202,14 +584,12 @@ export async function listStudentsByClass(classId: number) {
     .orderBy(students.name);
 }
 
-// Add student to class (creates link in classStudents)
 export async function addStudentToClass(studentId: number, classId: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db.insert(classStudents).values({ studentId, classId }).onDuplicateKeyUpdate({ set: { studentId } });
 }
 
-// Check if student is already in a class of the same component
 export async function isStudentInComponentClass(studentId: number, componentId: number, excludeClassId?: number) {
   const db = await getDb();
   if (!db) return false;
@@ -229,11 +609,9 @@ export async function isStudentInComponentClass(studentId: number, componentId: 
   return links.length > 0;
 }
 
-// Remove student from class. If student has no more classes, delete student entirely.
 export async function removeStudentFromClass(studentId: number, classId: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  // Remove from session_students for sessions of this class
   const classSessions = await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.classId, classId));
   if (classSessions.length > 0) {
     const sessionIds = classSessions.map(s => s.id);
@@ -241,26 +619,22 @@ export async function removeStudentFromClass(studentId: number, classId: number)
       and(eq(sessionStudents.studentId, studentId), inArray(sessionStudents.sessionId, sessionIds))
     );
   }
-  // Remove class-student link
   await db.delete(classStudents).where(and(eq(classStudents.studentId, studentId), eq(classStudents.classId, classId)));
   // Check if student still belongs to any class
   const remaining = await db.select({ id: classStudents.id }).from(classStudents).where(eq(classStudents.studentId, studentId));
   if (remaining.length === 0) {
     // Delete student entirely (no more classes)
-    // First clean up evaluations
     const evals = await db.select({ id: evaluations.id }).from(evaluations).where(eq(evaluations.evaluatorStudentId, studentId));
     if (evals.length > 0) {
       const evalIds = evals.map(e => e.id);
       await db.delete(evaluationItems).where(inArray(evaluationItems.evaluationId, evalIds));
       await db.delete(evaluations).where(eq(evaluations.evaluatorStudentId, studentId));
     }
-    // Delete evaluation items where student was evaluated
     await db.delete(evaluationItems).where(eq(evaluationItems.evaluatedStudentId, studentId));
     await db.delete(students).where(eq(students.id, studentId));
   }
 }
 
-// Clean up orphan students (students not linked to any class)
 async function cleanupOrphanStudents() {
   const db = await getDb();
   if (!db) return;
@@ -280,7 +654,6 @@ async function cleanupOrphanStudents() {
   }
 }
 
-// Bulk import students: create or find by enrollment, link to class
 export async function bulkImportStudents(data: { name: string; enrollment: string; classId: number }[]) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
@@ -292,17 +665,14 @@ export async function bulkImportStudents(data: { name: string; enrollment: strin
   const results: { name: string; enrollment: string; status: "created" | "linked" | "already_in_class" | "conflict" }[] = [];
   
   for (const s of data) {
-    // Check if student already exists by enrollment
     const existing = await getStudentByEnrollment(s.enrollment);
     
     if (existing) {
-      // Check if already in this class
       const link = await db.select().from(classStudents)
         .where(and(eq(classStudents.studentId, existing.id), eq(classStudents.classId, s.classId)))
         .limit(1);
       
       if (link.length > 0) {
-        // Already in this class, update name if different
         if (existing.name !== s.name) {
           await db.update(students).set({ name: s.name }).where(eq(students.id, existing.id));
         }
@@ -310,22 +680,18 @@ export async function bulkImportStudents(data: { name: string; enrollment: strin
         continue;
       }
       
-      // Check if student is already in another class of the same component
       const inComponent = await isStudentInComponentClass(existing.id, cls.componentId, s.classId);
       if (inComponent) {
         results.push({ name: s.name, enrollment: s.enrollment, status: "conflict" });
         continue;
       }
       
-      // Link existing student to this class
       await addStudentToClass(existing.id, s.classId);
-      // Update name if different
       if (existing.name !== s.name) {
         await db.update(students).set({ name: s.name }).where(eq(students.id, existing.id));
       }
       results.push({ name: s.name, enrollment: s.enrollment, status: "linked" });
     } else {
-      // Create new student
       const newStudent = await createStudent({ name: s.name, enrollment: s.enrollment });
       if (newStudent) {
         await addStudentToClass(newStudent.id, s.classId);
@@ -430,7 +796,6 @@ export async function submitEvaluation(data: {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
 
-  // Check if already submitted – if so, delete old and re-submit
   const existing = await db.select().from(evaluations)
     .where(and(eq(evaluations.sessionId, data.sessionId), eq(evaluations.evaluatorStudentId, data.evaluatorStudentId)))
     .limit(1);
@@ -487,15 +852,12 @@ export async function hasStudentSubmitted(sessionId: number, studentId: number) 
 export async function deleteStudentEvaluation(sessionId: number, studentId: number) {
   const db = await getDb();
   if (!db) return false;
-  // Find the evaluation
   const rows = await db.select().from(evaluations)
     .where(and(eq(evaluations.sessionId, sessionId), eq(evaluations.evaluatorStudentId, studentId)))
     .limit(1);
   if (rows.length === 0) return false;
   const evaluationId = rows[0].id;
-  // Delete evaluation items first
   await db.delete(evaluationItems).where(eq(evaluationItems.evaluationId, evaluationId));
-  // Delete evaluation
   await db.delete(evaluations).where(eq(evaluations.id, evaluationId));
   return true;
 }
@@ -546,7 +908,6 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
   const evalToEvaluator = new Map<number, number>();
   for (const e of evals) evalToEvaluator.set(e.id, e.evaluatorStudentId);
 
-  // Determine roles by majority vote (excluding self-evaluations)
   const roleCounts: Record<number, Record<string, number>> = {};
   for (const item of allItems) {
     const evaluatorId = evalToEvaluator.get(item.evaluationId);
@@ -556,7 +917,6 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
     roleCounts[item.evaluatedStudentId][r] = (roleCounts[item.evaluatedStudentId][r] || 0) + 1;
   }
 
-  // Assign exclusive roles
   const exclusiveRoles = ["COORDENADOR", "MESA", "QUADRO"] as const;
   const assignedRoles: Record<number, string> = {};
   const usedRoles = new Set<string>();
@@ -577,7 +937,6 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
     }
   }
 
-  // Determine absences and calculate scores
   const results: SessionResult[] = [];
   for (const s of sessionStudentsList) {
     const itemsForStudent = allItems.filter(i => {
@@ -626,7 +985,6 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
   return results.sort((a, b) => b.totalScore - a.totalScore);
 }
 
-// ─── Multi-session aggregation ───
 export async function calculateProblemResults(classId: number, problemNumber: number) {
   const db = await getDb();
   if (!db) return [];
@@ -660,7 +1018,7 @@ export async function calculateProblemResults(classId: number, problemNumber: nu
   }).sort((a, b) => b.average - a.average);
 }
 
-// ─── Tutorial Evaluation helpers (professor evaluates session) ───
+// ─── Tutorial Evaluation helpers ───
 export async function submitTutorialEvaluation(data: {
   sessionId: number;
   professorUserId: number;
@@ -710,7 +1068,6 @@ export async function getTutorialEvaluation(sessionId: number) {
   return row;
 }
 
-// Calculate weighted tutorial grade: Org×1 + Coop×1 + Cont×3 + Obj×3 + Metas×2 = total weight 10
 export function calculateTutorialGrade(eval_: { organizacao: string; cooperacao: string; conteudo: string; objetivo: string; metas: string }): number {
   const org = Number(eval_.organizacao);
   const coop = Number(eval_.cooperacao);
@@ -720,7 +1077,7 @@ export function calculateTutorialGrade(eval_: { organizacao: string; cooperacao:
   return org * 1 + coop * 1 + cont * 3 + obj * 3 + met * 2;
 }
 
-// ─── Final grade calculation (proportional distribution) ───
+// ─── Final grade calculation ───
 export interface FinalGradeResult {
   studentId: number;
   studentName: string;
@@ -789,7 +1146,6 @@ export async function calculateFinalGrades(sessionId: number): Promise<FinalGrad
   }).sort((a, b) => b.finalGrade - a.finalGrade);
 }
 
-// ─── Problem-level final grades ───
 export async function calculateProblemFinalGrades(classId: number, problemNumber: number) {
   const db = await getDb();
   if (!db) return [];
@@ -831,29 +1187,7 @@ export async function calculateProblemFinalGrades(classId: number, problemNumber
   }).sort((a, b) => b.finalAverage - a.finalAverage);
 }
 
-// ─── List all classes (for cross-class visibility) ───
-export async function listAllClasses() {
-  const db = await getDb();
-  if (!db) return [];
-  const rows = await db.select({
-    id: classes.id,
-    classCode: classes.classCode,
-    componentId: classes.componentId,
-    componentCode: components.code,
-    componentName: components.name,
-    semester: classes.semester,
-    professorUserId: classes.professorUserId,
-    professorName: users.name,
-    createdAt: classes.createdAt,
-  })
-    .from(classes)
-    .leftJoin(users, eq(classes.professorUserId, users.id))
-    .leftJoin(components, eq(classes.componentId, components.id))
-    .orderBy(components.code, classes.classCode);
-  return rows;
-}
-
-// ─── Export: list students with class info for Google Workspace CSV ───
+// ─── Export helpers ───
 export async function listStudentsForExport(classIds: number[]) {
   const db = await getDb();
   if (!db) return [];
@@ -875,7 +1209,7 @@ export async function listStudentsForExport(classIds: number[]) {
   return rows;
 }
 
-// ─── Dashboard stats (scoped to professor's classes) ───
+// ─── Dashboard stats ───
 export async function getDashboardStats(professorUserId: number) {
   const db = await getDb();
   if (!db) return { totalStudents: 0, totalSessions: 0, openSessions: 0, totalEvaluations: 0, totalClasses: 0 };
@@ -906,6 +1240,38 @@ export async function getDashboardStats(professorUserId: number) {
   };
 }
 
+// Dashboard stats scoped by component IDs
+export async function getDashboardStatsByComponents(componentIds: number[]) {
+  const db = await getDb();
+  if (!db) return { totalStudents: 0, totalSessions: 0, openSessions: 0, totalEvaluations: 0, totalClasses: 0 };
+  if (componentIds.length === 0) return { totalStudents: 0, totalSessions: 0, openSessions: 0, totalEvaluations: 0, totalClasses: 0 };
+
+  const componentClasses = await db.select({ id: classes.id }).from(classes).where(inArray(classes.componentId, componentIds));
+  if (componentClasses.length === 0) return { totalStudents: 0, totalSessions: 0, openSessions: 0, totalEvaluations: 0, totalClasses: 0 };
+
+  const classIds = componentClasses.map(c => c.id);
+
+  const [studentCount] = await db.select({ count: sql<number>`count(DISTINCT ${classStudents.studentId})` }).from(classStudents).where(inArray(classStudents.classId, classIds));
+  const [sessionCount] = await db.select({ count: sql<number>`count(*)` }).from(sessions).where(inArray(sessions.classId, classIds));
+  const [openCount] = await db.select({ count: sql<number>`count(*)` }).from(sessions).where(and(inArray(sessions.classId, classIds), eq(sessions.status, "open")));
+
+  const classSessions = await db.select({ id: sessions.id }).from(sessions).where(inArray(sessions.classId, classIds));
+  let evalCount = 0;
+  if (classSessions.length > 0) {
+    const sessionIds = classSessions.map(s => s.id);
+    const [ec] = await db.select({ count: sql<number>`count(*)` }).from(evaluations).where(inArray(evaluations.sessionId, sessionIds));
+    evalCount = Number(ec.count);
+  }
+
+  return {
+    totalStudents: Number(studentCount.count),
+    totalSessions: Number(sessionCount.count),
+    openSessions: Number(openCount.count),
+    totalEvaluations: evalCount,
+    totalClasses: componentClasses.length,
+  };
+}
+
 // ─── Session access code helpers ───
 export async function generateAccessCode(sessionId: number): Promise<string> {
   const db = await getDb();
@@ -926,7 +1292,6 @@ export async function getSessionByAccessCode(accessCode: string) {
   return row;
 }
 
-// Find student by enrollment (matrícula) in a class
 export async function findStudentByEnrollmentInClass(enrollment: string, classId: number) {
   const db = await getDb();
   if (!db) return undefined;
@@ -943,152 +1308,6 @@ export async function findStudentByEnrollmentInClass(enrollment: string, classId
   return rows.length > 0 ? rows[0] : undefined;
 }
 
-// ─── Professor Authorization helpers ───
-
-export async function approveUser(userId: number) {
-  const db = await getDb();
-  if (!db) throw new Error("DB not available");
-  await db.update(users).set({ approvalStatus: "approved" }).where(eq(users.id, userId));
-}
-
-export async function rejectUser(userId: number) {
-  const db = await getDb();
-  if (!db) throw new Error("DB not available");
-  await db.update(users).set({ approvalStatus: "rejected" }).where(eq(users.id, userId));
-}
-
-export async function listPendingProfessors() {
-  const db = await getDb();
-  if (!db) return [];
-  return db.select().from(users).where(eq(users.approvalStatus, "pending")).orderBy(desc(users.createdAt));
-}
-
-export async function listApprovedProfessors() {
-  const db = await getDb();
-  if (!db) return [];
-  return db.select().from(users).where(eq(users.approvalStatus, "approved")).orderBy(users.name);
-}
-
-export async function addProfessorComponent(userId: number, componentId: number, authorizedByUserId: number) {
-  const db = await getDb();
-  if (!db) throw new Error("DB not available");
-  await db.insert(professorComponents).values({
-    userId,
-    componentId,
-    authorizedByUserId,
-  }).onDuplicateKeyUpdate({ set: { authorizedByUserId } });
-}
-
-export async function removeProfessorComponent(userId: number, componentId: number) {
-  const db = await getDb();
-  if (!db) throw new Error("DB not available");
-  await db.delete(professorComponents).where(
-    and(eq(professorComponents.userId, userId), eq(professorComponents.componentId, componentId))
-  );
-}
-
-export async function listProfessorComponents(userId: number) {
-  const db = await getDb();
-  if (!db) return [];
-  return db.select().from(professorComponents).where(eq(professorComponents.userId, userId));
-}
-
-export async function listAllProfessorComponents() {
-  const db = await getDb();
-  if (!db) return [];
-  return db.select({
-    id: professorComponents.id,
-    userId: professorComponents.userId,
-    componentId: professorComponents.componentId,
-    componentCode: components.code,
-    componentName: components.name,
-    authorizedAt: professorComponents.authorizedAt,
-    authorizedByUserId: professorComponents.authorizedByUserId,
-    professorName: users.name,
-    professorEmail: users.email,
-  })
-    .from(professorComponents)
-    .innerJoin(users, eq(professorComponents.userId, users.id))
-    .leftJoin(components, eq(professorComponents.componentId, components.id))
-    .orderBy(components.code, users.name);
-}
-
-export async function getUserById(userId: number) {
-  const db = await getDb();
-  if (!db) return undefined;
-  const [row] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
-  return row;
-}
-
-// ─── Email/Password Auth helpers ───
-export async function getUserByEmail(email: string) {
-  const db = await getDb();
-  if (!db) return undefined;
-  const [row] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-  return row;
-}
-
-export async function countUsers() {
-  const db = await getDb();
-  if (!db) return 0;
-  const result = await db.select({ count: sql<number>`count(*)` }).from(users);
-  return result[0]?.count ?? 0;
-}
-
-export async function createUserWithPassword(data: {
-  email: string;
-  name: string;
-  passwordHash: string;
-  role: "user" | "coordinator" | "admin";
-  approvalStatus: "pending" | "approved" | "rejected";
-}) {
-  const db = await getDb();
-  if (!db) throw new Error("DB not available");
-  const openId = `local:${data.email}`;
-  const [result] = await db.insert(users).values({
-    openId,
-    email: data.email,
-    name: data.name,
-    passwordHash: data.passwordHash,
-    role: data.role,
-    approvalStatus: data.approvalStatus,
-    loginMethod: "email",
-    lastSignedIn: new Date(),
-  }).$returningId();
-  return getUserById(result.id);
-}
-
-export async function updateUserPassword(userId: number, passwordHash: string) {
-  const db = await getDb();
-  if (!db) throw new Error("DB not available");
-  await db.update(users).set({ passwordHash }).where(eq(users.id, userId));
-}
-
-// ─── Admin helpers ───
-export async function getAdmin() {
-  const db = await getDb();
-  if (!db) return undefined;
-  const [row] = await db.select().from(users).where(eq(users.role, "admin")).limit(1);
-  return row;
-}
-
-export async function transferCoordination(fromUserId: number, toUserId: number) {
-  const db = await getDb();
-  if (!db) throw new Error("DB not available");
-  // Demote current admin to coordinator
-  await db.update(users).set({ role: "coordinator" }).where(eq(users.id, fromUserId));
-  // Promote target to admin
-  await db.update(users).set({ role: "admin" }).where(eq(users.id, toUserId));
-  // Delete old admin's SMTP config
-  await db.delete(smtpConfig).where(eq(smtpConfig.userId, fromUserId));
-}
-
-export async function updateUserRole(userId: number, role: "user" | "coordinator" | "admin") {
-  const db = await getDb();
-  if (!db) throw new Error("DB not available");
-  await db.update(users).set({ role }).where(eq(users.id, userId));
-}
-
 // ─── SMTP Config helpers ───
 export async function getSmtpConfig(userId: number) {
   const db = await getDb();
@@ -1101,10 +1320,10 @@ export async function getActiveSmtpConfig() {
   const db = await getDb();
   if (!db) return undefined;
   // Get the admin's SMTP config
-  const coordinator = await getAdmin();
-  if (!coordinator) return undefined;
+  const admin = await getAdmin();
+  if (!admin) return undefined;
   const [row] = await db.select().from(smtpConfig)
-    .where(and(eq(smtpConfig.userId, coordinator.id), eq(smtpConfig.configured, true)))
+    .where(and(eq(smtpConfig.userId, admin.id), eq(smtpConfig.configured, true)))
     .limit(1);
   return row;
 }
@@ -1158,11 +1377,9 @@ export async function deleteSmtpConfig(userId: number) {
 export async function createPasswordResetCode(userId: number, code: string, expiresAt: Date) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  // Invalidate any existing unused codes for this user
   await db.update(passwordResetCodes)
     .set({ used: true })
     .where(and(eq(passwordResetCodes.userId, userId), eq(passwordResetCodes.used, false)));
-  // Create new code
   await db.insert(passwordResetCodes).values({ userId, code, expiresAt });
 }
 
@@ -1177,7 +1394,6 @@ export async function verifyPasswordResetCode(userId: number, code: string) {
     ))
     .limit(1);
   if (!row) return false;
-  // Check expiration
   if (new Date() > row.expiresAt) return false;
   return true;
 }
@@ -1244,10 +1460,11 @@ export async function updateComponent(id: number, data: { code?: string; name?: 
 export async function deleteComponent(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  // Check if component is used by any class
   const classesUsingComponent = await db.select({ id: classes.id }).from(classes).where(eq(classes.componentId, id));
   if (classesUsingComponent.length > 0) {
     throw new Error("Componente está sendo usado por turmas e não pode ser excluído");
   }
+  // Also remove professor component memberships
+  await db.delete(professorComponents).where(eq(professorComponents.componentId, id));
   await db.delete(components).where(eq(components.id, id));
 }
