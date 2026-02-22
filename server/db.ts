@@ -1887,7 +1887,7 @@ export async function deleteNotification(notificationId: number, userId: number)
 // Sync pending requests that don't have corresponding notifications
 // This ensures that requests created before the notification system was implemented
 // still appear in the notifications page
-export async function syncPendingRequestNotifications() {
+export async function syncPendingRequestNotifications(currentUserId?: number) {
   const db = await getDb();
   if (!db) return;
   try {
@@ -1907,53 +1907,48 @@ export async function syncPendingRequestNotifications() {
 
     if (pendingRequests.length === 0) return;
 
-    // For each pending request, check if coordinators already have a notification
+    // Get all admin users
+    const adminUsers = await db.select({ id: users.id })
+      .from(users)
+      .where(eq(users.role, "admin"));
+
+    // For each pending request, ensure coordinators AND admins have notifications
     for (const req of pendingRequests) {
       const coordinators = await getComponentCoordinators(req.componentId);
-      for (const coord of coordinators) {
-        // Check if a pending_request notification already exists for this coordinator about this request
-        const existing = await db.select({ id: notifications.id })
+      
+      // Build list of recipients: coordinators + admins (deduplicated)
+      const recipientIds = new Set<number>();
+      for (const coord of coordinators) recipientIds.add(coord.userId);
+      for (const admin of adminUsers) recipientIds.add(admin.id);
+      // If currentUserId is provided, ensure it's included
+      if (currentUserId) recipientIds.add(currentUserId);
+
+      for (const recipientId of Array.from(recipientIds)) {
+        // Check if a pending_request notification already exists for this recipient about this request
+        const existingWithMeta = await db.select({ id: notifications.id, metadata: notifications.metadata })
           .from(notifications)
           .where(and(
-            eq(notifications.userId, coord.userId),
+            eq(notifications.userId, recipientId),
             eq(notifications.type, "pending_request"),
-            eq(notifications.read, false),
           ))
           .limit(100);
 
-        // Check if any existing notification matches this specific request (by metadata)
-        const hasNotification = existing.some(() => {
-          // We need to check metadata for componentId and requesterId match
-          return false; // Will be refined below
+        const alreadyExists = existingWithMeta.some(n => {
+          if (!n.metadata) return false;
+          try {
+            const meta = JSON.parse(n.metadata);
+            return meta.componentId === req.componentId && meta.requesterId === req.userId;
+          } catch { return false; }
         });
 
-        if (!hasNotification) {
-          // Check more precisely by querying with metadata content
-          const existingWithMeta = await db.select({ id: notifications.id, metadata: notifications.metadata })
-            .from(notifications)
-            .where(and(
-              eq(notifications.userId, coord.userId),
-              eq(notifications.type, "pending_request"),
-            ))
-            .limit(100);
-
-          const alreadyExists = existingWithMeta.some(n => {
-            if (!n.metadata) return false;
-            try {
-              const meta = JSON.parse(n.metadata);
-              return meta.componentId === req.componentId && meta.requesterId === req.userId;
-            } catch { return false; }
+        if (!alreadyExists) {
+          await createNotification({
+            userId: recipientId,
+            type: "pending_request",
+            title: "Nova Solicitação de Entrada",
+            message: `${req.requesterName || req.requesterEmail || "Professor"} solicitou entrada em ${req.componentCode} - ${req.componentName}`,
+            metadata: JSON.stringify({ componentId: req.componentId, requesterId: req.userId }),
           });
-
-          if (!alreadyExists) {
-            await createNotification({
-              userId: coord.userId,
-              type: "pending_request",
-              title: "Nova Solicitação de Entrada",
-              message: `${req.requesterName || req.requesterEmail || "Professor"} solicitou entrada em ${req.componentCode} - ${req.componentName}`,
-              metadata: JSON.stringify({ componentId: req.componentId, requesterId: req.userId }),
-            });
-          }
         }
       }
     }

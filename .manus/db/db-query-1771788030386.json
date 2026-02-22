@@ -1,0 +1,15 @@
+{
+  "query": "SELECT u.id, u.name, u.role FROM users u WHERE u.role = 'admin'; SELECT pc.userId, pc.componentId, pc.componentRole, pc.status, u.name FROM professor_components pc JOIN users u ON pc.userId = u.id WHERE pc.componentRole = 'coordinator' AND pc.status = 'approved';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute SELECT u.id, u.name, u.role FROM users u WHERE u.role = 'admin'; SELECT pc.userId, pc.componentId, pc.componentRole, pc.status, u.name FROM professor_components pc JOIN users u ON pc.userId = u.id WHERE pc.componentRole = 'coordinator' AND pc.status = 'approved';",
+  "rows": [
+    {
+      "id": "1",
+      "name": "Antonio Coutinho",
+      "role": "admin"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\trole\n1\tAntonio Coutinho\tadmin\n",
+  "stderr": "",
+  "execution_time_ms": 400
+}

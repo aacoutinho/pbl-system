@@ -1376,12 +1376,12 @@ export const appRouter = router({
       offset: z.number().min(0).optional().default(0),
     })).query(async ({ ctx, input }) => {
       // Sync pending requests that may not have notifications yet (retroactive)
-      try { await syncPendingRequestNotifications(); } catch {}
+      try { await syncPendingRequestNotifications(ctx.user.id); } catch {}
       return listNotifications(ctx.user.id, { limit: input.limit, offset: input.offset });
     }),
     unreadCount: approvedProcedure.query(async ({ ctx }) => {
       // Sync pending requests that may not have notifications yet (retroactive)
-      try { await syncPendingRequestNotifications(); } catch {}
+      try { await syncPendingRequestNotifications(ctx.user.id); } catch {}
       const count = await countUnreadNotifications(ctx.user.id);
       return { count };
     }),
@@ -1404,11 +1404,11 @@ export const appRouter = router({
     pendingList: approvedProcedure.input(z.object({
       limit: z.number().min(1).max(20).optional().default(5),
     })).query(async ({ ctx, input }) => {
-      try { await syncPendingRequestNotifications(); } catch {}
+      try { await syncPendingRequestNotifications(ctx.user.id); } catch {}
       return listPendingNotifications(ctx.user.id, input.limit);
     }),
     pendingCount: approvedProcedure.query(async ({ ctx }) => {
-      try { await syncPendingRequestNotifications(); } catch {}
+      try { await syncPendingRequestNotifications(ctx.user.id); } catch {}
       const count = await countPendingNotifications(ctx.user.id);
       return { count };
     }),

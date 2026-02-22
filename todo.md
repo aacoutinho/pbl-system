@@ -263,3 +263,4 @@
 - [x] Bug: solicitações pendentes anteriores não aparecem em Notificações (sincronização retroativa implementada)
 - [x] Renomear "Notificações Recentes" para "Notificações Pendentes" no Painel Geral
 - [x] Notificações pendentes (ex: solicitações) devem permanecer visíveis mesmo se lidas, até serem resolvidas
+- [x] Bug: solicitações pendentes de professores não aparecem em Notificações Pendentes nem em Notificações (corrigido: admins agora recebem notificações de solicitações)
