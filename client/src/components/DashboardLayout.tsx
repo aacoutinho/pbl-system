@@ -223,11 +223,33 @@ function LoginScreen() {
           )}
         </div>
 
+        {/* Student Access - First */}
+        <Button
+          onClick={() => { window.location.href = "/acesso"; }}
+          size="lg"
+          variant="outline"
+          className="w-full shadow-md hover:shadow-lg transition-all font-semibold gap-2"
+        >
+          <KeyRound className="h-5 w-5" />
+          Entrar com Código da Sessão (Aluno)
+        </Button>
+
+        <div className="relative w-full">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-card px-2 text-muted-foreground">professor</span>
+          </div>
+        </div>
+
         {/* Login / Register Form */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
-          <p className="text-xs text-muted-foreground text-center font-medium uppercase tracking-wider">
-            {mode === "login" ? "Professor" : mode === "register" ? (isFirstUser ? "Criar Administrador" : "Novo Professor") : mode === "verify" ? "Verificar E-mail" : "Recuperar Senha"}
-          </p>
+          {(mode !== "login") && (
+            <p className="text-xs text-muted-foreground text-center font-medium uppercase tracking-wider">
+              {mode === "register" ? (isFirstUser ? "Criar Administrador" : "Novo Professor") : mode === "verify" ? "Verificar E-mail" : "Recuperar Senha"}
+            </p>
+          )}
 
           {mode === "register" && (
             <div className="space-y-1.5">
@@ -450,23 +472,7 @@ function LoginScreen() {
           </button>
         )}
 
-        <div className="relative w-full">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-card px-2 text-muted-foreground">aluno</span>
-          </div>
-        </div>
-        <Button
-          onClick={() => { window.location.href = "/acesso"; }}
-          size="lg"
-          variant="outline"
-          className="w-full shadow-md hover:shadow-lg transition-all font-semibold gap-2"
-        >
-          <KeyRound className="h-5 w-5" />
-          Entrar com Código da Sessão
-        </Button>
+
       </div>
     </div>
   );

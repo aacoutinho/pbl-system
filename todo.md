@@ -303,3 +303,4 @@
 - [x] Glossário bahianês nos formulários de avaliação
 - [x] Trocar conceito "Vixe, nada" por "Calado" em todos os formulários, glossário e resultados
 - [x] Trocar conceito "Na estica" por "Meiaboca" em todos os formulários, glossário e resultados
+- [x] Reorganizar tela de Login: entrada dos alunos antes/acima da entrada dos professores
