@@ -333,3 +333,4 @@
 - [x] Informar ao aluno que o e-mail é para receber notas e a foto para ajudar o professor
 - [x] Verificação de e-mail do aluno por código de confirmação aleatório
 - [x] Professor pode alterar foto e e-mail do aluno sem código de confirmação
+- [x] Redimensionar foto do aluno para tamanho mínimo (150x150px JPEG comprimido) antes do upload S3

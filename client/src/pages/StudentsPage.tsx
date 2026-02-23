@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { Plus, Trash2, Upload, Users, BookOpen, FileSpreadsheet, Check, Pencil, ArrowRightLeft, Camera } from "lucide-react";
 import { useState, useRef, useMemo } from "react";
+import { resizeImageToSquare, base64SizeKB } from "@/lib/resizeImage";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/_core/hooks/useAuth";
 
@@ -175,19 +176,20 @@ function StudentsContent() {
     setEditPhotoFile(null);
   };
 
-  const handleEditPhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleEditPhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { toast.error("Foto deve ter no m\u00e1ximo 5MB"); return; }
+    if (file.size > 10 * 1024 * 1024) { toast.error("Foto deve ter no m\u00e1ximo 10MB"); return; }
     if (!file.type.startsWith("image/")) { toast.error("Selecione um arquivo de imagem"); return; }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      setEditPhotoUrl(result);
-      const base64 = result.split(",")[1];
-      setEditPhotoFile({ base64, mimeType: file.type });
-    };
-    reader.readAsDataURL(file);
+    try {
+      const resized = await resizeImageToSquare(file, 150, 0.7);
+      const previewUrl = `data:${resized.mimeType};base64,${resized.base64}`;
+      setEditPhotoUrl(previewUrl);
+      setEditPhotoFile(resized);
+      toast.success(`Foto redimensionada para 150x150px (~${base64SizeKB(resized.base64)}KB)`);
+    } catch {
+      toast.error("Erro ao processar imagem");
+    }
   };
 
   const handleTransfer = () => {

@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { KeyRound, LogIn, Send, UserX, CheckCircle2, AlertTriangle, ArrowLeft, BookOpen, HelpCircle, Camera, Mail, ShieldCheck, Upload } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useMemo, useRef } from "react";
+import { resizeImageToSquare, base64SizeKB } from "@/lib/resizeImage";
 import { BahiaGlossary } from "@/components/BahiaGlossary";
 
 type RoleType = "COORDENADOR" | "MESA" | "QUADRO" | "PARTICIPANTE";
@@ -537,20 +538,21 @@ function ProfileSetup({ studentId, studentName, currentEmail, currentPhotoUrl, i
     onError: (e: any) => toast.error(e.message || "Erro ao enviar foto"),
   });
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { toast.error("Foto deve ter no m\u00e1ximo 5MB"); return; }
+    if (file.size > 10 * 1024 * 1024) { toast.error("Foto deve ter no m\u00e1ximo 10MB"); return; }
     if (!file.type.startsWith("image/")) { toast.error("Selecione um arquivo de imagem"); return; }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      setPhotoPreview(result);
-      const base64 = result.split(",")[1];
-      setPhotoFile({ base64, mimeType: file.type });
+    try {
+      const resized = await resizeImageToSquare(file, 150, 0.7);
+      const previewUrl = `data:${resized.mimeType};base64,${resized.base64}`;
+      setPhotoPreview(previewUrl);
+      setPhotoFile(resized);
       setPhotoUploaded(false);
-    };
-    reader.readAsDataURL(file);
+      toast.success(`Foto redimensionada para 150x150px (~${base64SizeKB(resized.base64)}KB)`);
+    } catch {
+      toast.error("Erro ao processar imagem");
+    }
   };
 
   const handleUploadPhoto = () => {
