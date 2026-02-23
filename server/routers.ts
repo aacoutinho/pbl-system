@@ -19,7 +19,7 @@ import {
   generateAccessCode, getSessionByAccessCode, findStudentByEnrollmentInClass,
   approveUser, rejectUser, listPendingProfessors, listApprovedProfessors, deleteUser,
   addProfessorComponent, removeProfessorComponent, listProfessorComponents, listAllProfessorComponents,
-  getUserById, getUserByEmail, countUsers, createUserWithPassword, updateUserPassword,
+  getUserById, getUserByEmail, countUsers, createUserWithPassword, updateUserPassword, setUserEmail, updateUserLoginMethod,
   getAdmin, transferCoordination, getSmtpConfig, upsertSmtpConfig, deleteSmtpConfig,
   createPasswordResetCode, verifyPasswordResetCode, markResetCodeUsed, isSmtpConfigured,
   createComponent, getComponentById, getComponentByCode, listComponents, updateComponent, deleteComponent,
@@ -251,12 +251,37 @@ export const appRouter = router({
       newPassword: z.string().min(6),
     })).mutation(async ({ ctx, input }) => {
       const user = await getUserById(ctx.user.id);
-      if (!user || !user.passwordHash) throw new TRPCError({ code: "BAD_REQUEST", message: "Usuário não encontrado" });
+      if (!user || !user.passwordHash) throw new TRPCError({ code: "BAD_REQUEST", message: "Usuário não encontrado ou sem senha definida. Use 'Definir Senha' primeiro." });
       const valid = await bcrypt.compare(input.currentPassword, user.passwordHash);
       if (!valid) throw new TRPCError({ code: "UNAUTHORIZED", message: "Senha atual incorreta" });
       const newHash = await bcrypt.hash(input.newPassword, 10);
       await updateUserPassword(user.id, newHash);
       return { success: true };
+    }),
+    // Set password for users who logged in via OAuth and don't have a password yet
+    setPassword: protectedProcedure.input(z.object({
+      newPassword: z.string().min(6),
+      email: z.string().email().optional(),
+    })).mutation(async ({ ctx, input }) => {
+      const user = await getUserById(ctx.user.id);
+      if (!user) throw new TRPCError({ code: "BAD_REQUEST", message: "Usuário não encontrado" });
+      if (user.passwordHash) throw new TRPCError({ code: "BAD_REQUEST", message: "Você já tem uma senha definida. Use 'Alterar Senha' para mudá-la." });
+      const newHash = await bcrypt.hash(input.newPassword, 10);
+      await updateUserPassword(user.id, newHash);
+      // If user doesn't have an email set (OAuth user), allow setting it
+      if (input.email && !user.email) {
+        await setUserEmail(user.id, input.email.toLowerCase());
+      }
+      // Update loginMethod to include email if it was only OAuth
+      if (user.loginMethod && user.loginMethod !== "email") {
+        await updateUserLoginMethod(user.id, `${user.loginMethod}+email`);
+      }
+      return { success: true };
+    }),
+    // Check if current user has a password set
+    hasPassword: protectedProcedure.query(async ({ ctx }) => {
+      const user = await getUserById(ctx.user.id);
+      return { hasPassword: !!user?.passwordHash, hasEmail: !!user?.email };
     }),
     requestResetCode: publicProcedure.input(z.object({
       email: z.string().email(),

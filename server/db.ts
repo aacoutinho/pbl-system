@@ -128,6 +128,18 @@ export async function updateUserRole(userId: number, role: "user" | "coordinator
   await db.update(users).set({ role }).where(eq(users.id, userId));
 }
 
+export async function setUserEmail(userId: number, email: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(users).set({ email }).where(eq(users.id, userId));
+}
+
+export async function updateUserLoginMethod(userId: number, loginMethod: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(users).set({ loginMethod }).where(eq(users.id, userId));
+}
+
 // ─── Admin helpers ───
 export async function getAdmin() {
   const db = await getDb();

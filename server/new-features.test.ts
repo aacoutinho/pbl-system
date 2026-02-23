@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { buildNewRequestEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildEvalPermissionGrantedEmailHtml } from "./email";
+import { appRouter } from "./routers";
 
 // ─── Test 1: Email template for coordinator notification on new request ───
 describe("buildNewRequestEmailHtml", () => {
@@ -388,5 +389,59 @@ describe("Batch approval - Aprovar Todos", () => {
 
     const visibleIds = userRole === "admin" ? allComponentIds : coordComponentIds;
     expect(visibleIds).toEqual([2, 3]);
+  });
+});
+
+// ─── Admin Password Setup (OAuth → Email/Password) Tests ───
+describe("Admin password setup for OAuth users", () => {
+  it("auth.setPassword route exists", () => {
+    expect(appRouter._def.procedures["auth.setPassword"]).toBeDefined();
+  });
+
+  it("auth.hasPassword route exists", () => {
+    expect(appRouter._def.procedures["auth.hasPassword"]).toBeDefined();
+  });
+
+  it("setUserEmail function is exported from db", async () => {
+    const db = await import("./db");
+    expect(typeof db.setUserEmail).toBe("function");
+  });
+
+  it("updateUserLoginMethod function is exported from db", async () => {
+    const db = await import("./db");
+    expect(typeof db.updateUserLoginMethod).toBe("function");
+  });
+
+  it("setPassword input requires newPassword with min 6 chars", () => {
+    const procedure = appRouter._def.procedures["auth.setPassword"] as any;
+    const schema = procedure?._def?.inputs?.[0];
+    expect(schema).toBeDefined();
+    if (schema) {
+      const validResult = schema.safeParse({ newPassword: "abcdef" });
+      expect(validResult.success).toBe(true);
+      const invalidResult = schema.safeParse({ newPassword: "abc" });
+      expect(invalidResult.success).toBe(false);
+    }
+  });
+
+  it("setPassword input optionally accepts email", () => {
+    const procedure = appRouter._def.procedures["auth.setPassword"] as any;
+    const schema = procedure?._def?.inputs?.[0];
+    expect(schema).toBeDefined();
+    if (schema) {
+      const withEmail = schema.safeParse({ newPassword: "abcdef", email: "test@example.com" });
+      expect(withEmail.success).toBe(true);
+      const withoutEmail = schema.safeParse({ newPassword: "abcdef" });
+      expect(withoutEmail.success).toBe(true);
+      const invalidEmail = schema.safeParse({ newPassword: "abcdef", email: "not-an-email" });
+      expect(invalidEmail.success).toBe(false);
+    }
+  });
+
+  it("hasPassword is a query (not mutation)", () => {
+    const procedure = appRouter._def.procedures["auth.hasPassword"] as any;
+    expect(procedure).toBeDefined();
+    // Verify it's a query by checking it doesn't have mutation-specific properties
+    expect(procedure._def.type).toBe("query");
   });
 });

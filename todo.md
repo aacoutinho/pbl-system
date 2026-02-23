@@ -285,3 +285,7 @@
 - [x] Atualizar testes para o novo fluxo unificado de aprovação
 - [x] Notificação ao coordenador quando novo professor solicitar entrada em seus componentes
 - [x] Botão "Aprovar todos" para aprovação em lote de solicitações de componentes (admin e coordenadores)
+- [x] Login por e-mail/senha para o admin (além do OAuth)
+- [x] Admin pode definir/alterar sua senha no sistema (setPassword + hasPassword)
+- [x] Tela de perfil com opção de definir senha para usuários OAuth
+- [x] Testes para login admin por e-mail/senha (7 novos testes)
