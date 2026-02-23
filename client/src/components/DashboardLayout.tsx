@@ -239,7 +239,7 @@ function LoginScreen() {
           className="w-full shadow-md hover:shadow-lg transition-all font-semibold gap-2"
         >
           <KeyRound className="h-5 w-5" />
-          Entrar com Código da Sessão
+          Acesso do Aluno (Matrícula)
         </Button>
 
         <div className="relative w-full">

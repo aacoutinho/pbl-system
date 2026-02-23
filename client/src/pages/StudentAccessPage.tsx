@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { KeyRound, LogIn, Send, UserX, CheckCircle2, AlertTriangle, ArrowLeft, BookOpen, HelpCircle, Camera, Mail, ShieldCheck, Upload } from "lucide-react";
+import { LogIn, Send, UserX, CheckCircle2, AlertTriangle, ArrowLeft, BookOpen, HelpCircle, Camera, Mail, ShieldCheck, Upload, ClipboardList, Clock, GraduationCap, User } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useMemo, useRef } from "react";
 import { resizeImageToSquare, base64SizeKB } from "@/lib/resizeImage";
@@ -27,45 +27,50 @@ interface StudentEval {
   desempenhoPapel: number;
 }
 
-type Step = "code" | "login" | "profile" | "evaluate" | "done";
+type Step = "login" | "dashboard" | "profile" | "evaluate" | "done";
+
+interface StudentData {
+  studentId: number;
+  studentName: string;
+  studentEmail: string | null;
+  studentEnrollment: string;
+  studentPhotoUrl: string | null;
+  isFirstAccess: boolean;
+  classes: { classId: number; classCode: string; componentCode: string; componentName: string; semester: string }[];
+}
+
+interface SelectedSession {
+  sessionId: number;
+  sessionLabel: string;
+  classId: number;
+  classCode: string;
+  componentCode: string;
+  componentName: string;
+  semester: string;
+  accessCode: string | null;
+}
 
 export default function StudentAccessPage() {
-  const [step, setStep] = useState<Step>("code");
-  const [accessCode, setAccessCode] = useState("");
+  const [step, setStep] = useState<Step>("login");
   const [enrollment, setEnrollment] = useState("");
+  const [studentData, setStudentData] = useState<StudentData | null>(null);
   const [studentEmail, setStudentEmail] = useState("");
-  const [sessionInfo, setSessionInfo] = useState<{
-    sessionId: number; label: string; classCode: string; componentCode: string; componentName: string; semester: string;
-  } | null>(null);
-  const [studentInfo, setStudentInfo] = useState<{
-    studentId: number; studentName: string; studentEmail: string | null; studentPhotoUrl: string | null; sessionId: number; sessionLabel: string; classId: number; isFirstEval: boolean;
-  } | null>(null);
-  const [alreadySubmitted, setAlreadySubmitted] = useState(false);
   const [studentPhotoUrl, setStudentPhotoUrl] = useState<string | null>(null);
+  const [selectedSession, setSelectedSession] = useState<SelectedSession | null>(null);
+  const [submittedSessionId, setSubmittedSessionId] = useState<number | null>(null);
 
-  // Step 1: Validate access code
-  const validateCodeQuery = trpc.studentAccess.validateCode.useQuery(
-    { accessCode: accessCode.toUpperCase() },
-    { enabled: false, retry: false }
-  );
-
-  // Step 2: Login mutation
-  const loginMutation = trpc.studentAccess.login.useMutation({
+  // Login by enrollment
+  const loginMutation = trpc.studentAccess.loginByEnrollment.useMutation({
     onSuccess: (data) => {
-      if (data.alreadySubmitted) {
-        setAlreadySubmitted(true);
-        setStep("done");
+      setStudentData(data);
+      setStudentEmail(data.studentEmail || "");
+      setStudentPhotoUrl(data.studentPhotoUrl || null);
+      // If first access and missing email or photo, go to profile setup
+      const needsProfile = !data.studentEmail || !data.studentPhotoUrl;
+      if (data.isFirstAccess && needsProfile) {
+        setStep("profile");
       } else {
-        setStudentInfo(data);
-        setStudentEmail(data.studentEmail || "");
-        setStudentPhotoUrl(data.studentPhotoUrl || null);
-        // Se é primeira avaliação e falta e-mail ou foto, vai para profile obrigatório
-        const needsProfile = !data.studentEmail || !data.studentPhotoUrl;
-        if (data.isFirstEval && needsProfile) {
-          setStep("profile");
-        } else {
-          setStep("evaluate");
-        }
+        setStep("dashboard");
       }
     },
     onError: (e) => toast.error(e.message),
@@ -77,164 +82,67 @@ export default function StudentAccessPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  const handleValidateCode = async () => {
-    if (!accessCode.trim()) { toast.error("Digite o código da sessão"); return; }
-    try {
-      const result = await validateCodeQuery.refetch();
-      if (result.data) {
-        setSessionInfo(result.data);
-        setStep("login");
-      }
-    } catch (e: any) {
-      toast.error(e?.message || "Código inválido");
-    }
-  };
-
   const handleLogin = () => {
     if (!enrollment.trim()) { toast.error("Digite sua matrícula"); return; }
-    loginMutation.mutate({ accessCode: accessCode.toUpperCase(), enrollment: enrollment.trim() });
+    loginMutation.mutate({ enrollment: enrollment.trim() });
   };
 
-  if (step === "code") {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md shadow-lg">
-          <CardHeader className="text-center">
-            <div className="mx-auto w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mb-3">
-              <KeyRound className="h-7 w-7 text-primary" />
-            </div>
-            <CardTitle className="text-xl">Acesso à Sessão Tutorial</CardTitle>
-            <CardDescription>
-              Digite o código fornecido pelo professor para acessar a avaliação.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="code">Código da Sessão</Label>
-              <Input
-                id="code"
-                placeholder="Ex: ABC123"
-                value={accessCode}
-                onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
-                onKeyDown={(e) => e.key === "Enter" && handleValidateCode()}
-                className="mt-1 text-center text-2xl tracking-widest font-mono uppercase"
-                maxLength={8}
-                autoFocus
-              />
-            </div>
-            <Button
-              className="w-full"
-              size="lg"
-              onClick={handleValidateCode}
-              disabled={validateCodeQuery.isFetching}
-            >
-              {validateCodeQuery.isFetching ? "Verificando..." : "Acessar Sessão"}
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const handleSelectSession = (session: SelectedSession) => {
+    setSelectedSession(session);
+    setStep("evaluate");
+  };
 
+  const handleEvalDone = () => {
+    setSubmittedSessionId(selectedSession?.sessionId || null);
+    setSelectedSession(null);
+    setStep("done");
+  };
+
+  const handleBackToDashboard = () => {
+    setSelectedSession(null);
+    setSubmittedSessionId(null);
+    setStep("dashboard");
+  };
+
+  // ─── Step: Login ───
   if (step === "login") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
         <Card className="w-full max-w-md shadow-lg">
           <CardHeader className="text-center">
             <div className="mx-auto w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mb-3">
-              <LogIn className="h-7 w-7 text-primary" />
+              <GraduationCap className="h-7 w-7 text-primary" />
             </div>
-            <CardTitle className="text-xl">Identificação</CardTitle>
+            <CardTitle className="text-xl">Acesso do Aluno</CardTitle>
             <CardDescription>
-              Sessão: <strong>{sessionInfo?.label}</strong>
-              <br />
-              Turma: {sessionInfo?.componentCode} - {sessionInfo?.classCode} ({sessionInfo?.semester})
+              Digite sua matrícula para acessar as avaliações tutoriais.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="enrollment">Sua matrícula</Label>
+              <Label htmlFor="enrollment">Matrícula</Label>
               <Input
                 id="enrollment"
                 placeholder="Ex: 20221001"
                 value={enrollment}
                 onChange={(e) => setEnrollment(e.target.value.trim())}
                 onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-                className="mt-1 font-mono"
+                className="mt-1 text-center text-2xl tracking-widest font-mono"
                 autoFocus
               />
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => { setStep("code"); setAccessCode(""); setEnrollment(""); }}>
-                <ArrowLeft className="h-4 w-4 mr-1" />
-                Voltar
-              </Button>
-              <Button
-                className="flex-1"
-                size="lg"
-                onClick={handleLogin}
-                disabled={loginMutation.isPending}
-              >
-                {loginMutation.isPending ? "Entrando..." : "Entrar"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (step === "profile") {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50 p-4 flex items-center justify-center">
-        <ProfileSetup
-          studentId={studentInfo!.studentId}
-          studentName={studentInfo!.studentName}
-          currentEmail={studentEmail}
-          currentPhotoUrl={studentPhotoUrl}
-          isFirstEval={studentInfo!.isFirstEval}
-          onComplete={(email, photoUrl) => {
-            if (email) setStudentEmail(email);
-            if (photoUrl) setStudentPhotoUrl(photoUrl);
-            setStep("evaluate");
-          }}
-          onBack={() => { setStep("login"); setStudentInfo(null); }}
-        />
-      </div>
-    );
-  }
-
-  if (step === "done") {
-    return (
-      <div className={`min-h-screen bg-gradient-to-br ${alreadySubmitted ? "from-slate-50 to-amber-50" : "from-slate-50 to-green-50"} flex items-center justify-center p-4`}>
-        <Card className="w-full max-w-md shadow-lg">
-          <CardHeader className="text-center">
-            {alreadySubmitted ? (
-              <>
-                <div className="mx-auto w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center mb-3">
-                  <AlertTriangle className="h-7 w-7 text-amber-600" />
-                </div>
-                <CardTitle className="text-xl text-amber-700">Avaliação Já Realizada</CardTitle>
-                <CardDescription>
-                  Você já enviou sua avaliação para esta sessão. Caso precise reavaliar, solicite ao professor a liberação.
-                </CardDescription>
-              </>
-            ) : (
-              <>
-                <div className="mx-auto w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mb-3">
-                  <CheckCircle2 className="h-7 w-7 text-emerald-600" />
-                </div>
-                <CardTitle className="text-xl text-emerald-700">Avaliação Enviada!</CardTitle>
-                <CardDescription>
-                  Sua avaliação foi registrada com sucesso. Obrigado pela participação!
-                </CardDescription>
-              </>
-            )}
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" className="w-full" onClick={() => { setStep("code"); setAccessCode(""); setEnrollment(""); setStudentInfo(null); setSessionInfo(null); setAlreadySubmitted(false); }}>
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              Voltar ao início
+            <Button
+              className="w-full"
+              size="lg"
+              onClick={handleLogin}
+              disabled={loginMutation.isPending}
+            >
+              {loginMutation.isPending ? "Verificando..." : (
+                <>
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Entrar
+                </>
+              )}
             </Button>
           </CardContent>
         </Card>
@@ -242,28 +150,264 @@ export default function StudentAccessPage() {
     );
   }
 
-  // Step: evaluate
+  // ─── Step: Profile setup (first access) ───
+  if (step === "profile") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50 p-4 flex items-center justify-center">
+        <ProfileSetup
+          studentId={studentData!.studentId}
+          studentName={studentData!.studentName}
+          currentEmail={studentEmail}
+          currentPhotoUrl={studentPhotoUrl}
+          isFirstEval={studentData!.isFirstAccess}
+          onComplete={(email, photoUrl) => {
+            if (email) setStudentEmail(email);
+            if (photoUrl) setStudentPhotoUrl(photoUrl);
+            setStep("dashboard");
+          }}
+          onBack={() => { setStep("login"); setStudentData(null); setEnrollment(""); }}
+        />
+      </div>
+    );
+  }
+
+  // ─── Step: Dashboard (profile + open sessions) ───
+  if (step === "dashboard") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4">
+        <StudentDashboard
+          studentData={studentData!}
+          studentEmail={studentEmail}
+          studentPhotoUrl={studentPhotoUrl}
+          onSelectSession={handleSelectSession}
+          onEditProfile={() => setStep("profile")}
+          onLogout={() => { setStep("login"); setStudentData(null); setEnrollment(""); setStudentEmail(""); setStudentPhotoUrl(null); }}
+        />
+      </div>
+    );
+  }
+
+  // ─── Step: Done (after submitting) ───
+  if (step === "done") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-green-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md shadow-lg">
+          <CardHeader className="text-center">
+            <div className="mx-auto w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mb-3">
+              <CheckCircle2 className="h-7 w-7 text-emerald-600" />
+            </div>
+            <CardTitle className="text-xl text-emerald-700">Avaliação Enviada!</CardTitle>
+            <CardDescription>
+              Sua avaliação foi registrada com sucesso. Obrigado pela participação!
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button variant="outline" className="w-full" onClick={handleBackToDashboard}>
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Voltar ao Painel
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // ─── Step: Evaluate ───
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4">
       <EvaluationForm
-        accessCode={accessCode}
-        studentInfo={studentInfo!}
-        sessionInfo={sessionInfo!}
+        accessCode={selectedSession!.accessCode || ""}
+        studentInfo={{
+          studentId: studentData!.studentId,
+          studentName: studentData!.studentName,
+          sessionId: selectedSession!.sessionId,
+          sessionLabel: selectedSession!.sessionLabel,
+          classId: selectedSession!.classId,
+        }}
+        sessionInfo={{
+          sessionId: selectedSession!.sessionId,
+          label: selectedSession!.sessionLabel,
+          classCode: selectedSession!.classCode,
+          componentCode: selectedSession!.componentCode,
+          componentName: selectedSession!.componentName,
+          semester: selectedSession!.semester,
+        }}
         studentEmail={studentEmail}
         studentPhotoUrl={studentPhotoUrl}
         onEmailChange={setStudentEmail}
         onEmailSave={(email) => {
-          if (studentInfo) updateEmailMutation.mutate({ studentId: studentInfo.studentId, email });
+          if (studentData) updateEmailMutation.mutate({ studentId: studentData.studentId, email });
         }}
         onPhotoChange={setStudentPhotoUrl}
         onEditProfile={() => setStep("profile")}
-        onDone={() => setStep("done")}
-        onBack={() => { setStep("login"); setStudentInfo(null); }}
+        onDone={handleEvalDone}
+        onBack={handleBackToDashboard}
       />
     </div>
   );
 }
 
+// ─── Student Dashboard Component ───
+function StudentDashboard({ studentData, studentEmail, studentPhotoUrl, onSelectSession, onEditProfile, onLogout }: {
+  studentData: StudentData;
+  studentEmail: string;
+  studentPhotoUrl: string | null;
+  onSelectSession: (session: SelectedSession) => void;
+  onEditProfile: () => void;
+  onLogout: () => void;
+}) {
+  const { data: openSessions, isLoading } = trpc.studentAccess.myOpenSessions.useQuery(
+    { studentId: studentData.studentId },
+    { refetchInterval: 15000 }
+  );
+
+  const pendingSessions = openSessions?.filter(s => !s.alreadySubmitted) || [];
+  const completedSessions = openSessions?.filter(s => s.alreadySubmitted) || [];
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+          <GraduationCap className="h-6 w-6 text-primary" />
+          Painel do Aluno
+        </h1>
+        <Button variant="ghost" size="sm" onClick={onLogout} className="text-muted-foreground">
+          Sair
+        </Button>
+      </div>
+
+      {/* Profile Card */}
+      <Card className="border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+        <CardContent className="pt-5 pb-5">
+          <div className="flex items-center gap-4">
+            {studentPhotoUrl ? (
+              <img src={studentPhotoUrl} alt="Foto" className="w-16 h-16 rounded-full object-cover border-3 border-blue-200 shadow-md" />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center border-3 border-blue-200 shadow-md">
+                <User className="h-7 w-7 text-blue-400" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg font-semibold truncate">{studentData.studentName}</h2>
+              <div className="flex flex-col gap-0.5 text-sm text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Badge variant="secondary" className="text-xs font-mono">{studentData.studentEnrollment}</Badge>
+                </span>
+                <span className="flex items-center gap-1 truncate">
+                  <Mail className="h-3.5 w-3.5 shrink-0" />
+                  {studentEmail || "E-mail não informado"}
+                </span>
+              </div>
+              {studentData.classes.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {studentData.classes.map(c => (
+                    <Badge key={c.classId} variant="outline" className="text-xs">
+                      {c.componentCode} - {c.classCode}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+            <Button variant="outline" size="sm" onClick={onEditProfile} className="shrink-0">
+              Editar Perfil
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Open Sessions - Pending */}
+      <div>
+        <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+          <ClipboardList className="h-5 w-5 text-amber-600" />
+          Sessões Abertas para Avaliação
+        </h3>
+        {isLoading ? (
+          <Card>
+            <CardContent className="py-8 text-center text-muted-foreground">
+              Carregando sessões...
+            </CardContent>
+          </Card>
+        ) : pendingSessions.length === 0 ? (
+          <Card>
+            <CardContent className="py-8 text-center text-muted-foreground">
+              <Clock className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
+              <p className="font-medium">Nenhuma sessão aberta no momento</p>
+              <p className="text-sm mt-1">Quando o professor abrir uma sessão tutorial, ela aparecerá aqui.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {pendingSessions.map(session => (
+              <Card key={session.sessionId} className="hover:shadow-md transition-shadow cursor-pointer border-amber-200 bg-amber-50/30" onClick={() => onSelectSession({
+                sessionId: session.sessionId,
+                sessionLabel: session.sessionLabel,
+                classId: session.classId,
+                classCode: session.classCode,
+                componentCode: session.componentCode,
+                componentName: session.componentName,
+                semester: session.semester,
+                accessCode: session.accessCode,
+              })}>
+                <CardContent className="py-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold">{session.sessionLabel}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {session.componentCode} - {session.classCode} ({session.semester})
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Problema {session.problemNumber} &middot; Sessão {session.sessionNumber}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-200">Pendente</Badge>
+                      <Button size="sm" className="shadow-sm">
+                        Avaliar
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Completed Sessions */}
+      {completedSessions.length > 0 && (
+        <div>
+          <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+            Avaliações Já Realizadas
+          </h3>
+          <div className="space-y-2">
+            {completedSessions.map(session => (
+              <Card key={session.sessionId} className="opacity-70">
+                <CardContent className="py-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-sm">{session.sessionLabel}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {session.componentCode} - {session.classCode} ({session.semester})
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="text-emerald-600 border-emerald-300">
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                      Concluída
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Evaluation Form Component ───
 function EvaluationForm({ accessCode, studentInfo, sessionInfo, studentEmail, studentPhotoUrl, onEmailChange, onEmailSave, onPhotoChange, onEditProfile, onDone, onBack }: {
   accessCode: string;
   studentInfo: { studentId: number; studentName: string; sessionId: number; sessionLabel: string; classId: number };
@@ -277,7 +421,10 @@ function EvaluationForm({ accessCode, studentInfo, sessionInfo, studentEmail, st
   onDone: () => void;
   onBack: () => void;
 }) {
-  const { data: sessionStudentsList } = trpc.studentAccess.getSessionStudents.useQuery({ accessCode });
+  const { data: sessionStudentsList } = trpc.studentAccess.getSessionStudents.useQuery(
+    { accessCode },
+    { enabled: !!accessCode }
+  );
 
   const submitMutation = trpc.studentAccess.submitEvaluation.useMutation({
     onSuccess: () => {
@@ -508,6 +655,7 @@ function EvaluationForm({ accessCode, studentInfo, sessionInfo, studentEmail, st
   );
 }
 
+// ─── Profile Setup Component ───
 function ProfileSetup({ studentId, studentName, currentEmail, currentPhotoUrl, isFirstEval, onComplete, onBack }: {
   studentId: number;
   studentName: string;
@@ -702,7 +850,7 @@ function ProfileSetup({ studentId, studentName, currentEmail, currentPhotoUrl, i
             disabled={isFirstEval && !canProceed}
             className="flex-1"
           >
-            {isFirstEval ? "Continuar para Avaliação" : "Salvar e Voltar"}
+            {isFirstEval ? "Continuar" : "Salvar e Voltar"}
           </Button>
         </div>
         {isFirstEval && !canProceed && (
@@ -716,6 +864,7 @@ function ProfileSetup({ studentId, studentName, currentEmail, currentPhotoUrl, i
   );
 }
 
+// ─── Criteria Slider Component ───
 const SCORE_LABELS: Record<string, string> = {
   "0.00": "0.0",
   "0.25": "0.25",

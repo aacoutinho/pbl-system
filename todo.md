@@ -377,3 +377,13 @@
 - [x] Numeração automática de sessões: sessão sequencial automática (professor não define)
 - [x] Numeração automática de sessões: problema crescente começando em 1
 - [x] Numeração automática de sessões: problema só pode avançar para o próximo (ex: 1→2, não 1→3)
+- [x] Verificar se professor_student_notes está incluída no BACKUP_TABLES (já estava)
+- [x] Reformular login do aluno: usar matrícula em vez de código de sessão
+- [x] Backend: rota de login por matrícula (sem senha)
+- [x] Backend: rota para listar sessões abertas do aluno logado
+- [x] Frontend: nova página do aluno com perfil (foto, nome, email, matrícula)
+- [x] Frontend: lista de sessões abertas nas quais o aluno participa
+- [x] Frontend: ao clicar na sessão, direcionar ao formulário de avaliação
+- [x] Atualizar página de login: trocar campo de código por campo de matrícula
+- [x] Atualizar rotas do App.tsx para novo fluxo do aluno
+- [x] Testes unitários para novo login por matrícula e sessões do aluno

@@ -43,6 +43,7 @@ import {
   type BackupData,
   bulkUpsertProfessorStudentNotes, getProfessorStudentNotes,
   getNextSessionInfo,
+  findStudentByEnrollment, getOpenSessionsForStudent, getClassesForStudent,
 } from "./db";
 import { storagePut } from "./storage";
 import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml, buildContactTicketEmailHtml, buildSessionOpenedEmailHtml, buildStudentGradeReportHtml } from "./email";
@@ -901,6 +902,36 @@ export const appRouter = router({
 
   // ─── Student simplified access (no login required) ───
   studentAccess: router({
+    // Login by enrollment only (no session code needed)
+    loginByEnrollment: publicProcedure.input(z.object({
+      enrollment: z.string().min(1),
+    })).mutation(async ({ input }) => {
+      const student = await findStudentByEnrollment(input.enrollment.trim());
+      if (!student) throw new TRPCError({ code: "NOT_FOUND", message: "Matrícula não encontrada no sistema. Verifique se digitou corretamente." });
+      const evalCount = await getStudentEvaluationCount(student.id);
+      const classes = await getClassesForStudent(student.id);
+      return {
+        studentId: student.id,
+        studentName: student.name,
+        studentEmail: student.email,
+        studentEnrollment: student.enrollment,
+        studentPhotoUrl: student.photoUrl,
+        isFirstAccess: evalCount === 0,
+        classes,
+      };
+    }),
+    // Get open sessions for a logged-in student
+    myOpenSessions: publicProcedure.input(z.object({
+      studentId: z.number(),
+    })).query(async ({ input }) => {
+      const openSessions = await getOpenSessionsForStudent(input.studentId);
+      // For each session, check if student already submitted
+      const sessionsWithStatus = await Promise.all(openSessions.map(async (s) => {
+        const submitted = await hasStudentSubmitted(s.sessionId, input.studentId);
+        return { ...s, alreadySubmitted: submitted };
+      }));
+      return sessionsWithStatus;
+    }),
     validateCode: publicProcedure.input(z.object({
       accessCode: z.string().min(1).max(8),
     })).query(async ({ input }) => {

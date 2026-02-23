@@ -2436,3 +2436,93 @@ export async function getNextSessionInfo(classId: number) {
     lastProblemNumber: lastSession.problemNumber,
   };
 }
+
+// ─── Student login by enrollment (global, not per class) ───
+export async function findStudentByEnrollment(enrollment: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const [row] = await db.select({
+    id: students.id,
+    name: students.name,
+    enrollment: students.enrollment,
+    email: students.email,
+    photoUrl: students.photoUrl,
+  }).from(students)
+    .where(eq(students.enrollment, enrollment.trim()))
+    .limit(1);
+  return row;
+}
+
+// ─── Get open sessions for a student (across all classes/components) ───
+export async function getOpenSessionsForStudent(studentId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.select({
+    sessionId: sessions.id,
+    sessionLabel: sessions.label,
+    sessionStatus: sessions.status,
+    problemNumber: sessions.problemNumber,
+    sessionNumber: sessions.sessionNumber,
+    classId: sessions.classId,
+    classCode: classes.classCode,
+    componentId: classes.componentId,
+    componentCode: components.code,
+    componentName: components.name,
+    semester: classes.semester,
+    accessCode: sessions.accessCode,
+  })
+    .from(sessionStudents)
+    .innerJoin(sessions, eq(sessionStudents.sessionId, sessions.id))
+    .innerJoin(classes, eq(sessions.classId, classes.id))
+    .innerJoin(components, eq(classes.componentId, components.id))
+    .where(and(
+      eq(sessionStudents.studentId, studentId),
+      eq(sessions.status, "open"),
+    ))
+    .orderBy(sessions.createdAt);
+  return rows;
+}
+
+// ─── Get all sessions for a student (any status, for history) ───
+export async function getAllSessionsForStudent(studentId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.select({
+    sessionId: sessions.id,
+    sessionLabel: sessions.label,
+    sessionStatus: sessions.status,
+    problemNumber: sessions.problemNumber,
+    sessionNumber: sessions.sessionNumber,
+    classId: sessions.classId,
+    classCode: classes.classCode,
+    componentCode: components.code,
+    componentName: components.name,
+    semester: classes.semester,
+  })
+    .from(sessionStudents)
+    .innerJoin(sessions, eq(sessionStudents.sessionId, sessions.id))
+    .innerJoin(classes, eq(sessions.classId, classes.id))
+    .innerJoin(components, eq(classes.componentId, components.id))
+    .where(eq(sessionStudents.studentId, studentId))
+    .orderBy(sessions.createdAt);
+  return rows;
+}
+
+// ─── Get classes for a student ───
+export async function getClassesForStudent(studentId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.select({
+    classId: classes.id,
+    classCode: classes.classCode,
+    componentCode: components.code,
+    componentName: components.name,
+    semester: classes.semester,
+  })
+    .from(classStudents)
+    .innerJoin(classes, eq(classStudents.classId, classes.id))
+    .innerJoin(components, eq(classes.componentId, components.id))
+    .where(eq(classStudents.studentId, studentId))
+    .orderBy(components.code, classes.classCode);
+  return rows;
+}
