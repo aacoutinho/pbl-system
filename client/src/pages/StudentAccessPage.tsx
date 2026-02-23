@@ -778,7 +778,7 @@ function CriteriaSlider({ label, sublabel, tooltip, value, onChange, penalty, ge
           <>
             <span>Nenhuma</span>
             <span>Fraca</span>
-            <span>Normal</span>
+            <span>Razoável</span>
             <span>Boa</span>
             <span>Excelente</span>
           </>
@@ -786,7 +786,7 @@ function CriteriaSlider({ label, sublabel, tooltip, value, onChange, penalty, ge
           <>
             <span>Nenhum</span>
             <span>Fraco</span>
-            <span>Normal</span>
+            <span>Razoável</span>
             <span>Bom</span>
             <span>Excelente</span>
           </>

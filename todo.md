@@ -356,3 +356,4 @@
 - [x] Gerar notificação ao administrador quando qualquer envio de e-mail falhar
 - [x] Incluir detalhes do erro (destinatário, assunto, mensagem de erro) na notificação
 - [x] Testes unitários para notificação de falha de e-mail
+- [x] Trocar conceito "Normal (0.5)" por "Razoável (0.5)" nos formulários de avaliação
