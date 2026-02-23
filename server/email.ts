@@ -298,6 +298,60 @@ export function buildEvalPermissionGrantedEmailHtml(
 
 
 // ─── Contact Ticket Email Template ───
+// ─── Session Opened Email Template (for students) ───
+export function buildSessionOpenedEmailHtml(data: {
+  studentName: string;
+  sessionLabel: string;
+  accessCode: string;
+  accessUrl: string;
+  componentCode: string;
+  classCode: string;
+}): string {
+  return `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <h2 style="color: #1f2937; margin: 0 0 8px;">Sessão de Avaliação Aberta</h2>
+        <p style="color: #6b7280; margin: 0; font-size: 14px;">Avaliação de Desempenho Tutorial</p>
+      </div>
+      <p style="color: #374151; font-size: 15px; line-height: 1.6;">
+        Olá <strong>${data.studentName}</strong>,
+      </p>
+      <p style="color: #374151; font-size: 15px; line-height: 1.6;">
+        Uma nova sessão de avaliação tutorial foi aberta para você:
+      </p>
+      <div style="text-align: center; margin: 24px 0;">
+        <div style="display: inline-block; background: #eff6ff; border: 2px solid #93c5fd; border-radius: 8px; padding: 16px 32px;">
+          <span style="font-size: 14px; color: #3b82f6;">${data.componentCode} - ${data.classCode}</span>
+          <br />
+          <span style="font-size: 18px; font-weight: 600; color: #1e40af;">${data.sessionLabel}</span>
+        </div>
+      </div>
+      <div style="text-align: center; margin: 24px 0;">
+        <div style="display: inline-block; background: #f0fdf4; border: 2px solid #86efac; border-radius: 12px; padding: 20px 40px;">
+          <p style="color: #166534; margin: 0 0 4px; font-size: 13px; font-weight: 600;">CÓDIGO DE ACESSO</p>
+          <span style="font-size: 32px; font-weight: 700; color: #15803d; letter-spacing: 6px; font-family: monospace;">${data.accessCode}</span>
+        </div>
+      </div>
+      <div style="text-align: center; margin: 24px 0;">
+        <a href="${data.accessUrl}" style="display: inline-block; background: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-size: 15px; font-weight: 600;">Acessar Formulário de Avaliação</a>
+      </div>
+      <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin: 16px 0;">
+        <p style="color: #374151; font-size: 13px; margin: 0;"><strong>Como acessar:</strong></p>
+        <ol style="color: #374151; font-size: 13px; margin: 8px 0 0; padding-left: 20px;">
+          <li>Clique no botão acima ou acesse o sistema</li>
+          <li>Insira o código <strong>${data.accessCode}</strong></li>
+          <li>Digite sua matrícula para se identificar</li>
+          <li>Avalie seus colegas de equipe</li>
+        </ol>
+      </div>
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+      <p style="color: #9ca3af; font-size: 12px; text-align: center;">
+        Sistema de Avaliação de Desempenho Tutorial
+      </p>
+    </div>
+  `;
+}
+
 export function buildContactTicketEmailHtml(data: {
   ticketType: "bug" | "feature";
   subject: string;

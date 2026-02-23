@@ -316,3 +316,7 @@
 - [x] Atualizar schema do banco com novos estados
 - [x] Atualizar lógica de negócio (db.ts e routers.ts)
 - [x] Atualizar frontend para exibir e gerenciar os 4 estados
+- [x] Filtro por estado na lista de sessões (Todas, Iniciada, Aberta, Fechada, Encerrada)
+- [x] Bloquear avaliação tutorial enquanto sessão estiver Aberta (forçar fechar antes)
+- [x] Confirmação visual ao fechar/reabrir sessão com resumo do impacto
+- [x] Envio de e-mail aos alunos com código e link ao abrir sessão (gerar código)

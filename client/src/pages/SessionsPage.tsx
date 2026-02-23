@@ -9,9 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Lock, Unlock, Trash2, ClipboardList, Users, Eye, BookOpen, KeyRound, Copy, RefreshCw, RotateCcw, CheckCircle2, Clock, FileSearch } from "lucide-react";
+import { Plus, Lock, Unlock, Trash2, ClipboardList, Users, Eye, BookOpen, KeyRound, Copy, RefreshCw, RotateCcw, CheckCircle2, Clock, FileSearch, AlertTriangle } from "lucide-react";
 import { EvaluationPreviewDialog } from "@/components/EvaluationPreview";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -74,6 +74,13 @@ function SessionsContent() {
 
   const [showCreate, setShowCreate] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  const filteredSessions = useMemo(() => {
+    if (!sessionsList) return [];
+    if (statusFilter === "all") return sessionsList;
+    return sessionsList.filter(s => s.status === statusFilter);
+  }, [sessionsList, statusFilter]);
   const [problemNum, setProblemNum] = useState("1");
   const [sessionNum, setSessionNum] = useState("1");
   const [selectedStudents, setSelectedStudents] = useState<number[]>([]);
@@ -190,11 +197,31 @@ function SessionsContent() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <ClipboardList className="h-5 w-5" />
-            Sessões de Avaliação
-            {sessionsList && <Badge variant="secondary" className="ml-2">{sessionsList.length}</Badge>}
-          </CardTitle>
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <ClipboardList className="h-5 w-5" />
+              Sessões de Avaliação
+              {sessionsList && <Badge variant="secondary" className="ml-2">{filteredSessions.length}/{sessionsList.length}</Badge>}
+            </CardTitle>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {["all", "initiated", "open", "closed", "finished"].map(st => (
+                <Button
+                  key={st}
+                  variant={statusFilter === st ? "default" : "outline"}
+                  size="sm"
+                  className={`h-7 text-xs ${statusFilter === st ? "" :
+                    st === "initiated" ? "hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200" :
+                    st === "open" ? "hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200" :
+                    st === "closed" ? "hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200" :
+                    st === "finished" ? "hover:bg-gray-100 hover:text-gray-600" : ""
+                  }`}
+                  onClick={() => setStatusFilter(st)}
+                >
+                  {st === "all" ? "Todas" : st === "initiated" ? "Iniciadas" : st === "open" ? "Abertas" : st === "closed" ? "Fechadas" : "Encerradas"}
+                </Button>
+              ))}
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -204,9 +231,14 @@ function SessionsContent() {
               <ClipboardList className="h-10 w-10 mx-auto mb-3 opacity-40" />
               <p>Nenhuma sessão criada nesta turma.</p>
             </div>
+          ) : filteredSessions.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <ClipboardList className="h-10 w-10 mx-auto mb-3 opacity-40" />
+              <p>Nenhuma sessão com o status selecionado.</p>
+            </div>
           ) : (
             <div className="space-y-3">
-              {sessionsList.map(session => (
+              {filteredSessions.map(session => (
                 <SessionRow
                   key={session.id}
                   session={session}
@@ -237,11 +269,14 @@ function SessionRow({ session, canManage, onClose, onOpen, onDelete, onViewResul
   const { data: status } = trpc.sessions.submissionStatus.useQuery({ sessionId: session.id });
   const submitted = status?.filter(s => s.submitted).length ?? 0;
   const total = status?.length ?? 0;
+  const pending = total - submitted;
 
   const [showReevalDialog, setShowReevalDialog] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [showOpenConfirm, setShowOpenConfirm] = useState(false);
 
   const generateCodeMutation = trpc.sessions.generateCode.useMutation({
-    onSuccess: (data) => {
+    onSuccess: (data: { accessCode: string }) => {
       utils.sessions.list.invalidate();
       toast.success(`Código gerado: ${data.accessCode}`);
     },
@@ -305,7 +340,7 @@ function SessionRow({ session, canManage, onClose, onOpen, onDelete, onViewResul
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => generateCodeMutation.mutate({ sessionId: session.id })}
+            onClick={() => generateCodeMutation.mutate({ sessionId: session.id, origin: window.location.origin })}
             disabled={generateCodeMutation.isPending}
             title={session.accessCode ? "Regenerar código de acesso" : "Gerar código de acesso"}
           >
@@ -374,13 +409,85 @@ function SessionRow({ session, canManage, onClose, onOpen, onDelete, onViewResul
         {canManage && (
           <>
             {session.status === "open" ? (
-              <Button variant="ghost" size="icon" onClick={onClose} title="Fechar sessão">
-                <Lock className="h-4 w-4" />
-              </Button>
+              <>
+                <Button variant="ghost" size="icon" onClick={() => setShowCloseConfirm(true)} title="Fechar sessão">
+                  <Lock className="h-4 w-4" />
+                </Button>
+                <Dialog open={showCloseConfirm} onOpenChange={setShowCloseConfirm}>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Fechar Sessão</DialogTitle>
+                      <DialogDescription>
+                        Confirme o fechamento da sessão <strong>{session.label}</strong>.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                      <div className="p-3 rounded-lg bg-accent/30 border">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Avaliações recebidas:</span>
+                          <span className="font-semibold">{submitted}/{total}</span>
+                        </div>
+                        {pending > 0 && (
+                          <div className="flex items-center gap-1.5 mt-2 text-sm text-amber-700 bg-amber-50 rounded-md p-2 border border-amber-200">
+                            <AlertTriangle className="h-4 w-4 shrink-0" />
+                            <span><strong>{pending} aluno(s)</strong> ainda não avaliaram.</span>
+                          </div>
+                        )}
+                        {pending === 0 && (
+                          <div className="flex items-center gap-1.5 mt-2 text-sm text-emerald-700 bg-emerald-50 rounded-md p-2 border border-emerald-200">
+                            <CheckCircle2 className="h-4 w-4 shrink-0" />
+                            <span>Todos os alunos já avaliaram.</span>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Após fechar, os alunos não poderão mais enviar avaliações. Você poderá submeter a avaliação do tutor.
+                      </p>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setShowCloseConfirm(false)}>Cancelar</Button>
+                      <Button onClick={() => { onClose(); setShowCloseConfirm(false); }}>Fechar Sessão</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </>
             ) : session.status === "closed" || session.status === "finished" ? (
-              <Button variant="ghost" size="icon" onClick={onOpen} title="Reabrir sessão">
-                <Unlock className="h-4 w-4" />
-              </Button>
+              <>
+                <Button variant="ghost" size="icon" onClick={() => setShowOpenConfirm(true)} title="Reabrir sessão">
+                  <Unlock className="h-4 w-4" />
+                </Button>
+                <Dialog open={showOpenConfirm} onOpenChange={setShowOpenConfirm}>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Reabrir Sessão</DialogTitle>
+                      <DialogDescription>
+                        Confirme a reabertura da sessão <strong>{session.label}</strong>.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                      <div className="p-3 rounded-lg bg-accent/30 border">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Avaliações recebidas:</span>
+                          <span className="font-semibold">{submitted}/{total}</span>
+                        </div>
+                        {session.status === "finished" && (
+                          <div className="flex items-center gap-1.5 mt-2 text-sm text-amber-700 bg-amber-50 rounded-md p-2 border border-amber-200">
+                            <AlertTriangle className="h-4 w-4 shrink-0" />
+                            <span>A avaliação do tutor já foi submetida. Reabrir mudará o status para <strong>Aberta</strong>.</span>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Ao reabrir, os alunos poderão enviar (ou reenviar) avaliações novamente.
+                      </p>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setShowOpenConfirm(false)}>Cancelar</Button>
+                      <Button onClick={() => { onOpen(); setShowOpenConfirm(false); }}>Reabrir Sessão</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </>
             ) : null}
             <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={onDelete} title="Excluir sessão">
               <Trash2 className="h-4 w-4" />

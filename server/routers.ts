@@ -40,7 +40,7 @@ import {
   exportDatabase, importDatabase, getBackupStats, rebuildDatabase,
   type BackupData,
 } from "./db";
-import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml, buildContactTicketEmailHtml } from "./email";
+import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml, buildContactTicketEmailHtml, buildSessionOpenedEmailHtml } from "./email";
 
 // Base: approved user (any role except "user" pending)
 const approvedProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -764,13 +764,53 @@ export const appRouter = router({
         submitted: submittedIds.has(s.studentId),
       }));
     }),
-    generateCode: approvedProcedure.input(z.object({ sessionId: z.number() })).mutation(async ({ ctx, input }) => {
+    generateCode: approvedProcedure.input(z.object({ sessionId: z.number(), origin: z.string().optional() })).mutation(async ({ ctx, input }) => {
       const session = await getSessionById(input.sessionId);
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
       const cls = await getClassById(session.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       await assertClassManager(ctx.user.id, ctx.user.role, cls);
       const code = await generateAccessCode(input.sessionId);
+
+      // Send email to students with email addresses
+      try {
+        const sessionStudentsList = await getSessionStudents(input.sessionId);
+        const studentsInClass = await listStudentsByClass(session.classId);
+        const studentMap = new Map(studentsInClass.map(s => [s.id, s]));
+        let componentCode = "";
+        if (cls.componentId) {
+          const comp = await getComponentById(cls.componentId);
+          componentCode = comp?.code ?? "";
+        }
+        const baseUrl = input.origin || "";
+        const accessUrl = baseUrl ? `${baseUrl}/student-access?code=${code}` : "";
+        let emailsSent = 0;
+        for (const ss of sessionStudentsList) {
+          const student = studentMap.get(ss.studentId);
+          if (student?.email) {
+            const html = buildSessionOpenedEmailHtml({
+              studentName: student.name,
+              sessionLabel: session.label,
+              accessCode: code,
+              accessUrl,
+              componentCode,
+              classCode: cls.classCode,
+            });
+            sendEmail({
+              to: student.email,
+              subject: `Avaliação Tutorial - ${session.label} (Código: ${code})`,
+              text: `Olá ${student.name}, a sessão ${session.label} foi aberta. Use o código ${code} para acessar o formulário de avaliação.`,
+              html,
+            }).catch(err => console.error(`[Email] Failed to send to ${student.email}:`, err));
+            emailsSent++;
+          }
+        }
+        console.log(`[Sessions] Code generated for session ${input.sessionId}, ${emailsSent} emails queued`);
+      } catch (err) {
+        console.error("[Sessions] Error sending session emails:", err);
+        // Don't fail the code generation if email sending fails
+      }
+
       return { accessCode: code };
     }),
   }),
@@ -943,6 +983,13 @@ export const appRouter = router({
       }
       const session = await getSessionById(input.sessionId);
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
+      // Block tutorial evaluation if session is still open
+      if (session.status === "open") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "A sessão precisa ser fechada antes de receber a avaliação do tutor. Feche a sessão primeiro na página de Sessões." });
+      }
+      if (session.status === "initiated") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "A sessão ainda não foi aberta. Gere o código de acesso e feche a sessão antes de avaliar." });
+      }
       const cls = await getClassById(session.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);

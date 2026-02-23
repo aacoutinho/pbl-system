@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { BookOpen, ClipboardCheck, Save, CheckCircle2, Info, ShieldCheck, ShieldAlert, Crown, UserCheck } from "lucide-react";
+import { BookOpen, ClipboardCheck, Save, CheckCircle2, Info, ShieldCheck, ShieldAlert, Crown, UserCheck, AlertTriangle } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -300,6 +300,25 @@ function TutorialEvalContent() {
             </div>
           </div>
 
+          {/* Session status warnings */}
+          {selectedSession && (selectedSession as any).status === "open" && selectedSession.evalPermission !== "no_permission" && selectedSession.evalPermission !== "admin" && (
+            <div className="mt-4 flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <p>
+                Esta sessão ainda está <strong>aberta</strong> para avaliações dos alunos. Você precisa <strong>fechar a sessão</strong> na página de Sessões antes de submeter a avaliação do tutor.
+              </p>
+            </div>
+          )}
+
+          {selectedSession && (selectedSession as any).status === "initiated" && selectedSession.evalPermission !== "no_permission" && selectedSession.evalPermission !== "admin" && (
+            <div className="mt-4 flex items-start gap-2 p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800">
+              <Info className="h-4 w-4 mt-0.5 shrink-0" />
+              <p>
+                Esta sessão ainda está no estado <strong>Iniciada</strong>. Gere o código de acesso e feche a sessão antes de avaliar.
+              </p>
+            </div>
+          )}
+
           {/* No permission warning */}
           {selectedSession && selectedSession.evalPermission === "no_permission" && (
             <div className="mt-4 flex items-start gap-2 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-800">
@@ -321,8 +340,8 @@ function TutorialEvalContent() {
         </CardContent>
       </Card>
 
-      {/* Evaluation form */}
-      {selectedSessionId && canEvaluateSelected && (
+      {/* Evaluation form - only show when session is closed or finished */}
+      {selectedSessionId && canEvaluateSelected && ((selectedSession as any)?.status === "closed" || (selectedSession as any)?.status === "finished") && (
         evalLoading ? (
           <Card><CardContent className="pt-6"><div className="space-y-6">{[1,2,3,4,5].map(i => <Skeleton key={i} className="h-20 rounded-lg" />)}</div></CardContent></Card>
         ) : (
