@@ -177,11 +177,11 @@ describe("Evaluation validation", () => {
           evaluatedStudentId: 10,
           role: "PARTICIPANTE",
           absent: false,
-          atuacao: 2,
-          pontualidade: 2,
-          dominio: 2,
-          metas: 2,
-          participacao: 2,
+          pontualidade: 1,
+          pesquisaMetas: 1,
+          dominio: 1,
+          participacao: 1,
+          desempenhoPapel: 0,
         }],
       })
     ).rejects.toThrow("Autoavaliação não é permitida");
@@ -194,8 +194,8 @@ describe("Evaluation validation", () => {
         sessionId: 999,
         evaluatorStudentId: 10,
         items: [
-          { evaluatedStudentId: 20, role: "COORDENADOR", absent: false, atuacao: 2, pontualidade: 2, dominio: 2, metas: 2, participacao: 2 },
-          { evaluatedStudentId: 30, role: "COORDENADOR", absent: false, atuacao: 2, pontualidade: 2, dominio: 2, metas: 2, participacao: 2 },
+          { evaluatedStudentId: 20, role: "COORDENADOR", absent: false, pontualidade: 1, pesquisaMetas: 1, dominio: 1, participacao: 1, desempenhoPapel: 0 },
+          { evaluatedStudentId: 30, role: "COORDENADOR", absent: false, pontualidade: 1, pesquisaMetas: 1, dominio: 1, participacao: 1, desempenhoPapel: 0 },
         ],
       })
     ).rejects.toThrow("O papel COORDENADOR só pode ser atribuído a um aluno");
@@ -208,8 +208,8 @@ describe("Evaluation validation", () => {
         sessionId: 999,
         evaluatorStudentId: 10,
         items: [
-          { evaluatedStudentId: 20, role: "COORDENADOR", absent: true, atuacao: 0, pontualidade: 0, dominio: 0, metas: 0, participacao: 0 },
-          { evaluatedStudentId: 30, role: "COORDENADOR", absent: true, atuacao: 0, pontualidade: 0, dominio: 0, metas: 0, participacao: 0 },
+          { evaluatedStudentId: 20, role: "COORDENADOR", absent: true, pontualidade: 0, pesquisaMetas: 0, dominio: 0, participacao: 0, desempenhoPapel: 0 },
+          { evaluatedStudentId: 30, role: "COORDENADOR", absent: true, pontualidade: 0, pesquisaMetas: 0, dominio: 0, participacao: 0, desempenhoPapel: 0 },
         ],
       });
     } catch (e: any) {

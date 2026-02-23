@@ -844,11 +844,11 @@ export const appRouter = router({
         evaluatedStudentId: z.number(),
         role: z.enum(["COORDENADOR", "MESA", "QUADRO", "PARTICIPANTE"]),
         absent: z.boolean(),
-        atuacao: z.number().min(0).max(2),
-        pontualidade: z.number().min(0).max(2),
-        dominio: z.number().min(0).max(2),
-        metas: z.number().min(0).max(2),
-        participacao: z.number().min(0).max(2),
+        pontualidade: z.number().min(0).max(1),
+        pesquisaMetas: z.number().min(0).max(1),
+        dominio: z.number().min(0).max(1),
+        participacao: z.number().min(0).max(1),
+        desempenhoPapel: z.number().min(0).max(1),
       })),
     })).mutation(async ({ input }) => {
       const session = await getSessionByAccessCode(input.accessCode.toUpperCase());
@@ -881,11 +881,11 @@ export const appRouter = router({
         evaluatedStudentId: z.number(),
         role: z.enum(["COORDENADOR", "MESA", "QUADRO", "PARTICIPANTE"]),
         absent: z.boolean(),
-        atuacao: z.number().min(0).max(2),
-        pontualidade: z.number().min(0).max(2),
-        dominio: z.number().min(0).max(2),
-        metas: z.number().min(0).max(2),
-        participacao: z.number().min(0).max(2),
+        pontualidade: z.number().min(0).max(1),
+        pesquisaMetas: z.number().min(0).max(1),
+        dominio: z.number().min(0).max(1),
+        participacao: z.number().min(0).max(1),
+        desempenhoPapel: z.number().min(0).max(1),
       })),
     })).mutation(async ({ input }) => {
       const selfEval = input.items.find(i => i.evaluatedStudentId === input.evaluatorStudentId);

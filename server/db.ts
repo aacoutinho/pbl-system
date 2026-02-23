@@ -812,11 +812,11 @@ export async function submitEvaluation(data: {
     evaluatedStudentId: number;
     role: "COORDENADOR" | "MESA" | "QUADRO" | "PARTICIPANTE";
     absent: boolean;
-    atuacao: number;
     pontualidade: number;
+    pesquisaMetas: number;
     dominio: number;
-    metas: number;
     participacao: number;
+    desempenhoPapel: number;
   }>;
 }) {
   const db = await getDb();
@@ -843,11 +843,11 @@ export async function submitEvaluation(data: {
         evaluatedStudentId: item.evaluatedStudentId,
         role: item.role,
         absent: item.absent,
-        atuacao: String(item.atuacao),
         pontualidade: String(item.pontualidade),
+        pesquisaMetas: String(item.pesquisaMetas),
         dominio: String(item.dominio),
-        metas: String(item.metas),
         participacao: String(item.participacao),
+        desempenhoPapel: String(item.desempenhoPapel),
       }))
     );
   }
@@ -924,11 +924,11 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
     evaluatedStudentId: evaluationItems.evaluatedStudentId,
     role: evaluationItems.role,
     absent: evaluationItems.absent,
-    atuacao: evaluationItems.atuacao,
     pontualidade: evaluationItems.pontualidade,
+    pesquisaMetas: evaluationItems.pesquisaMetas,
     dominio: evaluationItems.dominio,
-    metas: evaluationItems.metas,
     participacao: evaluationItems.participacao,
+    desempenhoPapel: evaluationItems.desempenhoPapel,
   }).from(evaluationItems).where(inArray(evaluationItems.evaluationId, evalIds));
 
   const evalToEvaluator = new Map<number, number>();
@@ -991,7 +991,7 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
     const validItems = itemsForStudent.filter(i => !i.absent);
     let sumScores = 0;
     for (const item of validItems) {
-      const score = Number(item.atuacao) + Number(item.pontualidade) + Number(item.dominio) + Number(item.metas) + Number(item.participacao);
+      const score = Number(item.pontualidade) * 1 + Number(item.pesquisaMetas) * 3 + Number(item.dominio) * 3 + Number(item.participacao) * 3 - Number(item.desempenhoPapel) * 1;
       sumScores += score;
     }
     const avg = validItems.length > 0 ? sumScores / validItems.length : 0;
@@ -1805,11 +1805,11 @@ export async function getPeerGradesMatrix(sessionId: number): Promise<{
     evaluationId: evaluationItems.evaluationId,
     evaluatedStudentId: evaluationItems.evaluatedStudentId,
     absent: evaluationItems.absent,
-    atuacao: evaluationItems.atuacao,
     pontualidade: evaluationItems.pontualidade,
+    pesquisaMetas: evaluationItems.pesquisaMetas,
     dominio: evaluationItems.dominio,
-    metas: evaluationItems.metas,
     participacao: evaluationItems.participacao,
+    desempenhoPapel: evaluationItems.desempenhoPapel,
   }).from(evaluationItems).where(inArray(evaluationItems.evaluationId, evalIds));
 
   const evalToEvaluator = new Map<number, number>();
@@ -1861,7 +1861,7 @@ export async function getPeerGradesMatrix(sessionId: number): Promise<{
       );
       if (item) {
         const score = item.absent ? 0 :
-          Number(item.atuacao) + Number(item.pontualidade) + Number(item.dominio) + Number(item.metas) + Number(item.participacao);
+          Number(item.pontualidade) * 1 + Number(item.pesquisaMetas) * 3 + Number(item.dominio) * 3 + Number(item.participacao) * 3 - Number(item.desempenhoPapel) * 1;
         peerGrades.push({
           evaluatorStudentId: evaluator.studentId,
           evaluatorSerial: evaluator.serial,

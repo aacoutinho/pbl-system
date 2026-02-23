@@ -18,11 +18,11 @@ interface StudentEval {
   evaluatedStudentId: number;
   role: RoleType;
   absent: boolean;
-  atuacao: number;
   pontualidade: number;
+  pesquisaMetas: number;
   dominio: number;
-  metas: number;
   participacao: number;
+  desempenhoPapel: number;
 }
 
 type Step = "code" | "login" | "evaluate" | "done";
@@ -266,7 +266,7 @@ function EvaluationForm({ accessCode, studentInfo, sessionInfo, studentEmail, on
           evaluatedStudentId: p.studentId,
           role: "PARTICIPANTE",
           absent: false,
-          atuacao: 2, pontualidade: 2, dominio: 2, metas: 2, participacao: 2,
+          pontualidade: 1, pesquisaMetas: 1, dominio: 1, participacao: 1, desempenhoPapel: 0,
         };
       });
       setEvaluations(init);
@@ -382,7 +382,7 @@ function EvaluationForm({ accessCode, studentInfo, sessionInfo, studentEmail, on
       {peersToEvaluate.map(peer => {
         const ev = evaluations[peer.studentId];
         if (!ev) return null;
-        const totalScore = ev.absent ? 0 : ev.atuacao + ev.pontualidade + ev.dominio + ev.metas + ev.participacao;
+        const totalScore = ev.absent ? 0 : ev.pontualidade * 1 + ev.pesquisaMetas * 3 + ev.dominio * 3 + ev.participacao * 3 - ev.desempenhoPapel * 1;
 
         return (
           <Card key={peer.studentId} className={`transition-all ${ev.absent ? "opacity-60 bg-muted/30" : ""}`}>
@@ -437,11 +437,11 @@ function EvaluationForm({ accessCode, studentInfo, sessionInfo, studentEmail, on
                 <Separator />
 
                 <div className="space-y-4">
-                  <CriteriaSlider label="Atuação" value={ev.atuacao} onChange={(v) => updateEval(peer.studentId, "atuacao", v)} />
-                  <CriteriaSlider label="Pontualidade" value={ev.pontualidade} onChange={(v) => updateEval(peer.studentId, "pontualidade", v)} />
-                  <CriteriaSlider label="Domínio" value={ev.dominio} onChange={(v) => updateEval(peer.studentId, "dominio", v)} />
-                  <CriteriaSlider label="Metas" value={ev.metas} onChange={(v) => updateEval(peer.studentId, "metas", v)} />
-                  <CriteriaSlider label="Participação" value={ev.participacao} onChange={(v) => updateEval(peer.studentId, "participacao", v)} />
+                  <CriteriaSlider label="Pontualidade" sublabel="Peso 1" value={ev.pontualidade} onChange={(v) => updateEval(peer.studentId, "pontualidade", v)} />
+                  <CriteriaSlider label="Pesquisa / Metas" sublabel="Peso 3" value={ev.pesquisaMetas} onChange={(v) => updateEval(peer.studentId, "pesquisaMetas", v)} />
+                  <CriteriaSlider label="Domínio do Assunto" sublabel="Peso 3" value={ev.dominio} onChange={(v) => updateEval(peer.studentId, "dominio", v)} />
+                  <CriteriaSlider label="Participação" sublabel="Peso 3" value={ev.participacao} onChange={(v) => updateEval(peer.studentId, "participacao", v)} />
+                  <CriteriaSlider label="Desempenho no Papel" sublabel="Penalidade (até -1)" value={ev.desempenhoPapel} onChange={(v) => updateEval(peer.studentId, "desempenhoPapel", v)} penalty />
                 </div>
               </CardContent>
             )}
@@ -475,39 +475,65 @@ function EvaluationForm({ accessCode, studentInfo, sessionInfo, studentEmail, on
 }
 
 const SCORE_LABELS: Record<string, string> = {
-  "0.0": "Nenhum",
-  "0.5": "Fraco",
-  "1.0": "Normal",
-  "1.5": "Bom",
-  "2.0": "Excelente",
+  "0.00": "Nenhum",
+  "0.25": "Fraco",
+  "0.50": "Normal",
+  "0.75": "Bom",
+  "1.00": "Excelente",
 };
 
-function getScoreLabel(value: number): string {
-  return SCORE_LABELS[value.toFixed(1)] ?? value.toFixed(1);
+const PENALTY_LABELS: Record<string, string> = {
+  "0.00": "Sem penalidade",
+  "0.25": "Leve",
+  "0.50": "Moderada",
+  "0.75": "Grave",
+  "1.00": "Máxima",
+};
+
+function getScoreLabel(value: number, penalty?: boolean): string {
+  const labels = penalty ? PENALTY_LABELS : SCORE_LABELS;
+  return labels[value.toFixed(2)] ?? value.toFixed(2);
 }
 
-function CriteriaSlider({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
-  const color = value >= 1.5 ? "text-emerald-600" : value >= 1 ? "text-amber-600" : "text-red-600";
+function CriteriaSlider({ label, sublabel, value, onChange, penalty }: { label: string; sublabel?: string; value: number; onChange: (v: number) => void; penalty?: boolean }) {
+  const color = penalty
+    ? (value >= 0.75 ? "text-red-600" : value >= 0.5 ? "text-amber-600" : "text-emerald-600")
+    : (value >= 0.75 ? "text-emerald-600" : value >= 0.5 ? "text-amber-600" : "text-red-600");
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <Label className="text-sm">{label}</Label>
-        <span className={`text-sm font-bold tabular-nums ${color}`}>{getScoreLabel(value)} ({value.toFixed(1)})</span>
+        <div>
+          <Label className="text-sm">{label}</Label>
+          {sublabel && <span className="text-xs text-muted-foreground ml-2">({sublabel})</span>}
+        </div>
+        <span className={`text-sm font-bold ${color}`}>{getScoreLabel(value, penalty)}</span>
       </div>
       <Slider
         min={0}
-        max={2}
-        step={0.5}
+        max={1}
+        step={0.25}
         value={[value]}
         onValueChange={([v]) => onChange(v)}
         className="w-full"
       />
       <div className="flex justify-between text-xs text-muted-foreground">
-        <span>Nenhum (0.0)</span>
-        <span>Fraco (0.5)</span>
-        <span>Normal (1.0)</span>
-        <span>Bom (1.5)</span>
-        <span>Excelente (2.0)</span>
+        {penalty ? (
+          <>
+            <span>Sem penalidade</span>
+            <span>Leve</span>
+            <span>Moderada</span>
+            <span>Grave</span>
+            <span>Máxima</span>
+          </>
+        ) : (
+          <>
+            <span>Nenhum</span>
+            <span>Fraco</span>
+            <span>Normal</span>
+            <span>Bom</span>
+            <span>Excelente</span>
+          </>
+        )}
       </div>
     </div>
   );

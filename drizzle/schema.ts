@@ -131,11 +131,11 @@ export const evaluationItems = mysqlTable("evaluation_items", {
   evaluatedStudentId: int("evaluatedStudentId").notNull(),
   role: mysqlEnum("role", ["COORDENADOR", "MESA", "QUADRO", "PARTICIPANTE"]).notNull(),
   absent: boolean("absent").default(false).notNull(),
-  atuacao: decimal("atuacao", { precision: 3, scale: 1 }).default("0").notNull(),
-  pontualidade: decimal("pontualidade", { precision: 3, scale: 1 }).default("0").notNull(),
-  dominio: decimal("dominio", { precision: 3, scale: 1 }).default("0").notNull(),
-  metas: decimal("metas", { precision: 3, scale: 1 }).default("0").notNull(),
-  participacao: decimal("participacao", { precision: 3, scale: 1 }).default("0").notNull(),
+  pontualidade: decimal("pontualidade", { precision: 4, scale: 2 }).default("0").notNull(),
+  pesquisaMetas: decimal("pesquisa_metas", { precision: 4, scale: 2 }).default("0").notNull(),
+  dominio: decimal("dominio", { precision: 4, scale: 2 }).default("0").notNull(),
+  participacao: decimal("participacao", { precision: 4, scale: 2 }).default("0").notNull(),
+  desempenhoPapel: decimal("desempenho_papel", { precision: 4, scale: 2 }).default("0").notNull(),
 });
 
 export type EvaluationItem = typeof evaluationItems.$inferSelect;
