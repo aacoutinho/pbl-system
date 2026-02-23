@@ -11,6 +11,7 @@ import {
   evaluations,
   evaluationItems, EvaluationItem,
   tutorialEvaluations, TutorialEvaluation,
+  tutorialEvalDrafts,
   professorComponents, InsertProfessorComponent,
   smtpConfig, InsertSmtpConfig,
   passwordResetCodes,
@@ -1099,6 +1100,60 @@ export async function getTutorialEvaluation(sessionId: number) {
     .where(eq(tutorialEvaluations.sessionId, sessionId))
     .limit(1);
   return row;
+}
+
+// ─── Tutorial Evaluation Drafts ───
+export async function saveTutorialEvalDraft(data: {
+  sessionId: number;
+  professorUserId: number;
+  organizacao: number;
+  cooperacao: number;
+  conteudo: number;
+  objetivo: number;
+  metas: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const existing = await db.select().from(tutorialEvalDrafts)
+    .where(eq(tutorialEvalDrafts.sessionId, data.sessionId))
+    .limit(1);
+  if (existing.length > 0) {
+    await db.update(tutorialEvalDrafts).set({
+      organizacao: String(data.organizacao),
+      cooperacao: String(data.cooperacao),
+      conteudo: String(data.conteudo),
+      objetivo: String(data.objetivo),
+      metas: String(data.metas),
+      professorUserId: data.professorUserId,
+      savedAt: new Date(),
+    }).where(eq(tutorialEvalDrafts.id, existing[0].id));
+    return existing[0].id;
+  }
+  const [result] = await db.insert(tutorialEvalDrafts).values({
+    sessionId: data.sessionId,
+    professorUserId: data.professorUserId,
+    organizacao: String(data.organizacao),
+    cooperacao: String(data.cooperacao),
+    conteudo: String(data.conteudo),
+    objetivo: String(data.objetivo),
+    metas: String(data.metas),
+  }).$returningId();
+  return result.id;
+}
+
+export async function getTutorialEvalDraft(sessionId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const [row] = await db.select().from(tutorialEvalDrafts)
+    .where(eq(tutorialEvalDrafts.sessionId, sessionId))
+    .limit(1);
+  return row;
+}
+
+export async function deleteTutorialEvalDraft(sessionId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(tutorialEvalDrafts).where(eq(tutorialEvalDrafts.sessionId, sessionId));
 }
 
 export function calculateTutorialGrade(eval_: { organizacao: string; cooperacao: string; conteudo: string; objetivo: string; metas: string }): number {

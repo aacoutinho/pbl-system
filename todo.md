@@ -334,3 +334,16 @@
 - [x] Verificação de e-mail do aluno por código de confirmação aleatório
 - [x] Professor pode alterar foto e e-mail do aluno sem código de confirmação
 - [x] Redimensionar foto do aluno para tamanho mínimo (150x150px JPEG comprimido) antes do upload S3
+- [x] Professor pode avaliar tutorial a qualquer momento (sessão aberta ou fechada), independente dos alunos
+- [x] Remover bloqueio de avaliação tutorial quando sessão está aberta
+- [x] Adicionar funcionalidade de salvar rascunho da avaliação do professor
+- [x] Ajustar fluxo de estados: sessão muda para "encerrada" apenas quando professor finaliza (não ao salvar rascunho)
+- [x] Auto-save debounced (2s) do rascunho da avaliação tutorial do professor
+- [x] Carregar rascunho automaticamente ao abrir formulário de avaliação tutorial
+- [x] Deletar rascunho ao finalizar avaliação (submeter)
+- [x] Badge visual "Rascunho salvo" no seletor de sessão
+- [x] Badge visual de status da sessão (Iniciada/Aberta/Fechada/Encerrada) no seletor de avaliação
+- [x] Mensagens informativas contextuais por status (sem bloqueio)
+- [x] Aviso de que "Finalizar Avaliação" encerra a sessão automaticamente
+- [x] Separar botões "Salvar Rascunho" e "Finalizar Avaliação" no formulário do professor
+- [x] Testes unitários para sistema de rascunho (38 novos testes, 523 testes totais passando)

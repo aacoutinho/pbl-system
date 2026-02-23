@@ -15,6 +15,7 @@ import {
   submitEvaluation, getSessionEvaluations, hasStudentSubmitted, deleteStudentEvaluation,
   calculateSessionResults, calculateProblemResults, getDashboardStats, getDashboardStatsByComponents,
   submitTutorialEvaluation, getTutorialEvaluation, calculateTutorialGrade,
+  saveTutorialEvalDraft, getTutorialEvalDraft, deleteTutorialEvalDraft,
   calculateFinalGrades, calculateProblemFinalGrades,
   generateAccessCode, getSessionByAccessCode, findStudentByEnrollmentInClass,
   approveUser, rejectUser, listPendingProfessors, listApprovedProfessors, deleteUser,
@@ -1077,13 +1078,8 @@ export const appRouter = router({
       }
       const session = await getSessionById(input.sessionId);
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
-      // Block tutorial evaluation if session is still open
-      if (session.status === "open") {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "A sessão precisa ser fechada antes de receber a avaliação do tutor. Feche a sessão primeiro na página de Sessões." });
-      }
-      if (session.status === "initiated") {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "A sessão ainda não foi aberta. Gere o código de acesso e feche a sessão antes de avaliar." });
-      }
+      // Professor pode avaliar a qualquer momento (sessão aberta, fechada ou iniciada)
+      // Não há bloqueio por status - o professor avalia durante ou após o tutorial
       const cls = await getClassById(session.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);
@@ -1101,6 +1097,8 @@ export const appRouter = router({
         ...input,
         professorUserId: ctx.user.id,
       });
+      // Limpar rascunho se existir
+      await deleteTutorialEvalDraft(input.sessionId);
       // Mudar status da sessão para "finished" (Encerrada) após avaliação do tutor
       await finishSession(input.sessionId);
       return { success: true, evaluationId: evalId };
@@ -1129,6 +1127,34 @@ export const appRouter = router({
         return { canEvaluate: permitted, reason: permitted ? "authorized" : "not_authorized" };
       }
       return { canEvaluate: false, reason: "no_access" };
+    }),
+    // Save draft of tutorial evaluation
+    saveDraft: professorProcedure.input(z.object({
+      sessionId: z.number(),
+      organizacao: z.number().min(0).max(1),
+      cooperacao: z.number().min(0).max(1),
+      conteudo: z.number().min(0).max(1),
+      objetivo: z.number().min(0).max(1),
+      metas: z.number().min(0).max(1),
+    })).mutation(async ({ ctx, input }) => {
+      if (ctx.user.role === "admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Administradores não avaliam sessões tutoriais" });
+      }
+      const session = await getSessionById(input.sessionId);
+      if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
+      const cls = await getClassById(session.classId);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);
+      const draftId = await saveTutorialEvalDraft({
+        ...input,
+        professorUserId: ctx.user.id,
+      });
+      return { success: true, draftId };
+    }),
+    // Get draft of tutorial evaluation
+    getDraft: professorProcedure.input(z.object({ sessionId: z.number() })).query(async ({ input }) => {
+      const draft = await getTutorialEvalDraft(input.sessionId);
+      return draft || null;
     }),
   }),
 

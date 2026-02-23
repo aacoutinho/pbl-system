@@ -157,6 +157,22 @@ export const tutorialEvaluations = mysqlTable("tutorial_evaluations", {
 export type TutorialEvaluation = typeof tutorialEvaluations.$inferSelect;
 export type InsertTutorialEvaluation = typeof tutorialEvaluations.$inferInsert;
 
+// ─── Tutorial Evaluation Drafts (professor saves partial evaluation) ───
+export const tutorialEvalDrafts = mysqlTable("tutorial_eval_drafts", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull().unique(),
+  professorUserId: int("professorUserId").notNull(),
+  organizacao: decimal("organizacao", { precision: 3, scale: 1 }).default("0").notNull(),
+  cooperacao: decimal("cooperacao", { precision: 3, scale: 1 }).default("0").notNull(),
+  conteudo: decimal("conteudo", { precision: 3, scale: 1 }).default("0").notNull(),
+  objetivo: decimal("objetivo", { precision: 3, scale: 1 }).default("0").notNull(),
+  metas: decimal("metas", { precision: 3, scale: 1 }).default("0").notNull(),
+  savedAt: timestamp("savedAt").defaultNow().notNull(),
+});
+
+export type TutorialEvalDraft = typeof tutorialEvalDrafts.$inferSelect;
+export type InsertTutorialEvalDraft = typeof tutorialEvalDrafts.$inferInsert;
+
 // ─── Class Evaluation Permissions (professor authorizes another professor to evaluate sessions of a class) ───
 export const classEvalPermissions = mysqlTable("class_eval_permissions", {
   id: int("id").autoincrement().primaryKey(),

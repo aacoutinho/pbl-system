@@ -148,6 +148,13 @@
       "when": 1771880504647,
       "tag": "0020_bright_the_hunter",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "5",
+      "when": 1771881765750,
+      "tag": "0021_sour_squadron_supreme",
+      "breakpoints": true
     }
   ]
 }

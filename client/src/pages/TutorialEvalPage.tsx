@@ -8,8 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { BookOpen, ClipboardCheck, Save, CheckCircle2, Info, ShieldCheck, ShieldAlert, Crown, UserCheck, AlertTriangle } from "lucide-react";
-import { useState, useEffect, useMemo } from "react";
+import { BookOpen, ClipboardCheck, Save, CheckCircle2, Info, ShieldCheck, ShieldAlert, Crown, UserCheck, FileEdit, SendHorizonal } from "lucide-react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -25,7 +25,7 @@ const LABELS = [
   { label: "Brocou", value: 1.0 },
 ] as const;
 
-// Variantes femininas para critérios que usam "Fraco" em vez de "Fraca"
+// Variantes masculinas (mesmos rótulos bahianeses)
 const LABELS_MASC = [
   { label: "Calado", value: 0 },
   { label: "Paia", value: 0.25 },
@@ -80,7 +80,26 @@ const CRITERIA = [
 
 type CriteriaKey = typeof CRITERIA[number]["key"];
 
+const DEFAULT_SCORES: Record<CriteriaKey, number> = {
+  organizacao: 0.5,
+  cooperacao: 0.5,
+  conteudo: 0.5,
+  objetivo: 0.5,
+  metas: 0.5,
+};
+
 type EvalPermission = "owner" | "coordinator" | "authorized" | "no_permission" | "admin";
+
+function StatusBadge({ status }: { status: string }) {
+  const config: Record<string, { label: string; className: string }> = {
+    initiated: { label: "Iniciada", className: "bg-gray-100 text-gray-700 border-gray-300" },
+    open: { label: "Aberta", className: "bg-blue-50 text-blue-700 border-blue-200" },
+    closed: { label: "Fechada", className: "bg-amber-50 text-amber-700 border-amber-200" },
+    finished: { label: "Encerrada", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  };
+  const c = config[status] ?? { label: status, className: "" };
+  return <Badge variant="outline" className={cn("text-xs", c.className)}>{c.label}</Badge>;
+}
 
 function PermissionBadge({ permission }: { permission: EvalPermission }) {
   switch (permission) {
@@ -164,20 +183,27 @@ function TutorialEvalContent() {
     ? selectedSession.evalPermission !== "no_permission" && selectedSession.evalPermission !== "admin"
     : false;
 
+  const sessionIdNum = selectedSessionId ? parseInt(selectedSessionId) : 0;
+
   const { data: existingEval, isLoading: evalLoading } = trpc.tutorialEval.get.useQuery(
-    { sessionId: parseInt(selectedSessionId) },
+    { sessionId: sessionIdNum },
     { enabled: !!selectedSessionId }
   );
 
-  const [scores, setScores] = useState<Record<CriteriaKey, number>>({
-    organizacao: 0.5,
-    cooperacao: 0.5,
-    conteudo: 0.5,
-    objetivo: 0.5,
-    metas: 0.5,
-  });
+  const { data: existingDraft, isLoading: draftLoading } = trpc.tutorialEval.getDraft.useQuery(
+    { sessionId: sessionIdNum },
+    { enabled: !!selectedSessionId && canEvaluateSelected }
+  );
 
-  // Load existing evaluation when selected
+  const [scores, setScores] = useState<Record<CriteriaKey, number>>({ ...DEFAULT_SCORES });
+  const [hasDraft, setHasDraft] = useState(false);
+  const [draftSaving, setDraftSaving] = useState(false);
+  const [lastAutoSaved, setLastAutoSaved] = useState<Date | null>(null);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scoresRef = useRef(scores);
+  scoresRef.current = scores;
+
+  // Load existing evaluation or draft when session changes
   useEffect(() => {
     if (existingEval) {
       setScores({
@@ -187,20 +213,95 @@ function TutorialEvalContent() {
         objetivo: Number(existingEval.objetivo),
         metas: Number(existingEval.metas),
       });
+      setHasDraft(false);
+    } else if (existingDraft) {
+      setScores({
+        organizacao: Number(existingDraft.organizacao),
+        cooperacao: Number(existingDraft.cooperacao),
+        conteudo: Number(existingDraft.conteudo),
+        objetivo: Number(existingDraft.objetivo),
+        metas: Number(existingDraft.metas),
+      });
+      setHasDraft(true);
     } else {
-      setScores({ organizacao: 0.5, cooperacao: 0.5, conteudo: 0.5, objetivo: 0.5, metas: 0.5 });
+      setScores({ ...DEFAULT_SCORES });
+      setHasDraft(false);
     }
-  }, [existingEval, selectedSessionId]);
+    setLastAutoSaved(null);
+  }, [existingEval, existingDraft, selectedSessionId]);
 
+  // Draft save mutation
+  const saveDraftMutation = trpc.tutorialEval.saveDraft.useMutation({
+    onSuccess: () => {
+      setDraftSaving(false);
+      setLastAutoSaved(new Date());
+      setHasDraft(true);
+      utils.tutorialEval.getDraft.invalidate({ sessionId: sessionIdNum });
+    },
+    onError: () => {
+      setDraftSaving(false);
+    },
+  });
+
+  // Auto-save debounced (2 seconds after last change)
+  const triggerAutoSave = useCallback(() => {
+    if (!selectedSessionId || !canEvaluateSelected || existingEval) return;
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => {
+      setDraftSaving(true);
+      saveDraftMutation.mutate({
+        sessionId: sessionIdNum,
+        ...scoresRef.current,
+      });
+    }, 2000);
+  }, [selectedSessionId, canEvaluateSelected, existingEval, sessionIdNum]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, []);
+
+  const handleScoreChange = (key: CriteriaKey, value: number) => {
+    setScores(prev => ({ ...prev, [key]: value }));
+    // Only auto-save if there's no finalized evaluation yet
+    if (!existingEval) {
+      triggerAutoSave();
+    }
+  };
+
+  // Submit (finalize) mutation
   const submitMutation = trpc.tutorialEval.submit.useMutation({
     onSuccess: () => {
+      // Cancel any pending auto-save
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
       utils.tutorialEval.get.invalidate();
+      utils.tutorialEval.getDraft.invalidate();
+      utils.sessions.list.invalidate();
+      utils.sessions.listWithPermissions.invalidate();
       utils.results.sessionFinal.invalidate();
       utils.results.problemFinal.invalidate();
-      toast.success(existingEval ? "Avaliação atualizada com sucesso!" : "Avaliação do tutorial salva com sucesso!");
+      setHasDraft(false);
+      toast.success(existingEval ? "Avaliação atualizada com sucesso!" : "Avaliação do tutorial finalizada com sucesso! Sessão encerrada.");
     },
     onError: (e) => toast.error(e.message),
   });
+
+  // Manual draft save
+  const handleSaveDraft = () => {
+    if (!selectedSessionId) { toast.error("Selecione uma sessão"); return; }
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    setDraftSaving(true);
+    saveDraftMutation.mutate({
+      sessionId: sessionIdNum,
+      ...scores,
+    }, {
+      onSuccess: () => {
+        toast.success("Rascunho salvo com sucesso!");
+      },
+    });
+  };
 
   const totalGrade = useMemo(() => {
     return CRITERIA.reduce((sum, c) => sum + scores[c.key] * c.weight, 0);
@@ -208,11 +309,16 @@ function TutorialEvalContent() {
 
   const handleSubmit = () => {
     if (!selectedSessionId) { toast.error("Selecione uma sessão"); return; }
+    // Cancel any pending auto-save
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     submitMutation.mutate({
-      sessionId: parseInt(selectedSessionId),
+      sessionId: sessionIdNum,
       ...scores,
     });
   };
+
+  const isDataLoading = evalLoading || (canEvaluateSelected && draftLoading);
+  const sessionStatus = (selectedSession as any)?.status as string | undefined;
 
   if (!selectedClassId) {
     return (
@@ -289,32 +395,39 @@ function TutorialEvalContent() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center gap-2 mb-0.5">
+            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
               {selectedSession && <PermissionBadge permission={selectedSession.evalPermission} />}
+              {selectedSession && <StatusBadge status={sessionStatus ?? ""} />}
               {existingEval && (
                 <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
                   <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
                   Já avaliada (nota: {existingEval.tutorialGrade.toFixed(1)})
                 </Badge>
               )}
+              {!existingEval && hasDraft && (
+                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                  <FileEdit className="h-3.5 w-3.5 mr-1" />
+                  Rascunho salvo
+                </Badge>
+              )}
             </div>
           </div>
 
-          {/* Session status warnings */}
-          {selectedSession && (selectedSession as any).status === "open" && selectedSession.evalPermission !== "no_permission" && selectedSession.evalPermission !== "admin" && (
-            <div className="mt-4 flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
-              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+          {/* Informational messages based on session status */}
+          {selectedSession && canEvaluateSelected && sessionStatus === "open" && !existingEval && (
+            <div className="mt-4 flex items-start gap-2 p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800">
+              <Info className="h-4 w-4 mt-0.5 shrink-0" />
               <p>
-                Esta sessão ainda está <strong>aberta</strong> para avaliações dos alunos. Você precisa <strong>fechar a sessão</strong> na página de Sessões antes de submeter a avaliação do tutor.
+                Esta sessão está <strong>aberta</strong> para avaliações dos alunos. Você pode começar a avaliar e salvar como rascunho. Ao <strong>finalizar</strong>, a sessão será encerrada automaticamente.
               </p>
             </div>
           )}
 
-          {selectedSession && (selectedSession as any).status === "initiated" && selectedSession.evalPermission !== "no_permission" && selectedSession.evalPermission !== "admin" && (
-            <div className="mt-4 flex items-start gap-2 p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800">
+          {selectedSession && canEvaluateSelected && sessionStatus === "initiated" && !existingEval && (
+            <div className="mt-4 flex items-start gap-2 p-3 rounded-lg bg-gray-50 border border-gray-200 text-sm text-gray-700">
               <Info className="h-4 w-4 mt-0.5 shrink-0" />
               <p>
-                Esta sessão ainda está no estado <strong>Iniciada</strong>. Gere o código de acesso e feche a sessão antes de avaliar.
+                Esta sessão está no estado <strong>Iniciada</strong>. Você pode começar a avaliar e salvar como rascunho. Ao <strong>finalizar</strong>, a sessão será encerrada automaticamente.
               </p>
             </div>
           )}
@@ -340,9 +453,9 @@ function TutorialEvalContent() {
         </CardContent>
       </Card>
 
-      {/* Evaluation form - only show when session is closed or finished */}
-      {selectedSessionId && canEvaluateSelected && ((selectedSession as any)?.status === "closed" || (selectedSession as any)?.status === "finished") && (
-        evalLoading ? (
+      {/* Evaluation form - show for any session status when user has permission */}
+      {selectedSessionId && canEvaluateSelected && (
+        isDataLoading ? (
           <Card><CardContent className="pt-6"><div className="space-y-6">{[1,2,3,4,5].map(i => <Skeleton key={i} className="h-20 rounded-lg" />)}</div></CardContent></Card>
         ) : (
           <Card>
@@ -353,6 +466,11 @@ function TutorialEvalContent() {
               </CardTitle>
               <CardDescription>
                 Avalie cada critério selecionando o nível correspondente. A nota final é calculada pela soma ponderada dos critérios (peso total = 10).
+                {!existingEval && (
+                  <span className="block mt-1 text-xs text-muted-foreground/80">
+                    O rascunho é salvo automaticamente a cada alteração. Use &quot;Finalizar Avaliação&quot; para encerrar a sessão.
+                  </span>
+                )}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -365,28 +483,71 @@ function TutorialEvalContent() {
                     gender={criterion.gender}
                     description={criterion.description}
                     value={scores[criterion.key]}
-                    onChange={(v) => setScores(prev => ({ ...prev, [criterion.key]: v }))}
+                    onChange={(v) => handleScoreChange(criterion.key, v)}
                   />
                 </div>
               ))}
 
               <Separator />
 
-              {/* Summary */}
-              <div className="flex items-center justify-between p-4 rounded-lg bg-accent/30 border">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Nota do Tutorial</p>
-                  <p className="text-3xl font-bold mt-1">
-                    <span className={totalGrade >= 7 ? "text-emerald-600" : totalGrade >= 5 ? "text-amber-600" : "text-red-600"}>
-                      {totalGrade.toFixed(1)}
-                    </span>
-                    <span className="text-base font-normal text-muted-foreground"> / 10</span>
-                  </p>
+              {/* Summary + Actions */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 rounded-lg bg-accent/30 border">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Nota do Tutorial</p>
+                    <p className="text-3xl font-bold mt-1">
+                      <span className={totalGrade >= 7 ? "text-emerald-600" : totalGrade >= 5 ? "text-amber-600" : "text-red-600"}>
+                        {totalGrade.toFixed(1)}
+                      </span>
+                      <span className="text-base font-normal text-muted-foreground"> / 10</span>
+                    </p>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2 items-end sm:items-center">
+                    {/* Save Draft button - only when no finalized eval exists */}
+                    {!existingEval && (
+                      <Button
+                        variant="outline"
+                        onClick={handleSaveDraft}
+                        disabled={draftSaving || saveDraftMutation.isPending}
+                      >
+                        <FileEdit className="h-4 w-4 mr-2" />
+                        {draftSaving || saveDraftMutation.isPending ? "Salvando..." : "Salvar Rascunho"}
+                      </Button>
+                    )}
+                    {/* Finalize / Update button */}
+                    <Button size="lg" onClick={handleSubmit} disabled={submitMutation.isPending}>
+                      {existingEval ? (
+                        <>
+                          <Save className="h-4 w-4 mr-2" />
+                          {submitMutation.isPending ? "Salvando..." : "Atualizar Avaliação"}
+                        </>
+                      ) : (
+                        <>
+                          <SendHorizonal className="h-4 w-4 mr-2" />
+                          {submitMutation.isPending ? "Finalizando..." : "Finalizar Avaliação"}
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
-                <Button size="lg" onClick={handleSubmit} disabled={submitMutation.isPending}>
-                  <Save className="h-4 w-4 mr-2" />
-                  {submitMutation.isPending ? "Salvando..." : existingEval ? "Atualizar Avaliação" : "Salvar Avaliação"}
-                </Button>
+
+                {/* Auto-save indicator */}
+                {!existingEval && lastAutoSaved && (
+                  <p className="text-xs text-muted-foreground text-right">
+                    Rascunho salvo automaticamente às {lastAutoSaved.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                  </p>
+                )}
+
+                {/* Warning: finalizing will close the session */}
+                {!existingEval && (sessionStatus === "open" || sessionStatus === "initiated" || sessionStatus === "closed") && (
+                  <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                    <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                    <p>
+                      Ao clicar em <strong>Finalizar Avaliação</strong>, a sessão será <strong>encerrada</strong> automaticamente e os resultados finais serão calculados.
+                      {sessionStatus === "open" && " Os alunos que ainda não avaliaram não poderão mais fazê-lo."}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Glossário bahianês */}
