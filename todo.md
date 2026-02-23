@@ -324,3 +324,5 @@
 - [x] Botão de reenvio manual de e-mails para alunos na sessão aberta
 - [x] Barra de progresso de avaliações na lista de sessões (ex: "8/12 avaliaram")
 - [x] Bug: painel lateral (sidebar) não está mais fixo, desliza com o conteúdo — restaurar posição fixa
+- [x] Verificar compatibilidade das funções de Backup/Restauração com novos estados de sessão
+- [x] Corrigir gênero dos conceitos em todos os formulários (ex: "Nenhum" → "Nenhuma" para Pontualidade, etc.)

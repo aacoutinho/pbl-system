@@ -33,12 +33,13 @@ function getScoreLabel(value: number, penalty?: boolean): string {
   return labels[value.toFixed(2)] ?? value.toFixed(2);
 }
 
-function PreviewCriteriaSlider({ label, sublabel, tooltip, value, penalty }: {
+function PreviewCriteriaSlider({ label, sublabel, tooltip, value, penalty, gender = "masc" }: {
   label: string;
   sublabel?: string;
   tooltip?: string;
   value: number;
   penalty?: boolean;
+  gender?: "fem" | "masc";
 }) {
   const color = penalty
     ? (value >= 0.75 ? "text-red-600" : value >= 0.5 ? "text-amber-600" : "text-emerald-600")
@@ -78,6 +79,14 @@ function PreviewCriteriaSlider({ label, sublabel, tooltip, value, penalty }: {
             <span>Moderada</span>
             <span>Grave</span>
             <span>Máxima</span>
+          </>
+        ) : gender === "fem" ? (
+          <>
+            <span>Nenhuma</span>
+            <span>Fraca</span>
+            <span>Normal</span>
+            <span>Boa</span>
+            <span>Excelente</span>
           </>
         ) : (
           <>
@@ -193,24 +202,28 @@ export function EvaluationPreviewDialog({ open, onOpenChange }: { open: boolean;
                       sublabel="Peso 1"
                       tooltip="Avalia se o colega chegou no horário e permaneceu durante toda a sessão tutorial."
                       value={1}
+                      gender="fem"
                     />
                     <PreviewCriteriaSlider
                       label="Pesquisa / Metas"
                       sublabel="Peso 3"
                       tooltip="Avalia se o colega pesquisou previamente sobre o tema, trouxe materiais relevantes e cumpriu as metas estabelecidas na sessão anterior."
                       value={1}
+                      gender="fem"
                     />
                     <PreviewCriteriaSlider
                       label="Domínio do Assunto"
                       sublabel="Peso 3"
                       tooltip="Avalia o nível de conhecimento demonstrado pelo colega sobre o tema discutido na sessão tutorial."
                       value={1}
+                      gender="masc"
                     />
                     <PreviewCriteriaSlider
                       label="Participação"
                       sublabel="Peso 3"
                       tooltip="Avalia o envolvimento ativo do colega nas discussões, contribuindo com ideias, perguntas e argumentos durante a sessão."
                       value={1}
+                      gender="fem"
                     />
                     <PreviewCriteriaSlider
                       label="Desempenho no Papel"

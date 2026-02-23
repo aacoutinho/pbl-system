@@ -440,10 +440,10 @@ function EvaluationForm({ accessCode, studentInfo, sessionInfo, studentEmail, on
 
                 <TooltipProvider>
                 <div className="space-y-4">
-                  <CriteriaSlider label="Pontualidade" sublabel="Peso 1" tooltip="Avalia se o colega chegou no horário e permaneceu durante toda a sessão tutorial." value={ev.pontualidade} onChange={(v) => updateEval(peer.studentId, "pontualidade", v)} />
-                  <CriteriaSlider label="Pesquisa / Metas" sublabel="Peso 3" tooltip="Avalia se o colega pesquisou previamente sobre o tema, trouxe materiais relevantes e cumpriu as metas estabelecidas na sessão anterior." value={ev.pesquisaMetas} onChange={(v) => updateEval(peer.studentId, "pesquisaMetas", v)} />
-                  <CriteriaSlider label="Domínio do Assunto" sublabel="Peso 3" tooltip="Avalia o nível de conhecimento demonstrado pelo colega sobre o tema discutido na sessão tutorial." value={ev.dominio} onChange={(v) => updateEval(peer.studentId, "dominio", v)} />
-                  <CriteriaSlider label="Participação" sublabel="Peso 3" tooltip="Avalia o envolvimento ativo do colega nas discussões, contribuindo com ideias, perguntas e argumentos durante a sessão." value={ev.participacao} onChange={(v) => updateEval(peer.studentId, "participacao", v)} />
+                  <CriteriaSlider label="Pontualidade" sublabel="Peso 1" tooltip="Avalia se o colega chegou no horário e permaneceu durante toda a sessão tutorial." value={ev.pontualidade} onChange={(v) => updateEval(peer.studentId, "pontualidade", v)} gender="fem" />
+                  <CriteriaSlider label="Pesquisa / Metas" sublabel="Peso 3" tooltip="Avalia se o colega pesquisou previamente sobre o tema, trouxe materiais relevantes e cumpriu as metas estabelecidas na sessão anterior." value={ev.pesquisaMetas} onChange={(v) => updateEval(peer.studentId, "pesquisaMetas", v)} gender="fem" />
+                  <CriteriaSlider label="Domínio do Assunto" sublabel="Peso 3" tooltip="Avalia o nível de conhecimento demonstrado pelo colega sobre o tema discutido na sessão tutorial." value={ev.dominio} onChange={(v) => updateEval(peer.studentId, "dominio", v)} gender="masc" />
+                  <CriteriaSlider label="Participação" sublabel="Peso 3" tooltip="Avalia o envolvimento ativo do colega nas discussões, contribuindo com ideias, perguntas e argumentos durante a sessão." value={ev.participacao} onChange={(v) => updateEval(peer.studentId, "participacao", v)} gender="fem" />
                   <CriteriaSlider label="Desempenho no Papel" sublabel="Penalidade (até -1)" tooltip="Penalidade aplicada quando o colega não desempenhou adequadamente o papel atribuído (Coordenador, Mesa ou Quadro). Se desempenhou bem, deixe em 'Sem penalidade'." value={ev.desempenhoPapel} onChange={(v) => updateEval(peer.studentId, "desempenhoPapel", v)} penalty />
                 </div>
                 </TooltipProvider>
@@ -502,7 +502,7 @@ function getScoreLabel(value: number, penalty?: boolean): string {
   return labels[value.toFixed(2)] ?? value.toFixed(2);
 }
 
-function CriteriaSlider({ label, sublabel, tooltip, value, onChange, penalty }: { label: string; sublabel?: string; tooltip?: string; value: number; onChange: (v: number) => void; penalty?: boolean }) {
+function CriteriaSlider({ label, sublabel, tooltip, value, onChange, penalty, gender = "masc" }: { label: string; sublabel?: string; tooltip?: string; value: number; onChange: (v: number) => void; penalty?: boolean; gender?: "fem" | "masc" }) {
   const color = penalty
     ? (value >= 0.75 ? "text-red-600" : value >= 0.5 ? "text-amber-600" : "text-emerald-600")
     : (value >= 0.75 ? "text-emerald-600" : value >= 0.5 ? "text-amber-600" : "text-red-600");
@@ -541,6 +541,14 @@ function CriteriaSlider({ label, sublabel, tooltip, value, onChange, penalty }: 
             <span>Moderada</span>
             <span>Grave</span>
             <span>Máxima</span>
+          </>
+        ) : gender === "fem" ? (
+          <>
+            <span>Nenhuma</span>
+            <span>Fraca</span>
+            <span>Normal</span>
+            <span>Boa</span>
+            <span>Excelente</span>
           </>
         ) : (
           <>
