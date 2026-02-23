@@ -323,3 +323,4 @@
 - [x] Toast informativo após gerar código indicando quantos e-mails foram enviados
 - [x] Botão de reenvio manual de e-mails para alunos na sessão aberta
 - [x] Barra de progresso de avaliações na lista de sessões (ex: "8/12 avaliaram")
+- [x] Bug: painel lateral (sidebar) não está mais fixo, desliza com o conteúdo — restaurar posição fixa
