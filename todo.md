@@ -306,3 +306,4 @@
 - [x] Reorganizar tela de Login: entrada dos alunos antes/acima da entrada dos professores
 - [x] Adicionar separador "ALUNO" antes do botão de acesso dos alunos na tela de login
 - [x] Trocar "Não tem conta? Cadastre-se" por "Professor não tem conta? Cadastre-se"
+- [x] Remover "(Aluno)" do botão de acesso na tela de login
