@@ -1,0 +1,1 @@
+ALTER TABLE `sessions` MODIFY COLUMN `status` enum('initiated','open','closed','finished') NOT NULL DEFAULT 'initiated';

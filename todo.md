@@ -307,3 +307,12 @@
 - [x] Adicionar separador "ALUNO" antes do botão de acesso dos alunos na tela de login
 - [x] Trocar "Não tem conta? Cadastre-se" por "Professor não tem conta? Cadastre-se"
 - [x] Remover "(Aluno)" do botão de acesso na tela de login
+- [x] Sessão só fica ativa (aberta) quando o código de acesso for gerado
+- [x] Implementar 4 estados de sessão: Iniciada, Aberta, Fechada, Encerrada
+- [x] Iniciada: sessão criada mas sem código de acesso
+- [x] Aberta: código gerado, alunos podem avaliar
+- [x] Fechada: não aceita avaliações de alunos, tutor pode avaliar
+- [x] Encerrada: tutor avaliou e resultados gerados
+- [x] Atualizar schema do banco com novos estados
+- [x] Atualizar lógica de negócio (db.ts e routers.ts)
+- [x] Atualizar frontend para exibir e gerenciar os 4 estados

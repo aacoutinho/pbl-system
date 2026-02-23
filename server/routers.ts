@@ -11,7 +11,7 @@ import {
   listStudentsByClass, createStudent, updateStudent, removeStudentFromClass, getStudentByEnrollment,
   addStudentToClass, isStudentInComponentClass, bulkImportStudents,
   listAllClasses, listStudentsForExport, updateStudentEmail,
-  createSession, listSessionsByClass, getSessionStudents, closeSession, openSession, deleteSession, getSessionById,
+  createSession, listSessionsByClass, getSessionStudents, closeSession, openSession, finishSession, deleteSession, getSessionById,
   submitEvaluation, getSessionEvaluations, hasStudentSubmitted, deleteStudentEvaluation,
   calculateSessionResults, calculateProblemResults, getDashboardStats, getDashboardStatsByComponents,
   submitTutorialEvaluation, getTutorialEvaluation, calculateTutorialGrade,
@@ -782,7 +782,7 @@ export const appRouter = router({
     })).query(async ({ input }) => {
       const session = await getSessionByAccessCode(input.accessCode.toUpperCase());
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Código de acesso inválido" });
-      if (session.status !== "open") throw new TRPCError({ code: "BAD_REQUEST", message: "Esta sessão já foi encerrada" });
+      if (session.status !== "open") throw new TRPCError({ code: "BAD_REQUEST", message: "Esta sessão não está aberta para avaliações" });
       const cls = await getClassById(session.classId);
       let componentCode = "";
       let componentName = "";
@@ -806,7 +806,7 @@ export const appRouter = router({
     })).mutation(async ({ input }) => {
       const session = await getSessionByAccessCode(input.accessCode.toUpperCase());
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Código de acesso inválido" });
-      if (session.status !== "open") throw new TRPCError({ code: "BAD_REQUEST", message: "Esta sessão já foi encerrada" });
+      if (session.status !== "open") throw new TRPCError({ code: "BAD_REQUEST", message: "Esta sessão não está aberta para avaliações" });
       const student = await findStudentByEnrollmentInClass(input.enrollment.trim(), session.classId);
       if (!student) throw new TRPCError({ code: "NOT_FOUND", message: "Matrícula não encontrada nesta turma. Verifique se digitou corretamente." });
       const sessionStudentsList = await getSessionStudents(session.id);
@@ -853,7 +853,7 @@ export const appRouter = router({
     })).mutation(async ({ input }) => {
       const session = await getSessionByAccessCode(input.accessCode.toUpperCase());
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Código inválido" });
-      if (session.status !== "open") throw new TRPCError({ code: "BAD_REQUEST", message: "Sessão encerrada" });
+      if (session.status !== "open") throw new TRPCError({ code: "BAD_REQUEST", message: "Esta sessão não está aberta para avaliações" });
       const alreadySubmitted = await hasStudentSubmitted(session.id, input.evaluatorStudentId);
       if (alreadySubmitted) throw new TRPCError({ code: "BAD_REQUEST", message: "Você já realizou a avaliação desta sessão. Solicite ao professor a liberação para reavaliar." });
       const selfEval = input.items.find(i => i.evaluatedStudentId === input.evaluatorStudentId);
@@ -960,6 +960,8 @@ export const appRouter = router({
         ...input,
         professorUserId: ctx.user.id,
       });
+      // Mudar status da sessão para "finished" (Encerrada) após avaliação do tutor
+      await finishSession(input.sessionId);
       return { success: true, evaluationId: evalId };
     }),
     get: protectedProcedure.input(z.object({ sessionId: z.number() })).query(async ({ input }) => {

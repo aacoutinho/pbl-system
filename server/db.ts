@@ -738,7 +738,7 @@ export async function createSession(data: { classId: number; problemNumber: numb
     problemNumber: data.problemNumber,
     sessionNumber: data.sessionNumber,
     label: data.label,
-    status: (data.status as "open" | "closed") ?? "open",
+    status: "initiated",
   }).$returningId();
   const sessionId = result.id;
   if (data.studentIds.length > 0) {
@@ -788,6 +788,12 @@ export async function openSession(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db.update(sessions).set({ status: "open", closedAt: null }).where(eq(sessions.id, id));
+}
+
+export async function finishSession(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(sessions).set({ status: "finished" }).where(eq(sessions.id, id));
 }
 
 export async function deleteSession(id: number) {
@@ -1307,7 +1313,7 @@ export async function generateAccessCode(sessionId: number): Promise<string> {
   for (let i = 0; i < 6; i++) {
     code += chars[Math.floor(Math.random() * chars.length)];
   }
-  await db.update(sessions).set({ accessCode: code }).where(eq(sessions.id, sessionId));
+  await db.update(sessions).set({ accessCode: code, status: "open" }).where(eq(sessions.id, sessionId));
   return code;
 }
 

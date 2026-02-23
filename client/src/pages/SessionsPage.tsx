@@ -63,7 +63,7 @@ function SessionsContent() {
     onError: (e) => toast.error(e.message),
   });
   const closeMutation = trpc.sessions.close.useMutation({
-    onSuccess: () => { utils.sessions.list.invalidate(); utils.results.dashboard.invalidate(); toast.success("Sessão encerrada"); },
+    onSuccess: () => { utils.sessions.list.invalidate(); utils.results.dashboard.invalidate(); toast.success("Sessão fechada"); },
   });
   const openMutation = trpc.sessions.open.useMutation({
     onSuccess: () => { utils.sessions.list.invalidate(); utils.results.dashboard.invalidate(); toast.success("Sessão reaberta"); },
@@ -272,8 +272,16 @@ function SessionRow({ session, canManage, onClose, onOpen, onDelete, onViewResul
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <p className="font-semibold">{session.label}</p>
-          <Badge variant={session.status === "open" ? "default" : "secondary"} className={session.status === "open" ? "bg-emerald-100 text-emerald-700 border-emerald-200" : ""}>
-            {session.status === "open" ? "Aberta" : "Encerrada"}
+          <Badge variant={session.status === "open" ? "default" : "secondary"} className={
+            session.status === "initiated" ? "bg-blue-100 text-blue-700 border-blue-200" :
+            session.status === "open" ? "bg-emerald-100 text-emerald-700 border-emerald-200" :
+            session.status === "closed" ? "bg-amber-100 text-amber-700 border-amber-200" :
+            session.status === "finished" ? "bg-gray-100 text-gray-600 border-gray-200" : ""
+          }>
+            {session.status === "initiated" ? "Iniciada" :
+             session.status === "open" ? "Aberta" :
+             session.status === "closed" ? "Fechada" :
+             session.status === "finished" ? "Encerrada" : session.status}
           </Badge>
         </div>
         <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
@@ -293,7 +301,7 @@ function SessionRow({ session, canManage, onClose, onOpen, onDelete, onViewResul
         </div>
       </div>
       <div className="flex items-center gap-1">
-        {canManage && session.status === "open" && (
+        {canManage && (session.status === "initiated" || session.status === "open") && (
           <Button
             variant="ghost"
             size="icon"
@@ -366,14 +374,14 @@ function SessionRow({ session, canManage, onClose, onOpen, onDelete, onViewResul
         {canManage && (
           <>
             {session.status === "open" ? (
-              <Button variant="ghost" size="icon" onClick={onClose} title="Encerrar sessão">
+              <Button variant="ghost" size="icon" onClick={onClose} title="Fechar sessão">
                 <Lock className="h-4 w-4" />
               </Button>
-            ) : (
+            ) : session.status === "closed" || session.status === "finished" ? (
               <Button variant="ghost" size="icon" onClick={onOpen} title="Reabrir sessão">
                 <Unlock className="h-4 w-4" />
               </Button>
-            )}
+            ) : null}
             <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={onDelete} title="Excluir sessão">
               <Trash2 className="h-4 w-4" />
             </Button>

@@ -87,8 +87,10 @@ export default function AdminDashboard() {
     { label: "Avaliações", value: stats?.totalEvaluations ?? 0, icon: FileCheck, color: "text-amber-600 bg-amber-50" },
   ];
 
+  const initiatedSessions = sessions?.filter(s => s.status === "initiated") ?? [];
   const openSessions = sessions?.filter(s => s.status === "open") ?? [];
   const closedSessions = sessions?.filter(s => s.status === "closed") ?? [];
+  const finishedSessions = sessions?.filter(s => s.status === "finished") ?? [];
 
   const handleNotificationClick = (n: any) => {
     // Mark as read if not already read
@@ -221,15 +223,22 @@ export default function AdminDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {openSessions.length === 0 ? (
+              {[...initiatedSessions, ...openSessions].length === 0 ? (
                 <p className="text-sm text-muted-foreground py-4 text-center">Nenhuma sessão aberta nesta turma.</p>
               ) : (
                 <div className="space-y-2">
+                  {initiatedSessions.map(s => (
+                    <div key={s.id} className="flex items-center justify-between p-3 rounded-lg bg-accent/30 hover:bg-accent/50 transition-colors cursor-pointer"
+                      onClick={() => setLocation("/sessions")}>
+                      <span className="text-sm font-medium">{s.label}</span>
+                      <Badge variant="outline" className="border-blue-300 text-blue-700 text-xs">Iniciada</Badge>
+                    </div>
+                  ))}
                   {openSessions.map(s => (
                     <div key={s.id} className="flex items-center justify-between p-3 rounded-lg bg-accent/30 hover:bg-accent/50 transition-colors cursor-pointer"
                       onClick={() => setLocation("/sessions")}>
                       <span className="text-sm font-medium">{s.label}</span>
-                      <Badge variant="outline" className="border-amber-300 text-amber-700 text-xs">Aberta</Badge>
+                      <Badge variant="outline" className="border-emerald-300 text-emerald-700 text-xs">Aberta</Badge>
                     </div>
                   ))}
                 </div>
@@ -245,15 +254,22 @@ export default function AdminDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {closedSessions.length === 0 ? (
+              {[...closedSessions, ...finishedSessions].length === 0 ? (
                 <p className="text-sm text-muted-foreground py-4 text-center">Nenhuma sessão encerrada nesta turma.</p>
               ) : (
                 <div className="space-y-2">
-                  {closedSessions.slice(0, 5).map(s => (
+                  {closedSessions.slice(0, 3).map(s => (
                     <div key={s.id} className="flex items-center justify-between p-3 rounded-lg bg-accent/30 hover:bg-accent/50 transition-colors cursor-pointer"
                       onClick={() => setLocation("/results")}>
                       <span className="text-sm font-medium">{s.label}</span>
-                      <Badge variant="outline" className="border-emerald-300 text-emerald-700 text-xs">Encerrada</Badge>
+                      <Badge variant="outline" className="border-amber-300 text-amber-700 text-xs">Fechada</Badge>
+                    </div>
+                  ))}
+                  {finishedSessions.slice(0, 3).map(s => (
+                    <div key={s.id} className="flex items-center justify-between p-3 rounded-lg bg-accent/30 hover:bg-accent/50 transition-colors cursor-pointer"
+                      onClick={() => setLocation("/results")}>
+                      <span className="text-sm font-medium">{s.label}</span>
+                      <Badge variant="outline" className="border-gray-300 text-gray-600 text-xs">Encerrada</Badge>
                     </div>
                   ))}
                 </div>
