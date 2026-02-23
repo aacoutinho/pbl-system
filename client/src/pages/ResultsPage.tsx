@@ -18,7 +18,7 @@ import { BahiaGlossary } from "@/components/BahiaGlossary";
 // Converte valor numérico para rótulo descritivo
 function valueToLabel(value: number, gender: "fem" | "masc"): string {
   const labelsMap: Record<string, { fem: string; masc: string }> = {
-    "0": { fem: "Vixe, nada", masc: "Vixe, nada" },
+    "0": { fem: "Calado", masc: "Calado" },
     "0.25": { fem: "Paia", masc: "Paia" },
     "0.5": { fem: "Na estica", masc: "Na estica" },
     "0.75": { fem: "Massa", masc: "Massa" },

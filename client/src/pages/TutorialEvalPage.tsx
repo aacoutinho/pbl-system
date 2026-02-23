@@ -18,7 +18,7 @@ import { BahiaGlossary } from "@/components/BahiaGlossary";
 
 // Rótulos descritivos com valores numéricos correspondentes
 const LABELS = [
-  { label: "Vixe, nada", value: 0 },
+  { label: "Calado", value: 0 },
   { label: "Paia", value: 0.25 },
   { label: "Na estica", value: 0.5 },
   { label: "Massa", value: 0.75 },
@@ -27,7 +27,7 @@ const LABELS = [
 
 // Variantes femininas para critérios que usam "Fraco" em vez de "Fraca"
 const LABELS_MASC = [
-  { label: "Vixe, nada", value: 0 },
+  { label: "Calado", value: 0 },
   { label: "Paia", value: 0.25 },
   { label: "Na estica", value: 0.5 },
   { label: "Massa", value: 0.75 },

@@ -13,7 +13,7 @@ export function BahiaGlossary({ compact = false }: { compact?: boolean }) {
         <div>
           <p className="font-semibold mb-1">Glossário Bahianês</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0.5 text-xs">
-            <div><strong>Vixe, nada</strong> — Nenhum / Péssimo (0)</div>
+            <div><strong>Calado</strong> — Nenhum / Péssimo (0)</div>
             <div><strong>Paia</strong> — Fraco / Ruim (0.25)</div>
             <div><strong>Na estica</strong> — Razoável / Mediano (0.5)</div>
             <div><strong>Massa</strong> — Bom / Legal (0.75)</div>
@@ -44,7 +44,7 @@ export function BahiaGlossary({ compact = false }: { compact?: boolean }) {
         <div>
           <p className="text-xs font-semibold text-amber-800 mb-2 uppercase tracking-wide">Conceitos de Avaliação</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            <GlossaryItem term="Vixe, nada" meaning="Nenhum / Péssimo" value="0" color="red" />
+            <GlossaryItem term="Calado" meaning="Nenhum / Péssimo" value="0" color="red" />
             <GlossaryItem term="Paia" meaning="Fraco / Ruim" value="0.25" color="orange" />
             <GlossaryItem term="Na estica" meaning="Razoável / Mediano" value="0.5" color="amber" />
             <GlossaryItem term="Massa" meaning="Bom / Legal" value="0.75" color="emerald" />

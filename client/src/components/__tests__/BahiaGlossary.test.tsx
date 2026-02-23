@@ -11,7 +11,7 @@ describe("BahiaGlossary", () => {
     expect(screen.getByText("Glossário Bahianês")).toBeTruthy();
 
     // Verify all evaluation concepts are present
-    expect(screen.getByText(/Vixe, nada/)).toBeTruthy();
+    expect(screen.getByText(/Calado/)).toBeTruthy();
     expect(screen.getByText(/Paia/)).toBeTruthy();
     expect(screen.getByText(/Na estica/)).toBeTruthy();
     // Massa and Brocou may appear in text
@@ -42,7 +42,7 @@ describe("BahiaGlossary", () => {
   it("renders all 5 evaluation concepts in full version", () => {
     render(<BahiaGlossary />);
 
-    const terms = ["Vixe, nada", "Paia", "Na estica", "Massa", "Brocou"];
+    const terms = ["Calado", "Paia", "Na estica", "Massa", "Brocou"];
     terms.forEach((term) => {
       expect(screen.getAllByText(term).length).toBeGreaterThanOrEqual(1);
     });

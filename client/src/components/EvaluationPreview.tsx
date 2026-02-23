@@ -13,7 +13,7 @@ import { useState } from "react";
 import { BahiaGlossary } from "./BahiaGlossary";
 
 const SCORE_LABELS: Record<string, string> = {
-  "0.00": "Vixe, nada",
+  "0.00": "Calado",
   "0.25": "Paia",
   "0.50": "Na estica",
   "0.75": "Massa",

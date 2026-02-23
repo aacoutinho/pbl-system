@@ -301,3 +301,4 @@
 - [x] Tooltips explicativos na avaliação tutorial do professor (já existiam)
 - [x] Visualização prévia do formulário dos alunos para o professor
 - [x] Glossário bahianês nos formulários de avaliação
+- [x] Trocar conceito "Vixe, nada" por "Calado" em todos os formulários, glossário e resultados
