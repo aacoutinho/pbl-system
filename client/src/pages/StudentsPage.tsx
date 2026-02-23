@@ -206,7 +206,11 @@ function StudentsContent() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Alunos</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {selectedClass
+              ? `${selectedClass.componentCode} - ${selectedClass.classCode} - Alunos da Turma`
+              : "Alunos"}
+          </h1>
           <p className="text-muted-foreground mt-1">
             {canManage ? "Gerencie os alunos da turma selecionada." : "Visualize os alunos da turma selecionada."}
           </p>

@@ -289,3 +289,4 @@
 - [x] Admin pode definir/alterar sua senha no sistema (setPassword + hasPassword)
 - [x] Tela de perfil com opção de definir senha para usuários OAuth
 - [x] Testes para login admin por e-mail/senha (7 novos testes)
+- [x] Exibir componente e turma selecionada no título da página de Alunos (ex: "TEC502 - TP01 - Alunos da Turma")
