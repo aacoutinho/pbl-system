@@ -142,7 +142,7 @@ function StudentsContent() {
 
   const handleEdit = async () => {
     if (!editingStudent) return;
-    if (!editName.trim() || !editEnrollment.trim()) { toast.error("Preencha nome e matr\u00edcula"); return; }
+    if (!editName.trim() || !editEnrollment.trim()) { toast.error("Preencha nome e matrícula"); return; }
     let photoUrl: string | null | undefined = undefined;
     // If new photo file, upload first
     if (editPhotoFile) {
@@ -179,7 +179,7 @@ function StudentsContent() {
   const handleEditPhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) { toast.error("Foto deve ter no m\u00e1ximo 10MB"); return; }
+    if (file.size > 10 * 1024 * 1024) { toast.error("Foto deve ter no máximo 10MB"); return; }
     if (!file.type.startsWith("image/")) { toast.error("Selecione um arquivo de imagem"); return; }
     try {
       const resized = await resizeImageToSquare(file, 150, 0.7);
@@ -409,10 +409,10 @@ function StudentsContent() {
                 </Button>
                 <input ref={editPhotoInputRef} type="file" accept="image/*" className="hidden" onChange={handleEditPhotoSelect} />
               </div>
-              <p className="text-xs text-muted-foreground">Professor pode alterar a foto sem verifica\u00e7\u00e3o.</p>
+              <p className="text-xs text-muted-foreground">Professor pode alterar a foto sem verificação.</p>
             </div>
             <div>
-              <Label>Matr\u00edcula *</Label>
+              <Label>Matrícula *</Label>
               <Input value={editEnrollment} onChange={e => setEditEnrollment(e.target.value)} className="mt-1" />
             </div>
             <div>
@@ -422,7 +422,7 @@ function StudentsContent() {
             <div>
               <Label>E-mail</Label>
               <Input value={editEmail} onChange={e => setEditEmail(e.target.value)} type="email" className="mt-1" />
-              <p className="text-xs text-muted-foreground mt-1">Professor pode alterar o e-mail sem c\u00f3digo de confirma\u00e7\u00e3o.</p>
+              <p className="text-xs text-muted-foreground mt-1">Professor pode alterar o e-mail sem código de confirmação.</p>
             </div>
           </div>
           <DialogFooter>
@@ -516,7 +516,7 @@ function StudentsContent() {
                 <thead>
                   <tr className="border-b text-left">
                     <th className="pb-3 pr-4 font-semibold w-12"></th>
-                    <th className="pb-3 pr-4 font-semibold">Matr\u00edcula</th>
+                    <th className="pb-3 pr-4 font-semibold">Matrícula</th>
                     <th className="pb-3 pr-4 font-semibold">Nome</th>
                     <th className="pb-3 pr-4 font-semibold">E-mail</th>
                     <th className="pb-3 font-semibold w-28"></th>
@@ -536,7 +536,7 @@ function StudentsContent() {
                       </td>
                       <td className="py-3 pr-4 text-sm font-mono">{student.enrollment}</td>
                       <td className="py-3 pr-4 font-medium">{student.name}</td>
-                      <td className="py-3 pr-4 text-sm text-muted-foreground">{student.email || <span className="italic text-muted-foreground/50">n\u00e3o informado</span>}</td>
+                      <td className="py-3 pr-4 text-sm text-muted-foreground">{student.email || <span className="italic text-muted-foreground/50">não informado</span>}</td>
                       <td className="py-3 flex gap-1">
                         {canManage && (
                           <>

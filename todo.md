@@ -352,3 +352,4 @@
 - [x] Adicionar tabela emailVerificationCodes ao BACKUP_TABLES
 - [x] Adicionar tabela passwordResetCodes ao BACKUP_TABLES
 - [x] Atualizar testes de backup para refletir todas as 19 tabelas do schema
+- [x] Bug: Na aba Alunos, "Matrícula" aparece como "Matr\u00edcula" (escape Unicode não resolvido) - corrigido em todos os arquivos

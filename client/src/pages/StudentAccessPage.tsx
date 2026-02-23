@@ -380,7 +380,7 @@ function EvaluationForm({ accessCode, studentInfo, sessionInfo, studentEmail, st
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{studentEmail || "E-mail n\u00e3o informado"}</p>
+              <p className="text-sm font-medium truncate">{studentEmail || "E-mail não informado"}</p>
               <p className="text-xs text-muted-foreground">
                 {studentPhotoUrl && studentEmail ? "Perfil completo" : "Perfil incompleto"}
               </p>
@@ -524,13 +524,13 @@ function ProfileSetup({ studentId, studentName, currentEmail, currentPhotoUrl, i
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const sendCodeMutation = trpc.studentAccess.sendEmailVerification.useMutation({
-    onSuccess: () => { setCodeSent(true); toast.success("C\u00f3digo enviado para " + email); },
-    onError: (e: any) => toast.error(e.message || "Erro ao enviar c\u00f3digo"),
+    onSuccess: () => { setCodeSent(true); toast.success("Código enviado para " + email); },
+    onError: (e: any) => toast.error(e.message || "Erro ao enviar código"),
   });
 
   const verifyCodeMutation = trpc.studentAccess.verifyEmailCode.useMutation({
     onSuccess: () => { setEmailVerified(true); toast.success("E-mail verificado!"); },
-    onError: (e: any) => toast.error(e.message || "C\u00f3digo inv\u00e1lido"),
+    onError: (e: any) => toast.error(e.message || "Código inválido"),
   });
 
   const uploadPhotoMutation = trpc.studentAccess.uploadPhoto.useMutation({
@@ -541,7 +541,7 @@ function ProfileSetup({ studentId, studentName, currentEmail, currentPhotoUrl, i
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) { toast.error("Foto deve ter no m\u00e1ximo 10MB"); return; }
+    if (file.size > 10 * 1024 * 1024) { toast.error("Foto deve ter no máximo 10MB"); return; }
     if (!file.type.startsWith("image/")) { toast.error("Selecione um arquivo de imagem"); return; }
     try {
       const resized = await resizeImageToSquare(file, 150, 0.7);
@@ -578,18 +578,18 @@ function ProfileSetup({ studentId, studentName, currentEmail, currentPhotoUrl, i
         <CardTitle className="text-xl">{isFirstEval ? "Complete seu Perfil" : "Editar Perfil"}</CardTitle>
         <CardDescription>
           {isFirstEval
-            ? "Antes de avaliar, precisamos do seu e-mail e uma foto. O e-mail \u00e9 para receber suas notas, e a foto ajuda o professor nas avalia\u00e7\u00f5es."
+            ? "Antes de avaliar, precisamos do seu e-mail e uma foto. O e-mail é para receber suas notas, e a foto ajuda o professor nas avaliações."
             : "Atualize seu e-mail ou foto se desejar."}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* E-mail com verifica\u00e7\u00e3o */}
+        {/* E-mail com verificação */}
         <div className="space-y-3">
           <Label className="flex items-center gap-2">
             <Mail className="h-4 w-4" />
-            E-mail {isFirstEval && <Badge variant="destructive" className="text-xs">Obrigat\u00f3rio</Badge>}
+            E-mail {isFirstEval && <Badge variant="destructive" className="text-xs">Obrigatório</Badge>}
           </Label>
-          <p className="text-xs text-muted-foreground">Informe seu e-mail para receber as notas das avalia\u00e7\u00f5es.</p>
+          <p className="text-xs text-muted-foreground">Informe seu e-mail para receber as notas das avaliações.</p>
           <div className="flex gap-2">
             <Input
               type="email"
@@ -604,12 +604,12 @@ function ProfileSetup({ studentId, studentName, currentEmail, currentPhotoUrl, i
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  if (!email.trim() || !email.includes("@")) { toast.error("E-mail inv\u00e1lido"); return; }
+                  if (!email.trim() || !email.includes("@")) { toast.error("E-mail inválido"); return; }
                   sendCodeMutation.mutate({ studentId, email: email.trim().toLowerCase() });
                 }}
                 disabled={sendCodeMutation.isPending || !email.trim()}
               >
-                {sendCodeMutation.isPending ? "Enviando..." : codeSent ? "Reenviar" : "Enviar C\u00f3digo"}
+                {sendCodeMutation.isPending ? "Enviando..." : codeSent ? "Reenviar" : "Enviar Código"}
               </Button>
             )}
           </div>
@@ -624,7 +624,7 @@ function ProfileSetup({ studentId, studentName, currentEmail, currentPhotoUrl, i
           )}
           {codeSent && !emailVerified && (
             <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Digite o c\u00f3digo de 6 d\u00edgitos enviado para <strong>{email}</strong>:</p>
+              <p className="text-sm text-muted-foreground">Digite o código de 6 dígitos enviado para <strong>{email}</strong>:</p>
               <div className="flex gap-2">
                 <Input
                   placeholder="000000"
@@ -650,9 +650,9 @@ function ProfileSetup({ studentId, studentName, currentEmail, currentPhotoUrl, i
         <div className="space-y-3">
           <Label className="flex items-center gap-2">
             <Camera className="h-4 w-4" />
-            Foto {isFirstEval && <Badge variant="destructive" className="text-xs">Obrigat\u00f3rio</Badge>}
+            Foto {isFirstEval && <Badge variant="destructive" className="text-xs">Obrigatório</Badge>}
           </Label>
-          <p className="text-xs text-muted-foreground">Tire uma foto ou fa\u00e7a upload. A foto ajuda o professor a identificar os alunos nas avalia\u00e7\u00f5es.</p>
+          <p className="text-xs text-muted-foreground">Tire uma foto ou faça upload. A foto ajuda o professor a identificar os alunos nas avaliações.</p>
           <div className="flex items-center gap-4">
             {photoPreview ? (
               <img src={photoPreview} alt="Preview" className="w-20 h-20 rounded-full object-cover border-2 border-purple-200" />
@@ -699,7 +699,7 @@ function ProfileSetup({ studentId, studentName, currentEmail, currentPhotoUrl, i
             disabled={isFirstEval && !canProceed}
             className="flex-1"
           >
-            {isFirstEval ? "Continuar para Avalia\u00e7\u00e3o" : "Salvar e Voltar"}
+            {isFirstEval ? "Continuar para Avaliação" : "Salvar e Voltar"}
           </Button>
         </div>
         {isFirstEval && !canProceed && (

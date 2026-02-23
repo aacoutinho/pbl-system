@@ -89,15 +89,15 @@ function buildTestEmailHtml(): string {
       </div>
       <div style="text-align: center; margin: 24px 0;">
         <div style="display: inline-block; background: #ecfdf5; border: 2px solid #6ee7b7; border-radius: 8px; padding: 16px 32px;">
-          <span style="font-size: 18px; font-weight: 600; color: #065f46;">\u2714 Configura\u00e7\u00e3o funcionando!</span>
+          <span style="font-size: 18px; font-weight: 600; color: #065f46;">✔ Configuração funcionando!</span>
         </div>
       </div>
       <p style="color: #374151; font-size: 15px; line-height: 1.6; text-align: center;">
-        Se voc\u00ea recebeu este e-mail, a configura\u00e7\u00e3o SMTP do sistema est\u00e1 correta e os e-mails de recupera\u00e7\u00e3o de senha ser\u00e3o enviados normalmente.
+        Se você recebeu este e-mail, a configuração SMTP do sistema está correta e os e-mails de recuperação de senha serão enviados normalmente.
       </p>
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
       <p style="color: #9ca3af; font-size: 12px; text-align: center;">
-        Sistema de Avalia\u00e7\u00e3o de Desempenho Tutorial
+        Sistema de Avaliação de Desempenho Tutorial
       </p>
     </div>
   `;

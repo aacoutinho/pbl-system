@@ -194,7 +194,7 @@ export const appRouter = router({
                   await createNotification({
                     userId: coord.userId,
                     type: "pending_request",
-                    title: "Nova Solicita\u00e7\u00e3o de Entrada",
+                    title: "Nova Solicitação de Entrada",
                     message: `${input.name || input.email} solicitou entrada em ${component.code} - ${component.name} (novo cadastro)`,
                     metadata: JSON.stringify({ componentId: compId, requesterId: user.id, source: "registration" }),
                   });
@@ -202,8 +202,8 @@ export const appRouter = router({
                   if (coord.userEmail) {
                     await sendEmail({
                       to: coord.userEmail,
-                      subject: `Nova Solicita\u00e7\u00e3o de Entrada - ${component.code}`,
-                      text: `Ol\u00e1 ${coord.userName || ""}, o professor ${input.name || input.email} solicitou entrada no componente ${component.code} - ${component.name} ao se cadastrar no sistema. Acesse o sistema para aprovar ou rejeitar.`,
+                      subject: `Nova Solicitação de Entrada - ${component.code}`,
+                      text: `Olá ${coord.userName || ""}, o professor ${input.name || input.email} solicitou entrada no componente ${component.code} - ${component.name} ao se cadastrar no sistema. Acesse o sistema para aprovar ou rejeitar.`,
                       html: buildNewRequestEmailHtml(
                         coord.userName || coord.userEmail,
                         input.name || input.email,
@@ -532,12 +532,12 @@ export const appRouter = router({
       photoUrl: z.string().nullable().optional(),
     })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.classId);
-      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma n\u00e3o encontrada" });
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       await assertClassManager(ctx.user.id, ctx.user.role, cls);
       if (input.enrollment) {
         const existing = await getStudentByEnrollment(input.enrollment);
         if (existing && existing.id !== input.studentId) {
-          throw new TRPCError({ code: "CONFLICT", message: "J\u00e1 existe outro aluno com esta matr\u00edcula" });
+          throw new TRPCError({ code: "CONFLICT", message: "Já existe outro aluno com esta matrícula" });
         }
       }
       // If photoUrl provided, also update it
@@ -927,11 +927,11 @@ export const appRouter = router({
       const html = buildVerificationEmailHtml(code, input.email.toLowerCase());
       const result = await sendEmail({
         to: input.email.toLowerCase(),
-        subject: "C\u00f3digo de Verifica\u00e7\u00e3o - Avalia\u00e7\u00e3o Tutorial",
-        text: `Seu c\u00f3digo de verifica\u00e7\u00e3o \u00e9: ${code}. V\u00e1lido por 15 minutos.`,
+        subject: "Código de Verificação - Avaliação Tutorial",
+        text: `Seu código de verificação é: ${code}. Válido por 15 minutos.`,
         html,
       });
-      if (!result.success) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: result.error || "Erro ao enviar e-mail de verifica\u00e7\u00e3o" });
+      if (!result.success) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: result.error || "Erro ao enviar e-mail de verificação" });
       return { success: true };
     }),
     verifyEmailCode: publicProcedure.input(z.object({
@@ -940,7 +940,7 @@ export const appRouter = router({
       code: z.string().length(6),
     })).mutation(async ({ input }) => {
       const valid = await verifyEmailCode(input.email.toLowerCase(), input.code);
-      if (!valid) throw new TRPCError({ code: "BAD_REQUEST", message: "C\u00f3digo inv\u00e1lido ou expirado" });
+      if (!valid) throw new TRPCError({ code: "BAD_REQUEST", message: "Código inválido ou expirado" });
       await updateStudentEmail(input.studentId, input.email.toLowerCase());
       return { success: true };
     }),
@@ -950,7 +950,7 @@ export const appRouter = router({
       mimeType: z.string(),
     })).mutation(async ({ input }) => {
       const buffer = Buffer.from(input.photoBase64, "base64");
-      if (buffer.length > 5 * 1024 * 1024) throw new TRPCError({ code: "BAD_REQUEST", message: "Foto deve ter no m\u00e1ximo 5MB" });
+      if (buffer.length > 5 * 1024 * 1024) throw new TRPCError({ code: "BAD_REQUEST", message: "Foto deve ter no máximo 5MB" });
       const ext = input.mimeType.includes("png") ? "png" : input.mimeType.includes("webp") ? "webp" : "jpg";
       const suffix = Math.random().toString(36).substring(2, 10);
       const fileKey = `student-photos/${input.studentId}-${suffix}.${ext}`;
@@ -1489,18 +1489,18 @@ export const appRouter = router({
               actorUserId: ctx.user.id,
               targetUserId: req.userId,
               componentId: req.componentId,
-              details: JSON.stringify({ reason: "Aprovado automaticamente via aprova\u00e7\u00e3o em lote", componentId: req.componentId }),
+              details: JSON.stringify({ reason: "Aprovado automaticamente via aprovação em lote", componentId: req.componentId }),
             });
           }
           // In-app notification
           const approvedComponent = await getComponentById(req.componentId);
           const notifMessage = autoApproved
-            ? `Sua solicita\u00e7\u00e3o de entrada no componente ${approvedComponent?.code || ""} - ${approvedComponent?.name || ""} foi aprovada. Voc\u00ea tamb\u00e9m foi aprovado no sistema como professor.`
-            : `Sua solicita\u00e7\u00e3o de entrada no componente ${approvedComponent?.code || ""} - ${approvedComponent?.name || ""} foi aprovada.`;
+            ? `Sua solicitação de entrada no componente ${approvedComponent?.code || ""} - ${approvedComponent?.name || ""} foi aprovada. Você também foi aprovado no sistema como professor.`
+            : `Sua solicitação de entrada no componente ${approvedComponent?.code || ""} - ${approvedComponent?.name || ""} foi aprovada.`;
           await createNotification({
             userId: req.userId,
             type: "component_approved",
-            title: autoApproved ? "Solicita\u00e7\u00e3o Aprovada - Acesso ao Sistema Liberado" : "Solicita\u00e7\u00e3o Aprovada",
+            title: autoApproved ? "Solicitação Aprovada - Acesso ao Sistema Liberado" : "Solicitação Aprovada",
             message: notifMessage,
             metadata: JSON.stringify({ componentId: req.componentId, autoApprovedInSystem: autoApproved, batchApproval: true }),
           });
@@ -1511,8 +1511,8 @@ export const appRouter = router({
             if (user?.email && component) {
               await sendEmail({
                 to: user.email,
-                subject: `Solicita\u00e7\u00e3o Aprovada - ${component.code}`,
-                text: `Ol\u00e1 ${user.name || ""}, sua solicita\u00e7\u00e3o de entrada no componente ${component.code} - ${component.name} foi aprovada.${autoApproved ? " Voc\u00ea tamb\u00e9m foi aprovado no sistema como professor." : ""}`,
+                subject: `Solicitação Aprovada - ${component.code}`,
+                text: `Olá ${user.name || ""}, sua solicitação de entrada no componente ${component.code} - ${component.name} foi aprovada.${autoApproved ? " Você também foi aprovado no sistema como professor." : ""}`,
                 html: buildComponentApprovalEmailHtml(user.name || user.email, component.code, component.name),
               });
             }
