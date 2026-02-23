@@ -20,7 +20,7 @@ import { BahiaGlossary } from "@/components/BahiaGlossary";
 const LABELS = [
   { label: "Calado", value: 0 },
   { label: "Paia", value: 0.25 },
-  { label: "Na estica", value: 0.5 },
+  { label: "Meiaboca", value: 0.5 },
   { label: "Massa", value: 0.75 },
   { label: "Brocou", value: 1.0 },
 ] as const;
@@ -29,7 +29,7 @@ const LABELS = [
 const LABELS_MASC = [
   { label: "Calado", value: 0 },
   { label: "Paia", value: 0.25 },
-  { label: "Na estica", value: 0.5 },
+  { label: "Meiaboca", value: 0.5 },
   { label: "Massa", value: 0.75 },
   { label: "Brocou", value: 1.0 },
 ] as const;
