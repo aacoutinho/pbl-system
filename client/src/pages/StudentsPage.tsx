@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Trash2, Upload, Users, BookOpen, FileSpreadsheet, Check, Pencil, ArrowRightLeft } from "lucide-react";
+import { Plus, Trash2, Upload, Users, BookOpen, FileSpreadsheet, Check, Pencil, ArrowRightLeft, Camera } from "lucide-react";
 import { useState, useRef, useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -101,10 +101,13 @@ function StudentsContent() {
   const [showCSVImport, setShowCSVImport] = useState(false);
   const [csvContent, setCsvContent] = useState("");
   const [csvPreview, setCsvPreview] = useState<{ name: string; enrollment: string }[] | null>(null);
-  const [editingStudent, setEditingStudent] = useState<{ id: number; name: string; enrollment: string; email: string | null } | null>(null);
+  const [editingStudent, setEditingStudent] = useState<{ id: number; name: string; enrollment: string; email: string | null; photoUrl: string | null } | null>(null);
   const [editName, setEditName] = useState("");
   const [editEnrollment, setEditEnrollment] = useState("");
   const [editEmail, setEditEmail] = useState("");
+  const [editPhotoUrl, setEditPhotoUrl] = useState<string | null>(null);
+  const [editPhotoFile, setEditPhotoFile] = useState<{ base64: string; mimeType: string } | null>(null);
+  const editPhotoInputRef = useRef<HTMLInputElement>(null);
   const [transferringStudent, setTransferringStudent] = useState<{ id: number; name: string; enrollment: string } | null>(null);
   const [transferTargetClassId, setTransferTargetClassId] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -132,23 +135,59 @@ function StudentsContent() {
     setNewName(""); setNewEnrollment(""); setNewEmail("");
   };
 
-  const handleEdit = () => {
+  const uploadPhotoMutation = trpc.studentAccess.uploadPhoto.useMutation({
+    onError: (e: any) => toast.error(e.message || "Erro ao enviar foto"),
+  });
+
+  const handleEdit = async () => {
     if (!editingStudent) return;
-    if (!editName.trim() || !editEnrollment.trim()) { toast.error("Preencha nome e matrícula"); return; }
+    if (!editName.trim() || !editEnrollment.trim()) { toast.error("Preencha nome e matr\u00edcula"); return; }
+    let photoUrl: string | null | undefined = undefined;
+    // If new photo file, upload first
+    if (editPhotoFile) {
+      try {
+        const result = await uploadPhotoMutation.mutateAsync({
+          studentId: editingStudent.id,
+          photoBase64: editPhotoFile.base64,
+          mimeType: editPhotoFile.mimeType,
+        });
+        photoUrl = result.photoUrl;
+      } catch {
+        return; // error already shown by mutation
+      }
+    }
     updateMutation.mutate({
       studentId: editingStudent.id,
       classId: selectedClassId,
       name: editName.trim(),
       enrollment: editEnrollment.trim(),
       email: editEmail.trim() || null,
+      ...(photoUrl !== undefined ? { photoUrl } : {}),
     });
   };
 
-  const startEdit = (student: { id: number; name: string; enrollment: string; email: string | null }) => {
+  const startEdit = (student: { id: number; name: string; enrollment: string; email: string | null; photoUrl: string | null }) => {
     setEditingStudent(student);
     setEditName(student.name);
     setEditEnrollment(student.enrollment);
     setEditEmail(student.email || "");
+    setEditPhotoUrl(student.photoUrl);
+    setEditPhotoFile(null);
+  };
+
+  const handleEditPhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error("Foto deve ter no m\u00e1ximo 5MB"); return; }
+    if (!file.type.startsWith("image/")) { toast.error("Selecione um arquivo de imagem"); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      setEditPhotoUrl(result);
+      const base64 = result.split(",")[1];
+      setEditPhotoFile({ base64, mimeType: file.type });
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleTransfer = () => {
@@ -346,8 +385,32 @@ function StudentsContent() {
             <DialogTitle>Editar Aluno</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Foto do aluno */}
+            <div className="flex flex-col items-center gap-2">
+              <Label>Foto do Aluno</Label>
+              <div className="relative">
+                {editPhotoUrl ? (
+                  <img src={editPhotoUrl} alt="Foto" className="w-24 h-24 rounded-full object-cover border-2 border-border" />
+                ) : (
+                  <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center border-2 border-dashed border-border">
+                    <Camera className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full"
+                  onClick={() => editPhotoInputRef.current?.click()}
+                >
+                  <Pencil className="h-3 w-3" />
+                </Button>
+                <input ref={editPhotoInputRef} type="file" accept="image/*" className="hidden" onChange={handleEditPhotoSelect} />
+              </div>
+              <p className="text-xs text-muted-foreground">Professor pode alterar a foto sem verifica\u00e7\u00e3o.</p>
+            </div>
             <div>
-              <Label>Matrícula *</Label>
+              <Label>Matr\u00edcula *</Label>
               <Input value={editEnrollment} onChange={e => setEditEnrollment(e.target.value)} className="mt-1" />
             </div>
             <div>
@@ -355,13 +418,14 @@ function StudentsContent() {
               <Input value={editName} onChange={e => setEditName(e.target.value)} className="mt-1" />
             </div>
             <div>
-              <Label>E-mail (opcional)</Label>
+              <Label>E-mail</Label>
               <Input value={editEmail} onChange={e => setEditEmail(e.target.value)} type="email" className="mt-1" />
+              <p className="text-xs text-muted-foreground mt-1">Professor pode alterar o e-mail sem c\u00f3digo de confirma\u00e7\u00e3o.</p>
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={handleEdit} disabled={updateMutation.isPending}>
-              {updateMutation.isPending ? "Salvando..." : "Salvar"}
+            <Button onClick={handleEdit} disabled={updateMutation.isPending || uploadPhotoMutation.isPending}>
+              {(updateMutation.isPending || uploadPhotoMutation.isPending) ? "Salvando..." : "Salvar"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -449,7 +513,8 @@ function StudentsContent() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left">
-                    <th className="pb-3 pr-4 font-semibold">Matrícula</th>
+                    <th className="pb-3 pr-4 font-semibold w-12"></th>
+                    <th className="pb-3 pr-4 font-semibold">Matr\u00edcula</th>
                     <th className="pb-3 pr-4 font-semibold">Nome</th>
                     <th className="pb-3 pr-4 font-semibold">E-mail</th>
                     <th className="pb-3 font-semibold w-28"></th>
@@ -458,9 +523,18 @@ function StudentsContent() {
                 <tbody>
                   {studentsList.map((student: any) => (
                     <tr key={student.id} className="border-b last:border-0 hover:bg-accent/20 transition-colors">
+                      <td className="py-3 pr-4">
+                        {student.photoUrl ? (
+                          <img src={student.photoUrl} alt="" className="w-8 h-8 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                            <span className="text-xs font-medium text-muted-foreground">{student.name?.charAt(0)?.toUpperCase()}</span>
+                          </div>
+                        )}
+                      </td>
                       <td className="py-3 pr-4 text-sm font-mono">{student.enrollment}</td>
                       <td className="py-3 pr-4 font-medium">{student.name}</td>
-                      <td className="py-3 pr-4 text-sm text-muted-foreground">{student.email || <span className="italic text-muted-foreground/50">não informado</span>}</td>
+                      <td className="py-3 pr-4 text-sm text-muted-foreground">{student.email || <span className="italic text-muted-foreground/50">n\u00e3o informado</span>}</td>
                       <td className="py-3 flex gap-1">
                         {canManage && (
                           <>
@@ -468,7 +542,7 @@ function StudentsContent() {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8"
-                              onClick={() => startEdit({ id: student.id, name: student.name, enrollment: student.enrollment, email: student.email })}
+                              onClick={() => startEdit({ id: student.id, name: student.name, enrollment: student.enrollment, email: student.email, photoUrl: student.photoUrl })}
                               title="Editar aluno"
                             >
                               <Pencil className="h-4 w-4" />

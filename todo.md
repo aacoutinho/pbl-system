@@ -326,3 +326,10 @@
 - [x] Bug: painel lateral (sidebar) não está mais fixo, desliza com o conteúdo — restaurar posição fixa
 - [x] Verificar compatibilidade das funções de Backup/Restauração com novos estados de sessão
 - [x] Corrigir gênero dos conceitos em todos os formulários (ex: "Nenhum" → "Nenhuma" para Pontualidade, etc.)
+- [x] Coleta obrigatória de e-mail e foto na primeira avaliação tutorial do aluno
+- [x] Campo photoUrl no schema de students para armazenar foto do aluno
+- [x] Rota de upload de foto do aluno via S3
+- [x] Formulário de coleta de e-mail e foto no StudentAccessPage (obrigatório na 1ª vez, editável nas seguintes)
+- [x] Informar ao aluno que o e-mail é para receber notas e a foto para ajudar o professor
+- [x] Verificação de e-mail do aluno por código de confirmação aleatório
+- [x] Professor pode alterar foto e e-mail do aluno sem código de confirmação

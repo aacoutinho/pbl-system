@@ -594,6 +594,7 @@ export async function listStudentsByClass(classId: number) {
     name: students.name,
     enrollment: students.enrollment,
     email: students.email,
+    photoUrl: students.photoUrl,
     createdAt: students.createdAt,
   })
     .from(classStudents)
@@ -1332,12 +1333,27 @@ export async function findStudentByEnrollmentInClass(enrollment: string, classId
     name: students.name,
     enrollment: students.enrollment,
     email: students.email,
+    photoUrl: students.photoUrl,
   })
     .from(classStudents)
     .innerJoin(students, eq(classStudents.studentId, students.id))
     .where(and(eq(classStudents.classId, classId), eq(students.enrollment, enrollment)))
     .limit(1);
   return rows.length > 0 ? rows[0] : undefined;
+}
+
+export async function getStudentEvaluationCount(studentId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const rows = await db.select({ id: evaluations.id }).from(evaluations)
+    .where(eq(evaluations.evaluatorStudentId, studentId));
+  return rows.length;
+}
+
+export async function updateStudentPhoto(studentId: number, photoUrl: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(students).set({ photoUrl }).where(eq(students.id, studentId));
 }
 
 // ─── SMTP Config helpers ───

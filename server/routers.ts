@@ -30,6 +30,7 @@ import {
   getComponentCoordinators,
   grantEvalPermission, revokeEvalPermission, hasEvalPermission, listEvalPermissions, listComponentProfessorsForClass,
   createEmailVerificationCode, verifyEmailCode,
+  getStudentEvaluationCount, updateStudentPhoto,
   transferStudentBetweenClasses,
   createAuditLog, listAuditLogs,
   createNotification, listNotifications, countUnreadNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification,
@@ -40,6 +41,7 @@ import {
   exportDatabase, importDatabase, getBackupStats, rebuildDatabase,
   type BackupData,
 } from "./db";
+import { storagePut } from "./storage";
 import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml, buildContactTicketEmailHtml, buildSessionOpenedEmailHtml } from "./email";
 
 // Base: approved user (any role except "user" pending)
@@ -526,15 +528,20 @@ export const appRouter = router({
       name: z.string().optional(),
       enrollment: z.string().optional(),
       email: z.string().nullable().optional(),
+      photoUrl: z.string().nullable().optional(),
     })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.classId);
-      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma n\u00e3o encontrada" });
       await assertClassManager(ctx.user.id, ctx.user.role, cls);
       if (input.enrollment) {
         const existing = await getStudentByEnrollment(input.enrollment);
         if (existing && existing.id !== input.studentId) {
-          throw new TRPCError({ code: "CONFLICT", message: "Já existe outro aluno com esta matrícula" });
+          throw new TRPCError({ code: "CONFLICT", message: "J\u00e1 existe outro aluno com esta matr\u00edcula" });
         }
+      }
+      // If photoUrl provided, also update it
+      if (input.photoUrl !== undefined && input.photoUrl !== null) {
+        await updateStudentPhoto(input.studentId, input.photoUrl);
       }
       return updateStudent(input.studentId, { name: input.name, enrollment: input.enrollment, email: input.email });
     }),
@@ -896,15 +903,59 @@ export const appRouter = router({
       const isInSession = sessionStudentsList.some(s => s.studentId === student.id);
       if (!isInSession) throw new TRPCError({ code: "NOT_FOUND", message: "Você não está inscrito nesta sessão." });
       const submitted = await hasStudentSubmitted(session.id, student.id);
+      const evalCount = await getStudentEvaluationCount(student.id);
       return {
         studentId: student.id,
         studentName: student.name,
         studentEmail: student.email,
+        studentPhotoUrl: student.photoUrl,
         sessionId: session.id,
         sessionLabel: session.label,
         classId: session.classId,
         alreadySubmitted: submitted,
+        isFirstEval: evalCount === 0 && !submitted,
       };
+    }),
+    sendEmailVerification: publicProcedure.input(z.object({
+      studentId: z.number(),
+      email: z.string().email(),
+    })).mutation(async ({ input }) => {
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+      await createEmailVerificationCode(input.email.toLowerCase(), code, expiresAt);
+      const html = buildVerificationEmailHtml(code, input.email.toLowerCase());
+      const result = await sendEmail({
+        to: input.email.toLowerCase(),
+        subject: "C\u00f3digo de Verifica\u00e7\u00e3o - Avalia\u00e7\u00e3o Tutorial",
+        text: `Seu c\u00f3digo de verifica\u00e7\u00e3o \u00e9: ${code}. V\u00e1lido por 15 minutos.`,
+        html,
+      });
+      if (!result.success) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: result.error || "Erro ao enviar e-mail de verifica\u00e7\u00e3o" });
+      return { success: true };
+    }),
+    verifyEmailCode: publicProcedure.input(z.object({
+      studentId: z.number(),
+      email: z.string().email(),
+      code: z.string().length(6),
+    })).mutation(async ({ input }) => {
+      const valid = await verifyEmailCode(input.email.toLowerCase(), input.code);
+      if (!valid) throw new TRPCError({ code: "BAD_REQUEST", message: "C\u00f3digo inv\u00e1lido ou expirado" });
+      await updateStudentEmail(input.studentId, input.email.toLowerCase());
+      return { success: true };
+    }),
+    uploadPhoto: publicProcedure.input(z.object({
+      studentId: z.number(),
+      photoBase64: z.string(),
+      mimeType: z.string(),
+    })).mutation(async ({ input }) => {
+      const buffer = Buffer.from(input.photoBase64, "base64");
+      if (buffer.length > 5 * 1024 * 1024) throw new TRPCError({ code: "BAD_REQUEST", message: "Foto deve ter no m\u00e1ximo 5MB" });
+      const ext = input.mimeType.includes("png") ? "png" : input.mimeType.includes("webp") ? "webp" : "jpg";
+      const suffix = Math.random().toString(36).substring(2, 10);
+      const fileKey = `student-photos/${input.studentId}-${suffix}.${ext}`;
+      const { url } = await storagePut(fileKey, buffer, input.mimeType);
+      await updateStudentPhoto(input.studentId, url);
+      return { success: true, photoUrl: url };
     }),
     updateEmail: publicProcedure.input(z.object({
       studentId: z.number(),

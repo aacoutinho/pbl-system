@@ -141,6 +141,13 @@
       "when": 1771874047581,
       "tag": "0019_loud_lilandra",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "5",
+      "when": 1771880504647,
+      "tag": "0020_bright_the_hunter",
+      "breakpoints": true
     }
   ]
 }

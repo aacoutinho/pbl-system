@@ -66,6 +66,7 @@ export const students = mysqlTable("students", {
   name: varchar("name", { length: 255 }).notNull(),
   enrollment: varchar("enrollment", { length: 32 }).notNull().unique(), // Matrícula - chave única
   email: varchar("email", { length: 320 }), // Opcional - definido pelo aluno na avaliação
+  photoUrl: varchar("photoUrl", { length: 512 }), // Foto do aluno (S3 URL)
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
