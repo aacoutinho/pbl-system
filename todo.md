@@ -296,3 +296,4 @@
 - [x] Atualizar página de Resultados com novos critérios e pesos no detalhamento e CSV
 - [x] Adicionar tooltips explicativos em cada critério do formulário de avaliação dos alunos
 - [x] Apagar avaliações existentes do banco de dados
+- [x] Alterar conceito "Normal" para "Razoável" em todos os formulários de avaliação (professor e aluno)

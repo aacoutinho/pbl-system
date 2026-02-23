@@ -19,7 +19,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 const LABELS = [
   { label: "Nenhuma", value: 0 },
   { label: "Fraca", value: 0.25 },
-  { label: "Normal", value: 0.5 },
+  { label: "Razoável", value: 0.5 },
   { label: "Boa", value: 0.75 },
   { label: "Excelente", value: 1.0 },
 ] as const;
@@ -28,7 +28,7 @@ const LABELS = [
 const LABELS_MASC = [
   { label: "Nenhum", value: 0 },
   { label: "Fraco", value: 0.25 },
-  { label: "Normal", value: 0.5 },
+  { label: "Razoável", value: 0.5 },
   { label: "Bom", value: 0.75 },
   { label: "Excelente", value: 1.0 },
 ] as const;
@@ -375,7 +375,7 @@ function TutorialEvalContent() {
                 <div>
                   <p className="font-medium">Escala de avaliação:</p>
                   <p className="mt-1">
-                    Nenhuma/Nenhum = 0 &middot; Fraca/Fraco = 0.25 &middot; Normal = 0.5 &middot; Boa/Bom = 0.75 &middot; Excelente = 1.0
+                    Nenhuma/Nenhum = 0 &middot; Fraca/Fraco = 0.25 &middot; Razoável = 0.5 &middot; Boa/Bom = 0.75 &middot; Excelente = 1.0
                   </p>
                 </div>
               </div>

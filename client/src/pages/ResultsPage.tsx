@@ -19,7 +19,7 @@ function valueToLabel(value: number, gender: "fem" | "masc"): string {
   const labelsMap: Record<string, { fem: string; masc: string }> = {
     "0": { fem: "Nenhuma", masc: "Nenhum" },
     "0.25": { fem: "Fraca", masc: "Fraco" },
-    "0.5": { fem: "Normal", masc: "Normal" },
+    "0.5": { fem: "Razoável", masc: "Razoável" },
     "0.75": { fem: "Boa", masc: "Bom" },
     "1": { fem: "Excelente", masc: "Excelente" },
   };

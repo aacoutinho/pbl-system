@@ -480,7 +480,7 @@ function EvaluationForm({ accessCode, studentInfo, sessionInfo, studentEmail, on
 const SCORE_LABELS: Record<string, string> = {
   "0.00": "Nenhum",
   "0.25": "Fraco",
-  "0.50": "Normal",
+  "0.50": "Razoável",
   "0.75": "Bom",
   "1.00": "Excelente",
 };
