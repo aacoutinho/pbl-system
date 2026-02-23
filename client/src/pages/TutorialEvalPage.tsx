@@ -14,24 +14,23 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { BahiaGlossary } from "@/components/BahiaGlossary";
 
-// Rótulos descritivos com valores numéricos correspondentes
+// Rótulos com notas numéricas
 const LABELS = [
-  { label: "Calado", value: 0 },
-  { label: "Paia", value: 0.25 },
-  { label: "Meiaboca", value: 0.5 },
-  { label: "Massa", value: 0.75 },
-  { label: "Brocou", value: 1.0 },
+  { label: "0.0", value: 0 },
+  { label: "0.25", value: 0.25 },
+  { label: "0.5", value: 0.5 },
+  { label: "0.75", value: 0.75 },
+  { label: "1.0", value: 1.0 },
 ] as const;
 
-// Variantes masculinas (mesmos rótulos bahianeses)
+// Variantes masculinas (mesmas notas)
 const LABELS_MASC = [
-  { label: "Calado", value: 0 },
-  { label: "Paia", value: 0.25 },
-  { label: "Meiaboca", value: 0.5 },
-  { label: "Massa", value: 0.75 },
-  { label: "Brocou", value: 1.0 },
+  { label: "0.0", value: 0 },
+  { label: "0.25", value: 0.25 },
+  { label: "0.5", value: 0.5 },
+  { label: "0.75", value: 0.75 },
+  { label: "1.0", value: 1.0 },
 ] as const;
 
 function getLabelForValue(value: number, gender: "fem" | "masc"): string {
@@ -550,8 +549,7 @@ function TutorialEvalContent() {
                 )}
               </div>
 
-              {/* Glossário bahianês */}
-              <BahiaGlossary compact />
+
             </CardContent>
           </Card>
         )

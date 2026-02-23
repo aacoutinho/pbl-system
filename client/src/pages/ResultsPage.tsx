@@ -13,20 +13,10 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useState, useMemo, useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import React from "react";
-import { BahiaGlossary } from "@/components/BahiaGlossary";
 
 // Converte valor numérico para rótulo descritivo
-function valueToLabel(value: number, gender: "fem" | "masc"): string {
-  const labelsMap: Record<string, { fem: string; masc: string }> = {
-    "0": { fem: "Calado", masc: "Calado" },
-    "0.25": { fem: "Paia", masc: "Paia" },
-    "0.5": { fem: "Meiaboca", masc: "Meiaboca" },
-    "0.75": { fem: "Massa", masc: "Massa" },
-    "1": { fem: "Brocou", masc: "Brocou" },
-  };
-  const key = String(value);
-  const match = labelsMap[key];
-  return match ? match[gender] : `${value.toFixed(2)}`;
+function valueToLabel(value: number, _gender: "fem" | "masc"): string {
+  return value.toFixed(2);
 }
 
 export default function ResultsPage() {
@@ -699,8 +689,7 @@ function ResultsContent() {
         </TabsContent>
       </Tabs>
 
-      {/* Glossário bahianês */}
-      <BahiaGlossary />
+
     </div>
   );
 }

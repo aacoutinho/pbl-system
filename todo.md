@@ -357,3 +357,9 @@
 - [x] Incluir detalhes do erro (destinatário, assunto, mensagem de erro) na notificação
 - [x] Testes unitários para notificação de falha de e-mail
 - [x] Trocar conceito "Normal (0.5)" por "Razoável (0.5)" nos formulários de avaliação
+- [x] Remover termos do Glossário Bahianês dos formulários de avaliação do aluno (StudentAccessPage)
+- [x] Remover termos do Glossário Bahianês da prévia do formulário (EvaluationPreview)
+- [x] Remover termos do Glossário Bahianês do formulário do professor (TutorialEvalPage)
+- [x] Substituir termos bahianos por notas numéricas (0.0, 0.25, 0.5, 0.75, 1.0)
+- [x] Remover componente BahiaGlossary e suas referências
+- [x] Atualizar testes relacionados ao BahiaGlossary (removidos 6 testes)

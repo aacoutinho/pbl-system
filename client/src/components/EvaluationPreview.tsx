@@ -10,22 +10,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { UserX, AlertTriangle, HelpCircle, Send, Eye } from "lucide-react";
 import { useState } from "react";
-import { BahiaGlossary } from "./BahiaGlossary";
 
 const SCORE_LABELS: Record<string, string> = {
-  "0.00": "Calado",
-  "0.25": "Paia",
-  "0.50": "Meiaboca",
-  "0.75": "Massa",
-  "1.00": "Brocou",
+  "0.00": "0.0",
+  "0.25": "0.25",
+  "0.50": "0.5",
+  "0.75": "0.75",
+  "1.00": "1.0",
 };
 
 const PENALTY_LABELS: Record<string, string> = {
-  "0.00": "De boa",
-  "0.25": "Vacilou",
-  "0.50": "Pisou na bola",
-  "0.75": "Mancou feio",
-  "1.00": "Lascou tudo",
+  "0.00": "0.0",
+  "0.25": "0.25",
+  "0.50": "0.5",
+  "0.75": "0.75",
+  "1.00": "1.0",
 };
 
 function getScoreLabel(value: number, penalty?: boolean): string {
@@ -74,27 +73,19 @@ function PreviewCriteriaSlider({ label, sublabel, tooltip, value, penalty, gende
       <div className="flex justify-between text-xs text-muted-foreground">
         {penalty ? (
           <>
-            <span>Sem penalidade</span>
-            <span>Leve</span>
-            <span>Moderada</span>
-            <span>Grave</span>
-            <span>Máxima</span>
-          </>
-        ) : gender === "fem" ? (
-          <>
-            <span>Nenhuma</span>
-            <span>Fraca</span>
-            <span>Razoável</span>
-            <span>Boa</span>
-            <span>Excelente</span>
+            <span>0.0</span>
+            <span>0.25</span>
+            <span>0.5</span>
+            <span>0.75</span>
+            <span>1.0</span>
           </>
         ) : (
           <>
-            <span>Nenhum</span>
-            <span>Fraco</span>
-            <span>Razoável</span>
-            <span>Bom</span>
-            <span>Excelente</span>
+            <span>0.0</span>
+            <span>0.25</span>
+            <span>0.5</span>
+            <span>0.75</span>
+            <span>1.0</span>
           </>
         )}
       </div>
@@ -254,9 +245,6 @@ export function EvaluationPreviewDialog({ open, onOpenChange }: { open: boolean;
               Enviar Avaliação
             </Button>
           </div>
-
-          {/* Glossary */}
-          <BahiaGlossary compact />
 
           {/* Explanation */}
           <div className="p-3 rounded-lg bg-muted/50 border text-xs text-muted-foreground space-y-1">
