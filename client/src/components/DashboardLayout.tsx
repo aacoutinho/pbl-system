@@ -224,6 +224,14 @@ function LoginScreen() {
         </div>
 
         {/* Student Access - First */}
+        <div className="relative w-full">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-card px-2 text-muted-foreground">aluno</span>
+          </div>
+        </div>
         <Button
           onClick={() => { window.location.href = "/acesso"; }}
           size="lg"
@@ -438,7 +446,7 @@ function LoginScreen() {
               onClick={() => { setMode(mode === "login" ? "register" : "login"); setIsSubmitting(false); }}
               className="text-sm text-primary hover:underline transition-colors"
             >
-              {mode === "login" ? "Não tem conta? Cadastre-se" : "Já tem conta? Faça login"}
+              {mode === "login" ? "Professor não tem conta? Cadastre-se" : "Já tem conta? Faça login"}
             </button>
             {mode === "login" && smtpConfigured && (
               <button

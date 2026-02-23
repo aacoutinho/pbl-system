@@ -304,3 +304,5 @@
 - [x] Trocar conceito "Vixe, nada" por "Calado" em todos os formulários, glossário e resultados
 - [x] Trocar conceito "Na estica" por "Meiaboca" em todos os formulários, glossário e resultados
 - [x] Reorganizar tela de Login: entrada dos alunos antes/acima da entrada dos professores
+- [x] Adicionar separador "ALUNO" antes do botão de acesso dos alunos na tela de login
+- [x] Trocar "Não tem conta? Cadastre-se" por "Professor não tem conta? Cadastre-se"
