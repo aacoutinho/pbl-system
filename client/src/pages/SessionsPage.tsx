@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Lock, Unlock, Trash2, ClipboardList, Users, Eye, BookOpen, KeyRound, Copy, RefreshCw, RotateCcw, CheckCircle2, Clock, FileSearch, AlertTriangle } from "lucide-react";
+import { Plus, Lock, Unlock, Trash2, ClipboardList, Users, Eye, BookOpen, KeyRound, Copy, RefreshCw, RotateCcw, CheckCircle2, Clock, FileSearch, AlertTriangle, Mail } from "lucide-react";
 import { EvaluationPreviewDialog } from "@/components/EvaluationPreview";
 import { useState, useMemo, useCallback } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -276,9 +276,22 @@ function SessionRow({ session, canManage, onClose, onOpen, onDelete, onViewResul
   const [showOpenConfirm, setShowOpenConfirm] = useState(false);
 
   const generateCodeMutation = trpc.sessions.generateCode.useMutation({
-    onSuccess: (data: { accessCode: string }) => {
+    onSuccess: (data: { accessCode: string; emailsSent: number }) => {
       utils.sessions.list.invalidate();
-      toast.success(`Código gerado: ${data.accessCode}`);
+      const emailMsg = data.emailsSent > 0
+        ? ` ${data.emailsSent} e-mail(s) enviado(s) para alunos com e-mail cadastrado.`
+        : " Nenhum aluno possui e-mail cadastrado.";
+      toast.success(`Código gerado: ${data.accessCode}.${emailMsg}`);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const resendEmailsMutation = trpc.sessions.resendEmails.useMutation({
+    onSuccess: (data: { emailsSent: number }) => {
+      const msg = data.emailsSent > 0
+        ? `${data.emailsSent} e-mail(s) reenviado(s) com sucesso.`
+        : "Nenhum aluno possui e-mail cadastrado.";
+      toast.success(msg);
     },
     onError: (e) => toast.error(e.message),
   });
@@ -319,11 +332,23 @@ function SessionRow({ session, canManage, onClose, onOpen, onDelete, onViewResul
              session.status === "finished" ? "Encerrada" : session.status}
           </Badge>
         </div>
-        <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <Users className="h-3.5 w-3.5" />
-            {submitted}/{total} avaliações
-          </span>
+        <div className="flex items-center gap-4 mt-1.5 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <Users className="h-3.5 w-3.5 shrink-0" />
+            <span className="whitespace-nowrap">{submitted}/{total}</span>
+            <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${
+                  total > 0 && submitted === total
+                    ? "bg-emerald-500"
+                    : submitted > 0
+                    ? "bg-blue-500"
+                    : "bg-muted-foreground/20"
+                }`}
+                style={{ width: total > 0 ? `${(submitted / total) * 100}%` : "0%" }}
+              />
+            </div>
+          </div>
           {session.accessCode ? (
             <span className="flex items-center gap-1">
               <KeyRound className="h-3.5 w-3.5" />
@@ -345,6 +370,17 @@ function SessionRow({ session, canManage, onClose, onOpen, onDelete, onViewResul
             title={session.accessCode ? "Regenerar código de acesso" : "Gerar código de acesso"}
           >
             {session.accessCode ? <RefreshCw className="h-4 w-4" /> : <KeyRound className="h-4 w-4" />}
+          </Button>
+        )}
+        {canManage && session.status === "open" && session.accessCode && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => resendEmailsMutation.mutate({ sessionId: session.id, origin: window.location.origin })}
+            disabled={resendEmailsMutation.isPending}
+            title="Reenviar e-mails aos alunos"
+          >
+            <Mail className="h-4 w-4" />
           </Button>
         )}
 

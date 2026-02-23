@@ -773,6 +773,7 @@ export const appRouter = router({
       const code = await generateAccessCode(input.sessionId);
 
       // Send email to students with email addresses
+      let emailsSent = 0;
       try {
         const sessionStudentsList = await getSessionStudents(input.sessionId);
         const studentsInClass = await listStudentsByClass(session.classId);
@@ -784,7 +785,6 @@ export const appRouter = router({
         }
         const baseUrl = input.origin || "";
         const accessUrl = baseUrl ? `${baseUrl}/student-access?code=${code}` : "";
-        let emailsSent = 0;
         for (const ss of sessionStudentsList) {
           const student = studentMap.get(ss.studentId);
           if (student?.email) {
@@ -811,7 +811,50 @@ export const appRouter = router({
         // Don't fail the code generation if email sending fails
       }
 
-      return { accessCode: code };
+      return { accessCode: code, emailsSent };
+    }),
+    resendEmails: approvedProcedure.input(z.object({ sessionId: z.number(), origin: z.string().optional() })).mutation(async ({ ctx, input }) => {
+      const session = await getSessionById(input.sessionId);
+      if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
+      if (!session.accessCode) throw new TRPCError({ code: "BAD_REQUEST", message: "Sessão não possui código de acesso" });
+      if (session.status !== "open") throw new TRPCError({ code: "BAD_REQUEST", message: "Sessão não está aberta" });
+      const cls = await getClassById(session.classId);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertClassManager(ctx.user.id, ctx.user.role, cls);
+
+      const sessionStudentsList = await getSessionStudents(input.sessionId);
+      const studentsInClass = await listStudentsByClass(session.classId);
+      const studentMap = new Map(studentsInClass.map(s => [s.id, s]));
+      let componentCode = "";
+      if (cls.componentId) {
+        const comp = await getComponentById(cls.componentId);
+        componentCode = comp?.code ?? "";
+      }
+      const baseUrl = input.origin || "";
+      const accessUrl = baseUrl ? `${baseUrl}/student-access?code=${session.accessCode}` : "";
+      let emailsSent = 0;
+      for (const ss of sessionStudentsList) {
+        const student = studentMap.get(ss.studentId);
+        if (student?.email) {
+          const html = buildSessionOpenedEmailHtml({
+            studentName: student.name,
+            sessionLabel: session.label,
+            accessCode: session.accessCode,
+            accessUrl,
+            componentCode,
+            classCode: cls.classCode,
+          });
+          sendEmail({
+            to: student.email,
+            subject: `Avaliação Tutorial - ${session.label} (Código: ${session.accessCode})`,
+            text: `Olá ${student.name}, a sessão ${session.label} foi aberta. Use o código ${session.accessCode} para acessar o formulário de avaliação.`,
+            html,
+          }).catch(err => console.error(`[Email] Failed to send to ${student.email}:`, err));
+          emailsSent++;
+        }
+      }
+      console.log(`[Sessions] Resent emails for session ${input.sessionId}, ${emailsSent} emails queued`);
+      return { emailsSent };
     }),
   }),
 

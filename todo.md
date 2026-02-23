@@ -320,3 +320,6 @@
 - [x] Bloquear avaliação tutorial enquanto sessão estiver Aberta (forçar fechar antes)
 - [x] Confirmação visual ao fechar/reabrir sessão com resumo do impacto
 - [x] Envio de e-mail aos alunos com código e link ao abrir sessão (gerar código)
+- [x] Toast informativo após gerar código indicando quantos e-mails foram enviados
+- [x] Botão de reenvio manual de e-mails para alunos na sessão aberta
+- [x] Barra de progresso de avaliações na lista de sessões (ex: "8/12 avaliaram")
