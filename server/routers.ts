@@ -809,7 +809,7 @@ export const appRouter = router({
               subject: `Avaliação Tutorial - ${session.label} (Código: ${code})`,
               text: `Olá ${student.name}, a sessão ${session.label} foi aberta. Use o código ${code} para acessar o formulário de avaliação.`,
               html,
-            }).catch(err => console.error(`[Email] Failed to send to ${student.email}:`, err));
+            }).catch(err => console.error(`[Email] Failed to send to ${student.email}:`, err)); // notificação ao admin gerada automaticamente pelo sendEmail
             emailsSent++;
           }
         }
@@ -857,7 +857,7 @@ export const appRouter = router({
             subject: `Avaliação Tutorial - ${session.label} (Código: ${session.accessCode})`,
             text: `Olá ${student.name}, a sessão ${session.label} foi aberta. Use o código ${session.accessCode} para acessar o formulário de avaliação.`,
             html,
-          }).catch(err => console.error(`[Email] Failed to send to ${student.email}:`, err));
+          }).catch(err => console.error(`[Email] Failed to send to ${student.email}:`, err)); // notificação ao admin gerada automaticamente pelo sendEmail
           emailsSent++;
         }
       }

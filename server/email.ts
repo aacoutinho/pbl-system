@@ -1,5 +1,34 @@
 import nodemailer from "nodemailer";
-import { getActiveSmtpConfig } from "./db";
+import { getActiveSmtpConfig, getAdmin, createNotification } from "./db";
+
+/**
+ * Notifica o administrador sobre falha no envio de e-mail.
+ * Chamada internamente — nunca lança exceção para não interromper o fluxo principal.
+ */
+async function notifyAdminEmailFailure(options: {
+  to: string;
+  subject: string;
+  error: string;
+}) {
+  try {
+    const admin = await getAdmin();
+    if (!admin) return;
+    await createNotification({
+      userId: admin.id,
+      type: "email_error",
+      title: "Falha no Envio de E-mail",
+      message: `Erro ao enviar e-mail para ${options.to} (assunto: "${options.subject}"): ${options.error}`,
+      metadata: JSON.stringify({
+        recipient: options.to,
+        subject: options.subject,
+        error: options.error,
+        occurredAt: new Date().toISOString(),
+      }),
+    });
+  } catch (notifErr) {
+    console.error("[Email] Failed to create admin notification for email error:", notifErr);
+  }
+}
 
 export async function sendEmail(options: {
   to: string;
@@ -9,7 +38,9 @@ export async function sendEmail(options: {
 }): Promise<{ success: boolean; error?: string }> {
   const config = await getActiveSmtpConfig();
   if (!config) {
-    return { success: false, error: "SMTP não configurado. O coordenador precisa configurar as credenciais de e-mail." };
+    const error = "SMTP não configurado. O coordenador precisa configurar as credenciais de e-mail.";
+    await notifyAdminEmailFailure({ to: options.to, subject: options.subject, error });
+    return { success: false, error };
   }
 
   try {
@@ -33,8 +64,10 @@ export async function sendEmail(options: {
 
     return { success: true };
   } catch (err: any) {
-    console.error("[Email] Failed to send:", err.message);
-    return { success: false, error: err.message || "Erro ao enviar e-mail" };
+    const errorMsg = err.message || "Erro ao enviar e-mail";
+    console.error("[Email] Failed to send:", errorMsg);
+    await notifyAdminEmailFailure({ to: options.to, subject: options.subject, error: errorMsg });
+    return { success: false, error: errorMsg };
   }
 }
 

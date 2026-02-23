@@ -353,3 +353,6 @@
 - [x] Adicionar tabela passwordResetCodes ao BACKUP_TABLES
 - [x] Atualizar testes de backup para refletir todas as 19 tabelas do schema
 - [x] Bug: Na aba Alunos, "Matrícula" aparece como "Matr\u00edcula" (escape Unicode não resolvido) - corrigido em todos os arquivos
+- [x] Gerar notificação ao administrador quando qualquer envio de e-mail falhar
+- [x] Incluir detalhes do erro (destinatário, assunto, mensagem de erro) na notificação
+- [x] Testes unitários para notificação de falha de e-mail
