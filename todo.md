@@ -347,3 +347,8 @@
 - [x] Aviso de que "Finalizar Avaliação" encerra a sessão automaticamente
 - [x] Separar botões "Salvar Rascunho" e "Finalizar Avaliação" no formulário do professor
 - [x] Testes unitários para sistema de rascunho (38 novos testes, 523 testes totais passando)
+- [x] Verificar compatibilidade do backup/restauração com últimas modificações no schema
+- [x] Adicionar tabela tutorialEvalDrafts ao BACKUP_TABLES
+- [x] Adicionar tabela emailVerificationCodes ao BACKUP_TABLES
+- [x] Adicionar tabela passwordResetCodes ao BACKUP_TABLES
+- [x] Atualizar testes de backup para refletir todas as 19 tabelas do schema

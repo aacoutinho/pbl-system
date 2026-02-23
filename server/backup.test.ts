@@ -45,15 +45,18 @@ describe("Backup table coverage", () => {
     "evaluations",
     "evaluationItems",
     "tutorialEvaluations",
+    "tutorialEvalDrafts",
     "classEvalPermissions",
+    "emailVerificationCodes",
+    "passwordResetCodes",
     "smtpConfig",
     "auditLogs",
     "notifications",
     "contactTickets",
   ];
 
-  it("backup includes all 16 expected tables", () => {
-    expect(EXPECTED_TABLES).toHaveLength(16);
+  it("backup includes all 19 expected tables", () => {
+    expect(EXPECTED_TABLES).toHaveLength(19);
   });
 
   it("all table names are unique", () => {
@@ -61,9 +64,13 @@ describe("Backup table coverage", () => {
     expect(unique.size).toBe(EXPECTED_TABLES.length);
   });
 
-  it("excludes temporary tables (emailVerificationCodes, passwordResetCodes)", () => {
-    expect(EXPECTED_TABLES).not.toContain("emailVerificationCodes");
-    expect(EXPECTED_TABLES).not.toContain("passwordResetCodes");
+  it("includes verification and password reset tables", () => {
+    expect(EXPECTED_TABLES).toContain("emailVerificationCodes");
+    expect(EXPECTED_TABLES).toContain("passwordResetCodes");
+  });
+
+  it("includes tutorial eval drafts table", () => {
+    expect(EXPECTED_TABLES).toContain("tutorialEvalDrafts");
   });
 
   it("includes core data tables", () => {
@@ -109,7 +116,10 @@ describe("Import order validation", () => {
     "evaluations",
     "evaluationItems",
     "tutorialEvaluations",
+    "tutorialEvalDrafts",
     "classEvalPermissions",
+    "emailVerificationCodes",
+    "passwordResetCodes",
     "smtpConfig",
     "auditLogs",
     "notifications",
@@ -162,6 +172,30 @@ describe("Import order validation", () => {
     const usersIdx = IMPORT_ORDER.indexOf("users");
     const notifIdx = IMPORT_ORDER.indexOf("notifications");
     expect(usersIdx).toBeLessThan(notifIdx);
+  });
+
+  it("tutorialEvaluations are imported before tutorialEvalDrafts", () => {
+    const evalIdx = IMPORT_ORDER.indexOf("tutorialEvaluations");
+    const draftIdx = IMPORT_ORDER.indexOf("tutorialEvalDrafts");
+    expect(evalIdx).toBeLessThan(draftIdx);
+  });
+
+  it("sessions are imported before tutorialEvaluations", () => {
+    const sessIdx = IMPORT_ORDER.indexOf("sessions");
+    const tutIdx = IMPORT_ORDER.indexOf("tutorialEvaluations");
+    expect(sessIdx).toBeLessThan(tutIdx);
+  });
+
+  it("users are imported before emailVerificationCodes", () => {
+    const usersIdx = IMPORT_ORDER.indexOf("users");
+    const evcIdx = IMPORT_ORDER.indexOf("emailVerificationCodes");
+    expect(usersIdx).toBeLessThan(evcIdx);
+  });
+
+  it("users are imported before passwordResetCodes", () => {
+    const usersIdx = IMPORT_ORDER.indexOf("users");
+    const prcIdx = IMPORT_ORDER.indexOf("passwordResetCodes");
+    expect(usersIdx).toBeLessThan(prcIdx);
   });
 });
 
@@ -229,7 +263,10 @@ describe("Clear order validation", () => {
     "evaluations",
     "evaluationItems",
     "tutorialEvaluations",
+    "tutorialEvalDrafts",
     "classEvalPermissions",
+    "emailVerificationCodes",
+    "passwordResetCodes",
     "smtpConfig",
     "auditLogs",
     "notifications",
@@ -272,6 +309,24 @@ describe("Clear order validation", () => {
     const usersIdx = CLEAR_ORDER.indexOf("users");
     expect(pcIdx).toBeLessThan(usersIdx);
   });
+
+  it("tutorialEvalDrafts are cleared before tutorialEvaluations", () => {
+    const draftIdx = CLEAR_ORDER.indexOf("tutorialEvalDrafts");
+    const evalIdx = CLEAR_ORDER.indexOf("tutorialEvaluations");
+    expect(draftIdx).toBeLessThan(evalIdx);
+  });
+
+  it("passwordResetCodes are cleared before users", () => {
+    const prcIdx = CLEAR_ORDER.indexOf("passwordResetCodes");
+    const usersIdx = CLEAR_ORDER.indexOf("users");
+    expect(prcIdx).toBeLessThan(usersIdx);
+  });
+
+  it("emailVerificationCodes are cleared before users", () => {
+    const evcIdx = CLEAR_ORDER.indexOf("emailVerificationCodes");
+    const usersIdx = CLEAR_ORDER.indexOf("users");
+    expect(evcIdx).toBeLessThan(usersIdx);
+  });
 });
 
 // ─── Test table label mapping ───
@@ -288,15 +343,18 @@ describe("Table label mapping", () => {
     evaluations: "Avaliações",
     evaluationItems: "Itens de Avaliação",
     tutorialEvaluations: "Avaliações Tutoriais",
+    tutorialEvalDrafts: "Rascunhos de Avaliação Tutorial",
     classEvalPermissions: "Permissões de Avaliação",
+    emailVerificationCodes: "Códigos de Verificação de E-mail",
+    passwordResetCodes: "Códigos de Recuperação de Senha",
     smtpConfig: "Configuração SMTP",
     auditLogs: "Histórico de Ações",
     notifications: "Notificações",
     contactTickets: "Tickets de Contato",
   };
 
-  it("has labels for all 16 backup tables", () => {
-    expect(Object.keys(TABLE_LABELS)).toHaveLength(16);
+  it("has labels for all 19 backup tables", () => {
+    expect(Object.keys(TABLE_LABELS)).toHaveLength(19);
   });
 
   it("all labels are non-empty strings in Portuguese", () => {
@@ -312,6 +370,18 @@ describe("Table label mapping", () => {
 
   it("evaluationItems table is labeled as Itens de Avaliação", () => {
     expect(TABLE_LABELS.evaluationItems).toBe("Itens de Avaliação");
+  });
+
+  it("tutorialEvalDrafts table is labeled correctly", () => {
+    expect(TABLE_LABELS.tutorialEvalDrafts).toBe("Rascunhos de Avaliação Tutorial");
+  });
+
+  it("emailVerificationCodes table is labeled correctly", () => {
+    expect(TABLE_LABELS.emailVerificationCodes).toBe("Códigos de Verificação de E-mail");
+  });
+
+  it("passwordResetCodes table is labeled correctly", () => {
+    expect(TABLE_LABELS.passwordResetCodes).toBe("Códigos de Recuperação de Senha");
   });
 });
 
@@ -347,11 +417,11 @@ describe("Backup audit log entries", () => {
   it("database_export action includes exportedAt and tableCount", () => {
     const details = JSON.stringify({
       exportedAt: "2025-06-15T10:30:00.000Z",
-      tableCount: 16,
+      tableCount: 19,
     });
     const parsed = JSON.parse(details);
     expect(parsed.exportedAt).toBeDefined();
-    expect(parsed.tableCount).toBe(16);
+    expect(parsed.tableCount).toBe(19);
   });
 
   it("database_import action includes import details", () => {
@@ -359,14 +429,14 @@ describe("Backup audit log entries", () => {
       importedAt: "2025-06-15T11:00:00.000Z",
       originalExportedAt: "2025-06-15T10:30:00.000Z",
       clearFirst: true,
-      tablesImported: 12,
+      tablesImported: 15,
       rowsImported: 450,
     });
     const parsed = JSON.parse(details);
     expect(parsed.importedAt).toBeDefined();
     expect(parsed.originalExportedAt).toBeDefined();
     expect(parsed.clearFirst).toBe(true);
-    expect(parsed.tablesImported).toBe(12);
+    expect(parsed.tablesImported).toBe(15);
     expect(parsed.rowsImported).toBe(450);
   });
 
@@ -445,6 +515,25 @@ describe("Backup JSON serialization", () => {
     const restored = JSON.parse(json);
     expect(typeof restored.createdAt).toBe("string");
     expect(new Date(restored.createdAt).getTime()).toBe(date.getTime());
+  });
+
+  it("handles tutorialEvalDrafts serialization", () => {
+    const draft = {
+      id: 1,
+      sessionId: 5,
+      professorUserId: 2,
+      organizacao: "0.75",
+      cooperacao: "0.50",
+      conteudo: "1.00",
+      objetivo: "0.25",
+      metas: "0.50",
+      savedAt: "2026-02-23T10:30:00.000Z",
+    };
+    const json = JSON.stringify(draft);
+    const restored = JSON.parse(json);
+    expect(restored.organizacao).toBe("0.75");
+    expect(restored.sessionId).toBe(5);
+    expect(restored.professorUserId).toBe(2);
   });
 });
 
@@ -540,5 +629,81 @@ describe("Backup file naming", () => {
     const nameWithoutExt = filename.replace(".json", "");
     expect(nameWithoutExt).not.toContain(":");
     expect(nameWithoutExt).not.toContain(".");
+  });
+});
+
+// ─── Test schema-backup alignment ───
+describe("Schema-backup alignment", () => {
+  const SCHEMA_TABLES = [
+    "users",
+    "components",
+    "professorComponents",
+    "classes",
+    "students",
+    "classStudents",
+    "sessions",
+    "sessionStudents",
+    "evaluations",
+    "evaluationItems",
+    "tutorialEvaluations",
+    "tutorialEvalDrafts",
+    "classEvalPermissions",
+    "emailVerificationCodes",
+    "passwordResetCodes",
+    "smtpConfig",
+    "auditLogs",
+    "notifications",
+    "contactTickets",
+  ];
+
+  const BACKUP_TABLES = [
+    "users",
+    "components",
+    "professorComponents",
+    "classes",
+    "students",
+    "classStudents",
+    "sessions",
+    "sessionStudents",
+    "evaluations",
+    "evaluationItems",
+    "tutorialEvaluations",
+    "tutorialEvalDrafts",
+    "classEvalPermissions",
+    "emailVerificationCodes",
+    "passwordResetCodes",
+    "smtpConfig",
+    "auditLogs",
+    "notifications",
+    "contactTickets",
+  ];
+
+  it("schema and backup have the same number of tables (19)", () => {
+    expect(SCHEMA_TABLES).toHaveLength(19);
+    expect(BACKUP_TABLES).toHaveLength(19);
+  });
+
+  it("every schema table is included in backup", () => {
+    SCHEMA_TABLES.forEach(table => {
+      expect(BACKUP_TABLES).toContain(table);
+    });
+  });
+
+  it("every backup table exists in schema", () => {
+    BACKUP_TABLES.forEach(table => {
+      expect(SCHEMA_TABLES).toContain(table);
+    });
+  });
+
+  it("no orphan tables in backup (backup is subset of schema)", () => {
+    const schemaSet = new Set(SCHEMA_TABLES);
+    const orphans = BACKUP_TABLES.filter(t => !schemaSet.has(t));
+    expect(orphans).toHaveLength(0);
+  });
+
+  it("no missing tables in backup (schema is subset of backup)", () => {
+    const backupSet = new Set(BACKUP_TABLES);
+    const missing = SCHEMA_TABLES.filter(t => !backupSet.has(t));
+    expect(missing).toHaveLength(0);
   });
 });

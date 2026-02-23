@@ -29,7 +29,10 @@ const TABLE_LABELS: Record<string, string> = {
   evaluations: "Avaliações",
   evaluationItems: "Itens de Avaliação",
   tutorialEvaluations: "Avaliações Tutoriais",
+  tutorialEvalDrafts: "Rascunhos de Avaliação Tutorial",
   classEvalPermissions: "Permissões de Avaliação",
+  emailVerificationCodes: "Códigos de Verificação de E-mail",
+  passwordResetCodes: "Códigos de Recuperação de Senha",
   smtpConfig: "Configuração SMTP",
   auditLogs: "Histórico de Ações",
   notifications: "Notificações",
@@ -241,7 +244,7 @@ export default function BackupPage() {
               <div className="flex items-start gap-2 mb-4 p-3 rounded-lg bg-blue-50 border border-blue-200">
                 <Info className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
                 <p className="text-xs text-blue-700">
-                  O backup inclui todas as tabelas do sistema: usuários, componentes, turmas, alunos, sessões, avaliações, permissões, notificações e configurações. Códigos de verificação e reset de senha são excluídos por segurança.
+                  O backup inclui todas as 19 tabelas do sistema: usuários, componentes, turmas, alunos, sessões, avaliações (incluindo rascunhos), permissões, códigos de verificação, notificações e configurações.
                 </p>
               </div>
               <Button
