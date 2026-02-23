@@ -17,20 +17,20 @@ import { useAuth } from "@/_core/hooks/useAuth";
 
 // Rótulos descritivos com valores numéricos correspondentes
 const LABELS = [
-  { label: "Nenhuma", value: 0 },
-  { label: "Fraca", value: 0.25 },
-  { label: "Razoável", value: 0.5 },
-  { label: "Boa", value: 0.75 },
-  { label: "Excelente", value: 1.0 },
+  { label: "Vixe, nada", value: 0 },
+  { label: "Paia", value: 0.25 },
+  { label: "Na estica", value: 0.5 },
+  { label: "Massa", value: 0.75 },
+  { label: "Brocou", value: 1.0 },
 ] as const;
 
 // Variantes femininas para critérios que usam "Fraco" em vez de "Fraca"
 const LABELS_MASC = [
-  { label: "Nenhum", value: 0 },
-  { label: "Fraco", value: 0.25 },
-  { label: "Razoável", value: 0.5 },
-  { label: "Bom", value: 0.75 },
-  { label: "Excelente", value: 1.0 },
+  { label: "Vixe, nada", value: 0 },
+  { label: "Paia", value: 0.25 },
+  { label: "Na estica", value: 0.5 },
+  { label: "Massa", value: 0.75 },
+  { label: "Brocou", value: 1.0 },
 ] as const;
 
 function getLabelForValue(value: number, gender: "fem" | "masc"): string {
@@ -375,7 +375,7 @@ function TutorialEvalContent() {
                 <div>
                   <p className="font-medium">Escala de avaliação:</p>
                   <p className="mt-1">
-                    Nenhuma/Nenhum = 0 &middot; Fraca/Fraco = 0.25 &middot; Razoável = 0.5 &middot; Boa/Bom = 0.75 &middot; Excelente = 1.0
+                    Vixe, nada = 0 &middot; Paia = 0.25 &middot; Na estica = 0.5 &middot; Massa = 0.75 &middot; Brocou = 1.0
                   </p>
                 </div>
               </div>

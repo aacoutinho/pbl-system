@@ -297,3 +297,4 @@
 - [x] Adicionar tooltips explicativos em cada critério do formulário de avaliação dos alunos
 - [x] Apagar avaliações existentes do banco de dados
 - [x] Alterar conceito "Normal" para "Razoável" em todos os formulários de avaliação (professor e aluno)
+- [x] Substituir conceitos para versão bahianesa: Vixe nada, Paia, Na estica, Massa, Brocou

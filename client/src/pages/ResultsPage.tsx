@@ -17,11 +17,11 @@ import React from "react";
 // Converte valor numérico para rótulo descritivo
 function valueToLabel(value: number, gender: "fem" | "masc"): string {
   const labelsMap: Record<string, { fem: string; masc: string }> = {
-    "0": { fem: "Nenhuma", masc: "Nenhum" },
-    "0.25": { fem: "Fraca", masc: "Fraco" },
-    "0.5": { fem: "Razoável", masc: "Razoável" },
-    "0.75": { fem: "Boa", masc: "Bom" },
-    "1": { fem: "Excelente", masc: "Excelente" },
+    "0": { fem: "Vixe, nada", masc: "Vixe, nada" },
+    "0.25": { fem: "Paia", masc: "Paia" },
+    "0.5": { fem: "Na estica", masc: "Na estica" },
+    "0.75": { fem: "Massa", masc: "Massa" },
+    "1": { fem: "Brocou", masc: "Brocou" },
   };
   const key = String(value);
   const match = labelsMap[key];

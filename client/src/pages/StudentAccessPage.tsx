@@ -478,19 +478,19 @@ function EvaluationForm({ accessCode, studentInfo, sessionInfo, studentEmail, on
 }
 
 const SCORE_LABELS: Record<string, string> = {
-  "0.00": "Nenhum",
-  "0.25": "Fraco",
-  "0.50": "Razoável",
-  "0.75": "Bom",
-  "1.00": "Excelente",
+  "0.00": "Vixe, nada",
+  "0.25": "Paia",
+  "0.50": "Na estica",
+  "0.75": "Massa",
+  "1.00": "Brocou",
 };
 
 const PENALTY_LABELS: Record<string, string> = {
-  "0.00": "Sem penalidade",
-  "0.25": "Leve",
-  "0.50": "Moderada",
-  "0.75": "Grave",
-  "1.00": "Máxima",
+  "0.00": "De boa",
+  "0.25": "Vacilou",
+  "0.50": "Pisou na bola",
+  "0.75": "Mancou feio",
+  "1.00": "Lascou tudo",
 };
 
 function getScoreLabel(value: number, penalty?: boolean): string {
