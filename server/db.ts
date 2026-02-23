@@ -772,6 +772,7 @@ export async function getSessionStudents(sessionId: number) {
     studentName: students.name,
     studentEmail: students.email,
     studentEnrollment: students.enrollment,
+    studentPhotoUrl: students.photoUrl,
   })
     .from(sessionStudents)
     .innerJoin(students, eq(sessionStudents.studentId, students.id))

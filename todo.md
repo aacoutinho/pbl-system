@@ -363,3 +363,6 @@
 - [x] Substituir termos bahianos por notas numéricas (0.0, 0.25, 0.5, 0.75, 1.0)
 - [x] Remover componente BahiaGlossary e suas referências
 - [x] Atualizar testes relacionados ao BahiaGlossary (removidos 6 testes)
+- [x] Verificar/corrigir exports PDF/Excel para usar notas numéricas em vez de termos bahianos (já estavam corretos)
+- [x] Adicionar foto do aluno ao lado do nome nos formulários de avaliação de pares (StudentAccessPage e EvaluationPreview)
+- [x] Implementar cores graduais nos valores numéricos (vermelho 0.0, amarelo 0.5, verde 1.0)

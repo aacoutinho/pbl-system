@@ -372,7 +372,7 @@ function ResultsContent() {
                             <tr key={c.label} className="border-b border-blue-100">
                               <td className="py-1.5 pr-4">{c.label}</td>
                               <td className="py-1.5 pr-4 text-center">×{c.weight}</td>
-                              <td className="py-1.5 text-center font-medium">{valueToLabel(c.value, c.gender)}</td>
+                              <td className={`py-1.5 text-center font-medium ${c.value <= 0 ? "text-red-600" : c.value <= 0.25 ? "text-orange-600" : c.value <= 0.5 ? "text-amber-600" : c.value <= 0.75 ? "text-lime-600" : "text-emerald-600"}`}>{valueToLabel(c.value, c.gender)}</td>
                             </tr>
                           ))}
                           <tr className="font-semibold">

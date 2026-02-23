@@ -70,22 +70,22 @@ function PreviewCriteriaSlider({ label, sublabel, tooltip, value, penalty, gende
         disabled
         className="w-full opacity-70"
       />
-      <div className="flex justify-between text-xs text-muted-foreground">
+      <div className="flex justify-between text-xs font-medium">
         {penalty ? (
           <>
-            <span>0.0</span>
-            <span>0.25</span>
-            <span>0.5</span>
-            <span>0.75</span>
-            <span>1.0</span>
+            <span className="text-emerald-600">0.0</span>
+            <span className="text-lime-600">0.25</span>
+            <span className="text-amber-500">0.5</span>
+            <span className="text-orange-600">0.75</span>
+            <span className="text-red-600">1.0</span>
           </>
         ) : (
           <>
-            <span>0.0</span>
-            <span>0.25</span>
-            <span>0.5</span>
-            <span>0.75</span>
-            <span>1.0</span>
+            <span className="text-red-600">0.0</span>
+            <span className="text-orange-500">0.25</span>
+            <span className="text-amber-500">0.5</span>
+            <span className="text-lime-600">0.75</span>
+            <span className="text-emerald-600">1.0</span>
           </>
         )}
       </div>
@@ -144,7 +144,10 @@ export function EvaluationPreviewDialog({ open, onOpenChange }: { open: boolean;
           <Card className={`transition-all ${demoAbsent ? "opacity-60 bg-muted/30" : ""}`}>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <div>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center border-2 border-muted shrink-0">
+                    <span className="text-sm font-medium text-muted-foreground">A</span>
+                  </div>
                   <CardTitle className="text-base">Aluno Exemplo da Silva</CardTitle>
                 </div>
                 <div className="flex items-center gap-3">

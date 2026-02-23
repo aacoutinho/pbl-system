@@ -566,15 +566,19 @@ function TutorialEvalContent() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {CRITERIA.map(c => (
-                <div key={c.key} className="p-3 rounded-lg bg-accent/20 border">
-                  <p className="text-xs text-muted-foreground font-medium">{c.label} (peso {c.weight})</p>
-                  <p className="text-lg font-bold mt-1">
-                    {getLabelForValue(Number((existingEval as any)[c.key]), c.gender)}
-                    <span className="text-sm font-normal text-muted-foreground ml-1">({Number((existingEval as any)[c.key]).toFixed(2)})</span>
-                  </p>
-                </div>
-              ))}
+              {CRITERIA.map(c => {
+                const val = Number((existingEval as any)[c.key]);
+                const gradeTextColor = val <= 0 ? "text-red-600" : val <= 0.25 ? "text-orange-600" : val <= 0.5 ? "text-amber-600" : val <= 0.75 ? "text-lime-600" : "text-emerald-600";
+                return (
+                  <div key={c.key} className="p-3 rounded-lg bg-accent/20 border">
+                    <p className="text-xs text-muted-foreground font-medium">{c.label} (peso {c.weight})</p>
+                    <p className="text-lg font-bold mt-1">
+                      <span className={gradeTextColor}>{getLabelForValue(val, c.gender)}</span>
+                      <span className="text-sm font-normal text-muted-foreground ml-1">({val.toFixed(2)})</span>
+                    </p>
+                  </div>
+                );
+              })}
             </div>
             <div className="mt-4 p-4 rounded-lg bg-accent/30 border">
               <p className="text-sm font-medium text-muted-foreground">Nota do Tutorial</p>
@@ -618,22 +622,34 @@ function CriterionSelector({ label, weight, gender, description, value, onChange
       </div>
       <p className="text-sm text-muted-foreground">{description}</p>
       <div className="flex gap-2 flex-wrap">
-        {labels.map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => onChange(opt.value)}
-            className={cn(
-              "px-4 py-2 rounded-lg text-sm font-medium border transition-all",
-              "hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
-              Math.abs(value - opt.value) < 0.01
-                ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                : "bg-background text-foreground border-border hover:bg-accent hover:text-accent-foreground"
-            )}
-          >
-            {opt.label}
-          </button>
-        ))}
+        {labels.map((opt) => {
+          const gradeColor = opt.value <= 0 ? "border-red-400 hover:bg-red-50" 
+            : opt.value <= 0.25 ? "border-orange-400 hover:bg-orange-50" 
+            : opt.value <= 0.5 ? "border-amber-400 hover:bg-amber-50" 
+            : opt.value <= 0.75 ? "border-lime-400 hover:bg-lime-50" 
+            : "border-emerald-400 hover:bg-emerald-50";
+          const selectedColor = opt.value <= 0 ? "bg-red-500 text-white border-red-500" 
+            : opt.value <= 0.25 ? "bg-orange-500 text-white border-orange-500" 
+            : opt.value <= 0.5 ? "bg-amber-500 text-white border-amber-500" 
+            : opt.value <= 0.75 ? "bg-lime-600 text-white border-lime-600" 
+            : "bg-emerald-600 text-white border-emerald-600";
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => onChange(opt.value)}
+              className={cn(
+                "px-4 py-2 rounded-lg text-sm font-medium border transition-all",
+                "hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
+                Math.abs(value - opt.value) < 0.01
+                  ? `${selectedColor} shadow-sm`
+                  : `bg-background text-foreground ${gradeColor}`
+              )}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

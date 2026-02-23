@@ -413,7 +413,14 @@ function EvaluationForm({ accessCode, studentInfo, sessionInfo, studentEmail, st
           <Card key={peer.studentId} className={`transition-all ${ev.absent ? "opacity-60 bg-muted/30" : ""}`}>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <div>
+                <div className="flex items-center gap-3">
+                  {peer.studentPhotoUrl ? (
+                    <img src={peer.studentPhotoUrl} alt="" className="w-10 h-10 rounded-full object-cover border-2 border-muted shrink-0" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center border-2 border-muted shrink-0">
+                      <span className="text-sm font-medium text-muted-foreground">{peer.studentName.charAt(0).toUpperCase()}</span>
+                    </div>
+                  )}
                   <CardTitle className="text-base">{peer.studentName}</CardTitle>
                 </div>
                 <div className="flex items-center gap-3">
@@ -761,22 +768,22 @@ function CriteriaSlider({ label, sublabel, tooltip, value, onChange, penalty, ge
         onValueChange={([v]) => onChange(v)}
         className="w-full"
       />
-      <div className="flex justify-between text-xs text-muted-foreground">
+      <div className="flex justify-between text-xs font-medium">
         {penalty ? (
           <>
-            <span>0.0</span>
-            <span>0.25</span>
-            <span>0.5</span>
-            <span>0.75</span>
-            <span>1.0</span>
+            <span className="text-emerald-600">0.0</span>
+            <span className="text-lime-600">0.25</span>
+            <span className="text-amber-500">0.5</span>
+            <span className="text-orange-600">0.75</span>
+            <span className="text-red-600">1.0</span>
           </>
         ) : (
           <>
-            <span>0.0</span>
-            <span>0.25</span>
-            <span>0.5</span>
-            <span>0.75</span>
-            <span>1.0</span>
+            <span className="text-red-600">0.0</span>
+            <span className="text-orange-500">0.25</span>
+            <span className="text-amber-500">0.5</span>
+            <span className="text-lime-600">0.75</span>
+            <span className="text-emerald-600">1.0</span>
           </>
         )}
       </div>
