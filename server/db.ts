@@ -20,6 +20,7 @@ import {
   auditLogs,
   notifications,
   contactTickets,
+  professorStudentNotes,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -2235,6 +2236,7 @@ const BACKUP_TABLES = [
   { name: "auditLogs", table: auditLogs },
   { name: "notifications", table: notifications },
   { name: "contactTickets", table: contactTickets },
+  { name: "professorStudentNotes", table: professorStudentNotes },
 ] as const;
 
 // Tables to clear in reverse order (children first, parents last) to avoid FK issues
@@ -2349,4 +2351,88 @@ export async function getBackupStats(): Promise<Record<string, number>> {
     stats[name] = row?.count ?? 0;
   }
   return stats;
+}
+
+// ─── Professor Student Notes helpers ───
+export async function upsertProfessorStudentNote(data: {
+  sessionId: number;
+  studentId: number;
+  professorUserId: number;
+  positivePoints: number;
+  negativePoints: number;
+  notes: string | null;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+
+  // Check if note already exists
+  const [existing] = await db.select().from(professorStudentNotes)
+    .where(and(
+      eq(professorStudentNotes.sessionId, data.sessionId),
+      eq(professorStudentNotes.studentId, data.studentId),
+      eq(professorStudentNotes.professorUserId, data.professorUserId),
+    )).limit(1);
+
+  if (existing) {
+    await db.update(professorStudentNotes)
+      .set({
+        positivePoints: data.positivePoints,
+        negativePoints: data.negativePoints,
+        notes: data.notes,
+      })
+      .where(eq(professorStudentNotes.id, existing.id));
+    return { ...existing, ...data };
+  } else {
+    const [result] = await db.insert(professorStudentNotes).values(data).$returningId();
+    return { id: result.id, ...data };
+  }
+}
+
+export async function getProfessorStudentNotes(sessionId: number, professorUserId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(professorStudentNotes)
+    .where(and(
+      eq(professorStudentNotes.sessionId, sessionId),
+      eq(professorStudentNotes.professorUserId, professorUserId),
+    ));
+}
+
+export async function bulkUpsertProfessorStudentNotes(notes: Array<{
+  sessionId: number;
+  studentId: number;
+  professorUserId: number;
+  positivePoints: number;
+  negativePoints: number;
+  notes: string | null;
+}>) {
+  const results = [];
+  for (const note of notes) {
+    results.push(await upsertProfessorStudentNote(note));
+  }
+  return results;
+}
+
+// ─── Get next session number for a class ───
+export async function getNextSessionInfo(classId: number) {
+  const db = await getDb();
+  if (!db) return { nextProblemNumber: 1, nextSessionNumber: 1, lastProblemNumber: 0 };
+
+  const existingSessions = await db.select({
+    problemNumber: sessions.problemNumber,
+    sessionNumber: sessions.sessionNumber,
+  }).from(sessions)
+    .where(eq(sessions.classId, classId))
+    .orderBy(sessions.problemNumber, sessions.sessionNumber);
+
+  if (existingSessions.length === 0) {
+    return { nextProblemNumber: 1, nextSessionNumber: 1, lastProblemNumber: 0 };
+  }
+
+  const lastSession = existingSessions[existingSessions.length - 1];
+  return {
+    nextProblemNumber: lastSession.problemNumber,
+    nextSessionNumber: lastSession.sessionNumber + 1,
+    lastProblemNumber: lastSession.problemNumber,
+  };
 }

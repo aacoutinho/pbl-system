@@ -41,9 +41,11 @@ import {
   createContactTicket, listContactTickets, listMyContactTickets, resolveContactTicket, getContactTicketById, countOpenContactTickets,
   exportDatabase, importDatabase, getBackupStats, rebuildDatabase,
   type BackupData,
+  bulkUpsertProfessorStudentNotes, getProfessorStudentNotes,
+  getNextSessionInfo,
 } from "./db";
 import { storagePut } from "./storage";
-import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml, buildContactTicketEmailHtml, buildSessionOpenedEmailHtml } from "./email";
+import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml, buildContactTicketEmailHtml, buildSessionOpenedEmailHtml, buildStudentGradeReportHtml } from "./email";
 
 // Base: approved user (any role except "user" pending)
 const approvedProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -719,18 +721,49 @@ export const appRouter = router({
     get: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
       return getSessionById(input.id);
     }),
+    // Get next session info (auto-numbering)
+    getNextInfo: approvedProcedure.input(z.object({ classId: z.number() })).query(async ({ ctx, input }) => {
+      const cls = await getClassById(input.classId);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);
+      return getNextSessionInfo(input.classId);
+    }),
     // Create session: admin, coordinator of component, or prof who created the class
+    // problemNumber is provided by user (must be >= lastProblemNumber), sessionNumber is auto-calculated
     create: approvedProcedure.input(z.object({
       classId: z.number(),
       problemNumber: z.number().min(1).max(10),
-      sessionNumber: z.number().min(1).max(10),
-      label: z.string().min(1),
       studentIds: z.array(z.number()),
     })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       await assertClassManager(ctx.user.id, ctx.user.role, cls);
-      return createSession(input);
+      // Auto-calculate session number
+      const info = await getNextSessionInfo(input.classId);
+      let sessionNumber: number;
+      if (input.problemNumber === info.nextProblemNumber) {
+        // Same problem: continue sequence
+        sessionNumber = info.nextSessionNumber;
+      } else if (input.problemNumber === info.lastProblemNumber + 1) {
+        // New problem: start at session 1
+        sessionNumber = 1;
+      } else if (info.lastProblemNumber === 0) {
+        // First session ever: must be problem 1
+        if (input.problemNumber !== 1) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "O primeiro problema deve ser o número 1." });
+        }
+        sessionNumber = 1;
+      } else {
+        throw new TRPCError({ code: "BAD_REQUEST", message: `O número do problema deve ser ${info.lastProblemNumber} (continuar) ou ${info.lastProblemNumber + 1} (novo problema).` });
+      }
+      const label = `Problema ${input.problemNumber} - Sessão ${sessionNumber}`;
+      return createSession({
+        classId: input.classId,
+        problemNumber: input.problemNumber,
+        sessionNumber,
+        label,
+        studentIds: input.studentIds,
+      });
     }),
     getStudents: protectedProcedure.input(z.object({ sessionId: z.number() })).query(async ({ input }) => {
       return getSessionStudents(input.sessionId);
@@ -1155,6 +1188,40 @@ export const appRouter = router({
     getDraft: professorProcedure.input(z.object({ sessionId: z.number() })).query(async ({ input }) => {
       const draft = await getTutorialEvalDraft(input.sessionId);
       return draft || null;
+    }),
+    // Save professor's per-student notes (positive/negative points + comments)
+    saveStudentNotes: professorProcedure.input(z.object({
+      sessionId: z.number(),
+      notes: z.array(z.object({
+        studentId: z.number(),
+        positivePoints: z.number().min(0).max(10),
+        negativePoints: z.number().min(0).max(10),
+        notes: z.string().nullable(),
+      })),
+    })).mutation(async ({ ctx, input }) => {
+      if (ctx.user.role === "admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Administradores não avaliam sessões tutoriais" });
+      }
+      const session = await getSessionById(input.sessionId);
+      if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
+      const cls = await getClassById(session.classId);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);
+      await bulkUpsertProfessorStudentNotes(
+        input.notes.map(n => ({
+          sessionId: input.sessionId,
+          studentId: n.studentId,
+          professorUserId: ctx.user.id,
+          positivePoints: n.positivePoints,
+          negativePoints: n.negativePoints,
+          notes: n.notes,
+        }))
+      );
+      return { success: true };
+    }),
+    // Get professor's per-student notes for a session
+    getStudentNotes: professorProcedure.input(z.object({ sessionId: z.number() })).query(async ({ ctx, input }) => {
+      return getProfessorStudentNotes(input.sessionId, ctx.user.id);
     }),
   }),
 
@@ -1664,6 +1731,88 @@ export const appRouter = router({
       await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);
       return listSessionsByClass(input.classId);
     }),
+    // Send grade report emails to all students of a session
+    sendGradeEmails: approvedProcedure.input(z.object({ sessionId: z.number() })).mutation(async ({ ctx, input }) => {
+      const session = await getSessionById(input.sessionId);
+      if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
+
+      const cls = await getClassById(session.classId);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+
+      await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);
+
+      const component = await getComponentById(cls.componentId);
+      if (!component) throw new TRPCError({ code: "NOT_FOUND", message: "Componente não encontrado" });
+
+      const tutorialEval = await getTutorialEvaluation(input.sessionId);
+      if (!tutorialEval) throw new TRPCError({ code: "BAD_REQUEST", message: "A avaliação do tutorial precisa ser finalizada antes de enviar as notas." });
+
+      const finalGrades = await calculateFinalGrades(input.sessionId);
+      const problemFinalGrades = await calculateProblemFinalGrades(session.classId, session.problemNumber);
+
+      const smtpOk = await isSmtpConfigured();
+      if (!smtpOk) throw new TRPCError({ code: "BAD_REQUEST", message: "SMTP não configurado. Configure o servidor de e-mail primeiro." });
+
+      let sent = 0;
+      let failed = 0;
+      const errors: string[] = [];
+
+      for (const student of finalGrades) {
+        if (!student.studentEmail) {
+          failed++;
+          errors.push(`${student.studentName}: sem e-mail cadastrado`);
+          continue;
+        }
+
+        const problemData = problemFinalGrades.find(p => p.studentId === student.studentId);
+        const problemAvg = problemData ? problemData.finalAverage : null;
+
+        const html = buildStudentGradeReportHtml({
+          studentName: student.studentName,
+          componentCode: component.code,
+          componentName: component.name,
+          className: cls.classCode,
+          sessionLabel: session.label,
+          problemNumber: session.problemNumber,
+          tutorialCriteria: {
+            organizacao: Number(tutorialEval.organizacao),
+            cooperacao: Number(tutorialEval.cooperacao),
+            conteudo: Number(tutorialEval.conteudo),
+            objetivo: Number(tutorialEval.objetivo),
+            metas: Number(tutorialEval.metas),
+            tutorialGrade: calculateTutorialGrade(tutorialEval),
+          },
+          peerAverage: student.peerScore > 0 ? student.peerScore : null,
+          finalGrade: student.finalGrade > 0 ? student.finalGrade : null,
+          problemAverage: problemAvg,
+        });
+
+        const subject = `Relatório de Avaliação - ${session.label} - ${component.code}`;
+        const result = await sendEmail({
+          to: student.studentEmail,
+          subject,
+          text: `Relatório de Avaliação Tutorial - ${session.label}. Nota do Tutorial: ${calculateTutorialGrade(tutorialEval).toFixed(1)}/10. Média dos Pares: ${student.peerScore > 0 ? student.peerScore.toFixed(1) : 'Pendente'}. Nota Final: ${student.finalGrade > 0 ? student.finalGrade.toFixed(1) : 'Pendente'}.`,
+          html,
+        });
+
+        if (result.success) {
+          sent++;
+        } else {
+          failed++;
+          errors.push(`${student.studentName}: ${result.error}`);
+        }
+      }
+
+      await createAuditLog({
+        actorUserId: ctx.user.id,
+        action: "send_grade_emails",
+        classId: session.classId,
+        details: JSON.stringify({ sessionId: input.sessionId, sent, failed, total: finalGrades.length }),
+      });
+
+      return { sent, failed, total: finalGrades.length, errors };
+    }),
+
     // Dashboard: scoped by user's accessible components
     dashboard: approvedProcedure.query(async ({ ctx }) => {
       if (ctx.user.role === "admin") {

@@ -155,6 +155,13 @@
       "when": 1771881765750,
       "tag": "0021_sour_squadron_supreme",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "5",
+      "when": 1771887397469,
+      "tag": "0022_cool_hex",
+      "breakpoints": true
     }
   ]
 }

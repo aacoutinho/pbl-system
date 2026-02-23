@@ -422,3 +422,103 @@ export function buildContactTicketEmailHtml(data: {
     </div>
   `;
 }
+
+export function buildStudentGradeReportHtml(data: {
+  studentName: string;
+  componentCode: string;
+  componentName: string;
+  className: string;
+  sessionLabel: string;
+  problemNumber: number;
+  tutorialCriteria: {
+    organizacao: number;
+    cooperacao: number;
+    conteudo: number;
+    objetivo: number;
+    metas: number;
+    tutorialGrade: number;
+  };
+  peerAverage: number | null;
+  finalGrade: number | null;
+  problemAverage: number | null;
+}): string {
+  const gradeColor = (v: number) => v >= 7 ? "#059669" : v >= 5 ? "#d97706" : "#dc2626";
+
+  const criteriaRows = [
+    { label: "Organização", weight: 1, value: data.tutorialCriteria.organizacao },
+    { label: "Cooperação", weight: 1, value: data.tutorialCriteria.cooperacao },
+    { label: "Conteúdo", weight: 3, value: data.tutorialCriteria.conteudo },
+    { label: "Objetivo", weight: 3, value: data.tutorialCriteria.objetivo },
+    { label: "Metas", weight: 2, value: data.tutorialCriteria.metas },
+  ].map(c => `
+    <tr>
+      <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px; color: #374151;">${c.label}</td>
+      <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px; color: #6b7280; text-align: center;">×${c.weight}</td>
+      <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px; font-weight: 600; text-align: center; color: ${gradeColor(c.value * 10)};">${c.value.toFixed(2)}</td>
+    </tr>
+  `).join("");
+
+  const tutorialGrade = data.tutorialCriteria.tutorialGrade;
+  const peerText = data.peerAverage !== null ? data.peerAverage.toFixed(1) : "Pendente";
+  const finalText = data.finalGrade !== null ? data.finalGrade.toFixed(1) : "Pendente";
+  const problemText = data.problemAverage !== null ? data.problemAverage.toFixed(1) : "Pendente";
+
+  return `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden;">
+      <div style="background: linear-gradient(135deg, #1e40af, #3b82f6); padding: 24px 32px; text-align: center;">
+        <h1 style="color: #ffffff; margin: 0; font-size: 20px;">Relatório de Avaliação Tutorial</h1>
+        <p style="color: #dbeafe; margin: 8px 0 0; font-size: 14px;">${data.componentCode} - ${data.componentName}</p>
+      </div>
+      <div style="padding: 24px 32px;">
+        <div style="background: #f8fafc; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+          <p style="margin: 0 0 4px; font-size: 14px; color: #6b7280;">Aluno(a)</p>
+          <p style="margin: 0; font-size: 16px; font-weight: 600; color: #1f2937;">${data.studentName}</p>
+          <p style="margin: 8px 0 0; font-size: 13px; color: #6b7280;">Turma: ${data.className} | ${data.sessionLabel}</p>
+        </div>
+
+        <h3 style="margin: 0 0 12px; font-size: 15px; color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">Avaliação do Tutor sobre o Tutorial</h3>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+          <thead>
+            <tr style="background: #f9fafb;">
+              <th style="padding: 10px 12px; text-align: left; font-size: 13px; color: #6b7280; font-weight: 600;">Critério</th>
+              <th style="padding: 10px 12px; text-align: center; font-size: 13px; color: #6b7280; font-weight: 600;">Peso</th>
+              <th style="padding: 10px 12px; text-align: center; font-size: 13px; color: #6b7280; font-weight: 600;">Nota</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${criteriaRows}
+          </tbody>
+        </table>
+
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 6px 0; font-size: 14px; color: #374151;">Nota do Tutorial (tutor)</td>
+              <td style="padding: 6px 0; font-size: 18px; font-weight: 700; text-align: right; color: ${gradeColor(tutorialGrade)};">${tutorialGrade.toFixed(1)} / 10</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; font-size: 14px; color: #374151;">Média dos Pares</td>
+              <td style="padding: 6px 0; font-size: 18px; font-weight: 700; text-align: right; color: ${data.peerAverage !== null ? gradeColor(data.peerAverage) : '#6b7280'};">${peerText}${data.peerAverage !== null ? ' / 10' : ''}</td>
+            </tr>
+            <tr style="border-top: 2px solid #86efac;">
+              <td style="padding: 10px 0 6px; font-size: 15px; font-weight: 600; color: #1f2937;">Nota Final de Desempenho</td>
+              <td style="padding: 10px 0 6px; font-size: 22px; font-weight: 700; text-align: right; color: ${data.finalGrade !== null ? gradeColor(data.finalGrade) : '#6b7280'};">${finalText}${data.finalGrade !== null ? ' / 10' : ''}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;">
+          <p style="margin: 0; font-size: 14px; color: #1e40af;">
+            <strong>Média do Problema ${data.problemNumber}:</strong>
+            <span style="float: right; font-size: 16px; font-weight: 700; color: ${data.problemAverage !== null ? gradeColor(data.problemAverage) : '#6b7280'};">${problemText}${data.problemAverage !== null ? ' / 10' : ''}</span>
+          </p>
+        </div>
+
+        <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #e5e7eb; text-align: center;">
+          <p style="margin: 0; font-size: 12px; color: #9ca3af;">Este relatório foi gerado automaticamente pelo Sistema de Avaliação Tutorial.</p>
+          <p style="margin: 4px 0 0; font-size: 12px; color: #9ca3af;">Em caso de dúvidas, entre em contato com o professor responsável.</p>
+        </div>
+      </div>
+    </div>
+  `;
+}

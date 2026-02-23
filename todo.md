@@ -366,3 +366,14 @@
 - [x] Verificar/corrigir exports PDF/Excel para usar notas numéricas em vez de termos bahianos (já estavam corretos)
 - [x] Adicionar foto do aluno ao lado do nome nos formulários de avaliação de pares (StudentAccessPage e EvaluationPreview)
 - [x] Implementar cores graduais nos valores numéricos (vermelho 0.0, amarelo 0.5, verde 1.0)
+- [x] Avaliação do professor: adicionar foto do aluno ao lado do nome
+- [x] Avaliação do professor: adicionar barra de pontos positivos (0-10) por aluno
+- [x] Avaliação do professor: adicionar barra de pontos negativos (0-10) por aluno
+- [x] Avaliação do professor: adicionar campo de anotações/comentários privados por aluno (não visível pelo aluno)
+- [x] Schema: criar tabela para armazenar notas individuais e anotações do professor por aluno por sessão
+- [x] Envio de notas por e-mail: relatório individual com avaliação geral do tutor, média dos pares, nota final e média do problema
+- [x] Envio de notas por e-mail: NÃO incluir detalhes das notas individuais dos pares
+- [x] Envio de notas por e-mail: incluir média obtida nos tutoriais do mesmo problema
+- [x] Numeração automática de sessões: sessão sequencial automática (professor não define)
+- [x] Numeração automática de sessões: problema crescente começando em 1
+- [x] Numeração automática de sessões: problema só pode avançar para o próximo (ex: 1→2, não 1→3)

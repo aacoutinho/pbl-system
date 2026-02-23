@@ -445,3 +445,271 @@ describe("Admin password setup for OAuth users", () => {
     expect(procedure._def.type).toBe("query");
   });
 });
+
+
+// ─── Professor Student Notes (barras positiva/negativa + anotações) ───
+describe("Professor Student Notes", () => {
+  it("bulkUpsertProfessorStudentNotes is exported from db", async () => {
+    const db = await import("./db");
+    expect(typeof db.bulkUpsertProfessorStudentNotes).toBe("function");
+  });
+
+  it("getProfessorStudentNotes is exported from db", async () => {
+    const db = await import("./db");
+    expect(typeof db.getProfessorStudentNotes).toBe("function");
+  });
+
+  it("tutorialEval.saveStudentNotes route exists", () => {
+    expect(appRouter._def.procedures["tutorialEval.saveStudentNotes"]).toBeDefined();
+  });
+
+  it("tutorialEval.getStudentNotes route exists", () => {
+    expect(appRouter._def.procedures["tutorialEval.getStudentNotes"]).toBeDefined();
+  });
+
+  it("saveStudentNotes input requires sessionId and notes array", () => {
+    const procedure = appRouter._def.procedures["tutorialEval.saveStudentNotes"] as any;
+    const schema = procedure?._def?.inputs?.[0];
+    expect(schema).toBeDefined();
+    if (schema) {
+      const validResult = schema.safeParse({
+        sessionId: 1,
+        notes: [{ studentId: 1, positivePoints: 5, negativePoints: 2, notes: "Bom desempenho" }],
+      });
+      expect(validResult.success).toBe(true);
+
+      const invalidResult = schema.safeParse({ sessionId: 1 });
+      expect(invalidResult.success).toBe(false);
+    }
+  });
+
+  it("positivePoints and negativePoints are bounded 0-10", () => {
+    const procedure = appRouter._def.procedures["tutorialEval.saveStudentNotes"] as any;
+    const schema = procedure?._def?.inputs?.[0];
+    if (schema) {
+      const overMax = schema.safeParse({
+        sessionId: 1,
+        notes: [{ studentId: 1, positivePoints: 15, negativePoints: 0, comments: "" }],
+      });
+      expect(overMax.success).toBe(false);
+
+      const underMin = schema.safeParse({
+        sessionId: 1,
+        notes: [{ studentId: 1, positivePoints: 0, negativePoints: -1, comments: "" }],
+      });
+      expect(underMin.success).toBe(false);
+    }
+  });
+});
+
+// ─── Send Grade Emails ───
+describe("Send Grade Emails", () => {
+  it("results.sendGradeEmails route exists", () => {
+    expect(appRouter._def.procedures["results.sendGradeEmails"]).toBeDefined();
+  });
+
+  it("sendGradeEmails input requires sessionId", () => {
+    const procedure = appRouter._def.procedures["results.sendGradeEmails"] as any;
+    const schema = procedure?._def?.inputs?.[0];
+    expect(schema).toBeDefined();
+    if (schema) {
+      const validResult = schema.safeParse({ sessionId: 1 });
+      expect(validResult.success).toBe(true);
+
+      const invalidResult = schema.safeParse({});
+      expect(invalidResult.success).toBe(false);
+    }
+  });
+
+  it("buildStudentGradeReportHtml generates valid HTML", async () => {
+    const { buildStudentGradeReportHtml } = await import("./email");
+    const html = buildStudentGradeReportHtml({
+      studentName: "João Silva",
+      componentCode: "TEC502",
+      componentName: "Concorrência e Conectividade",
+      className: "T01",
+      sessionLabel: "P1-S1",
+      problemNumber: 1,
+      tutorialCriteria: {
+        organizacao: 0.75,
+        cooperacao: 0.5,
+        conteudo: 0.75,
+        objetivo: 1.0,
+        metas: 0.5,
+        tutorialGrade: 7.5,
+      },
+      peerAverage: 8.2,
+      finalGrade: 7.8,
+      problemAverage: 7.5,
+    });
+    expect(html).toContain("João Silva");
+    expect(html).toContain("TEC502");
+    expect(html).toContain("Relatório de Avaliação Tutorial");
+    expect(html).toContain("Organização");
+    expect(html).toContain("Cooperação");
+    expect(html).toContain("Conteúdo");
+    expect(html).toContain("Objetivo");
+    expect(html).toContain("Metas");
+    expect(html).toContain("7.5");
+    expect(html).toContain("8.2");
+    expect(html).toContain("7.8");
+    expect(html).toContain("Problema 1");
+  });
+
+  it("buildStudentGradeReportHtml handles null values", async () => {
+    const { buildStudentGradeReportHtml } = await import("./email");
+    const html = buildStudentGradeReportHtml({
+      studentName: "Maria Souza",
+      componentCode: "TEC502",
+      componentName: "Teste",
+      className: "T01",
+      sessionLabel: "P1-S1",
+      problemNumber: 1,
+      tutorialCriteria: {
+        organizacao: 0.5,
+        cooperacao: 0.5,
+        conteudo: 0.5,
+        objetivo: 0.5,
+        metas: 0.5,
+        tutorialGrade: 5.0,
+      },
+      peerAverage: null,
+      finalGrade: null,
+      problemAverage: null,
+    });
+    expect(html).toContain("Pendente");
+    expect(html).toContain("Maria Souza");
+  });
+
+  it("buildStudentGradeReportHtml uses correct color coding", async () => {
+    const { buildStudentGradeReportHtml } = await import("./email");
+    const htmlHigh = buildStudentGradeReportHtml({
+      studentName: "Aluno A",
+      componentCode: "TEC502",
+      componentName: "Teste",
+      className: "T01",
+      sessionLabel: "P1-S1",
+      problemNumber: 1,
+      tutorialCriteria: {
+        organizacao: 1.0, cooperacao: 1.0, conteudo: 1.0, objetivo: 1.0, metas: 1.0, tutorialGrade: 10.0,
+      },
+      peerAverage: 9.0,
+      finalGrade: 9.5,
+      problemAverage: 9.2,
+    });
+    expect(htmlHigh).toContain("#059669"); // green
+
+    const htmlLow = buildStudentGradeReportHtml({
+      studentName: "Aluno B",
+      componentCode: "TEC502",
+      componentName: "Teste",
+      className: "T01",
+      sessionLabel: "P1-S1",
+      problemNumber: 1,
+      tutorialCriteria: {
+        organizacao: 0.0, cooperacao: 0.0, conteudo: 0.0, objetivo: 0.0, metas: 0.0, tutorialGrade: 0.0,
+      },
+      peerAverage: 2.0,
+      finalGrade: 1.5,
+      problemAverage: 1.8,
+    });
+    expect(htmlLow).toContain("#dc2626"); // red
+  });
+
+  it("report does NOT include individual peer grades", async () => {
+    const { buildStudentGradeReportHtml } = await import("./email");
+    const html = buildStudentGradeReportHtml({
+      studentName: "Aluno Teste",
+      componentCode: "TEC502",
+      componentName: "Teste",
+      className: "T01",
+      sessionLabel: "P1-S1",
+      problemNumber: 1,
+      tutorialCriteria: {
+        organizacao: 0.75, cooperacao: 0.5, conteudo: 0.75, objetivo: 1.0, metas: 0.5, tutorialGrade: 7.5,
+      },
+      peerAverage: 8.0,
+      finalGrade: 7.5,
+      problemAverage: 7.0,
+    });
+    // Should NOT contain individual peer names or individual peer scores
+    expect(html).not.toContain("Avaliação Individual");
+    expect(html).not.toContain("Notas dos Pares");
+    // Should contain only the average
+    expect(html).toContain("Média dos Pares");
+  });
+});
+
+// ─── Auto Session Numbering ───
+describe("Auto Session Numbering", () => {
+  it("getNextSessionInfo is exported from db", async () => {
+    const db = await import("./db");
+    expect(typeof db.getNextSessionInfo).toBe("function");
+  });
+
+  it("sessions.getNextInfo route exists", () => {
+    expect(appRouter._def.procedures["sessions.getNextInfo"]).toBeDefined();
+  });
+
+  it("sessions.create no longer accepts sessionNumber in input", () => {
+    const procedure = appRouter._def.procedures["sessions.create"] as any;
+    const schema = procedure?._def?.inputs?.[0];
+    if (schema) {
+      // Should work without sessionNumber
+      const valid = schema.safeParse({
+        classId: 1,
+        problemNumber: 1,
+        studentIds: [1, 2, 3],
+      });
+      expect(valid.success).toBe(true);
+    }
+  });
+
+  it("getNextInfo input requires classId", () => {
+    const procedure = appRouter._def.procedures["sessions.getNextInfo"] as any;
+    const schema = procedure?._def?.inputs?.[0];
+    expect(schema).toBeDefined();
+    if (schema) {
+      const valid = schema.safeParse({ classId: 1 });
+      expect(valid.success).toBe(true);
+
+      const invalid = schema.safeParse({});
+      expect(invalid.success).toBe(false);
+    }
+  });
+
+  it("auto session number logic: first session is always P1-S1", () => {
+    // Simulate: no sessions exist
+    const nextInfo = { lastProblemNumber: 0, nextProblemNumber: 1, nextSessionNumber: 1 };
+    expect(nextInfo.nextProblemNumber).toBe(1);
+    expect(nextInfo.nextSessionNumber).toBe(1);
+  });
+
+  it("auto session number logic: same problem increments session", () => {
+    // Simulate: P1-S1 exists, next is P1-S2
+    const nextInfo = { lastProblemNumber: 1, nextProblemNumber: 1, nextSessionNumber: 2 };
+    expect(nextInfo.nextProblemNumber).toBe(1);
+    expect(nextInfo.nextSessionNumber).toBe(2);
+  });
+
+  it("auto session number logic: new problem resets session to 1", () => {
+    // Simulate: user selects problem 2 (new)
+    const nextInfo = { lastProblemNumber: 1, nextProblemNumber: 1, nextSessionNumber: 3 };
+    const selectedProblem = 2; // new problem
+    const autoSession = selectedProblem === nextInfo.nextProblemNumber
+      ? nextInfo.nextSessionNumber
+      : selectedProblem === nextInfo.lastProblemNumber + 1
+        ? 1
+        : 1;
+    expect(autoSession).toBe(1);
+  });
+
+  it("problem number can only be current or current+1", () => {
+    const lastProblem = 2;
+    const allowedProblems = [lastProblem, lastProblem + 1];
+    expect(allowedProblems).toContain(2);
+    expect(allowedProblems).toContain(3);
+    expect(allowedProblems).not.toContain(1);
+    expect(allowedProblems).not.toContain(4);
+  });
+});

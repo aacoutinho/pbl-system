@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { toast } from "sonner";
 import { Plus, Lock, Unlock, Trash2, ClipboardList, Users, Eye, BookOpen, KeyRound, Copy, RefreshCw, RotateCcw, CheckCircle2, Clock, FileSearch, AlertTriangle, Mail } from "lucide-react";
 import { EvaluationPreviewDialog } from "@/components/EvaluationPreview";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -81,9 +81,31 @@ function SessionsContent() {
     if (statusFilter === "all") return sessionsList;
     return sessionsList.filter(s => s.status === statusFilter);
   }, [sessionsList, statusFilter]);
+  // Auto-numbering: fetch next session info
+  const { data: nextInfo } = trpc.sessions.getNextInfo.useQuery(
+    { classId: selectedClassId! },
+    { enabled: !!selectedClassId && canManage }
+  );
+
   const [problemNum, setProblemNum] = useState("1");
-  const [sessionNum, setSessionNum] = useState("1");
   const [selectedStudents, setSelectedStudents] = useState<number[]>([]);
+
+  // Auto-set problem number when nextInfo loads
+  useEffect(() => {
+    if (nextInfo) {
+      setProblemNum(String(nextInfo.nextProblemNumber));
+    }
+  }, [nextInfo]);
+
+  // Calculate auto session number based on problem selection
+  const autoSessionNumber = useMemo(() => {
+    if (!nextInfo) return 1;
+    const pn = parseInt(problemNum);
+    if (isNaN(pn)) return 1;
+    if (pn === nextInfo.nextProblemNumber) return nextInfo.nextSessionNumber;
+    if (pn === nextInfo.lastProblemNumber + 1) return 1;
+    return 1;
+  }, [nextInfo, problemNum]);
 
   if (!selectedClassId) {
     return (
@@ -99,14 +121,11 @@ function SessionsContent() {
 
   const handleCreate = () => {
     const pn = parseInt(problemNum);
-    const sn = parseInt(sessionNum);
-    if (isNaN(pn) || isNaN(sn) || pn < 1 || sn < 1) { toast.error("Números inválidos"); return; }
+    if (isNaN(pn) || pn < 1) { toast.error("Número do problema inválido"); return; }
     if (selectedStudents.length === 0) { toast.error("Selecione ao menos um aluno"); return; }
     createMutation.mutate({
       classId: selectedClassId,
       problemNumber: pn,
-      sessionNumber: sn,
-      label: `Problema ${pn} - Sessão ${sn}`,
       studentIds: selectedStudents,
     });
   };
@@ -149,11 +168,42 @@ function SessionsContent() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Problema</Label>
-                    <Input type="number" min={1} max={10} value={problemNum} onChange={e => setProblemNum(e.target.value)} className="mt-1" />
+                    <Input
+                      type="number"
+                      min={nextInfo?.lastProblemNumber === 0 ? 1 : nextInfo?.lastProblemNumber ?? 1}
+                      max={(nextInfo?.lastProblemNumber ?? 0) + 1}
+                      value={problemNum}
+                      onChange={e => {
+                        const val = parseInt(e.target.value);
+                        if (!isNaN(val) && nextInfo) {
+                          const minP = nextInfo.lastProblemNumber === 0 ? 1 : nextInfo.lastProblemNumber;
+                          const maxP = nextInfo.lastProblemNumber + 1;
+                          if (val >= minP && val <= maxP) {
+                            setProblemNum(e.target.value);
+                          }
+                        } else {
+                          setProblemNum(e.target.value);
+                        }
+                      }}
+                      className="mt-1"
+                    />
+                    {nextInfo && nextInfo.lastProblemNumber > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Permitido: {nextInfo.lastProblemNumber} (continuar) ou {nextInfo.lastProblemNumber + 1} (novo)
+                      </p>
+                    )}
                   </div>
                   <div>
-                    <Label>Sessão</Label>
-                    <Input type="number" min={1} max={10} value={sessionNum} onChange={e => setSessionNum(e.target.value)} className="mt-1" />
+                    <Label>Sessão (automático)</Label>
+                    <Input
+                      type="number"
+                      value={autoSessionNumber}
+                      disabled
+                      className="mt-1 bg-muted"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Calculada automaticamente
+                    </p>
                   </div>
                 </div>
                 <div>

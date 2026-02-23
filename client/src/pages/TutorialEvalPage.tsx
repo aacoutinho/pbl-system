@@ -8,10 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { BookOpen, ClipboardCheck, Save, CheckCircle2, Info, ShieldCheck, ShieldAlert, Crown, UserCheck, FileEdit, SendHorizonal } from "lucide-react";
+import { BookOpen, ClipboardCheck, Save, CheckCircle2, Info, ShieldCheck, ShieldAlert, Crown, UserCheck, FileEdit, SendHorizonal, ThumbsUp, ThumbsDown, MessageSquare, User } from "lucide-react";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/_core/hooks/useAuth";
 
@@ -24,7 +25,6 @@ const LABELS = [
   { label: "1.0", value: 1.0 },
 ] as const;
 
-// Variantes masculinas (mesmas notas)
 const LABELS_MASC = [
   { label: "0.0", value: 0 },
   { label: "0.25", value: 0.25 },
@@ -89,6 +89,13 @@ const DEFAULT_SCORES: Record<CriteriaKey, number> = {
 
 type EvalPermission = "owner" | "coordinator" | "authorized" | "no_permission" | "admin";
 
+type StudentNote = {
+  studentId: number;
+  positivePoints: number;
+  negativePoints: number;
+  notes: string;
+};
+
 function StatusBadge({ status }: { status: string }) {
   const config: Record<string, { label: string; className: string }> = {
     initiated: { label: "Iniciada", className: "bg-gray-100 text-gray-700 border-gray-300" },
@@ -142,6 +149,40 @@ function PermissionBadge({ permission }: { permission: EvalPermission }) {
   }
 }
 
+// ─── Point bar component ───
+function PointBar({ value, max, color, onChange, disabled }: {
+  value: number;
+  max: number;
+  color: "green" | "red";
+  onChange: (v: number) => void;
+  disabled?: boolean;
+}) {
+  const colorClasses = color === "green"
+    ? { active: "bg-emerald-500", hover: "hover:bg-emerald-200", inactive: "bg-gray-200" }
+    : { active: "bg-red-500", hover: "hover:bg-red-200", inactive: "bg-gray-200" };
+
+  return (
+    <div className="flex gap-1 items-center">
+      {Array.from({ length: max }, (_, i) => (
+        <button
+          key={i}
+          type="button"
+          disabled={disabled}
+          onClick={() => onChange(i + 1 === value ? 0 : i + 1)}
+          className={cn(
+            "w-6 h-6 rounded-sm transition-all text-xs font-medium",
+            disabled ? "cursor-default" : "cursor-pointer",
+            i < value ? `${colorClasses.active} text-white` : `${colorClasses.inactive} ${!disabled ? colorClasses.hover : ""}`,
+          )}
+          title={`${i + 1} ponto${i > 0 ? "s" : ""}`}
+        >
+          {i + 1}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function TutorialEvalPage() {
   return (
     <DashboardLayout>
@@ -160,7 +201,6 @@ function TutorialEvalContent() {
     { enabled: !!selectedClassId && user?.role !== "admin" }
   );
 
-  // Fallback for admin (who can't evaluate but can view)
   const { data: sessionsList, isLoading: sessionsListLoading } = trpc.sessions.list.useQuery(
     { classId: selectedClassId! },
     { enabled: !!selectedClassId && user?.role === "admin" }
@@ -194,6 +234,18 @@ function TutorialEvalContent() {
     { enabled: !!selectedSessionId && canEvaluateSelected }
   );
 
+  // Session students (for per-student notes)
+  const { data: sessionStudents } = trpc.sessions.getStudents.useQuery(
+    { sessionId: sessionIdNum },
+    { enabled: !!selectedSessionId && canEvaluateSelected }
+  );
+
+  // Existing professor notes for this session
+  const { data: existingStudentNotes } = trpc.tutorialEval.getStudentNotes.useQuery(
+    { sessionId: sessionIdNum },
+    { enabled: !!selectedSessionId && canEvaluateSelected }
+  );
+
   const [scores, setScores] = useState<Record<CriteriaKey, number>>({ ...DEFAULT_SCORES });
   const [hasDraft, setHasDraft] = useState(false);
   const [draftSaving, setDraftSaving] = useState(false);
@@ -201,6 +253,12 @@ function TutorialEvalContent() {
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scoresRef = useRef(scores);
   scoresRef.current = scores;
+
+  // Per-student notes state
+  const [studentNotes, setStudentNotes] = useState<Record<number, StudentNote>>({});
+  const studentNotesRef = useRef(studentNotes);
+  studentNotesRef.current = studentNotes;
+  const notesAutoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load existing evaluation or draft when session changes
   useEffect(() => {
@@ -229,6 +287,24 @@ function TutorialEvalContent() {
     setLastAutoSaved(null);
   }, [existingEval, existingDraft, selectedSessionId]);
 
+  // Load existing student notes
+  useEffect(() => {
+    if (existingStudentNotes && existingStudentNotes.length > 0) {
+      const notesMap: Record<number, StudentNote> = {};
+      for (const n of existingStudentNotes) {
+        notesMap[n.studentId] = {
+          studentId: n.studentId,
+          positivePoints: n.positivePoints,
+          negativePoints: n.negativePoints,
+          notes: n.notes ?? "",
+        };
+      }
+      setStudentNotes(notesMap);
+    } else {
+      setStudentNotes({});
+    }
+  }, [existingStudentNotes, selectedSessionId]);
+
   // Draft save mutation
   const saveDraftMutation = trpc.tutorialEval.saveDraft.useMutation({
     onSuccess: () => {
@@ -239,6 +315,13 @@ function TutorialEvalContent() {
     },
     onError: () => {
       setDraftSaving(false);
+    },
+  });
+
+  // Student notes save mutation
+  const saveStudentNotesMutation = trpc.tutorialEval.saveStudentNotes.useMutation({
+    onSuccess: () => {
+      utils.tutorialEval.getStudentNotes.invalidate({ sessionId: sessionIdNum });
     },
   });
 
@@ -255,25 +338,54 @@ function TutorialEvalContent() {
     }, 2000);
   }, [selectedSessionId, canEvaluateSelected, existingEval, sessionIdNum]);
 
-  // Cleanup timer on unmount
+  // Auto-save student notes (3 seconds debounce)
+  const triggerNotesAutoSave = useCallback(() => {
+    if (!selectedSessionId || !canEvaluateSelected) return;
+    if (notesAutoSaveTimerRef.current) clearTimeout(notesAutoSaveTimerRef.current);
+    notesAutoSaveTimerRef.current = setTimeout(() => {
+      const notesArray = Object.values(studentNotesRef.current).filter(
+        n => n.positivePoints > 0 || n.negativePoints > 0 || n.notes.trim().length > 0
+      );
+      if (notesArray.length > 0) {
+        saveStudentNotesMutation.mutate({
+          sessionId: sessionIdNum,
+          notes: notesArray.map(n => ({
+            studentId: n.studentId,
+            positivePoints: n.positivePoints,
+            negativePoints: n.negativePoints,
+            notes: n.notes || null,
+          })),
+        });
+      }
+    }, 3000);
+  }, [selectedSessionId, canEvaluateSelected, sessionIdNum]);
+
+  // Cleanup timers on unmount
   useEffect(() => {
     return () => {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+      if (notesAutoSaveTimerRef.current) clearTimeout(notesAutoSaveTimerRef.current);
     };
   }, []);
 
   const handleScoreChange = (key: CriteriaKey, value: number) => {
     setScores(prev => ({ ...prev, [key]: value }));
-    // Only auto-save if there's no finalized evaluation yet
     if (!existingEval) {
       triggerAutoSave();
     }
   };
 
+  const handleStudentNoteChange = (studentId: number, field: keyof StudentNote, value: number | string) => {
+    setStudentNotes(prev => {
+      const existing = prev[studentId] ?? { studentId, positivePoints: 0, negativePoints: 0, notes: "" };
+      return { ...prev, [studentId]: { ...existing, [field]: value } };
+    });
+    triggerNotesAutoSave();
+  };
+
   // Submit (finalize) mutation
   const submitMutation = trpc.tutorialEval.submit.useMutation({
     onSuccess: () => {
-      // Cancel any pending auto-save
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
       utils.tutorialEval.get.invalidate();
       utils.tutorialEval.getDraft.invalidate();
@@ -300,6 +412,21 @@ function TutorialEvalContent() {
         toast.success("Rascunho salvo com sucesso!");
       },
     });
+    // Also save student notes
+    const notesArray = Object.values(studentNotes).filter(
+      n => n.positivePoints > 0 || n.negativePoints > 0 || n.notes.trim().length > 0
+    );
+    if (notesArray.length > 0) {
+      saveStudentNotesMutation.mutate({
+        sessionId: sessionIdNum,
+        notes: notesArray.map(n => ({
+          studentId: n.studentId,
+          positivePoints: n.positivePoints,
+          negativePoints: n.negativePoints,
+          notes: n.notes || null,
+        })),
+      });
+    }
   };
 
   const totalGrade = useMemo(() => {
@@ -308,8 +435,22 @@ function TutorialEvalContent() {
 
   const handleSubmit = () => {
     if (!selectedSessionId) { toast.error("Selecione uma sessão"); return; }
-    // Cancel any pending auto-save
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    // Save student notes before submitting
+    const notesArray = Object.values(studentNotes).filter(
+      n => n.positivePoints > 0 || n.negativePoints > 0 || n.notes.trim().length > 0
+    );
+    if (notesArray.length > 0) {
+      saveStudentNotesMutation.mutate({
+        sessionId: sessionIdNum,
+        notes: notesArray.map(n => ({
+          studentId: n.studentId,
+          positivePoints: n.positivePoints,
+          negativePoints: n.negativePoints,
+          notes: n.notes || null,
+        })),
+      });
+    }
     submitMutation.mutate({
       sessionId: sessionIdNum,
       ...scores,
@@ -336,7 +477,7 @@ function TutorialEvalContent() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Avaliação do Tutorial</h1>
         <p className="text-muted-foreground mt-1">
-          Avalie a qualidade geral de cada sessão tutorial. A nota do tutorial será usada para calcular a nota final de desempenho dos alunos.
+          Avalie a qualidade geral de cada sessão tutorial e faça anotações individuais sobre cada aluno.
         </p>
       </div>
 
@@ -457,40 +598,41 @@ function TutorialEvalContent() {
         isDataLoading ? (
           <Card><CardContent className="pt-6"><div className="space-y-6">{[1,2,3,4,5].map(i => <Skeleton key={i} className="h-20 rounded-lg" />)}</div></CardContent></Card>
         ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <ClipboardCheck className="h-5 w-5" />
-                Critérios de Avaliação
-              </CardTitle>
-              <CardDescription>
-                Avalie cada critério selecionando o nível correspondente. A nota final é calculada pela soma ponderada dos critérios (peso total = 10).
-                {!existingEval && (
-                  <span className="block mt-1 text-xs text-muted-foreground/80">
-                    O rascunho é salvo automaticamente a cada alteração. Use &quot;Finalizar Avaliação&quot; para encerrar a sessão.
-                  </span>
-                )}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {CRITERIA.map((criterion, idx) => (
-                <div key={criterion.key}>
-                  {idx > 0 && <Separator className="mb-6" />}
-                  <CriterionSelector
-                    label={criterion.label}
-                    weight={criterion.weight}
-                    gender={criterion.gender}
-                    description={criterion.description}
-                    value={scores[criterion.key]}
-                    onChange={(v) => handleScoreChange(criterion.key, v)}
-                  />
-                </div>
-              ))}
+          <>
+            {/* Tutorial criteria card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <ClipboardCheck className="h-5 w-5" />
+                  Critérios de Avaliação do Tutorial
+                </CardTitle>
+                <CardDescription>
+                  Avalie cada critério selecionando o nível correspondente. A nota final é calculada pela soma ponderada dos critérios (peso total = 10).
+                  {!existingEval && (
+                    <span className="block mt-1 text-xs text-muted-foreground/80">
+                      O rascunho é salvo automaticamente a cada alteração. Use &quot;Finalizar Avaliação&quot; para encerrar a sessão.
+                    </span>
+                  )}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {CRITERIA.map((criterion, idx) => (
+                  <div key={criterion.key}>
+                    {idx > 0 && <Separator className="mb-6" />}
+                    <CriterionSelector
+                      label={criterion.label}
+                      weight={criterion.weight}
+                      gender={criterion.gender}
+                      description={criterion.description}
+                      value={scores[criterion.key]}
+                      onChange={(v) => handleScoreChange(criterion.key, v)}
+                    />
+                  </div>
+                ))}
 
-              <Separator />
+                <Separator />
 
-              {/* Summary + Actions */}
-              <div className="space-y-4">
+                {/* Summary */}
                 <div className="flex items-center justify-between p-4 rounded-lg bg-accent/30 border">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Nota do Tutorial</p>
@@ -501,57 +643,160 @@ function TutorialEvalContent() {
                       <span className="text-base font-normal text-muted-foreground"> / 10</span>
                     </p>
                   </div>
-                  <div className="flex flex-col sm:flex-row gap-2 items-end sm:items-center">
-                    {/* Save Draft button - only when no finalized eval exists */}
-                    {!existingEval && (
-                      <Button
-                        variant="outline"
-                        onClick={handleSaveDraft}
-                        disabled={draftSaving || saveDraftMutation.isPending}
-                      >
-                        <FileEdit className="h-4 w-4 mr-2" />
-                        {draftSaving || saveDraftMutation.isPending ? "Salvando..." : "Salvar Rascunho"}
-                      </Button>
-                    )}
-                    {/* Finalize / Update button */}
-                    <Button size="lg" onClick={handleSubmit} disabled={submitMutation.isPending}>
-                      {existingEval ? (
-                        <>
-                          <Save className="h-4 w-4 mr-2" />
-                          {submitMutation.isPending ? "Salvando..." : "Atualizar Avaliação"}
-                        </>
-                      ) : (
-                        <>
-                          <SendHorizonal className="h-4 w-4 mr-2" />
-                          {submitMutation.isPending ? "Finalizando..." : "Finalizar Avaliação"}
-                        </>
-                      )}
-                    </Button>
-                  </div>
                 </div>
+              </CardContent>
+            </Card>
 
-                {/* Auto-save indicator */}
-                {!existingEval && lastAutoSaved && (
-                  <p className="text-xs text-muted-foreground text-right">
-                    Rascunho salvo automaticamente às {lastAutoSaved.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                  </p>
-                )}
+            {/* Per-student notes card */}
+            {sessionStudents && sessionStudents.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    Anotações por Aluno
+                  </CardTitle>
+                  <CardDescription>
+                    Registre pontos positivos e negativos de cada aluno durante o tutorial, e faça anotações privadas (não visíveis para os alunos).
+                    As anotações são salvas automaticamente.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {sessionStudents.map((student: any) => {
+                      const note = studentNotes[student.studentId] ?? { studentId: student.studentId, positivePoints: 0, negativePoints: 0, notes: "" };
+                      return (
+                        <div key={student.studentId} className="p-4 rounded-lg border bg-card">
+                          {/* Student header with photo */}
+                          <div className="flex items-center gap-3 mb-3">
+                            {student.photoUrl ? (
+                              <img
+                                src={student.photoUrl}
+                                alt={student.name}
+                                className="w-10 h-10 rounded-full object-cover border-2 border-muted"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-sm font-semibold text-muted-foreground border-2 border-muted">
+                                {student.name?.charAt(0)?.toUpperCase() ?? "?"}
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <p className="font-medium text-sm truncate">{student.name}</p>
+                              <p className="text-xs text-muted-foreground">{student.enrollment}</p>
+                            </div>
+                          </div>
 
-                {/* Warning: finalizing will close the session */}
-                {!existingEval && (sessionStatus === "open" || sessionStatus === "initiated" || sessionStatus === "closed") && (
-                  <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800">
-                    <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                    <p>
-                      Ao clicar em <strong>Finalizar Avaliação</strong>, a sessão será <strong>encerrada</strong> automaticamente e os resultados finais serão calculados.
-                      {sessionStatus === "open" && " Os alunos que ainda não avaliaram não poderão mais fazê-lo."}
-                    </p>
+                          {/* Point bars */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                            <div>
+                              <div className="flex items-center gap-1.5 mb-1.5">
+                                <ThumbsUp className="h-3.5 w-3.5 text-emerald-600" />
+                                <span className="text-xs font-medium text-emerald-700">Positivo ({note.positivePoints}/10)</span>
+                              </div>
+                              <PointBar
+                                value={note.positivePoints}
+                                max={10}
+                                color="green"
+                                onChange={(v) => handleStudentNoteChange(student.studentId, "positivePoints", v)}
+                              />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-1.5 mb-1.5">
+                                <ThumbsDown className="h-3.5 w-3.5 text-red-600" />
+                                <span className="text-xs font-medium text-red-700">Negativo ({note.negativePoints}/10)</span>
+                              </div>
+                              <PointBar
+                                value={note.negativePoints}
+                                max={10}
+                                color="red"
+                                onChange={(v) => handleStudentNoteChange(student.studentId, "negativePoints", v)}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Notes textarea */}
+                          <div>
+                            <div className="flex items-center gap-1.5 mb-1.5">
+                              <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span className="text-xs font-medium text-muted-foreground">Anotações privadas</span>
+                            </div>
+                            <Textarea
+                              placeholder="Comentários e observações sobre este aluno (não visível para o aluno)..."
+                              value={note.notes}
+                              onChange={(e) => handleStudentNoteChange(student.studentId, "notes", e.target.value)}
+                              className="text-sm min-h-[60px] resize-y"
+                              rows={2}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                )}
-              </div>
+                </CardContent>
+              </Card>
+            )}
 
+            {/* Actions card */}
+            <Card>
+              <CardContent className="pt-6">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 rounded-lg bg-accent/30 border">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Nota Final do Tutorial</p>
+                      <p className="text-3xl font-bold mt-1">
+                        <span className={totalGrade >= 7 ? "text-emerald-600" : totalGrade >= 5 ? "text-amber-600" : "text-red-600"}>
+                          {totalGrade.toFixed(1)}
+                        </span>
+                        <span className="text-base font-normal text-muted-foreground"> / 10</span>
+                      </p>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2 items-end sm:items-center">
+                      {!existingEval && (
+                        <Button
+                          variant="outline"
+                          onClick={handleSaveDraft}
+                          disabled={draftSaving || saveDraftMutation.isPending}
+                        >
+                          <FileEdit className="h-4 w-4 mr-2" />
+                          {draftSaving || saveDraftMutation.isPending ? "Salvando..." : "Salvar Rascunho"}
+                        </Button>
+                      )}
+                      <Button size="lg" onClick={handleSubmit} disabled={submitMutation.isPending}>
+                        {existingEval ? (
+                          <>
+                            <Save className="h-4 w-4 mr-2" />
+                            {submitMutation.isPending ? "Salvando..." : "Atualizar Avaliação"}
+                          </>
+                        ) : (
+                          <>
+                            <SendHorizonal className="h-4 w-4 mr-2" />
+                            {submitMutation.isPending ? "Finalizando..." : "Finalizar Avaliação"}
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
 
-            </CardContent>
-          </Card>
+                  {/* Auto-save indicator */}
+                  {!existingEval && lastAutoSaved && (
+                    <p className="text-xs text-muted-foreground text-right">
+                      Rascunho salvo automaticamente às {lastAutoSaved.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  )}
+
+                  {/* Warning: finalizing will close the session */}
+                  {!existingEval && (sessionStatus === "open" || sessionStatus === "initiated" || sessionStatus === "closed") && (
+                    <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                      <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      <p>
+                        Ao clicar em <strong>Finalizar Avaliação</strong>, a sessão será <strong>encerrada</strong> automaticamente e os resultados finais serão calculados.
+                        {sessionStatus === "open" && " Os alunos que ainda não avaliaram não poderão mais fazê-lo."}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </>
         )
       )}
 

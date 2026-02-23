@@ -260,6 +260,23 @@ export const notifications = mysqlTable("notifications", {
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
 
+// ─── Professor Student Notes (professor's per-student notes per session) ───
+export const professorStudentNotes = mysqlTable("professor_student_notes", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull(),
+  studentId: int("studentId").notNull(),
+  professorUserId: int("professorUserId").notNull(),
+  positivePoints: int("positivePoints").default(0).notNull(), // 0-10
+  negativePoints: int("negativePoints").default(0).notNull(), // 0-10
+  notes: text("notes"), // Private notes/comments (not visible to student)
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+  unique("uq_prof_student_session").on(table.sessionId, table.studentId, table.professorUserId),
+]);
+
+export type ProfessorStudentNote = typeof professorStudentNotes.$inferSelect;
+export type InsertProfessorStudentNote = typeof professorStudentNotes.$inferInsert;
+
 // ─── Contact Tickets (bug reports and feature requests) ───
 export const contactTickets = mysqlTable("contact_tickets", {
   id: int("id").autoincrement().primaryKey(),

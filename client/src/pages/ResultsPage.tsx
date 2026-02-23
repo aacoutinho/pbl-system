@@ -8,9 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, Download, Trophy, UserX, BookOpen, Info, Eye, FileSpreadsheet, Table2 } from "lucide-react";
+import { BarChart3, Download, Trophy, UserX, BookOpen, Info, Eye, FileSpreadsheet, Table2, Mail, Loader2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useMemo, useEffect } from "react";
+import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import React from "react";
 
@@ -280,9 +281,12 @@ function ResultsContent() {
               </Select>
             </div>
             {finalResults && finalResults.length > 0 && (
-              <Button variant="outline" size="sm" onClick={exportSessionResults}>
-                <FileSpreadsheet className="h-4 w-4 mr-2" />Exportar CSV
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={exportSessionResults}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />Exportar CSV
+                </Button>
+                <SendGradeEmailsButton sessionId={parseInt(selectedSessionId)} hasTutorialEval={!!tutorialEval} />
+              </div>
             )}
           </div>
 
@@ -707,5 +711,53 @@ function RoleBadge({ role }: { role: string }) {
       {role === "FALTOU" && <UserX className="h-3 w-3 mr-1" />}
       {role}
     </Badge>
+  );
+}
+
+function SendGradeEmailsButton({ sessionId, hasTutorialEval }: { sessionId: number; hasTutorialEval: boolean }) {
+  const [sending, setSending] = useState(false);
+  const sendMutation = trpc.results.sendGradeEmails.useMutation({
+    onSuccess: (result) => {
+      setSending(false);
+      if (result.failed === 0) {
+        toast.success(`Relatórios enviados com sucesso para ${result.sent} aluno(s)!`);
+      } else {
+        toast.warning(
+          `Enviados: ${result.sent}/${result.total}. Falhas: ${result.failed}. ${result.errors.slice(0, 3).join("; ")}`,
+          { duration: 8000 }
+        );
+      }
+    },
+    onError: (e) => {
+      setSending(false);
+      toast.error(e.message);
+    },
+  });
+
+  const handleSend = () => {
+    if (!hasTutorialEval) {
+      toast.error("A avaliação do tutorial precisa ser finalizada antes de enviar as notas.");
+      return;
+    }
+    if (!confirm("Deseja enviar o relatório de notas por e-mail para todos os alunos desta sessão?")) return;
+    setSending(true);
+    sendMutation.mutate({ sessionId });
+  };
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={handleSend}
+      disabled={sending || sendMutation.isPending || !hasTutorialEval}
+      title={!hasTutorialEval ? "Finalize a avaliação do tutorial primeiro" : "Enviar relatório de notas por e-mail"}
+    >
+      {sending || sendMutation.isPending ? (
+        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+      ) : (
+        <Mail className="h-4 w-4 mr-2" />
+      )}
+      Enviar Notas por E-mail
+    </Button>
   );
 }
