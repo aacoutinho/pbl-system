@@ -290,3 +290,4 @@
 - [x] Tela de perfil com opção de definir senha para usuários OAuth
 - [x] Testes para login admin por e-mail/senha (7 novos testes)
 - [x] Exibir componente e turma selecionada no título da página de Alunos (ex: "TEC502 - TP01 - Alunos da Turma")
+- [x] Exibir conceitos descritivos no formulário de avaliação dos alunos (pares): Nenhum (0.0), Fraco (0.5), Normal (1.0), Bom (1.5), Excelente (2.0)

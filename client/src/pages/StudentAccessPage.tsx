@@ -474,13 +474,25 @@ function EvaluationForm({ accessCode, studentInfo, sessionInfo, studentEmail, on
   );
 }
 
+const SCORE_LABELS: Record<string, string> = {
+  "0.0": "Nenhum",
+  "0.5": "Fraco",
+  "1.0": "Normal",
+  "1.5": "Bom",
+  "2.0": "Excelente",
+};
+
+function getScoreLabel(value: number): string {
+  return SCORE_LABELS[value.toFixed(1)] ?? value.toFixed(1);
+}
+
 function CriteriaSlider({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   const color = value >= 1.5 ? "text-emerald-600" : value >= 1 ? "text-amber-600" : "text-red-600";
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <Label className="text-sm">{label}</Label>
-        <span className={`text-sm font-bold tabular-nums ${color}`}>{value.toFixed(1)}</span>
+        <span className={`text-sm font-bold tabular-nums ${color}`}>{getScoreLabel(value)} ({value.toFixed(1)})</span>
       </div>
       <Slider
         min={0}
@@ -491,11 +503,11 @@ function CriteriaSlider({ label, value, onChange }: { label: string; value: numb
         className="w-full"
       />
       <div className="flex justify-between text-xs text-muted-foreground">
-        <span>0</span>
-        <span>0.5</span>
-        <span>1.0</span>
-        <span>1.5</span>
-        <span>2.0</span>
+        <span>Nenhum (0.0)</span>
+        <span>Fraco (0.5)</span>
+        <span>Normal (1.0)</span>
+        <span>Bom (1.5)</span>
+        <span>Excelente (2.0)</span>
       </div>
     </div>
   );
