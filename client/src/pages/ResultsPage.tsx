@@ -167,6 +167,17 @@ function ResultsContent() {
       lines.push("");
     }
 
+    // Peer evaluation criteria info
+    lines.push("CRITÉRIOS DA AVALIAÇÃO ENTRE PARES");
+    lines.push("Critério,Peso,Escala");
+    lines.push("Pontualidade,×1,0 a 1");
+    lines.push("Pesquisa/Metas,×3,0 a 1");
+    lines.push("Domínio do Assunto,×3,0 a 1");
+    lines.push("Participação,×3,0 a 1");
+    lines.push("Desempenho no Papel,−1 (penalidade),0 a 1");
+    lines.push("Nota máxima,,10");
+    lines.push("");
+
     // Results table
     lines.push("RESULTADOS DOS ALUNOS");
     lines.push("Aluno,Papel,Média Pares,Nota Final,Status");
@@ -286,6 +297,60 @@ function ResultsContent() {
 
           {selectedSessionId && (
             <>
+              {/* Peer evaluation criteria info */}
+              <Card className="bg-emerald-50/50 border-emerald-200">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-semibold text-emerald-800 flex items-center gap-2">
+                    <Info className="h-4 w-4" />
+                    Critérios da Avaliação entre Pares
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-emerald-200 text-left">
+                          <th className="pb-2 pr-4 font-medium text-emerald-700">Critério</th>
+                          <th className="pb-2 pr-4 font-medium text-emerald-700 text-center">Peso</th>
+                          <th className="pb-2 font-medium text-emerald-700 text-center">Contribuição Máx.</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-emerald-900">
+                        <tr className="border-b border-emerald-100">
+                          <td className="py-1.5 pr-4">Pontualidade</td>
+                          <td className="py-1.5 pr-4 text-center">×1</td>
+                          <td className="py-1.5 text-center">1,0</td>
+                        </tr>
+                        <tr className="border-b border-emerald-100">
+                          <td className="py-1.5 pr-4">Pesquisa / Metas</td>
+                          <td className="py-1.5 pr-4 text-center">×3</td>
+                          <td className="py-1.5 text-center">3,0</td>
+                        </tr>
+                        <tr className="border-b border-emerald-100">
+                          <td className="py-1.5 pr-4">Domínio do Assunto</td>
+                          <td className="py-1.5 pr-4 text-center">×3</td>
+                          <td className="py-1.5 text-center">3,0</td>
+                        </tr>
+                        <tr className="border-b border-emerald-100">
+                          <td className="py-1.5 pr-4">Participação</td>
+                          <td className="py-1.5 pr-4 text-center">×3</td>
+                          <td className="py-1.5 text-center">3,0</td>
+                        </tr>
+                        <tr className="border-b border-emerald-100">
+                          <td className="py-1.5 pr-4 text-red-700">Desempenho no Papel</td>
+                          <td className="py-1.5 pr-4 text-center text-red-700">−1</td>
+                          <td className="py-1.5 text-center text-red-700">-1,0</td>
+                        </tr>
+                        <tr className="font-semibold">
+                          <td className="py-2 pr-4" colSpan={2}>Nota Máxima</td>
+                          <td className="py-2 text-center text-base">10,0</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Tutorial evaluation info */}
               {tutorialEval ? (
                 <Card className="bg-blue-50/50 border-blue-200">

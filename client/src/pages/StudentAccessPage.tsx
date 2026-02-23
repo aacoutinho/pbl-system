@@ -9,7 +9,8 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { KeyRound, LogIn, Send, UserX, CheckCircle2, AlertTriangle, ArrowLeft, BookOpen } from "lucide-react";
+import { KeyRound, LogIn, Send, UserX, CheckCircle2, AlertTriangle, ArrowLeft, BookOpen, HelpCircle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useMemo } from "react";
 
 type RoleType = "COORDENADOR" | "MESA" | "QUADRO" | "PARTICIPANTE";
@@ -436,13 +437,15 @@ function EvaluationForm({ accessCode, studentInfo, sessionInfo, studentEmail, on
 
                 <Separator />
 
+                <TooltipProvider>
                 <div className="space-y-4">
-                  <CriteriaSlider label="Pontualidade" sublabel="Peso 1" value={ev.pontualidade} onChange={(v) => updateEval(peer.studentId, "pontualidade", v)} />
-                  <CriteriaSlider label="Pesquisa / Metas" sublabel="Peso 3" value={ev.pesquisaMetas} onChange={(v) => updateEval(peer.studentId, "pesquisaMetas", v)} />
-                  <CriteriaSlider label="Domínio do Assunto" sublabel="Peso 3" value={ev.dominio} onChange={(v) => updateEval(peer.studentId, "dominio", v)} />
-                  <CriteriaSlider label="Participação" sublabel="Peso 3" value={ev.participacao} onChange={(v) => updateEval(peer.studentId, "participacao", v)} />
-                  <CriteriaSlider label="Desempenho no Papel" sublabel="Penalidade (até -1)" value={ev.desempenhoPapel} onChange={(v) => updateEval(peer.studentId, "desempenhoPapel", v)} penalty />
+                  <CriteriaSlider label="Pontualidade" sublabel="Peso 1" tooltip="Avalia se o colega chegou no horário e permaneceu durante toda a sessão tutorial." value={ev.pontualidade} onChange={(v) => updateEval(peer.studentId, "pontualidade", v)} />
+                  <CriteriaSlider label="Pesquisa / Metas" sublabel="Peso 3" tooltip="Avalia se o colega pesquisou previamente sobre o tema, trouxe materiais relevantes e cumpriu as metas estabelecidas na sessão anterior." value={ev.pesquisaMetas} onChange={(v) => updateEval(peer.studentId, "pesquisaMetas", v)} />
+                  <CriteriaSlider label="Domínio do Assunto" sublabel="Peso 3" tooltip="Avalia o nível de conhecimento demonstrado pelo colega sobre o tema discutido na sessão tutorial." value={ev.dominio} onChange={(v) => updateEval(peer.studentId, "dominio", v)} />
+                  <CriteriaSlider label="Participação" sublabel="Peso 3" tooltip="Avalia o envolvimento ativo do colega nas discussões, contribuindo com ideias, perguntas e argumentos durante a sessão." value={ev.participacao} onChange={(v) => updateEval(peer.studentId, "participacao", v)} />
+                  <CriteriaSlider label="Desempenho no Papel" sublabel="Penalidade (até -1)" tooltip="Penalidade aplicada quando o colega não desempenhou adequadamente o papel atribuído (Coordenador, Mesa ou Quadro). Se desempenhou bem, deixe em 'Sem penalidade'." value={ev.desempenhoPapel} onChange={(v) => updateEval(peer.studentId, "desempenhoPapel", v)} penalty />
                 </div>
+                </TooltipProvider>
               </CardContent>
             )}
 
@@ -495,16 +498,26 @@ function getScoreLabel(value: number, penalty?: boolean): string {
   return labels[value.toFixed(2)] ?? value.toFixed(2);
 }
 
-function CriteriaSlider({ label, sublabel, value, onChange, penalty }: { label: string; sublabel?: string; value: number; onChange: (v: number) => void; penalty?: boolean }) {
+function CriteriaSlider({ label, sublabel, tooltip, value, onChange, penalty }: { label: string; sublabel?: string; tooltip?: string; value: number; onChange: (v: number) => void; penalty?: boolean }) {
   const color = penalty
     ? (value >= 0.75 ? "text-red-600" : value >= 0.5 ? "text-amber-600" : "text-emerald-600")
     : (value >= 0.75 ? "text-emerald-600" : value >= 0.5 ? "text-amber-600" : "text-red-600");
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <div>
+        <div className="flex items-center gap-1">
           <Label className="text-sm">{label}</Label>
-          {sublabel && <span className="text-xs text-muted-foreground ml-2">({sublabel})</span>}
+          {tooltip && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <HelpCircle className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs text-xs">
+                <p>{tooltip}</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+          {sublabel && <span className="text-xs text-muted-foreground ml-1">({sublabel})</span>}
         </div>
         <span className={`text-sm font-bold ${color}`}>{getScoreLabel(value, penalty)}</span>
       </div>

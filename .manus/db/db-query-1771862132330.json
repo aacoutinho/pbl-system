@@ -1,0 +1,9 @@
+{
+  "query": "DELETE FROM evaluation_items; DELETE FROM evaluations; DELETE FROM tutorial_evaluations;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute DELETE FROM evaluation_items; DELETE FROM evaluations; DELETE FROM tutorial_evaluations;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 498
+}

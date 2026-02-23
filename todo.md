@@ -293,3 +293,6 @@
 - [x] Exibir conceitos descritivos no formulário de avaliação dos alunos (pares): Nenhum (0.0), Fraco (0.5), Normal (1.0), Bom (1.5), Excelente (2.0)
 - [x] Ajustar critérios da avaliação entre pares: Pontualidade (1), Pesquisa/Metas (3), Domínio do Assunto (3), Participação (3), Desempenho Papel (-1)
 - [x] Exibir apenas conceitos (sem valores numéricos) na interface de avaliação dos alunos
+- [x] Atualizar página de Resultados com novos critérios e pesos no detalhamento e CSV
+- [x] Adicionar tooltips explicativos em cada critério do formulário de avaliação dos alunos
+- [x] Apagar avaliações existentes do banco de dados
