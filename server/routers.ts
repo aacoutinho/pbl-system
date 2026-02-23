@@ -176,11 +176,45 @@ export const appRouter = router({
         approvalStatus: isFirst ? "approved" : "pending",
       });
       if (!user) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Erro ao criar usuário" });
-      // Create pending component membership requests
+      // Create pending component membership requests and notify coordinators
       if (input.componentIds && input.componentIds.length > 0 && !isFirst) {
         for (const compId of input.componentIds) {
           try {
             await requestComponentMembership(user.id, compId);
+            // Notify coordinators of the component about the new registration
+            try {
+              const component = await getComponentById(compId);
+              const coordinators = await getComponentCoordinators(compId);
+              if (component && coordinators.length > 0) {
+                for (const coord of coordinators) {
+                  // In-app notification
+                  await createNotification({
+                    userId: coord.userId,
+                    type: "pending_request",
+                    title: "Nova Solicita\u00e7\u00e3o de Entrada",
+                    message: `${input.name || input.email} solicitou entrada em ${component.code} - ${component.name} (novo cadastro)`,
+                    metadata: JSON.stringify({ componentId: compId, requesterId: user.id, source: "registration" }),
+                  });
+                  // Email notification
+                  if (coord.userEmail) {
+                    await sendEmail({
+                      to: coord.userEmail,
+                      subject: `Nova Solicita\u00e7\u00e3o de Entrada - ${component.code}`,
+                      text: `Ol\u00e1 ${coord.userName || ""}, o professor ${input.name || input.email} solicitou entrada no componente ${component.code} - ${component.name} ao se cadastrar no sistema. Acesse o sistema para aprovar ou rejeitar.`,
+                      html: buildNewRequestEmailHtml(
+                        coord.userName || coord.userEmail,
+                        input.name || input.email,
+                        input.email,
+                        component.code,
+                        component.name,
+                      ),
+                    });
+                  }
+                }
+              }
+            } catch (notifErr) {
+              console.error("[Notification] Failed to notify coordinators on registration:", notifErr);
+            }
           } catch {
             // Ignore errors (component may not exist)
           }
@@ -1223,6 +1257,85 @@ export const appRouter = router({
         console.error("[Email] Failed to send rejection notification:", e);
       }
       return { success: true };
+    }),
+    // Approve all pending component requests visible to the current user (admin or coordinator)
+    approveAllComponentRequests: approvedProcedure.mutation(async ({ ctx }) => {
+      // Get pending requests visible to this user
+      let pendingRequests: any[] = [];
+      if (ctx.user.role === "admin") {
+        const allComps = await listComponents();
+        const allIds = allComps.map(c => c.id);
+        if (allIds.length > 0) {
+          pendingRequests = await listPendingRequestsByComponents(allIds);
+        }
+      } else {
+        const coordCompIds = await getCoordinatorComponentIds(ctx.user.id);
+        if (coordCompIds.length > 0) {
+          pendingRequests = await listPendingRequestsByComponents(coordCompIds);
+        }
+      }
+      if (pendingRequests.length === 0) {
+        return { success: true, approvedCount: 0, autoApprovedUsers: 0 };
+      }
+      let approvedCount = 0;
+      let autoApprovedUsers = 0;
+      for (const req of pendingRequests) {
+        try {
+          await approveComponentRequest(req.userId, req.componentId, ctx.user.id);
+          await createAuditLog({ action: "approve_component_request", actorUserId: ctx.user.id, targetUserId: req.userId, componentId: req.componentId, details: JSON.stringify({ componentId: req.componentId, batchApproval: true }) });
+          // Auto-approve user in the system if still pending
+          const targetUser = await getUserById(req.userId);
+          let autoApproved = false;
+          if (targetUser && targetUser.approvalStatus === "pending") {
+            await approveUser(req.userId);
+            autoApproved = true;
+            autoApprovedUsers++;
+            await createAuditLog({
+              action: "auto_approve_user",
+              actorUserId: ctx.user.id,
+              targetUserId: req.userId,
+              componentId: req.componentId,
+              details: JSON.stringify({ reason: "Aprovado automaticamente via aprova\u00e7\u00e3o em lote", componentId: req.componentId }),
+            });
+          }
+          // In-app notification
+          const approvedComponent = await getComponentById(req.componentId);
+          const notifMessage = autoApproved
+            ? `Sua solicita\u00e7\u00e3o de entrada no componente ${approvedComponent?.code || ""} - ${approvedComponent?.name || ""} foi aprovada. Voc\u00ea tamb\u00e9m foi aprovado no sistema como professor.`
+            : `Sua solicita\u00e7\u00e3o de entrada no componente ${approvedComponent?.code || ""} - ${approvedComponent?.name || ""} foi aprovada.`;
+          await createNotification({
+            userId: req.userId,
+            type: "component_approved",
+            title: autoApproved ? "Solicita\u00e7\u00e3o Aprovada - Acesso ao Sistema Liberado" : "Solicita\u00e7\u00e3o Aprovada",
+            message: notifMessage,
+            metadata: JSON.stringify({ componentId: req.componentId, autoApprovedInSystem: autoApproved, batchApproval: true }),
+          });
+          // Send notification email
+          try {
+            const user = targetUser || await getUserById(req.userId);
+            const component = approvedComponent;
+            if (user?.email && component) {
+              await sendEmail({
+                to: user.email,
+                subject: `Solicita\u00e7\u00e3o Aprovada - ${component.code}`,
+                text: `Ol\u00e1 ${user.name || ""}, sua solicita\u00e7\u00e3o de entrada no componente ${component.code} - ${component.name} foi aprovada.${autoApproved ? " Voc\u00ea tamb\u00e9m foi aprovado no sistema como professor." : ""}`,
+                html: buildComponentApprovalEmailHtml(user.name || user.email, component.code, component.name),
+              });
+            }
+          } catch (e) {
+            console.error("[Email] Failed to send batch approval notification:", e);
+          }
+          approvedCount++;
+        } catch (e) {
+          console.error(`[BatchApproval] Failed to approve userId=${req.userId} componentId=${req.componentId}:`, e);
+        }
+      }
+      await createAuditLog({
+        action: "batch_approve_component_requests",
+        actorUserId: ctx.user.id,
+        details: JSON.stringify({ approvedCount, autoApprovedUsers, totalRequests: pendingRequests.length }),
+      });
+      return { success: true, approvedCount, autoApprovedUsers };
     }),
     // Promote prof to coordinator in a component (coordinator of that component or admin)
     promoteToCoordinator: approvedProcedure.input(z.object({

@@ -283,3 +283,5 @@
 - [x] Unificar fluxo: aprovação de componente auto-aprova usuário pendente no sistema
 - [x] Remover/simplificar seção "Solicitações Pendentes (Sistema)" na página de Professores
 - [x] Atualizar testes para o novo fluxo unificado de aprovação
+- [x] Notificação ao coordenador quando novo professor solicitar entrada em seus componentes
+- [x] Botão "Aprovar todos" para aprovação em lote de solicitações de componentes (admin e coordenadores)

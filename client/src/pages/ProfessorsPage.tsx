@@ -73,6 +73,18 @@ function ProfessorsContent() {
     onSuccess: () => { utils.professors.pendingComponentRequests.invalidate(); toast.success("Solicitação rejeitada"); },
     onError: (err) => toast.error(err.message),
   });
+  const approveAllMut = trpc.professors.approveAllComponentRequests.useMutation({
+    onSuccess: (data) => {
+      utils.professors.pendingComponentRequests.invalidate();
+      utils.professors.allComponents.invalidate();
+      utils.professors.approved.invalidate();
+      const msg = data.autoApprovedUsers > 0
+        ? `${data.approvedCount} solicitações aprovadas (${data.autoApprovedUsers} novos usuários aprovados no sistema)`
+        : `${data.approvedCount} solicitações aprovadas`;
+      toast.success(msg);
+    },
+    onError: (err) => toast.error(err.message),
+  });
   const promoteToCoordMut = trpc.professors.promoteToCoordinator.useMutation({
     onSuccess: () => { utils.professors.allComponents.invalidate(); utils.professors.approved.invalidate(); toast.success("Professor promovido a coordenador do componente"); },
     onError: (err) => toast.error(err.message),
@@ -224,6 +236,19 @@ function ProfessorsContent() {
             </CardTitle>
             <CardDescription>Professores que solicitaram entrada nos seus componentes. Ao aprovar, o professor também é automaticamente aprovado no sistema se ainda estiver pendente.</CardDescription>
           </CardHeader>
+          {pendingComponentRequests.length > 1 && (
+            <div className="px-6 pb-2">
+              <Button
+                size="sm"
+                onClick={() => approveAllMut.mutate()}
+                disabled={approveAllMut.isPending}
+                className="gap-1"
+              >
+                <CheckCircle className="h-4 w-4" />
+                {approveAllMut.isPending ? "Aprovando..." : `Aprovar Todos (${pendingComponentRequests.length})`}
+              </Button>
+            </div>
+          )}
           <CardContent>
             <div className="space-y-3">
               {pendingComponentRequests.map((req: any) => (

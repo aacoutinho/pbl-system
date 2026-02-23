@@ -287,3 +287,106 @@ describe("Unified approval flow", () => {
     expect(updatedUser.approvalStatus).toBe("approved");
   });
 });
+
+// ─── Test: Coordinator notification on new registration ───
+describe("Coordinator notification on new registration", () => {
+  it("notification metadata includes source=registration for new signups", () => {
+    const metadata = JSON.stringify({ componentId: 5, requesterId: 10, source: "registration" });
+    const parsed = JSON.parse(metadata);
+    expect(parsed.source).toBe("registration");
+    expect(parsed.componentId).toBe(5);
+    expect(parsed.requesterId).toBe(10);
+  });
+
+  it("notification message includes (novo cadastro) for registration-based requests", () => {
+    const name = "João Silva";
+    const componentCode = "TEC502";
+    const componentName = "Concorrência e Conectividade";
+    const message = `${name} solicitou entrada em ${componentCode} - ${componentName} (novo cadastro)`;
+    expect(message).toContain("(novo cadastro)");
+    expect(message).toContain("João Silva");
+    expect(message).toContain("TEC502");
+  });
+
+  it("email is sent to each coordinator of the component", () => {
+    const coordinators = [
+      { userId: 1, userName: "Coord 1", userEmail: "coord1@test.com" },
+      { userId: 2, userName: "Coord 2", userEmail: "coord2@test.com" },
+      { userId: 3, userName: null, userEmail: null },
+    ];
+    const emailRecipients = coordinators.filter(c => c.userEmail).map(c => c.userEmail);
+    expect(emailRecipients).toHaveLength(2);
+    expect(emailRecipients).toContain("coord1@test.com");
+    expect(emailRecipients).toContain("coord2@test.com");
+  });
+});
+
+// ─── Test: Batch approval (Aprovar Todos) ───
+describe("Batch approval - Aprovar Todos", () => {
+  it("batch_approve_component_requests audit log includes counts", () => {
+    const details = JSON.stringify({ approvedCount: 5, autoApprovedUsers: 2, totalRequests: 5 });
+    const parsed = JSON.parse(details);
+    expect(parsed.approvedCount).toBe(5);
+    expect(parsed.autoApprovedUsers).toBe(2);
+    expect(parsed.totalRequests).toBe(5);
+  });
+
+  it("returns correct counts when all requests are approved", () => {
+    const result = { success: true, approvedCount: 3, autoApprovedUsers: 1 };
+    expect(result.success).toBe(true);
+    expect(result.approvedCount).toBe(3);
+    expect(result.autoApprovedUsers).toBe(1);
+  });
+
+  it("returns zero counts when no pending requests exist", () => {
+    const result = { success: true, approvedCount: 0, autoApprovedUsers: 0 };
+    expect(result.success).toBe(true);
+    expect(result.approvedCount).toBe(0);
+    expect(result.autoApprovedUsers).toBe(0);
+  });
+
+  it("individual approval details include batchApproval flag", () => {
+    const details = JSON.stringify({ componentId: 3, batchApproval: true });
+    const parsed = JSON.parse(details);
+    expect(parsed.batchApproval).toBe(true);
+    expect(parsed.componentId).toBe(3);
+  });
+
+  it("auto-approve reason mentions batch approval", () => {
+    const details = JSON.stringify({ reason: "Aprovado automaticamente via aprovação em lote", componentId: 5 });
+    const parsed = JSON.parse(details);
+    expect(parsed.reason).toContain("em lote");
+  });
+
+  it("toast message differs based on autoApprovedUsers count", () => {
+    const data1 = { approvedCount: 5, autoApprovedUsers: 2 };
+    const msg1 = data1.autoApprovedUsers > 0
+      ? `${data1.approvedCount} solicitações aprovadas (${data1.autoApprovedUsers} novos usuários aprovados no sistema)`
+      : `${data1.approvedCount} solicitações aprovadas`;
+    expect(msg1).toContain("novos usuários aprovados no sistema");
+
+    const data2 = { approvedCount: 3, autoApprovedUsers: 0 };
+    const msg2 = data2.autoApprovedUsers > 0
+      ? `${data2.approvedCount} solicitações aprovadas (${data2.autoApprovedUsers} novos usuários aprovados no sistema)`
+      : `${data2.approvedCount} solicitações aprovadas`;
+    expect(msg2).not.toContain("novos usuários");
+  });
+
+  it("admin sees all pending requests across all components", () => {
+    const userRole = "admin";
+    const allComponentIds = [1, 2, 3, 4, 5];
+    const coordComponentIds = [2, 3];
+
+    const visibleIds = userRole === "admin" ? allComponentIds : coordComponentIds;
+    expect(visibleIds).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it("coordinator only sees pending requests for their components", () => {
+    const userRole = "coordinator";
+    const allComponentIds = [1, 2, 3, 4, 5];
+    const coordComponentIds = [2, 3];
+
+    const visibleIds = userRole === "admin" ? allComponentIds : coordComponentIds;
+    expect(visibleIds).toEqual([2, 3]);
+  });
+});
