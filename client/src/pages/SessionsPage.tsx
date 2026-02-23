@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Lock, Unlock, Trash2, ClipboardList, Users, Eye, BookOpen, KeyRound, Copy, RefreshCw, RotateCcw, CheckCircle2, Clock } from "lucide-react";
+import { Plus, Lock, Unlock, Trash2, ClipboardList, Users, Eye, BookOpen, KeyRound, Copy, RefreshCw, RotateCcw, CheckCircle2, Clock, FileSearch } from "lucide-react";
+import { EvaluationPreviewDialog } from "@/components/EvaluationPreview";
 import { useState, useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
@@ -72,6 +73,7 @@ function SessionsContent() {
   });
 
   const [showCreate, setShowCreate] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [problemNum, setProblemNum] = useState("1");
   const [sessionNum, setSessionNum] = useState("1");
   const [selectedStudents, setSelectedStudents] = useState<number[]>([]);
@@ -123,6 +125,11 @@ function SessionsContent() {
           </p>
         </div>
         {canManage && (
+          <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => setShowPreview(true)}>
+            <FileSearch className="h-4 w-4 mr-2" />Prévia do Formulário
+          </Button>
+          <EvaluationPreviewDialog open={showPreview} onOpenChange={setShowPreview} />
           <Dialog open={showCreate} onOpenChange={setShowCreate}>
             <DialogTrigger asChild>
               <Button size="sm"><Plus className="h-4 w-4 mr-2" />Nova Sessão</Button>
@@ -177,6 +184,7 @@ function SessionsContent() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         )}
       </div>
 

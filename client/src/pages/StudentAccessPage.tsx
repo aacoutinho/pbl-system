@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { KeyRound, LogIn, Send, UserX, CheckCircle2, AlertTriangle, ArrowLeft, BookOpen, HelpCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useMemo } from "react";
+import { BahiaGlossary } from "@/components/BahiaGlossary";
 
 type RoleType = "COORDENADOR" | "MESA" | "QUADRO" | "PARTICIPANTE";
 
@@ -460,6 +461,9 @@ function EvaluationForm({ accessCode, studentInfo, sessionInfo, studentEmail, on
           </Card>
         );
       })}
+
+      {/* Glossário bahianês */}
+      <BahiaGlossary compact />
 
       <div className="flex justify-end pb-8">
         <Button size="lg" onClick={handleSubmit} disabled={submitMutation.isPending} className="shadow-md">

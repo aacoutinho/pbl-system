@@ -298,3 +298,6 @@
 - [x] Apagar avaliações existentes do banco de dados
 - [x] Alterar conceito "Normal" para "Razoável" em todos os formulários de avaliação (professor e aluno)
 - [x] Substituir conceitos para versão bahianesa: Vixe nada, Paia, Na estica, Massa, Brocou
+- [x] Tooltips explicativos na avaliação tutorial do professor (já existiam)
+- [x] Visualização prévia do formulário dos alunos para o professor
+- [x] Glossário bahianês nos formulários de avaliação

@@ -13,6 +13,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useState, useMemo, useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import React from "react";
+import { BahiaGlossary } from "@/components/BahiaGlossary";
 
 // Converte valor numérico para rótulo descritivo
 function valueToLabel(value: number, gender: "fem" | "masc"): string {
@@ -697,6 +698,9 @@ function ResultsContent() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Glossário bahianês */}
+      <BahiaGlossary />
     </div>
   );
 }

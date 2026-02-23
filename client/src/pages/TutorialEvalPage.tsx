@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { BahiaGlossary } from "@/components/BahiaGlossary";
 
 // Rótulos descritivos com valores numéricos correspondentes
 const LABELS = [
@@ -369,16 +370,8 @@ function TutorialEvalContent() {
                 </Button>
               </div>
 
-              {/* Info box */}
-              <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800">
-                <Info className="h-4 w-4 mt-0.5 shrink-0" />
-                <div>
-                  <p className="font-medium">Escala de avaliação:</p>
-                  <p className="mt-1">
-                    Vixe, nada = 0 &middot; Paia = 0.25 &middot; Na estica = 0.5 &middot; Massa = 0.75 &middot; Brocou = 1.0
-                  </p>
-                </div>
-              </div>
+              {/* Glossário bahianês */}
+              <BahiaGlossary compact />
             </CardContent>
           </Card>
         )
