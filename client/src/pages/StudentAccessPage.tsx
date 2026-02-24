@@ -1243,19 +1243,19 @@ function EvaluationForm({ studentInfo, sessionInfo, studentEmail, studentPhotoUr
 
 // ─── Criteria Slider Component ───
 const SCORE_LABELS: Record<string, string> = {
-  "0.00": "0.0",
-  "0.25": "0.25",
-  "0.50": "0.5",
-  "0.75": "0.75",
-  "1.00": "1.0",
+  "0.00": "Nenhuma",
+  "0.25": "Fraco/Fraca",
+  "0.50": "Razoável",
+  "0.75": "Boa",
+  "1.00": "Excelente",
 };
 
 const PENALTY_LABELS: Record<string, string> = {
-  "0.00": "0.0",
-  "0.25": "0.25",
-  "0.50": "0.5",
-  "0.75": "0.75",
-  "1.00": "1.0",
+  "0.00": "Sem penalidade",
+  "0.25": "-0.25",
+  "0.50": "-0.50",
+  "0.75": "-0.75",
+  "1.00": "-1.0",
 };
 
 function getScoreLabel(value: number, penalty?: boolean): string {
@@ -1297,19 +1297,19 @@ function CriteriaSlider({ label, sublabel, tooltip, value, onChange, penalty, ge
       <div className="flex justify-between text-xs font-medium">
         {penalty ? (
           <>
-            <span className="text-emerald-600">0.0</span>
-            <span className="text-lime-600">0.25</span>
-            <span className="text-amber-500">0.5</span>
-            <span className="text-orange-600">0.75</span>
-            <span className="text-red-600">1.0</span>
+            <span className="text-emerald-600">Sem</span>
+            <span className="text-lime-600">-0.25</span>
+            <span className="text-amber-500">-0.50</span>
+            <span className="text-orange-600">-0.75</span>
+            <span className="text-red-600">-1.0</span>
           </>
         ) : (
           <>
-            <span className="text-red-600">0.0</span>
-            <span className="text-orange-500">0.25</span>
-            <span className="text-amber-500">0.5</span>
-            <span className="text-lime-600">0.75</span>
-            <span className="text-emerald-600">1.0</span>
+            <span className="text-red-600">Nenhuma</span>
+            <span className="text-orange-500">Fraca</span>
+            <span className="text-amber-500">Razoável</span>
+            <span className="text-lime-600">Boa</span>
+            <span className="text-emerald-600">Excelente</span>
           </>
         )}
       </div>

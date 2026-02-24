@@ -436,3 +436,4 @@
 - [x] Validação obrigatória: ao criar sessão, exigir um Coordenador, um Mesa e um Quadro
 - [x] Resumo de papéis na listagem de sessões: identificar quem não assumiu papel e quem já assumiu muitos
 - [x] Testes unitários para as 4 melhorias (13 novos testes, total 726)
+- [x] Substituir conceito "Normal" por "Razoável" em todos os formulários de avaliação (aluno e professor) e testes

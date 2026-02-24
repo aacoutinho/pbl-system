@@ -20,7 +20,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 const LABELS = [
   { label: "Nenhuma", value: 0 },
   { label: "Fraca", value: 0.25 },
-  { label: "Normal", value: 0.5 },
+  { label: "Razoável", value: 0.5 },
   { label: "Boa", value: 0.75 },
   { label: "Excelente", value: 1.0 },
 ] as const;
@@ -28,7 +28,7 @@ const LABELS = [
 const LABELS_MASC = [
   { label: "Nenhum", value: 0 },
   { label: "Fraco", value: 0.25 },
-  { label: "Normal", value: 0.5 },
+  { label: "Razoável", value: 0.5 },
   { label: "Bom", value: 0.75 },
   { label: "Excelente", value: 1.0 },
 ] as const;

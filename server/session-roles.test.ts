@@ -489,13 +489,13 @@ describe("Professor evaluation form labels", () => {
     const LABELS: Record<number, string> = {
       0: "Nenhuma",
       0.25: "Fraca",
-      0.5: "Normal",
+      0.5: "Razoável",
       0.75: "Boa",
       1: "Excelente",
     };
     expect(LABELS[0]).toBe("Nenhuma");
     expect(LABELS[0.25]).toBe("Fraca");
-    expect(LABELS[0.5]).toBe("Normal");
+    expect(LABELS[0.5]).toBe("Razoável");
     expect(LABELS[0.75]).toBe("Boa");
     expect(LABELS[1]).toBe("Excelente");
   });

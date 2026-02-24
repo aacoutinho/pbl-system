@@ -31,7 +31,7 @@ const roleLabels: Record<RoleType, string> = {
 const gradeLabels: Record<number, string> = {
   0: "Nenhuma",
   0.25: "Fraco/Fraca",
-  0.5: "Normal",
+  0.5: "Razoável",
   0.75: "Boa",
   1: "Excelente",
 };
