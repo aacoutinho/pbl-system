@@ -1138,6 +1138,9 @@ function EvaluationForm({ studentInfo, sessionInfo, studentEmail, studentPhotoUr
           <p className="text-muted-foreground">
             Olá, <strong>{studentInfo.studentName}</strong>. Avalie o desempenho dos seus colegas.
           </p>
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mt-2">
+            <strong>Importante:</strong> O preenchimento deste formulário é um requisito obrigatório para obtenção da nota de desempenho da sessão tutorial do componente. Avalie de forma objetiva e imparcial, baseando-se apenas nas contribuições e discussões ocorridas durante a sessão tutorial.
+          </p>
         </div>
       </div>
 
@@ -1211,12 +1214,12 @@ function EvaluationForm({ studentInfo, sessionInfo, studentEmail, studentPhotoUr
 
               <TooltipProvider>
               <div className="space-y-4">
-                <CriteriaSlider label="Pontualidade" sublabel="Peso 1" tooltip="Avalia se o colega chegou no horário e permaneceu durante toda a sessão tutorial." value={ev.pontualidade} onChange={(v) => updateEval(peer.studentId, "pontualidade", v)} gender="fem" />
-                <CriteriaSlider label="Pesquisa / Metas" sublabel="Peso 3" tooltip="Avalia se o colega pesquisou previamente sobre o tema, trouxe materiais relevantes e cumpriu as metas estabelecidas na sessão anterior." value={ev.pesquisaMetas} onChange={(v) => updateEval(peer.studentId, "pesquisaMetas", v)} gender="fem" />
-                <CriteriaSlider label="Domínio do Assunto" sublabel="Peso 3" tooltip="Avalia o nível de conhecimento demonstrado pelo colega sobre o tema discutido na sessão tutorial." value={ev.dominio} onChange={(v) => updateEval(peer.studentId, "dominio", v)} gender="masc" />
-                <CriteriaSlider label="Participação" sublabel="Peso 3" tooltip="Avalia o envolvimento ativo do colega nas discussões, contribuindo com ideias, perguntas e argumentos durante a sessão." value={ev.participacao} onChange={(v) => updateEval(peer.studentId, "participacao", v)} gender="fem" />
+                <CriteriaSlider label="Pontualidade" sublabel="Peso 1" tooltip="Excelente: Estava presente desde o início do tutorial, cumprindo integralmente o horário. | Boa: Chegou com até 10 minutos de atraso em relação ao início do tutorial. | Razoável: Chegou com atraso considerável, mas antes da primeira hora. | Fraca: Chegou até uma hora e 10 minutos depois do início do tutorial. | Nenhuma: Chegou após uma hora e 10 minutos do início do tutorial." value={ev.pontualidade} onChange={(v) => updateEval(peer.studentId, "pontualidade", v)} gender="fem" />
+                <CriteriaSlider label="Pesquisa / Metas" sublabel="Peso 3" tooltip="Excelente: Cumpriu todas as metas e pesquisas propostas e/ou realizou tarefas extras não solicitadas. | Boa: Realizou a pesquisa e cumpriu a maior parte das metas propostas de forma satisfatória. | Razoável: Cumpriu as metas apenas parcialmente ou realizou a pesquisa de forma superficial/insuficiente. | Fraca: Entregou resultados insuficientes para o grupo ou trouxe pesquisas irrelevantes para os objetivos do tutorial. | Nenhuma: Não realizou as pesquisas solicitadas nem cumpriu qualquer uma das metas estabelecidas." value={ev.pesquisaMetas} onChange={(v) => updateEval(peer.studentId, "pesquisaMetas", v)} gender="fem" />
+                <CriteriaSlider label="Domínio do Assunto" sublabel="Peso 3" tooltip="Excelente: Trouxe novos conceitos e/ou corrigiu com clareza equívocos apresentados pelo grupo. | Boa: Compreendeu a maioria dos pontos e aplicou os conceitos discutidos com segurança. | Razoável: Demonstrou conhecimento básico, mas apresentou dificuldade para explicar ou fundamentar suas ideias. | Fraca: Citou conceitos novos ou termos da área, porém não soube explicá-los ou aplicá-los corretamente. | Nenhuma: Atuou apenas como ouvinte e não demonstrou qualquer conhecimento sobre o tema proposto." value={ev.dominio} onChange={(v) => updateEval(peer.studentId, "dominio", v)} gender="masc" />
+                <CriteriaSlider label="Participação" sublabel="Peso 3" tooltip="Excelente: Participou ativamente, estimulou o debate construtivo e contribuiu para o aprofundamento da discussão. | Boa: Contribuiu com as discussões de forma frequente, ouviu os colegas e fez perguntas pertinentes. | Razoável: Participou de forma pontual ou apenas quando solicitado, com poucas contribuições voluntárias. | Fraca: Contribuiu minimamente com o grupo e, em alguns momentos, dispersou a atenção ou atrapalhou o fluxo. | Nenhuma: Permaneceu em silêncio absoluto ou demonstrou total desinteresse pelas atividades e pelo grupo." value={ev.participacao} onChange={(v) => updateEval(peer.studentId, "participacao", v)} gender="fem" />
                 {hasRolePenalty && (
-                  <CriteriaSlider label={`Desempenho no Papel de ${roleLabels[peer.role]}`} sublabel="Penalidade (até -1)" tooltip={`Penalidade aplicada quando o colega não desempenhou adequadamente o papel de ${roleLabels[peer.role]}. Se desempenhou bem, deixe em 'Nenhuma'.`} value={ev.desempenhoPapel} onChange={(v) => updateEval(peer.studentId, "desempenhoPapel", v)} penalty />
+                  <CriteriaSlider label={`Desempenho no Papel de ${roleLabels[peer.role]}`} sublabel="Penalidade (até -1)" tooltip={`Esta nota tem peso negativo porque trata de comportamentos já esperados durante o tutorial. | Excelente: Cumpriu todas as funções da forma esperada (ex: coordenador seguiu a pauta e gerenciou o tempo; quadro anotou os pontos principais com clareza; mesa registrou todos os dados e publicou prontamente). | Boa: Executou a maior parte das funções, mas falhou em pontos isolados. | Razoável: Tentou executar a função, mas deixou de realizar metade das tarefas. | Fraca: Realizou apenas tarefas mínimas ou superficiais, demonstrando desinteresse. | Nenhuma: Não cumpriu as funções essenciais de sua responsabilidade.`} value={ev.desempenhoPapel} onChange={(v) => updateEval(peer.studentId, "desempenhoPapel", v)} penalty />
                 )}
               </div>
               </TooltipProvider>
@@ -1277,8 +1280,17 @@ function CriteriaSlider({ label, sublabel, tooltip, value, onChange, penalty, ge
               <TooltipTrigger asChild>
                 <HelpCircle className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
               </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-xs text-xs">
-                <p>{tooltip}</p>
+              <TooltipContent side="top" className="max-w-sm text-xs">
+                <div className="space-y-1">
+                  {tooltip.includes("|") ? tooltip.split(" | ").map((line, i) => {
+                    const [concept, ...rest] = line.split(": ");
+                    return rest.length > 0 ? (
+                      <p key={i}><strong className="text-foreground">{concept}:</strong> {rest.join(": ")}</p>
+                    ) : (
+                      <p key={i}>{line}</p>
+                    );
+                  }) : <p>{tooltip}</p>}
+                </div>
               </TooltipContent>
             </Tooltip>
           )}

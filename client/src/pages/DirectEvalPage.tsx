@@ -264,7 +264,8 @@ function EvaluationForm({ studentInfo, sessionInfo, onDone }: {
             <HelpCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
             <div className="text-sm text-amber-800 space-y-1">
               <p className="font-semibold">Instruções de Avaliação</p>
-              <p>Avalie cada colega nos critérios abaixo. O papel de cada aluno já foi definido pelo professor. O critério "Desempenho no Papel" aparece apenas para alunos com papéis especiais (Coordenador, Mesa, Quadro).</p>
+              <p><strong>Importante:</strong> O preenchimento deste formulário é um requisito obrigatório para obtenção da nota de desempenho da sessão tutorial do componente. Avalie de forma objetiva e imparcial, baseando-se apenas nas contribuições e discussões ocorridas durante a sessão tutorial.</p>
+              <p className="mt-1">O papel de cada aluno já foi definido pelo professor. O critério "Desempenho no Papel" aparece apenas para Coordenador, Mesa e Quadro. Clique no ícone <strong>?</strong> ao lado de cada critério para ver a descrição detalhada de cada conceito.</p>
             </div>
           </div>
         </CardContent>
@@ -278,10 +279,10 @@ function EvaluationForm({ studentInfo, sessionInfo, onDone }: {
         const totalScore = ev.pontualidade * 1 + ev.pesquisaMetas * 3 + ev.dominio * 3 + ev.participacao * 3 - (hasRolePenalty ? ev.desempenhoPapel * 1 : 0);
 
         const criteriaItems = [
-          { key: "pontualidade" as const, label: "Pontualidade", desc: "Chegou no horário e permaneceu durante toda a sessão", sublabel: "Peso 1" },
-          { key: "pesquisaMetas" as const, label: "Pesquisa/Metas", desc: "Cumpriu as metas de pesquisa e preparação", sublabel: "Peso 3" },
-          { key: "dominio" as const, label: "Domínio", desc: "Demonstrou domínio do conteúdo discutido", sublabel: "Peso 3" },
-          { key: "participacao" as const, label: "Participação", desc: "Participou ativamente das discussões", sublabel: "Peso 3" },
+          { key: "pontualidade" as const, label: "Pontualidade", desc: "Excelente: Estava presente desde o início do tutorial, cumprindo integralmente o horário. | Boa: Chegou com até 10 minutos de atraso. | Razoável: Chegou com atraso considerável, mas antes da primeira hora. | Fraca: Chegou até 1h10 depois do início. | Nenhuma: Chegou após 1h10 do início.", sublabel: "Peso 1" },
+          { key: "pesquisaMetas" as const, label: "Pesquisa/Metas", desc: "Excelente: Cumpriu todas as metas e/ou realizou tarefas extras. | Boa: Realizou a pesquisa e cumpriu a maior parte das metas. | Razoável: Cumpriu parcialmente ou pesquisou de forma superficial. | Fraca: Resultados insuficientes ou pesquisas irrelevantes. | Nenhuma: Não realizou pesquisas nem cumpriu metas.", sublabel: "Peso 3" },
+          { key: "dominio" as const, label: "Domínio", desc: "Excelente: Trouxe novos conceitos e/ou corrigiu equívocos com clareza. | Boa: Compreendeu a maioria dos pontos e aplicou conceitos com segurança. | Razoável: Conhecimento básico, dificuldade para explicar ideias. | Fraca: Citou termos, mas não soube explicá-los. | Nenhuma: Apenas ouvinte, sem demonstrar conhecimento.", sublabel: "Peso 3" },
+          { key: "participacao" as const, label: "Participação", desc: "Excelente: Participou ativamente, estimulou o debate e aprofundou a discussão. | Boa: Contribuiu frequentemente, ouviu colegas e fez perguntas pertinentes. | Razoável: Participou pontualmente ou só quando solicitado. | Fraca: Contribuiu minimamente, dispersou atenção. | Nenhuma: Silêncio absoluto ou total desinteresse.", sublabel: "Peso 3" },
         ];
 
         return (
@@ -320,7 +321,18 @@ function EvaluationForm({ studentInfo, sessionInfo, onDone }: {
                           <TooltipTrigger>
                             <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
                           </TooltipTrigger>
-                          <TooltipContent><p className="text-xs max-w-xs">{desc}</p></TooltipContent>
+                          <TooltipContent className="max-w-sm text-xs">
+                            <div className="space-y-1">
+                              {desc.includes("|") ? desc.split(" | ").map((line: string, i: number) => {
+                                const [concept, ...rest] = line.split(": ");
+                                return rest.length > 0 ? (
+                                  <p key={i}><strong>{concept}:</strong> {rest.join(": ")}</p>
+                                ) : (
+                                  <p key={i}>{line}</p>
+                                );
+                              }) : <p>{desc}</p>}
+                            </div>
+                          </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
                     </div>
@@ -353,7 +365,16 @@ function EvaluationForm({ studentInfo, sessionInfo, onDone }: {
                           <TooltipTrigger>
                             <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
                           </TooltipTrigger>
-                          <TooltipContent><p className="text-xs max-w-xs">Penalidade aplicada quando o colega não desempenhou adequadamente o papel de {roleLabels[peer.role as RoleType]}. Se desempenhou bem, deixe em 'Nenhuma'.</p></TooltipContent>
+                          <TooltipContent className="max-w-sm text-xs">
+                            <div className="space-y-1">
+                              <p><em>Esta nota tem peso negativo porque trata de comportamentos já esperados durante o tutorial.</em></p>
+                              <p><strong>Excelente:</strong> Cumpriu todas as funções da forma esperada.</p>
+                              <p><strong>Boa:</strong> Executou a maior parte das funções, mas falhou em pontos isolados.</p>
+                              <p><strong>Razoável:</strong> Tentou executar a função, mas deixou de realizar metade das tarefas.</p>
+                              <p><strong>Fraca:</strong> Realizou apenas tarefas mínimas ou superficiais.</p>
+                              <p><strong>Nenhuma:</strong> Não cumpriu as funções essenciais de sua responsabilidade.</p>
+                            </div>
+                          </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
                     </div>

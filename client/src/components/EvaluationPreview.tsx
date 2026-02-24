@@ -63,8 +63,17 @@ function PreviewCriteriaSlider({ label, sublabel, tooltip, value, penalty }: {
               <TooltipTrigger asChild>
                 <HelpCircle className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
               </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-xs text-xs">
-                <p>{tooltip}</p>
+              <TooltipContent side="top" className="max-w-sm text-xs">
+                <div className="space-y-1">
+                  {tooltip.includes("|") ? tooltip.split(" | ").map((line, i) => {
+                    const [concept, ...rest] = line.split(": ");
+                    return rest.length > 0 ? (
+                      <p key={i}><strong>{concept}:</strong> {rest.join(": ")}</p>
+                    ) : (
+                      <p key={i}><em>{line}</em></p>
+                    );
+                  }) : <p>{tooltip}</p>}
+                </div>
               </TooltipContent>
             </Tooltip>
           )}
@@ -134,11 +143,14 @@ export function EvaluationPreviewDialog({ open, onOpenChange }: { open: boolean;
 
         <div className="space-y-4 mt-2">
           {/* Header info */}
-          <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
+          <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 space-y-2">
             <p className="text-sm text-blue-800">
               <strong>Exemplo:</strong> O aluno vê este formulário para cada colega presente na sessão.
               O papel de cada colega é definido pelo professor ao criar a sessão.
               O critério "Desempenho no Papel" aparece apenas para Coordenador, Mesa e Quadro.
+            </p>
+            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+              <strong>Importante:</strong> O preenchimento deste formulário é um requisito obrigatório para obtenção da nota de desempenho da sessão tutorial do componente. Avalie de forma objetiva e imparcial, baseando-se apenas nas contribuições e discussões ocorridas durante a sessão tutorial.
             </p>
           </div>
 
@@ -193,32 +205,32 @@ export function EvaluationPreviewDialog({ open, onOpenChange }: { open: boolean;
                       <PreviewCriteriaSlider
                         label="Pontualidade"
                         sublabel="Peso 1"
-                        tooltip="Avalia se o colega chegou no horário e permaneceu durante toda a sessão tutorial."
+                        tooltip="Excelente: Estava presente desde o início do tutorial, cumprindo integralmente o horário. | Boa: Chegou com até 10 minutos de atraso. | Razoável: Chegou com atraso considerável, mas antes da primeira hora. | Fraca: Chegou até 1h10 depois do início. | Nenhuma: Chegou após 1h10 do início."
                         value={1}
                       />
                       <PreviewCriteriaSlider
                         label="Pesquisa / Metas"
                         sublabel="Peso 3"
-                        tooltip="Avalia se o colega pesquisou previamente sobre o tema, trouxe materiais relevantes e cumpriu as metas estabelecidas na sessão anterior."
+                        tooltip="Excelente: Cumpriu todas as metas e/ou realizou tarefas extras. | Boa: Realizou a pesquisa e cumpriu a maior parte das metas. | Razoável: Cumpriu parcialmente ou pesquisou de forma superficial. | Fraca: Resultados insuficientes ou pesquisas irrelevantes. | Nenhuma: Não realizou pesquisas nem cumpriu metas."
                         value={1}
                       />
                       <PreviewCriteriaSlider
                         label="Domínio do Assunto"
                         sublabel="Peso 3"
-                        tooltip="Avalia o nível de conhecimento demonstrado pelo colega sobre o tema discutido na sessão tutorial."
+                        tooltip="Excelente: Trouxe novos conceitos e/ou corrigiu equívocos com clareza. | Boa: Compreendeu a maioria dos pontos e aplicou conceitos com segurança. | Razoável: Conhecimento básico, dificuldade para explicar ideias. | Fraca: Citou termos, mas não soube explicá-los. | Nenhuma: Apenas ouvinte, sem demonstrar conhecimento."
                         value={1}
                       />
                       <PreviewCriteriaSlider
                         label="Participação"
                         sublabel="Peso 3"
-                        tooltip="Avalia o envolvimento ativo do colega nas discussões, contribuindo com ideias, perguntas e argumentos durante a sessão."
+                        tooltip="Excelente: Participou ativamente, estimulou o debate e aprofundou a discussão. | Boa: Contribuiu frequentemente, ouviu colegas e fez perguntas pertinentes. | Razoável: Participou pontualmente ou só quando solicitado. | Fraca: Contribuiu minimamente, dispersou atenção. | Nenhuma: Silêncio absoluto ou total desinteresse."
                         value={1}
                       />
                       {hasRolePenalty && (
                         <PreviewCriteriaSlider
                           label={`Desempenho no Papel de ${roleLabels[peer.role]}`}
                           sublabel="Penalidade (até -1)"
-                          tooltip={`Penalidade aplicada quando o colega não desempenhou adequadamente o papel de ${roleLabels[peer.role]}. Se desempenhou bem, deixe em 'Nenhuma'.`}
+                          tooltip={`Esta nota tem peso negativo porque trata de comportamentos já esperados durante o tutorial. | Excelente: Cumpriu todas as funções da forma esperada. | Boa: Executou a maior parte das funções, mas falhou em pontos isolados. | Razoável: Tentou executar a função, mas deixou de realizar metade das tarefas. | Fraca: Realizou apenas tarefas mínimas ou superficiais. | Nenhuma: Não cumpriu as funções essenciais de sua responsabilidade.`}
                           value={0}
                           penalty
                         />

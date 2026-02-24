@@ -442,3 +442,4 @@
 - [x] Alterar título "Sessões de Avaliação" para "Sessões Tutoriais Realizadas"
 - [x] Corrigir labels de penalidade (Desempenho no Papel) em todos os formulários (prévia, DirectEvalPage, StudentAccessPage) para usar conceitos: Sem/Leve/Moderada/Grave/Gravíssima
 - [x] Padronizar labels de penalidade para usar mesmos conceitos dos outros critérios (Nenhuma/Fraca/Razoável/Boa/Excelente) em todos os formulários e tooltips
+- [x] Adicionar explicações detalhadas dos conceitos nos formulários de avaliação de pares (Atuação no Papel, Pontualidade, Domínio, Metas, Participação) com texto introdutório e descrições por conceito em todos os 3 formulários
