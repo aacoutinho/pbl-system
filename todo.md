@@ -431,3 +431,8 @@
 - [x] Formulário de avaliação de pares: exibir papel assumido por cada aluno avaliado
 - [x] Formulário de avaliação de pares: "Desempenho no Papel" aparece apenas para Coordenador, Mesa e Quadro
 - [x] Testes unitários para as mudanças de papéis e presença (16 novos testes)
+- [x] Formulário do professor: substituir botões numéricos por conceitos (Nenhuma/Fraco/Normal/Boa/Excelente) como no formulário de pares
+- [x] Edição de papéis e presença de sessão já criada (professor pode corrigir após criação)
+- [x] Validação obrigatória: ao criar sessão, exigir um Coordenador, um Mesa e um Quadro
+- [x] Resumo de papéis na listagem de sessões: identificar quem não assumiu papel e quem já assumiu muitos
+- [x] Testes unitários para as 4 melhorias (13 novos testes, total 726)

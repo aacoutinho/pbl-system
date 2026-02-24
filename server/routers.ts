@@ -46,6 +46,8 @@ import {
   findStudentByEnrollment, getOpenSessionsForStudent, getClassesForStudent,
   getStudentEvaluationHistory,
   generateSessionTokenForStudent, getSessionByStudentToken, deleteSessionTokens, getTokensForSession,
+  updateSessionAssignments,
+  getRoleSummaryByClass,
 } from "./db";
 import { storagePut } from "./storage";
 import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml, buildContactTicketEmailHtml, buildSessionOpenedEmailHtml, buildStudentGradeReportHtml } from "./email";
@@ -752,6 +754,11 @@ export const appRouter = router({
         const count = input.studentAssignments.filter(sa => sa.role === role && !sa.absent).length;
         if (count > 1) throw new TRPCError({ code: "BAD_REQUEST", message: `O papel ${role} só pode ser atribuído a um aluno` });
       }
+      // Validate required roles: must have at least one Coordenador, Mesa and Quadro among present students
+      const presentRoles = input.studentAssignments.filter(sa => !sa.absent).map(sa => sa.role);
+      if (!presentRoles.includes("COORDENADOR")) throw new TRPCError({ code: "BAD_REQUEST", message: "É necessário atribuir o papel de Coordenador a um aluno presente." });
+      if (!presentRoles.includes("MESA")) throw new TRPCError({ code: "BAD_REQUEST", message: "É necessário atribuir o papel de Mesa a um aluno presente." });
+      if (!presentRoles.includes("QUADRO")) throw new TRPCError({ code: "BAD_REQUEST", message: "É necessário atribuir o papel de Quadro a um aluno presente." });
       // Auto-calculate session number
       const info = await getNextSessionInfo(input.classId);
       let sessionNumber: number;
@@ -861,6 +868,34 @@ export const appRouter = router({
       }
       await deleteSession(input.id);
       return { success: true };
+    }),
+    updateAssignments: approvedProcedure.input(z.object({
+      sessionId: z.number(),
+      studentAssignments: z.array(z.object({
+        studentId: z.number(),
+        role: z.enum(["COORDENADOR", "MESA", "QUADRO", "PARTICIPANTE"]),
+        absent: z.boolean(),
+      })),
+    })).mutation(async ({ ctx, input }) => {
+      const session = await getSessionById(input.sessionId);
+      if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
+      const cls = await getClassById(session.classId);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertClassManager(ctx.user.id, ctx.user.role, cls);
+      // Validate required roles
+      const roles = input.studentAssignments.filter(a => !a.absent).map(a => a.role);
+      if (!roles.includes("COORDENADOR")) throw new TRPCError({ code: "BAD_REQUEST", message: "É necessário atribuir o papel de Coordenador a um aluno presente." });
+      if (!roles.includes("MESA")) throw new TRPCError({ code: "BAD_REQUEST", message: "É necessário atribuir o papel de Mesa a um aluno presente." });
+      if (!roles.includes("QUADRO")) throw new TRPCError({ code: "BAD_REQUEST", message: "É necessário atribuir o papel de Quadro a um aluno presente." });
+      await updateSessionAssignments(input.sessionId, input.studentAssignments);
+      await createAuditLog({ action: "session.updateAssignments", actorUserId: ctx.user.id, details: `Papéis atualizados na sessão ${session.label}` });
+      return { success: true };
+    }),
+    roleSummary: approvedProcedure.input(z.object({ classId: z.number() })).query(async ({ ctx, input }) => {
+      const cls = await getClassById(input.classId);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);
+      return getRoleSummaryByClass(input.classId);
     }),
     submissionStatus: protectedProcedure.input(z.object({ sessionId: z.number() })).query(async ({ input }) => {
       const sessionStudentsList = await getSessionStudents(input.sessionId);

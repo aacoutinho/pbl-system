@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Lock, Unlock, Trash2, ClipboardList, Users, Eye, BookOpen, RotateCcw, CheckCircle2, Clock, FileSearch, AlertTriangle, Mail, Send } from "lucide-react";
+import { Plus, Lock, Unlock, Trash2, ClipboardList, Users, Eye, BookOpen, RotateCcw, CheckCircle2, Clock, FileSearch, AlertTriangle, Mail, Send, Pencil } from "lucide-react";
 import { EvaluationPreviewDialog } from "@/components/EvaluationPreview";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -59,6 +59,11 @@ function SessionsContent() {
     { classId: selectedClassId! },
     { enabled: !!selectedClassId }
   );
+  const { data: roleSummary } = trpc.sessions.roleSummary.useQuery(
+    { classId: selectedClassId! },
+    { enabled: !!selectedClassId && canManage }
+  );
+  const [showRoleSummary, setShowRoleSummary] = useState(false);
 
   const createMutation = trpc.sessions.create.useMutation({
     onSuccess: () => { utils.sessions.list.invalidate(); utils.results.dashboard.invalidate(); toast.success("Sessão criada com sucesso"); setShowCreate(false); },
@@ -148,6 +153,11 @@ function SessionsContent() {
       const count = selected.filter(sa => sa.role === role && !sa.absent).length;
       if (count > 1) { toast.error(`O papel ${role} só pode ser atribuído a um aluno`); return; }
     }
+    // Validate required roles
+    const presentRoles = selected.filter(sa => !sa.absent).map(sa => sa.role);
+    if (!presentRoles.includes("COORDENADOR")) { toast.error("É necessário atribuir o papel de Coordenador a um aluno presente."); return; }
+    if (!presentRoles.includes("MESA")) { toast.error("É necessário atribuir o papel de Mesa a um aluno presente."); return; }
+    if (!presentRoles.includes("QUADRO")) { toast.error("É necessário atribuir o papel de Quadro a um aluno presente."); return; }
     createMutation.mutate({
       classId: selectedClassId,
       problemNumber: pn,
@@ -426,9 +436,90 @@ function SessionsContent() {
           )}
         </CardContent>
       </Card>
+
+      {/* Role Summary Card */}
+      {canManage && roleSummary && roleSummary.length > 0 && (
+        <Card>
+          <CardHeader className="cursor-pointer" onClick={() => setShowRoleSummary(!showRoleSummary)}>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Resumo de Papéis por Aluno
+              <Badge variant="secondary" className="ml-2">{roleSummary.length} alunos</Badge>
+              <span className="ml-auto text-sm font-normal text-muted-foreground">{showRoleSummary ? "Ocultar" : "Expandir"}</span>
+            </CardTitle>
+          </CardHeader>
+          {showRoleSummary && (
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-3">
+                Histórico de papéis assumidos em todas as sessões desta turma. Use para distribuir papéis de forma equilibrada.
+              </p>
+              <div className="border rounded-lg overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="text-left px-3 py-2 font-medium">Aluno</th>
+                      <th className="text-center px-2 py-2 font-medium text-blue-700" title="Coordenador">Coord.</th>
+                      <th className="text-center px-2 py-2 font-medium text-emerald-700" title="Mesa">Mesa</th>
+                      <th className="text-center px-2 py-2 font-medium text-purple-700" title="Quadro">Quadro</th>
+                      <th className="text-center px-2 py-2 font-medium text-gray-600" title="Participante">Part.</th>
+                      <th className="text-center px-2 py-2 font-medium text-red-600" title="Ausências">Faltas</th>
+                      <th className="text-center px-2 py-2 font-medium" title="Total de sessões">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {roleSummary.map(s => {
+                      const hasNoSpecialRole = s.coordenador === 0 && s.mesa === 0 && s.quadro === 0;
+                      return (
+                        <tr key={s.studentId} className={`border-b last:border-0 ${hasNoSpecialRole ? 'bg-amber-50/50' : ''}`}>
+                          <td className="px-3 py-2">
+                            <div className="min-w-0">
+                              <p className="font-medium truncate">{s.studentName}</p>
+                              <p className="text-xs text-muted-foreground">{s.studentEnrollment}</p>
+                            </div>
+                          </td>
+                          <td className="text-center px-2 py-2">
+                            <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold ${s.coordenador > 0 ? 'bg-blue-100 text-blue-700' : 'text-muted-foreground/40'}`}>
+                              {s.coordenador}
+                            </span>
+                          </td>
+                          <td className="text-center px-2 py-2">
+                            <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold ${s.mesa > 0 ? 'bg-emerald-100 text-emerald-700' : 'text-muted-foreground/40'}`}>
+                              {s.mesa}
+                            </span>
+                          </td>
+                          <td className="text-center px-2 py-2">
+                            <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold ${s.quadro > 0 ? 'bg-purple-100 text-purple-700' : 'text-muted-foreground/40'}`}>
+                              {s.quadro}
+                            </span>
+                          </td>
+                          <td className="text-center px-2 py-2">
+                            <span className="text-muted-foreground">{s.participante}</span>
+                          </td>
+                          <td className="text-center px-2 py-2">
+                            <span className={s.ausencias > 0 ? 'text-red-600 font-semibold' : 'text-muted-foreground/40'}>{s.ausencias}</span>
+                          </td>
+                          <td className="text-center px-2 py-2 font-medium">{s.totalSessions}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {roleSummary.some(s => s.coordenador === 0 && s.mesa === 0 && s.quadro === 0) && (
+                <div className="flex items-center gap-2 mt-3 text-sm text-amber-700 bg-amber-50 rounded-md p-2 border border-amber-200">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span>Alunos destacados em amarelo ainda não assumiram nenhum papel especial (Coordenador, Mesa ou Quadro).</span>
+                </div>
+              )}
+            </CardContent>
+          )}
+        </Card>
+      )}
     </div>
   );
 }
+
+type RoleTypeRow = "COORDENADOR" | "MESA" | "QUADRO" | "PARTICIPANTE";
 
 function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onDelete, onViewResults }: {
   session: { id: number; label: string; problemNumber: number; sessionNumber: number; status: string; accessCode?: string | null };
@@ -448,6 +539,65 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onDele
   const [showReevalDialog, setShowReevalDialog] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [showOpenConfirm, setShowOpenConfirm] = useState(false);
+  const [showEditAssignments, setShowEditAssignments] = useState(false);
+  const [editAssignments, setEditAssignments] = useState<Record<number, { studentId: number; role: RoleTypeRow; absent: boolean }>>({});
+
+  const { data: sessionStudentsData } = trpc.sessions.getStudents.useQuery(
+    { sessionId: session.id },
+    { enabled: showEditAssignments }
+  );
+
+  const updateAssignmentsMutation = trpc.sessions.updateAssignments.useMutation({
+    onSuccess: () => {
+      utils.sessions.submissionStatus.invalidate({ sessionId: session.id });
+      utils.sessions.getStudents.invalidate({ sessionId: session.id });
+      toast.success("Papéis e presença atualizados com sucesso!");
+      setShowEditAssignments(false);
+    },
+    onError: (e: { message: string }) => toast.error(e.message),
+  });
+
+  // Initialize edit assignments when data loads
+  useEffect(() => {
+    if (sessionStudentsData && showEditAssignments) {
+      const init: Record<number, { studentId: number; role: RoleTypeRow; absent: boolean }> = {};
+      sessionStudentsData.forEach((s: any) => {
+        init[s.studentId] = { studentId: s.studentId, role: s.role ?? "PARTICIPANTE", absent: s.absent ?? false };
+      });
+      setEditAssignments(init);
+    }
+  }, [sessionStudentsData, showEditAssignments]);
+
+  const updateEditRole = (studentId: number, role: RoleTypeRow) => {
+    if (["COORDENADOR", "MESA", "QUADRO"].includes(role)) {
+      setEditAssignments(prev => {
+        const updated = { ...prev };
+        Object.keys(updated).forEach(k => {
+          const kid = Number(k);
+          if (kid !== studentId && updated[kid].role === role) {
+            updated[kid] = { ...updated[kid], role: "PARTICIPANTE" };
+          }
+        });
+        updated[studentId] = { ...updated[studentId], role };
+        return updated;
+      });
+    } else {
+      setEditAssignments(prev => ({ ...prev, [studentId]: { ...prev[studentId], role } }));
+    }
+  };
+
+  const toggleEditAbsent = (studentId: number) => {
+    setEditAssignments(prev => ({ ...prev, [studentId]: { ...prev[studentId], absent: !prev[studentId]?.absent } }));
+  };
+
+  const handleSaveAssignments = () => {
+    const assignments = Object.values(editAssignments);
+    const presentRoles = assignments.filter(a => !a.absent).map(a => a.role);
+    if (!presentRoles.includes("COORDENADOR")) { toast.error("É necessário um Coordenador entre os presentes."); return; }
+    if (!presentRoles.includes("MESA")) { toast.error("É necessário um aluno de Mesa entre os presentes."); return; }
+    if (!presentRoles.includes("QUADRO")) { toast.error("É necessário um aluno de Quadro entre os presentes."); return; }
+    updateAssignmentsMutation.mutate({ sessionId: session.id, studentAssignments: assignments });
+  };
 
   const openAndNotifyMutation = trpc.sessions.openAndNotify.useMutation({
     onSuccess: (data: { emailsSent: number; tokensGenerated: number }) => {
@@ -596,6 +746,78 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onDele
                   <p className="p-4 text-sm text-muted-foreground text-center">Nenhum aluno nesta sessão.</p>
                 )}
               </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* Edit assignments button */}
+        {canManage && (
+          <Dialog open={showEditAssignments} onOpenChange={setShowEditAssignments}>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="icon" title="Editar papéis e presença">
+                <Pencil className="h-4 w-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Editar Papéis e Presença</DialogTitle>
+                <DialogDescription>
+                  {session.label} — Ajuste os papéis e presença dos alunos.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="border rounded-lg max-h-80 overflow-y-auto divide-y">
+                {sessionStudentsData?.map((s: any) => {
+                  const a = editAssignments[s.studentId];
+                  if (!a) return null;
+                  return (
+                    <div key={s.studentId} className={`px-3 py-2.5 transition-colors ${a.absent ? 'bg-muted/30 opacity-60' : 'bg-background'}`}>
+                      <div className="flex items-center gap-3">
+                        <Checkbox
+                          checked={!a.absent}
+                          onCheckedChange={() => toggleEditAbsent(s.studentId)}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{s.studentName}</p>
+                          <p className="text-xs text-muted-foreground truncate">{s.studentEnrollment}</p>
+                        </div>
+                        {!a.absent && (
+                          <Select value={a.role} onValueChange={(v) => updateEditRole(s.studentId, v as RoleTypeRow)}>
+                            <SelectTrigger className="w-[140px] h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="PARTICIPANTE">Participante</SelectItem>
+                              <SelectItem value="COORDENADOR">Coordenador</SelectItem>
+                              <SelectItem value="MESA">Mesa</SelectItem>
+                              <SelectItem value="QUADRO">Quadro</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                        {a.absent && <Badge variant="outline" className="text-xs text-red-600">Falta</Badge>}
+                      </div>
+                    </div>
+                  );
+                })}
+                {(!sessionStudentsData || sessionStudentsData.length === 0) && (
+                  <p className="p-4 text-sm text-muted-foreground text-center">Nenhum aluno nesta sessão.</p>
+                )}
+              </div>
+              {sessionStudentsData && sessionStudentsData.length > 0 && (
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{Object.values(editAssignments).filter(a => !a.absent).length} presente(s), {Object.values(editAssignments).filter(a => a.absent).length} falta(s)</span>
+                  <div className="flex gap-1">
+                    {Object.values(editAssignments).filter(a => !a.absent && a.role !== "PARTICIPANTE").map(a => (
+                      <Badge key={a.role} variant="outline" className="text-[10px] h-5">{a.role}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowEditAssignments(false)}>Cancelar</Button>
+                <Button onClick={handleSaveAssignments} disabled={updateAssignmentsMutation.isPending}>
+                  {updateAssignmentsMutation.isPending ? "Salvando..." : "Salvar Alterações"}
+                </Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         )}

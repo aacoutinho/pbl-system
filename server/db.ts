@@ -818,6 +818,18 @@ export async function deleteSession(id: number) {
   await db.delete(sessions).where(eq(sessions.id, id));
 }
 
+export async function updateSessionAssignments(sessionId: number, assignments: Array<{ studentId: number; role: "COORDENADOR" | "MESA" | "QUADRO" | "PARTICIPANTE"; absent: boolean }>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  // Delete existing assignments and re-insert
+  await db.delete(sessionStudents).where(eq(sessionStudents.sessionId, sessionId));
+  if (assignments.length > 0) {
+    await db.insert(sessionStudents).values(
+      assignments.map(a => ({ sessionId, studentId: a.studentId, role: a.role, absent: a.absent }))
+    );
+  }
+}
+
 // ─── Evaluation helpers ───
 export async function submitEvaluation(data: {
   sessionId: number;
@@ -2661,4 +2673,76 @@ export async function getTokensForSession(sessionId: number) {
   })
     .from(sessionAccessTokens)
     .where(eq(sessionAccessTokens.sessionId, sessionId));
+}
+
+
+// ─── Role Summary for a class (how many times each student assumed each role) ───
+export async function getRoleSummaryByClass(classId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  // Get all sessions for this class
+  const classSessions = await db.select({ id: sessions.id })
+    .from(sessions)
+    .where(eq(sessions.classId, classId));
+
+  if (classSessions.length === 0) return [];
+
+  const sessionIds = classSessions.map(s => s.id);
+
+  // Get all session students with their roles
+  const allAssignments = await db.select({
+    studentId: sessionStudents.studentId,
+    sessionId: sessionStudents.sessionId,
+    role: sessionStudents.role,
+    absent: sessionStudents.absent,
+    studentName: students.name,
+    studentEnrollment: students.enrollment,
+  })
+    .from(sessionStudents)
+    .innerJoin(students, eq(sessionStudents.studentId, students.id))
+    .where(inArray(sessionStudents.sessionId, sessionIds));
+
+  // Group by student
+  const summaryMap = new Map<number, {
+    studentId: number;
+    studentName: string;
+    studentEnrollment: string;
+    coordenador: number;
+    mesa: number;
+    quadro: number;
+    participante: number;
+    ausencias: number;
+    totalSessions: number;
+  }>();
+
+  for (const a of allAssignments) {
+    if (!summaryMap.has(a.studentId)) {
+      summaryMap.set(a.studentId, {
+        studentId: a.studentId,
+        studentName: a.studentName,
+        studentEnrollment: a.studentEnrollment,
+        coordenador: 0,
+        mesa: 0,
+        quadro: 0,
+        participante: 0,
+        ausencias: 0,
+        totalSessions: 0,
+      });
+    }
+    const entry = summaryMap.get(a.studentId)!;
+    entry.totalSessions++;
+    if (a.absent) {
+      entry.ausencias++;
+    } else {
+      switch (a.role) {
+        case "COORDENADOR": entry.coordenador++; break;
+        case "MESA": entry.mesa++; break;
+        case "QUADRO": entry.quadro++; break;
+        case "PARTICIPANTE": entry.participante++; break;
+      }
+    }
+  }
+
+  return Array.from(summaryMap.values()).sort((a, b) => a.studentName.localeCompare(b.studentName));
 }

@@ -266,3 +266,244 @@ describe("Session Roles and Evaluation Form", () => {
     });
   });
 });
+
+
+// ─── Validation: required roles (Coordenador, Mesa, Quadro) ───
+describe("Required roles validation", () => {
+  type RoleType = "COORDENADOR" | "MESA" | "QUADRO" | "PARTICIPANTE";
+  interface StudentAssignment {
+    studentId: number;
+    role: RoleType;
+    absent: boolean;
+  }
+
+  function validateRequiredRoles(assignments: StudentAssignment[]): string[] {
+    const errors: string[] = [];
+    const presentRoles = assignments.filter(a => !a.absent).map(a => a.role);
+    if (!presentRoles.includes("COORDENADOR")) errors.push("É necessário atribuir o papel de Coordenador a um aluno presente.");
+    if (!presentRoles.includes("MESA")) errors.push("É necessário atribuir o papel de Mesa a um aluno presente.");
+    if (!presentRoles.includes("QUADRO")) errors.push("É necessário atribuir o papel de Quadro a um aluno presente.");
+    return errors;
+  }
+
+  it("passes when all required roles are present", () => {
+    const assignments: StudentAssignment[] = [
+      { studentId: 1, role: "COORDENADOR", absent: false },
+      { studentId: 2, role: "MESA", absent: false },
+      { studentId: 3, role: "QUADRO", absent: false },
+      { studentId: 4, role: "PARTICIPANTE", absent: false },
+    ];
+    expect(validateRequiredRoles(assignments)).toEqual([]);
+  });
+
+  it("fails when COORDENADOR is missing", () => {
+    const assignments: StudentAssignment[] = [
+      { studentId: 1, role: "PARTICIPANTE", absent: false },
+      { studentId: 2, role: "MESA", absent: false },
+      { studentId: 3, role: "QUADRO", absent: false },
+    ];
+    const errors = validateRequiredRoles(assignments);
+    expect(errors.length).toBe(1);
+    expect(errors[0]).toContain("Coordenador");
+  });
+
+  it("fails when MESA is missing", () => {
+    const assignments: StudentAssignment[] = [
+      { studentId: 1, role: "COORDENADOR", absent: false },
+      { studentId: 2, role: "PARTICIPANTE", absent: false },
+      { studentId: 3, role: "QUADRO", absent: false },
+    ];
+    const errors = validateRequiredRoles(assignments);
+    expect(errors.length).toBe(1);
+    expect(errors[0]).toContain("Mesa");
+  });
+
+  it("fails when QUADRO is missing", () => {
+    const assignments: StudentAssignment[] = [
+      { studentId: 1, role: "COORDENADOR", absent: false },
+      { studentId: 2, role: "MESA", absent: false },
+      { studentId: 3, role: "PARTICIPANTE", absent: false },
+    ];
+    const errors = validateRequiredRoles(assignments);
+    expect(errors.length).toBe(1);
+    expect(errors[0]).toContain("Quadro");
+  });
+
+  it("fails when all required roles are missing", () => {
+    const assignments: StudentAssignment[] = [
+      { studentId: 1, role: "PARTICIPANTE", absent: false },
+      { studentId: 2, role: "PARTICIPANTE", absent: false },
+    ];
+    const errors = validateRequiredRoles(assignments);
+    expect(errors.length).toBe(3);
+  });
+
+  it("fails when required roles are only assigned to absent students", () => {
+    const assignments: StudentAssignment[] = [
+      { studentId: 1, role: "COORDENADOR", absent: true },
+      { studentId: 2, role: "MESA", absent: true },
+      { studentId: 3, role: "QUADRO", absent: true },
+      { studentId: 4, role: "PARTICIPANTE", absent: false },
+    ];
+    const errors = validateRequiredRoles(assignments);
+    expect(errors.length).toBe(3);
+  });
+
+  it("passes when required roles are present even with some absent students", () => {
+    const assignments: StudentAssignment[] = [
+      { studentId: 1, role: "COORDENADOR", absent: false },
+      { studentId: 2, role: "MESA", absent: false },
+      { studentId: 3, role: "QUADRO", absent: false },
+      { studentId: 4, role: "PARTICIPANTE", absent: true },
+      { studentId: 5, role: "PARTICIPANTE", absent: true },
+    ];
+    expect(validateRequiredRoles(assignments)).toEqual([]);
+  });
+});
+
+// ─── Role Summary calculation ───
+describe("Role Summary by Class", () => {
+  type RoleType = "COORDENADOR" | "MESA" | "QUADRO" | "PARTICIPANTE";
+
+  interface SessionAssignment {
+    studentId: number;
+    role: RoleType;
+    absent: boolean;
+  }
+
+  function calculateRoleSummary(allAssignments: { studentId: number; studentName: string; role: RoleType; absent: boolean }[]) {
+    const summaryMap = new Map<number, {
+      studentId: number;
+      studentName: string;
+      coordenador: number;
+      mesa: number;
+      quadro: number;
+      participante: number;
+      ausencias: number;
+      totalSessions: number;
+    }>();
+
+    for (const a of allAssignments) {
+      if (!summaryMap.has(a.studentId)) {
+        summaryMap.set(a.studentId, {
+          studentId: a.studentId,
+          studentName: a.studentName,
+          coordenador: 0, mesa: 0, quadro: 0, participante: 0, ausencias: 0, totalSessions: 0,
+        });
+      }
+      const entry = summaryMap.get(a.studentId)!;
+      entry.totalSessions++;
+      if (a.absent) {
+        entry.ausencias++;
+      } else {
+        switch (a.role) {
+          case "COORDENADOR": entry.coordenador++; break;
+          case "MESA": entry.mesa++; break;
+          case "QUADRO": entry.quadro++; break;
+          case "PARTICIPANTE": entry.participante++; break;
+        }
+      }
+    }
+
+    return Array.from(summaryMap.values()).sort((a, b) => a.studentName.localeCompare(b.studentName));
+  }
+
+  it("correctly counts roles across multiple sessions", () => {
+    const assignments = [
+      // Session 1
+      { studentId: 1, studentName: "Alice", role: "COORDENADOR" as RoleType, absent: false },
+      { studentId: 2, studentName: "Bob", role: "MESA" as RoleType, absent: false },
+      { studentId: 3, studentName: "Charlie", role: "QUADRO" as RoleType, absent: false },
+      // Session 2
+      { studentId: 1, studentName: "Alice", role: "MESA" as RoleType, absent: false },
+      { studentId: 2, studentName: "Bob", role: "COORDENADOR" as RoleType, absent: false },
+      { studentId: 3, studentName: "Charlie", role: "PARTICIPANTE" as RoleType, absent: false },
+      // Session 3
+      { studentId: 1, studentName: "Alice", role: "PARTICIPANTE" as RoleType, absent: true },
+      { studentId: 2, studentName: "Bob", role: "QUADRO" as RoleType, absent: false },
+      { studentId: 3, studentName: "Charlie", role: "COORDENADOR" as RoleType, absent: false },
+    ];
+
+    const summary = calculateRoleSummary(assignments);
+    expect(summary.length).toBe(3);
+
+    const alice = summary.find(s => s.studentName === "Alice")!;
+    expect(alice.coordenador).toBe(1);
+    expect(alice.mesa).toBe(1);
+    expect(alice.quadro).toBe(0);
+    expect(alice.participante).toBe(0);
+    expect(alice.ausencias).toBe(1);
+    expect(alice.totalSessions).toBe(3);
+
+    const bob = summary.find(s => s.studentName === "Bob")!;
+    expect(bob.coordenador).toBe(1);
+    expect(bob.mesa).toBe(1);
+    expect(bob.quadro).toBe(1);
+    expect(bob.ausencias).toBe(0);
+    expect(bob.totalSessions).toBe(3);
+
+    const charlie = summary.find(s => s.studentName === "Charlie")!;
+    expect(charlie.coordenador).toBe(1);
+    expect(charlie.quadro).toBe(1);
+    expect(charlie.participante).toBe(1);
+    expect(charlie.totalSessions).toBe(3);
+  });
+
+  it("identifies students who never assumed special roles", () => {
+    const assignments = [
+      { studentId: 1, studentName: "Alice", role: "PARTICIPANTE" as RoleType, absent: false },
+      { studentId: 1, studentName: "Alice", role: "PARTICIPANTE" as RoleType, absent: false },
+      { studentId: 2, studentName: "Bob", role: "COORDENADOR" as RoleType, absent: false },
+      { studentId: 2, studentName: "Bob", role: "MESA" as RoleType, absent: false },
+    ];
+
+    const summary = calculateRoleSummary(assignments);
+    const alice = summary.find(s => s.studentName === "Alice")!;
+    const hasNoSpecialRole = alice.coordenador === 0 && alice.mesa === 0 && alice.quadro === 0;
+    expect(hasNoSpecialRole).toBe(true);
+
+    const bob = summary.find(s => s.studentName === "Bob")!;
+    const bobHasNoSpecialRole = bob.coordenador === 0 && bob.mesa === 0 && bob.quadro === 0;
+    expect(bobHasNoSpecialRole).toBe(false);
+  });
+
+  it("handles empty assignments", () => {
+    const summary = calculateRoleSummary([]);
+    expect(summary).toEqual([]);
+  });
+
+  it("sorts students alphabetically", () => {
+    const assignments = [
+      { studentId: 3, studentName: "Zara", role: "PARTICIPANTE" as RoleType, absent: false },
+      { studentId: 1, studentName: "Alice", role: "PARTICIPANTE" as RoleType, absent: false },
+      { studentId: 2, studentName: "Maria", role: "PARTICIPANTE" as RoleType, absent: false },
+    ];
+    const summary = calculateRoleSummary(assignments);
+    expect(summary.map(s => s.studentName)).toEqual(["Alice", "Maria", "Zara"]);
+  });
+});
+
+// ─── Professor evaluation form labels (concepts instead of numbers) ───
+describe("Professor evaluation form labels", () => {
+  it("uses descriptive concept labels instead of numeric values", () => {
+    const LABELS: Record<number, string> = {
+      0: "Nenhuma",
+      0.25: "Fraca",
+      0.5: "Normal",
+      0.75: "Boa",
+      1: "Excelente",
+    };
+    expect(LABELS[0]).toBe("Nenhuma");
+    expect(LABELS[0.25]).toBe("Fraca");
+    expect(LABELS[0.5]).toBe("Normal");
+    expect(LABELS[0.75]).toBe("Boa");
+    expect(LABELS[1]).toBe("Excelente");
+  });
+
+  it("maps all 5 values correctly", () => {
+    const values = [0, 0.25, 0.5, 0.75, 1];
+    expect(values.length).toBe(5);
+    expect(values[0]).toBe(0);
+    expect(values[4]).toBe(1);
+  });
+});

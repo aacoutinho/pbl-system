@@ -16,21 +16,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/_core/hooks/useAuth";
 
-// Rótulos com notas numéricas
+// Rótulos com conceitos descritivos (feminino e masculino)
 const LABELS = [
-  { label: "0.0", value: 0 },
-  { label: "0.25", value: 0.25 },
-  { label: "0.5", value: 0.5 },
-  { label: "0.75", value: 0.75 },
-  { label: "1.0", value: 1.0 },
+  { label: "Nenhuma", value: 0 },
+  { label: "Fraca", value: 0.25 },
+  { label: "Normal", value: 0.5 },
+  { label: "Boa", value: 0.75 },
+  { label: "Excelente", value: 1.0 },
 ] as const;
 
 const LABELS_MASC = [
-  { label: "0.0", value: 0 },
-  { label: "0.25", value: 0.25 },
-  { label: "0.5", value: 0.5 },
-  { label: "0.75", value: 0.75 },
-  { label: "1.0", value: 1.0 },
+  { label: "Nenhum", value: 0 },
+  { label: "Fraco", value: 0.25 },
+  { label: "Normal", value: 0.5 },
+  { label: "Bom", value: 0.75 },
+  { label: "Excelente", value: 1.0 },
 ] as const;
 
 function getLabelForValue(value: number, gender: "fem" | "masc"): string {
