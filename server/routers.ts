@@ -603,14 +603,13 @@ export const appRouter = router({
         students: parsedStudents,
       };
     }),
-    exportGoogleWorkspace: approvedProcedure.input(z.object({
+    exportGoogleWorkspace: adminProcedure.input(z.object({
       classIds: z.array(z.number()).min(1),
     })).query(async ({ ctx, input }) => {
-      // Verify component access for all classes
+      // Admin-only: Verify component access for all classes
       for (const classId of input.classIds) {
         const cls = await getClassById(classId);
         if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
-        await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);
       }
       const studentsData = await listStudentsForExport(input.classIds);
       if (studentsData.length === 0) {
@@ -1882,20 +1881,11 @@ export const appRouter = router({
 
   // ─── Audit Logs ───
   auditLogs: router({
-    list: approvedProcedure.input(z.object({
+    list: adminProcedure.input(z.object({
       limit: z.number().min(1).max(100).optional().default(50),
       offset: z.number().min(0).optional().default(0),
     })).query(async ({ ctx, input }) => {
-      // Admin sees all; coordinators see logs for their components
-      if (ctx.user.role === "admin") {
-        return listAuditLogs({ limit: input.limit, offset: input.offset });
-      }
-      const coordCompIds = await getCoordinatorComponentIds(ctx.user.id);
-      if (coordCompIds.length === 0) {
-        // Regular prof: see only logs where they are the actor
-        return listAuditLogs({ limit: input.limit, offset: input.offset, componentIds: [] });
-      }
-      return listAuditLogs({ limit: input.limit, offset: input.offset, componentIds: coordCompIds });
+      return listAuditLogs({ limit: input.limit, offset: input.offset });
     }),
   }),
 

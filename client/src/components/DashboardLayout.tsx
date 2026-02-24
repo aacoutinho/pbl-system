@@ -24,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useIsMobile } from "@/hooks/useMobile";
 import { useClassContext } from "@/contexts/ClassContext";
 import { trpc } from "@/lib/trpc";
-import { LayoutDashboard, Users, ClipboardList, BarChart3, LogOut, PanelLeft, GraduationCap, BookOpen, ClipboardCheck, Download, KeyRound, UserCheck, Clock, Eye, EyeOff, Loader2, Mail, ArrowRightLeft, Layers, User, History, Bell, MessageSquare, DatabaseBackup, Settings, ChevronDown } from "lucide-react";
+import { LayoutDashboard, Users, ClipboardList, BarChart3, LogOut, PanelLeft, GraduationCap, BookOpen, ClipboardCheck, Download, KeyRound, UserCheck, Clock, Eye, EyeOff, Loader2, Mail, ArrowRightLeft, Layers, User, History, Bell, MessageSquare, DatabaseBackup, Settings, ChevronDown, UploadCloud } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState, FormEvent } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -60,6 +60,7 @@ const contactItem = { icon: MessageSquare, label: "Contato", path: "/contact" };
 const configSubItems = [
   { icon: Mail, label: "E-mails", path: "/smtp-config" },
   { icon: DatabaseBackup, label: "Backup", path: "/backup" },
+  { icon: UploadCloud, label: "Restauração", path: "/restauracao" },
   { icon: Download, label: "Exportar", path: "/export-students" },
   { icon: History, label: "Histórico", path: "/audit-log" },
 ];
@@ -575,6 +576,13 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
     enabled: !!user,
   });
   const unreadCount = unreadData?.count ?? 0;
+
+  // SMTP status indicator for admin menu
+  const { data: smtpStatusData } = trpc.auth.smtpStatus.useQuery(undefined, {
+    enabled: isAdmin,
+    refetchOnWindowFocus: false,
+  });
+  const smtpConfigured = smtpStatusData?.configured ?? true; // default true to avoid flash
   const activeMenuItem = menuItems.find(item => item.path === location) 
     || configSubItems.find(item => item.path === location);
 
@@ -700,16 +708,29 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                         <div className="ml-3 border-l border-border/50 pl-2 mt-0.5 mb-0.5">
                           {subItems.map(sub => {
                             const isSubActive = location === sub.path;
+                            const isSmtpItem = sub.path === "/smtp-config";
+                            const showSmtpWarning = isSmtpItem && !smtpConfigured;
                             return (
                               <SidebarMenuButton
                                 key={sub.path}
                                 isActive={isSubActive}
                                 onClick={() => setLocation(sub.path)}
-                                tooltip={sub.label}
+                                tooltip={showSmtpWarning ? `${sub.label} (n\u00e3o configurado)` : sub.label}
                                 className="h-9 transition-all font-normal text-sm"
                               >
-                                <sub.icon className={`h-3.5 w-3.5 ${isSubActive ? "text-primary" : "text-muted-foreground"}`} />
+                                <div className="relative">
+                                  <sub.icon className={`h-3.5 w-3.5 ${isSubActive ? "text-primary" : "text-muted-foreground"}`} />
+                                  {showSmtpWarning && (
+                                    <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                                    </span>
+                                  )}
+                                </div>
                                 <span className="flex-1">{sub.label}</span>
+                                {showSmtpWarning && (
+                                  <span className="flex h-2 w-2 rounded-full bg-red-500 shrink-0" title="SMTP n\u00e3o configurado"></span>
+                                )}
                               </SidebarMenuButton>
                             );
                           })}

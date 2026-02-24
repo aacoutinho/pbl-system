@@ -403,3 +403,6 @@
 - [x] Separar Backup e Restauração em itens distintos no menu Configurações (renomeado para "Backup")
 - [x] Mover Histórico para dentro do submenu Configurações
 - [x] Restringir acesso ao submenu Configurações apenas para admin
+- [x] Proteção de rotas admin no backend: backup, exportação e histórico retornam 403 para não-admin
+- [x] Indicador de SMTP no submenu: ponto vermelho ao lado de "E-mails" quando SMTP não configurado
+- [x] Separar Backup (estado do banco + exportar) e Restauração (restaurar + reconstruir) em páginas distintas

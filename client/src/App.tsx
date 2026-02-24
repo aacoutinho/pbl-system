@@ -21,6 +21,7 @@ import AuditLogPage from "./pages/AuditLogPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import ContactPage from "./pages/ContactPage";
 import BackupPage from "./pages/BackupPage";
+import RestorePage from "./pages/RestorePage";
 
 function Router() {
   return (
@@ -41,6 +42,7 @@ function Router() {
       <Route path={"/notifications"} component={NotificationsPage} />
       <Route path={"/contact"} component={ContactPage} />
       <Route path={"/backup"} component={BackupPage} />
+      <Route path={"/restauracao"} component={RestorePage} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>
