@@ -437,3 +437,6 @@
 - [x] Resumo de papéis na listagem de sessões: identificar quem não assumiu papel e quem já assumiu muitos
 - [x] Testes unitários para as 4 melhorias (13 novos testes, total 726)
 - [x] Substituir conceito "Normal" por "Razoável" em todos os formulários de avaliação (aluno e professor) e testes
+- [x] Verificar e corrigir prévia do formulário nas Sessões para estar igual ao formulário atual do aluno
+- [x] Alterar texto "Crie e gerencie sessões de avaliação tutorial." para "Crie e gerencie sessões tutoriais"
+- [x] Alterar título "Sessões de Avaliação" para "Sessões Tutoriais Realizadas"

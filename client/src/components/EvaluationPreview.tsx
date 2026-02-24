@@ -1,30 +1,27 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { UserX, AlertTriangle, HelpCircle, Send, Eye } from "lucide-react";
-import { useState } from "react";
+import { HelpCircle, Send, Eye } from "lucide-react";
 
 const SCORE_LABELS: Record<string, string> = {
-  "0.00": "0.0",
-  "0.25": "0.25",
-  "0.50": "0.5",
-  "0.75": "0.75",
-  "1.00": "1.0",
+  "0.00": "Nenhuma",
+  "0.25": "Fraco/Fraca",
+  "0.50": "Razoável",
+  "0.75": "Boa",
+  "1.00": "Excelente",
 };
 
 const PENALTY_LABELS: Record<string, string> = {
-  "0.00": "0.0",
-  "0.25": "0.25",
-  "0.50": "0.5",
-  "0.75": "0.75",
-  "1.00": "1.0",
+  "0.00": "Sem penalidade",
+  "0.25": "-0.25",
+  "0.50": "-0.50",
+  "0.75": "-0.75",
+  "1.00": "-1.0",
 };
 
 function getScoreLabel(value: number, penalty?: boolean): string {
@@ -32,13 +29,26 @@ function getScoreLabel(value: number, penalty?: boolean): string {
   return labels[value.toFixed(2)] ?? value.toFixed(2);
 }
 
-function PreviewCriteriaSlider({ label, sublabel, tooltip, value, penalty, gender = "masc" }: {
+const roleLabels: Record<string, string> = {
+  COORDENADOR: "Coordenador",
+  MESA: "Mesa",
+  QUADRO: "Quadro",
+  PARTICIPANTE: "Participante",
+};
+
+const roleBadgeColors: Record<string, string> = {
+  COORDENADOR: "bg-blue-100 text-blue-800 border-blue-300",
+  MESA: "bg-purple-100 text-purple-800 border-purple-300",
+  QUADRO: "bg-teal-100 text-teal-800 border-teal-300",
+  PARTICIPANTE: "bg-gray-100 text-gray-700 border-gray-300",
+};
+
+function PreviewCriteriaSlider({ label, sublabel, tooltip, value, penalty }: {
   label: string;
   sublabel?: string;
   tooltip?: string;
   value: number;
   penalty?: boolean;
-  gender?: "fem" | "masc";
 }) {
   const color = penalty
     ? (value >= 0.75 ? "text-red-600" : value >= 0.5 ? "text-amber-600" : "text-emerald-600")
@@ -73,19 +83,19 @@ function PreviewCriteriaSlider({ label, sublabel, tooltip, value, penalty, gende
       <div className="flex justify-between text-xs font-medium">
         {penalty ? (
           <>
-            <span className="text-emerald-600">0.0</span>
-            <span className="text-lime-600">0.25</span>
-            <span className="text-amber-500">0.5</span>
-            <span className="text-orange-600">0.75</span>
-            <span className="text-red-600">1.0</span>
+            <span className="text-emerald-600">Sem</span>
+            <span className="text-lime-600">-0.25</span>
+            <span className="text-amber-500">-0.50</span>
+            <span className="text-orange-600">-0.75</span>
+            <span className="text-red-600">-1.0</span>
           </>
         ) : (
           <>
-            <span className="text-red-600">0.0</span>
-            <span className="text-orange-500">0.25</span>
-            <span className="text-amber-500">0.5</span>
-            <span className="text-lime-600">0.75</span>
-            <span className="text-emerald-600">1.0</span>
+            <span className="text-red-600">Nenhuma</span>
+            <span className="text-orange-500">Fraca</span>
+            <span className="text-amber-500">Razoável</span>
+            <span className="text-lime-600">Boa</span>
+            <span className="text-emerald-600">Excelente</span>
           </>
         )}
       </div>
@@ -93,16 +103,21 @@ function PreviewCriteriaSlider({ label, sublabel, tooltip, value, penalty, gende
   );
 }
 
+// Dados fictícios dos colegas para a prévia
+const demoPeers = [
+  { studentId: 1, studentName: "Ana Clara Souza", role: "COORDENADOR", photoUrl: null },
+  { studentId: 2, studentName: "Bruno Oliveira", role: "MESA", photoUrl: null },
+  { studentId: 3, studentName: "Carlos Eduardo Lima", role: "QUADRO", photoUrl: null },
+  { studentId: 4, studentName: "Diana Santos", role: "PARTICIPANTE", photoUrl: null },
+];
+
 /**
  * Diálogo de prévia do formulário de avaliação dos alunos.
  * Mostra exatamente como o formulário aparece para os alunos, com dados fictícios.
+ * Reflete o formulário atual: papel definido pelo professor (não editável), sem seleção de falta,
+ * "Desempenho no Papel" apenas para Coordenador/Mesa/Quadro.
  */
 export function EvaluationPreviewDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-  const [demoAbsent, setDemoAbsent] = useState(false);
-  const [demoRole, setDemoRole] = useState("PARTICIPANTE");
-
-  const demoScore = demoAbsent ? 0 : 1 * 1 + 1 * 3 + 1 * 3 + 1 * 3 - 0 * 1;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -121,8 +136,9 @@ export function EvaluationPreviewDialog({ open, onOpenChange }: { open: boolean;
           {/* Header info */}
           <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
             <p className="text-sm text-blue-800">
-              <strong>Exemplo:</strong> O aluno vê este formulário para cada colega da sessão.
-              Ele atribui um papel, marca presença/ausência e avalia 5 critérios.
+              <strong>Exemplo:</strong> O aluno vê este formulário para cada colega presente na sessão.
+              O papel de cada colega é definido pelo professor ao criar a sessão.
+              O critério "Desempenho no Papel" aparece apenas para Coordenador, Mesa e Quadro.
             </p>
           </div>
 
@@ -130,116 +146,89 @@ export function EvaluationPreviewDialog({ open, onOpenChange }: { open: boolean;
           <Card className="bg-primary/5 border-primary/20">
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center justify-between text-sm">
-                <span>Avaliando <strong>4</strong> colegas (0 faltas)</span>
+                <span>Avaliando <strong>{demoPeers.length}</strong> colegas</span>
                 <div className="flex gap-2">
-                  <Badge variant="outline" className="text-xs">COORDENADOR</Badge>
-                  <Badge variant="outline" className="text-xs">MESA</Badge>
-                  <Badge variant="outline" className="text-xs">QUADRO</Badge>
+                  {demoPeers.map(p => (
+                    <Badge key={p.studentId} variant="outline" className={`text-xs ${roleBadgeColors[p.role]}`}>
+                      {roleLabels[p.role]}
+                    </Badge>
+                  ))}
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Demo student card */}
-          <Card className={`transition-all ${demoAbsent ? "opacity-60 bg-muted/30" : ""}`}>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center border-2 border-muted shrink-0">
-                    <span className="text-sm font-medium text-muted-foreground">A</span>
-                  </div>
-                  <CardTitle className="text-base">Aluno Exemplo da Silva</CardTitle>
-                </div>
-                <div className="flex items-center gap-3">
-                  {!demoAbsent && (
-                    <Badge variant="outline" className={`text-lg font-bold px-3 py-1 ${demoScore >= 8 ? "border-emerald-300 text-emerald-700" : demoScore >= 5 ? "border-amber-300 text-amber-700" : "border-red-300 text-red-700"}`}>
+          {/* Demo student cards */}
+          {demoPeers.map((peer) => {
+            const hasRolePenalty = ["COORDENADOR", "MESA", "QUADRO"].includes(peer.role);
+            const demoScore = 1 * 1 + 1 * 3 + 1 * 3 + 1 * 3; // 10.0 sem penalidade
+            return (
+              <Card key={peer.studentId}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center border-2 border-muted shrink-0">
+                        <span className="text-sm font-medium text-muted-foreground">
+                          {peer.studentName.charAt(0)}
+                        </span>
+                      </div>
+                      <div>
+                        <CardTitle className="text-base">{peer.studentName}</CardTitle>
+                        <Badge variant="outline" className={`text-xs mt-1 ${roleBadgeColors[peer.role]}`}>
+                          {roleLabels[peer.role]}
+                        </Badge>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="text-lg font-bold px-3 py-1 border-emerald-300 text-emerald-700">
                       {demoScore.toFixed(1)}
                     </Badge>
-                  )}
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="demo-absent" className="text-sm text-muted-foreground">
-                      <UserX className="h-4 w-4" />
-                    </Label>
-                    <Switch
-                      id="demo-absent"
-                      checked={demoAbsent}
-                      onCheckedChange={setDemoAbsent}
-                    />
                   </div>
-                </div>
-              </div>
-            </CardHeader>
+                </CardHeader>
 
-            {!demoAbsent && (
-              <CardContent className="space-y-4">
-                <div>
-                  <Label className="text-sm font-medium">Papel na sessão</Label>
-                  <Select value={demoRole} onValueChange={setDemoRole}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="PARTICIPANTE">Participante</SelectItem>
-                      <SelectItem value="COORDENADOR">Coordenador</SelectItem>
-                      <SelectItem value="MESA">Mesa</SelectItem>
-                      <SelectItem value="QUADRO">Quadro</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                <CardContent className="space-y-4">
+                  <Separator />
 
-                <Separator />
-
-                <TooltipProvider>
-                  <div className="space-y-4">
-                    <PreviewCriteriaSlider
-                      label="Pontualidade"
-                      sublabel="Peso 1"
-                      tooltip="Avalia se o colega chegou no horário e permaneceu durante toda a sessão tutorial."
-                      value={1}
-                      gender="fem"
-                    />
-                    <PreviewCriteriaSlider
-                      label="Pesquisa / Metas"
-                      sublabel="Peso 3"
-                      tooltip="Avalia se o colega pesquisou previamente sobre o tema, trouxe materiais relevantes e cumpriu as metas estabelecidas na sessão anterior."
-                      value={1}
-                      gender="fem"
-                    />
-                    <PreviewCriteriaSlider
-                      label="Domínio do Assunto"
-                      sublabel="Peso 3"
-                      tooltip="Avalia o nível de conhecimento demonstrado pelo colega sobre o tema discutido na sessão tutorial."
-                      value={1}
-                      gender="masc"
-                    />
-                    <PreviewCriteriaSlider
-                      label="Participação"
-                      sublabel="Peso 3"
-                      tooltip="Avalia o envolvimento ativo do colega nas discussões, contribuindo com ideias, perguntas e argumentos durante a sessão."
-                      value={1}
-                      gender="fem"
-                    />
-                    <PreviewCriteriaSlider
-                      label="Desempenho no Papel"
-                      sublabel="Penalidade (até -1)"
-                      tooltip="Penalidade aplicada quando o colega não desempenhou adequadamente o papel atribuído (Coordenador, Mesa ou Quadro). Se desempenhou bem, deixe em 'Sem penalidade'."
-                      value={0}
-                      penalty
-                    />
-                  </div>
-                </TooltipProvider>
-              </CardContent>
-            )}
-
-            {demoAbsent && (
-              <CardContent>
-                <div className="flex items-center gap-2 text-muted-foreground text-sm py-2">
-                  <AlertTriangle className="h-4 w-4 text-amber-500" />
-                  Marcado como ausente. A nota será 0 e não será contabilizada na média.
-                </div>
-              </CardContent>
-            )}
-          </Card>
+                  <TooltipProvider>
+                    <div className="space-y-4">
+                      <PreviewCriteriaSlider
+                        label="Pontualidade"
+                        sublabel="Peso 1"
+                        tooltip="Avalia se o colega chegou no horário e permaneceu durante toda a sessão tutorial."
+                        value={1}
+                      />
+                      <PreviewCriteriaSlider
+                        label="Pesquisa / Metas"
+                        sublabel="Peso 3"
+                        tooltip="Avalia se o colega pesquisou previamente sobre o tema, trouxe materiais relevantes e cumpriu as metas estabelecidas na sessão anterior."
+                        value={1}
+                      />
+                      <PreviewCriteriaSlider
+                        label="Domínio do Assunto"
+                        sublabel="Peso 3"
+                        tooltip="Avalia o nível de conhecimento demonstrado pelo colega sobre o tema discutido na sessão tutorial."
+                        value={1}
+                      />
+                      <PreviewCriteriaSlider
+                        label="Participação"
+                        sublabel="Peso 3"
+                        tooltip="Avalia o envolvimento ativo do colega nas discussões, contribuindo com ideias, perguntas e argumentos durante a sessão."
+                        value={1}
+                      />
+                      {hasRolePenalty && (
+                        <PreviewCriteriaSlider
+                          label={`Desempenho no Papel de ${roleLabels[peer.role]}`}
+                          sublabel="Penalidade (até -1)"
+                          tooltip={`Penalidade aplicada quando o colega não desempenhou adequadamente o papel de ${roleLabels[peer.role]}. Se desempenhou bem, deixe em 'Sem penalidade'.`}
+                          value={0}
+                          penalty
+                        />
+                      )}
+                    </div>
+                  </TooltipProvider>
+                </CardContent>
+              </Card>
+            );
+          })}
 
           {/* Disabled submit button */}
           <div className="flex justify-end">
@@ -251,9 +240,9 @@ export function EvaluationPreviewDialog({ open, onOpenChange }: { open: boolean;
 
           {/* Explanation */}
           <div className="p-3 rounded-lg bg-muted/50 border text-xs text-muted-foreground space-y-1">
-            <p><strong>Nota máxima possível:</strong> 10.0 pontos (Pontualidade ×1 + Pesquisa/Metas ×3 + Domínio ×3 + Participação ×3 − Desempenho no Papel ×1)</p>
+            <p><strong>Nota máxima possível:</strong> 10.0 pontos (Pontualidade ×1 + Pesquisa/Metas ×3 + Domínio ×3 + Participação ×3)</p>
             <p><strong>Fórmula:</strong> Nota = (Pontualidade × 1) + (Pesquisa/Metas × 3) + (Domínio × 3) + (Participação × 3) − (Penalidade Papel × 1)</p>
-            <p><strong>Ausência:</strong> Se marcado como ausente, a nota é 0 e não entra na média.</p>
+            <p><strong>Penalidade de Papel:</strong> Aplica-se apenas a Coordenador, Mesa e Quadro. Participantes não recebem penalidade.</p>
           </div>
         </div>
       </DialogContent>

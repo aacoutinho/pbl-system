@@ -220,7 +220,7 @@ function SessionsContent() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Sessões</h1>
           <p className="text-muted-foreground mt-1">
-            {canManage ? "Crie e gerencie sessões de avaliação tutorial." : "Visualize as sessões de avaliação tutorial."}
+            {canManage ? "Crie e gerencie sessões tutoriais." : "Visualize as sessões tutoriais."}
           </p>
         </div>
         {canManage && (
@@ -375,7 +375,7 @@ function SessionsContent() {
           <div className="flex items-center justify-between flex-wrap gap-3">
             <CardTitle className="text-lg flex items-center gap-2">
               <ClipboardList className="h-5 w-5" />
-              Sessões de Avaliação
+              Sessões Tutoriais Realizadas
               {sessionsList && <Badge variant="secondary" className="ml-2">{filteredSessions.length}/{sessionsList.length}</Badge>}
             </CardTitle>
             <div className="flex items-center gap-1.5 flex-wrap">
