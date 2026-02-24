@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Lock, Unlock, Trash2, ClipboardList, Users, Eye, BookOpen, KeyRound, Copy, RefreshCw, RotateCcw, CheckCircle2, Clock, FileSearch, AlertTriangle, Mail } from "lucide-react";
+import { Plus, Lock, Unlock, Trash2, ClipboardList, Users, Eye, BookOpen, RotateCcw, CheckCircle2, Clock, FileSearch, AlertTriangle, Mail, Send } from "lucide-react";
 import { EvaluationPreviewDialog } from "@/components/EvaluationPreview";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -337,7 +337,7 @@ function SessionsContent() {
                   canManage={canManage}
                   isLastSession={isLast}
                   onClose={() => closeMutation.mutate({ id: session.id })}
-                  onOpen={() => openMutation.mutate({ id: session.id })}
+                  onOpen={() => openMutation.mutate({ id: session.id, origin: window.location.origin })}
                   onDelete={() => { if (confirm(`Excluir "${session.label}"? Todas as avaliações serão perdidas.`)) deleteMutation.mutate({ id: session.id }); }}
                   onViewResults={() => setLocation(`/results?session=${session.id}`)}
                 />);
@@ -369,15 +369,15 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onDele
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [showOpenConfirm, setShowOpenConfirm] = useState(false);
 
-  const generateCodeMutation = trpc.sessions.generateCode.useMutation({
-    onSuccess: (data: { accessCode: string; emailsSent: number }) => {
+  const openAndNotifyMutation = trpc.sessions.openAndNotify.useMutation({
+    onSuccess: (data: { emailsSent: number; tokensGenerated: number }) => {
       utils.sessions.list.invalidate();
       const emailMsg = data.emailsSent > 0
-        ? ` ${data.emailsSent} e-mail(s) enviado(s) para alunos com e-mail cadastrado.`
+        ? ` ${data.emailsSent} e-mail(s) enviado(s) com link individual.`
         : " Nenhum aluno possui e-mail cadastrado.";
-      toast.success(`Código gerado: ${data.accessCode}.${emailMsg}`);
+      toast.success(`Sessão aberta! ${data.tokensGenerated} link(s) gerado(s).${emailMsg}`);
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e: { message: string }) => toast.error(e.message),
   });
 
   const resendEmailsMutation = trpc.sessions.resendEmails.useMutation({
@@ -387,7 +387,7 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onDele
         : "Nenhum aluno possui e-mail cadastrado.";
       toast.success(msg);
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e: { message: string }) => toast.error(e.message),
   });
 
   const allowReevalMutation = trpc.evaluations.allowReevaluation.useMutation({
@@ -398,12 +398,7 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onDele
     onError: (e) => toast.error(e.message),
   });
 
-  const copyCode = () => {
-    if (session.accessCode) {
-      navigator.clipboard.writeText(session.accessCode);
-      toast.success("Código copiado!");
-    }
-  };
+
 
   const handleAllowReevaluation = (studentId: number) => {
     allowReevalMutation.mutate({ sessionId: session.id, studentId });
@@ -443,30 +438,22 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onDele
               />
             </div>
           </div>
-          {session.accessCode ? (
-            <span className="flex items-center gap-1">
-              <KeyRound className="h-3.5 w-3.5" />
-              Código: <strong className="font-mono text-foreground tracking-wider">{session.accessCode}</strong>
-              <Button variant="ghost" size="icon" className="h-5 w-5" onClick={copyCode} title="Copiar código">
-                <Copy className="h-3 w-3" />
-              </Button>
-            </span>
-          ) : null}
+
         </div>
       </div>
       <div className="flex items-center gap-1">
-        {canManage && (session.status === "initiated" || session.status === "open") && (
+        {canManage && session.status === "initiated" && (
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => generateCodeMutation.mutate({ sessionId: session.id, origin: window.location.origin })}
-            disabled={generateCodeMutation.isPending}
-            title={session.accessCode ? "Regenerar código de acesso" : "Gerar código de acesso"}
+            onClick={() => openAndNotifyMutation.mutate({ sessionId: session.id, origin: window.location.origin })}
+            disabled={openAndNotifyMutation.isPending}
+            title="Abrir sessão e enviar links aos alunos"
           >
-            {session.accessCode ? <RefreshCw className="h-4 w-4" /> : <KeyRound className="h-4 w-4" />}
+            <Send className="h-4 w-4" />
           </Button>
         )}
-        {canManage && session.status === "open" && session.accessCode && (
+        {canManage && session.status === "open" && (
           <Button
             variant="ghost"
             size="icon"

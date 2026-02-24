@@ -61,7 +61,6 @@ interface SelectedSession {
   componentCode: string;
   componentName: string;
   semester: string;
-  accessCode: string | null;
 }
 
 export default function StudentAccessPage() {
@@ -298,9 +297,7 @@ export default function StudentAccessPage() {
   if (step === "evaluate" && authData && selectedSession) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4">
-        <EvaluationForm
-          accessCode={selectedSession.accessCode || ""}
-          studentInfo={{
+        <EvaluationForm          studentInfo={{
             studentId: authData.studentId,
             studentName: authData.studentName,
             sessionId: selectedSession.sessionId,
@@ -1067,8 +1064,7 @@ function StudentDashboard({ authData, onSelectSession, onEditProfile, onLogout }
 }
 
 // ─── Evaluation Form Component ───
-function EvaluationForm({ accessCode, studentInfo, sessionInfo, studentEmail, studentPhotoUrl, onDone, onBack }: {
-  accessCode: string;
+function EvaluationForm({ studentInfo, sessionInfo, studentEmail, studentPhotoUrl, onDone, onBack }: {
   studentInfo: { studentId: number; studentName: string; sessionId: number; sessionLabel: string; classId: number };
   sessionInfo: { sessionId: number; label: string; classCode: string; componentCode: string; componentName: string; semester: string };
   studentEmail: string;
@@ -1077,8 +1073,8 @@ function EvaluationForm({ accessCode, studentInfo, sessionInfo, studentEmail, st
   onBack: () => void;
 }) {
   const { data: sessionStudentsList } = trpc.studentAccess.getSessionStudents.useQuery(
-    { accessCode },
-    { enabled: !!accessCode }
+    { sessionId: studentInfo.sessionId },
+    { enabled: !!studentInfo.sessionId }
   );
 
   const submitMutation = trpc.studentAccess.submitEvaluation.useMutation({
@@ -1146,7 +1142,7 @@ function EvaluationForm({ accessCode, studentInfo, sessionInfo, studentEmail, st
       if (holders.length > 1) { toast.error(`O papel ${role} só pode ser atribuído a um aluno`); return; }
     }
     submitMutation.mutate({
-      accessCode: accessCode.toUpperCase(),
+      sessionId: studentInfo.sessionId,
       evaluatorStudentId: studentInfo.studentId,
       items,
     });

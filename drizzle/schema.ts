@@ -292,3 +292,17 @@ export const contactTickets = mysqlTable("contact_tickets", {
 
 export type ContactTicket = typeof contactTickets.$inferSelect;
 export type InsertContactTicket = typeof contactTickets.$inferInsert;
+
+// ─── Session Access Tokens (individual token per student per session for direct access) ───
+export const sessionAccessTokens = mysqlTable("session_access_tokens", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull(),
+  studentId: int("studentId").notNull(),
+  token: varchar("token", { length: 64 }).notNull().unique(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  unique("uq_session_student_token").on(table.sessionId, table.studentId),
+]);
+
+export type SessionAccessToken = typeof sessionAccessTokens.$inferSelect;
+export type InsertSessionAccessToken = typeof sessionAccessTokens.$inferInsert;

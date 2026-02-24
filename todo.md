@@ -415,3 +415,12 @@
 - [x] Após autenticação: tela com perfil editável (foto e e-mail) + sessões abertas e finalizadas
 - [x] Backend: rotas para login por matrícula, cadastro e-mail/foto, envio/verificação de código
 - [x] Testes unitários para novo fluxo de login do aluno
+- [x] Schema: criar tabela sessionAccessTokens (token único por aluno por sessão)
+- [x] Backend: ao abrir sessão, gerar token individual para cada aluno e enviar e-mail com link direto
+- [x] Backend: rota accessByToken de acesso direto por token individual (sem login necessário)
+- [x] Frontend: substituir "Gerar Código" por "Abrir Sessão" na interface do professor
+- [x] Frontend: página DirectEvalPage.tsx - aluno acessa link do e-mail → vai direto ao formulário
+- [x] Refatorar getSessionStudents e submitEvaluation para usar sessionId em vez de accessCode
+- [x] Remover conceito de código de acesso compartilhado (accessCode) da interface do professor
+- [x] Atualizar e-mails: incluir link direto individual em vez de código compartilhado
+- [x] Testes unitários para novo fluxo de abertura de sessão com tokens individuais (18 testes)

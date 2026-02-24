@@ -21,6 +21,7 @@ import {
   notifications,
   contactTickets,
   professorStudentNotes,
+  sessionAccessTokens,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -2598,4 +2599,63 @@ export async function getStudentEvaluationHistory(studentId: number) {
   }));
 
   return history;
+}
+
+// ─── Session Access Tokens (individual per student per session) ───
+
+export async function generateSessionTokenForStudent(sessionId: number, studentId: number): Promise<string> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  // Generate a random 32-char hex token
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  let token = "";
+  for (let i = 0; i < 32; i++) {
+    token += chars[Math.floor(Math.random() * chars.length)];
+  }
+  // Upsert: if token already exists for this student+session, update it
+  await db.delete(sessionAccessTokens).where(
+    and(eq(sessionAccessTokens.sessionId, sessionId), eq(sessionAccessTokens.studentId, studentId))
+  );
+  await db.insert(sessionAccessTokens).values({ sessionId, studentId, token });
+  return token;
+}
+
+export async function getSessionByStudentToken(token: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.select({
+    tokenId: sessionAccessTokens.id,
+    sessionId: sessionAccessTokens.sessionId,
+    studentId: sessionAccessTokens.studentId,
+    sessionLabel: sessions.label,
+    sessionStatus: sessions.status,
+    classId: sessions.classId,
+    problemNumber: sessions.problemNumber,
+    sessionNumber: sessions.sessionNumber,
+    classCode: classes.classCode,
+    componentId: classes.componentId,
+  })
+    .from(sessionAccessTokens)
+    .innerJoin(sessions, eq(sessionAccessTokens.sessionId, sessions.id))
+    .innerJoin(classes, eq(sessions.classId, classes.id))
+    .where(eq(sessionAccessTokens.token, token))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function deleteSessionTokens(sessionId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(sessionAccessTokens).where(eq(sessionAccessTokens.sessionId, sessionId));
+}
+
+export async function getTokensForSession(sessionId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    studentId: sessionAccessTokens.studentId,
+    token: sessionAccessTokens.token,
+  })
+    .from(sessionAccessTokens)
+    .where(eq(sessionAccessTokens.sessionId, sessionId));
 }

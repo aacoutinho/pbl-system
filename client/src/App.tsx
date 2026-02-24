@@ -22,12 +22,14 @@ import NotificationsPage from "./pages/NotificationsPage";
 import ContactPage from "./pages/ContactPage";
 import BackupPage from "./pages/BackupPage";
 import RestorePage from "./pages/RestorePage";
+import DirectEvalPage from "./pages/DirectEvalPage";
 
 function Router() {
   return (
     <Switch>
       <Route path={"/"} component={Home} />
       <Route path={"/acesso"} component={StudentAccessPage} />
+      <Route path={"/avaliacao"} component={DirectEvalPage} />
       <Route path={"/components"} component={ComponentsPage} />
       <Route path={"/classes"} component={ClassesPage} />
       <Route path={"/students"} component={StudentsPage} />

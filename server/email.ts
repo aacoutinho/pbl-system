@@ -359,23 +359,19 @@ export function buildSessionOpenedEmailHtml(data: {
           <span style="font-size: 18px; font-weight: 600; color: #1e40af;">${data.sessionLabel}</span>
         </div>
       </div>
-      <div style="text-align: center; margin: 24px 0;">
-        <div style="display: inline-block; background: #f0fdf4; border: 2px solid #86efac; border-radius: 12px; padding: 20px 40px;">
-          <p style="color: #166534; margin: 0 0 4px; font-size: 13px; font-weight: 600;">CÓDIGO DE ACESSO</p>
-          <span style="font-size: 32px; font-weight: 700; color: #15803d; letter-spacing: 6px; font-family: monospace;">${data.accessCode}</span>
-        </div>
-      </div>
-      <div style="text-align: center; margin: 24px 0;">
-        <a href="${data.accessUrl}" style="display: inline-block; background: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-size: 15px; font-weight: 600;">Acessar Formulário de Avaliação</a>
+      <div style="text-align: center; margin: 28px 0;">
+        <a href="${data.accessUrl}" style="display: inline-block; background: #2563eb; color: #ffffff; text-decoration: none; padding: 14px 40px; border-radius: 8px; font-size: 16px; font-weight: 600;">Avaliar Agora</a>
       </div>
       <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin: 16px 0;">
         <p style="color: #374151; font-size: 13px; margin: 0;"><strong>Como acessar:</strong></p>
         <ol style="color: #374151; font-size: 13px; margin: 8px 0 0; padding-left: 20px;">
-          <li>Clique no botão acima ou acesse o sistema</li>
-          <li>Insira o código <strong>${data.accessCode}</strong></li>
-          <li>Digite sua matrícula para se identificar</li>
+          <li>Clique no botão acima para acessar diretamente o formulário</li>
           <li>Avalie seus colegas de equipe</li>
+          <li>Confirme e envie sua avaliação</li>
         </ol>
+      </div>
+      <div style="background: #fef3c7; border-radius: 8px; padding: 12px 16px; margin: 12px 0;">
+        <p style="color: #92400e; font-size: 12px; margin: 0;">⚠️ Este link é pessoal e intransferível. Não compartilhe com outros alunos.</p>
       </div>
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
       <p style="color: #9ca3af; font-size: 12px; text-align: center;">

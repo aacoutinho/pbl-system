@@ -45,6 +45,7 @@ import {
   getNextSessionInfo,
   findStudentByEnrollment, getOpenSessionsForStudent, getClassesForStudent,
   getStudentEvaluationHistory,
+  generateSessionTokenForStudent, getSessionByStudentToken, deleteSessionTokens, getTokensForSession,
 } from "./db";
 import { storagePut } from "./storage";
 import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml, buildContactTicketEmailHtml, buildSessionOpenedEmailHtml, buildStudentGradeReportHtml } from "./email";
@@ -782,14 +783,56 @@ export const appRouter = router({
       await closeSession(input.id);
       return { success: true };
     }),
-    open: approvedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+    open: approvedProcedure.input(z.object({ id: z.number(), origin: z.string().optional() })).mutation(async ({ ctx, input }) => {
       const session = await getSessionById(input.id);
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
       const cls = await getClassById(session.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       await assertClassManager(ctx.user.id, ctx.user.role, cls);
       await openSession(input.id);
-      return { success: true };
+
+      // Regenerate individual tokens and send emails
+      let emailsSent = 0;
+      let tokensGenerated = 0;
+      try {
+        const sessionStudentsList = await getSessionStudents(input.id);
+        const studentsInClass = await listStudentsByClass(session.classId);
+        const studentMap = new Map(studentsInClass.map(s => [s.id, s]));
+        let componentCode = "";
+        if (cls.componentId) {
+          const comp = await getComponentById(cls.componentId);
+          componentCode = comp?.code ?? "";
+        }
+        const baseUrl = input.origin || "";
+        for (const ss of sessionStudentsList) {
+          const student = studentMap.get(ss.studentId);
+          if (!student) continue;
+          const token = await generateSessionTokenForStudent(input.id, student.id);
+          tokensGenerated++;
+          if (student.email) {
+            const accessUrl = baseUrl ? `${baseUrl}/avaliacao?token=${token}` : "";
+            const html = buildSessionOpenedEmailHtml({
+              studentName: student.name,
+              sessionLabel: session.label,
+              accessCode: "",
+              accessUrl,
+              componentCode,
+              classCode: cls.classCode,
+            });
+            sendEmail({
+              to: student.email,
+              subject: `Avaliação Tutorial - ${session.label} (Reaberta)`,
+              text: `Olá ${student.name}, a sessão ${session.label} foi reaberta. Acesse o link para avaliar: ${accessUrl}`,
+              html,
+            }).catch(err => console.error(`[Email] Failed to send to ${student.email}:`, err));
+            emailsSent++;
+          }
+        }
+      } catch (err) {
+        console.error("[Sessions] Error regenerating tokens on reopen:", err);
+      }
+
+      return { success: true, emailsSent, tokensGenerated };
     }),
     delete: approvedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
       const session = await getSessionById(input.id);
@@ -820,59 +863,68 @@ export const appRouter = router({
         submitted: submittedIds.has(s.studentId),
       }));
     }),
-    generateCode: approvedProcedure.input(z.object({ sessionId: z.number(), origin: z.string().optional() })).mutation(async ({ ctx, input }) => {
+    openAndNotify: approvedProcedure.input(z.object({ sessionId: z.number(), origin: z.string().optional() })).mutation(async ({ ctx, input }) => {
       const session = await getSessionById(input.sessionId);
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
       const cls = await getClassById(session.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       await assertClassManager(ctx.user.id, ctx.user.role, cls);
-      const code = await generateAccessCode(input.sessionId);
 
-      // Send email to students with email addresses
+      // Open the session (set status to "open")
+      await openSession(input.sessionId);
+
+      // Generate individual tokens for each student and send emails
       let emailsSent = 0;
+      let tokensGenerated = 0;
       try {
         const sessionStudentsList = await getSessionStudents(input.sessionId);
         const studentsInClass = await listStudentsByClass(session.classId);
         const studentMap = new Map(studentsInClass.map(s => [s.id, s]));
         let componentCode = "";
+        let componentName = "";
         if (cls.componentId) {
           const comp = await getComponentById(cls.componentId);
           componentCode = comp?.code ?? "";
+          componentName = comp?.name ?? "";
         }
         const baseUrl = input.origin || "";
-        const accessUrl = baseUrl ? `${baseUrl}/student-access?code=${code}` : "";
+
         for (const ss of sessionStudentsList) {
           const student = studentMap.get(ss.studentId);
-          if (student?.email) {
+          if (!student) continue;
+          // Generate individual token for this student
+          const token = await generateSessionTokenForStudent(input.sessionId, student.id);
+          tokensGenerated++;
+
+          if (student.email) {
+            const accessUrl = baseUrl ? `${baseUrl}/avaliacao?token=${token}` : "";
             const html = buildSessionOpenedEmailHtml({
               studentName: student.name,
               sessionLabel: session.label,
-              accessCode: code,
+              accessCode: "",
               accessUrl,
               componentCode,
               classCode: cls.classCode,
             });
             sendEmail({
               to: student.email,
-              subject: `Avaliação Tutorial - ${session.label} (Código: ${code})`,
-              text: `Olá ${student.name}, a sessão ${session.label} foi aberta. Use o código ${code} para acessar o formulário de avaliação.`,
+              subject: `Avaliação Tutorial - ${session.label}`,
+              text: `Olá ${student.name}, a sessão ${session.label} foi aberta. Acesse o link para avaliar: ${accessUrl}`,
               html,
-            }).catch(err => console.error(`[Email] Failed to send to ${student.email}:`, err)); // notificação ao admin gerada automaticamente pelo sendEmail
+            }).catch(err => console.error(`[Email] Failed to send to ${student.email}:`, err));
             emailsSent++;
           }
         }
-        console.log(`[Sessions] Code generated for session ${input.sessionId}, ${emailsSent} emails queued`);
+        console.log(`[Sessions] Session ${input.sessionId} opened, ${tokensGenerated} tokens generated, ${emailsSent} emails queued`);
       } catch (err) {
-        console.error("[Sessions] Error sending session emails:", err);
-        // Don't fail the code generation if email sending fails
+        console.error("[Sessions] Error generating tokens/sending emails:", err);
       }
 
-      return { accessCode: code, emailsSent };
+      return { emailsSent, tokensGenerated };
     }),
     resendEmails: approvedProcedure.input(z.object({ sessionId: z.number(), origin: z.string().optional() })).mutation(async ({ ctx, input }) => {
       const session = await getSessionById(input.sessionId);
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
-      if (!session.accessCode) throw new TRPCError({ code: "BAD_REQUEST", message: "Sessão não possui código de acesso" });
       if (session.status !== "open") throw new TRPCError({ code: "BAD_REQUEST", message: "Sessão não está aberta" });
       const cls = await getClassById(session.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
@@ -887,25 +939,35 @@ export const appRouter = router({
         componentCode = comp?.code ?? "";
       }
       const baseUrl = input.origin || "";
-      const accessUrl = baseUrl ? `${baseUrl}/student-access?code=${session.accessCode}` : "";
+
+      // Get existing tokens or generate new ones
+      const existingTokens = await getTokensForSession(input.sessionId);
+      const tokenMap = new Map(existingTokens.map(t => [t.studentId, t.token]));
+
       let emailsSent = 0;
       for (const ss of sessionStudentsList) {
         const student = studentMap.get(ss.studentId);
         if (student?.email) {
+          // Get existing token or generate new one
+          let token = tokenMap.get(student.id);
+          if (!token) {
+            token = await generateSessionTokenForStudent(input.sessionId, student.id);
+          }
+          const accessUrl = baseUrl ? `${baseUrl}/avaliacao?token=${token}` : "";
           const html = buildSessionOpenedEmailHtml({
             studentName: student.name,
             sessionLabel: session.label,
-            accessCode: session.accessCode,
+            accessCode: "",
             accessUrl,
             componentCode,
             classCode: cls.classCode,
           });
           sendEmail({
             to: student.email,
-            subject: `Avaliação Tutorial - ${session.label} (Código: ${session.accessCode})`,
-            text: `Olá ${student.name}, a sessão ${session.label} foi aberta. Use o código ${session.accessCode} para acessar o formulário de avaliação.`,
+            subject: `Avaliação Tutorial - ${session.label}`,
+            text: `Olá ${student.name}, a sessão ${session.label} está aberta. Acesse o link para avaliar: ${accessUrl}`,
             html,
-          }).catch(err => console.error(`[Email] Failed to send to ${student.email}:`, err)); // notificação ao admin gerada automaticamente pelo sendEmail
+          }).catch(err => console.error(`[Email] Failed to send to ${student.email}:`, err));
           emailsSent++;
         }
       }
@@ -1117,15 +1179,47 @@ export const appRouter = router({
       await updateStudentEmail(input.studentId, input.email.toLowerCase());
       return { success: true };
     }),
-    getSessionStudents: publicProcedure.input(z.object({
-      accessCode: z.string().min(1).max(8),
+    // Access session directly by individual token (from email link)
+    accessByToken: publicProcedure.input(z.object({
+      token: z.string().min(1),
     })).query(async ({ input }) => {
-      const session = await getSessionByAccessCode(input.accessCode.toUpperCase());
-      if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Código inválido" });
-      return getSessionStudents(session.id);
+      const tokenData = await getSessionByStudentToken(input.token);
+      if (!tokenData) throw new TRPCError({ code: "NOT_FOUND", message: "Link inválido ou expirado" });
+      if (tokenData.sessionStatus !== "open") throw new TRPCError({ code: "BAD_REQUEST", message: "Esta sessão não está aberta para avaliações" });
+      const student = await getStudentById(tokenData.studentId);
+      if (!student) throw new TRPCError({ code: "NOT_FOUND", message: "Aluno não encontrado" });
+      const alreadySubmitted = await hasStudentSubmitted(tokenData.sessionId, tokenData.studentId);
+      let componentCode = "";
+      let componentName = "";
+      if (tokenData.componentId) {
+        const comp = await getComponentById(tokenData.componentId);
+        componentCode = comp?.code ?? "";
+        componentName = comp?.name ?? "";
+      }
+      return {
+        studentId: student.id,
+        studentName: student.name,
+        studentEmail: student.email,
+        studentEnrollment: student.enrollment,
+        studentPhotoUrl: student.photoUrl,
+        sessionId: tokenData.sessionId,
+        sessionLabel: tokenData.sessionLabel,
+        classId: tokenData.classId,
+        classCode: tokenData.classCode,
+        componentCode,
+        componentName,
+        problemNumber: tokenData.problemNumber,
+        sessionNumber: tokenData.sessionNumber,
+        alreadySubmitted,
+      };
+    }),
+    getSessionStudents: publicProcedure.input(z.object({
+      sessionId: z.number(),
+    })).query(async ({ input }) => {
+      return getSessionStudents(input.sessionId);
     }),
     submitEvaluation: publicProcedure.input(z.object({
-      accessCode: z.string().min(1).max(8),
+      sessionId: z.number(),
       evaluatorStudentId: z.number(),
       items: z.array(z.object({
         evaluatedStudentId: z.number(),
@@ -1138,8 +1232,8 @@ export const appRouter = router({
         desempenhoPapel: z.number().min(0).max(1),
       })),
     })).mutation(async ({ input }) => {
-      const session = await getSessionByAccessCode(input.accessCode.toUpperCase());
-      if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Código inválido" });
+      const session = await getSessionById(input.sessionId);
+      if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
       if (session.status !== "open") throw new TRPCError({ code: "BAD_REQUEST", message: "Esta sessão não está aberta para avaliações" });
       const alreadySubmitted = await hasStudentSubmitted(session.id, input.evaluatorStudentId);
       if (alreadySubmitted) throw new TRPCError({ code: "BAD_REQUEST", message: "Você já realizou a avaliação desta sessão. Solicite ao professor a liberação para reavaliar." });
