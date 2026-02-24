@@ -425,3 +425,9 @@
 - [x] Atualizar e-mails: incluir link direto individual em vez de código compartilhado
 - [x] Testes unitários para novo fluxo de abertura de sessão com tokens individuais (18 testes)
 - [x] Verificar e corrigir Backup/Restauração para estar de acordo com o esquema atual do banco (sessionAccessTokens adicionada ao BACKUP_TABLES, TABLE_LABELS e testes)
+- [x] Remover seleção de papel e falta do formulário de avaliação de pares (aluno avaliador não define mais)
+- [x] Professor seleciona alunos presentes e seus papéis ao criar/abrir sessão (não selecionados = falta)
+- [x] Schema: adicionar campos role e absent ao sessionStudents
+- [x] Formulário de avaliação de pares: exibir papel assumido por cada aluno avaliado
+- [x] Formulário de avaliação de pares: "Desempenho no Papel" aparece apenas para Coordenador, Mesa e Quadro
+- [x] Testes unitários para as mudanças de papéis e presença (16 novos testes)

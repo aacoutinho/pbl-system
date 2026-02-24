@@ -734,7 +734,7 @@ export async function bulkImportStudents(data: { name: string; enrollment: strin
 }
 
 // ─── Session helpers ───
-export async function createSession(data: { classId: number; problemNumber: number; sessionNumber: number; problemTitle?: string | null; label: string; studentIds: number[]; status?: string }) {
+export async function createSession(data: { classId: number; problemNumber: number; sessionNumber: number; problemTitle?: string | null; label: string; studentAssignments: { studentId: number; role: "COORDENADOR" | "MESA" | "QUADRO" | "PARTICIPANTE"; absent: boolean }[]; status?: string }) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   const [result] = await db.insert(sessions).values({
@@ -746,9 +746,9 @@ export async function createSession(data: { classId: number; problemNumber: numb
     status: "initiated",
   }).$returningId();
   const sessionId = result.id;
-  if (data.studentIds.length > 0) {
+  if (data.studentAssignments.length > 0) {
     await db.insert(sessionStudents).values(
-      data.studentIds.map(sid => ({ sessionId, studentId: sid }))
+      data.studentAssignments.map(sa => ({ sessionId, studentId: sa.studentId, role: sa.role, absent: sa.absent }))
     );
   }
   return getSessionById(sessionId);
@@ -776,6 +776,8 @@ export async function getSessionStudents(sessionId: number) {
     studentEmail: students.email,
     studentEnrollment: students.enrollment,
     studentPhotoUrl: students.photoUrl,
+    role: sessionStudents.role,
+    absent: sessionStudents.absent,
   })
     .from(sessionStudents)
     .innerJoin(students, eq(sessionStudents.studentId, students.id))

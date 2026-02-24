@@ -108,6 +108,8 @@ export const sessionStudents = mysqlTable("session_students", {
   id: int("id").autoincrement().primaryKey(),
   sessionId: int("sessionId").notNull(),
   studentId: int("studentId").notNull(),
+  role: mysqlEnum("role", ["COORDENADOR", "MESA", "QUADRO", "PARTICIPANTE"]).default("PARTICIPANTE").notNull(),
+  absent: boolean("absent").default(false).notNull(),
 }, (table) => [
   unique("uq_session_student").on(table.sessionId, table.studentId),
 ]);

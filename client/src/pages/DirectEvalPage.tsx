@@ -2,23 +2,18 @@ import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Send, UserX, CheckCircle2, AlertTriangle, ArrowLeft, BookOpen, HelpCircle, Users, ClipboardList, Loader2, ShieldAlert, LinkIcon } from "lucide-react";
+import { Send, CheckCircle2, HelpCircle, Users, ClipboardList, Loader2, ShieldAlert, LinkIcon } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 
 type RoleType = "COORDENADOR" | "MESA" | "QUADRO" | "PARTICIPANTE";
 
 interface StudentEval {
   evaluatedStudentId: number;
-  role: RoleType;
-  absent: boolean;
   pontualidade: number;
   pesquisaMetas: number;
   dominio: number;
@@ -39,6 +34,14 @@ const gradeLabels: Record<number, string> = {
   0.5: "Normal",
   0.75: "Boa",
   1: "Excelente",
+};
+
+const penaltyLabels: Record<number, string> = {
+  0: "Sem penalidade",
+  0.25: "-0.25",
+  0.5: "-0.5",
+  0.75: "-0.75",
+  1: "-1.0",
 };
 
 const gradeOptions = [0, 0.25, 0.5, 0.75, 1];
@@ -187,22 +190,25 @@ function EvaluationForm({ studentInfo, sessionInfo, onDone }: {
     return sessionStudentsList.filter(s => s.studentId !== studentInfo.studentId);
   }, [sessionStudentsList, studentInfo.studentId]);
 
+  // Only evaluate non-absent peers (professor already marked absent ones)
+  const activePeers = useMemo(() => {
+    return peersToEvaluate.filter(p => !p.absent);
+  }, [peersToEvaluate]);
+
   const [evaluations, setEvaluations] = useState<Record<number, StudentEval>>({});
 
   useMemo(() => {
-    if (peersToEvaluate.length > 0 && Object.keys(evaluations).length === 0) {
+    if (activePeers.length > 0 && Object.keys(evaluations).length === 0) {
       const init: Record<number, StudentEval> = {};
-      peersToEvaluate.forEach(p => {
+      activePeers.forEach(p => {
         init[p.studentId] = {
           evaluatedStudentId: p.studentId,
-          role: "PARTICIPANTE",
-          absent: false,
           pontualidade: 1, pesquisaMetas: 1, dominio: 1, participacao: 1, desempenhoPapel: 0,
         };
       });
       setEvaluations(init);
     }
-  }, [peersToEvaluate]);
+  }, [activePeers]);
 
   const updateEval = (studentId: number, field: keyof StudentEval, value: unknown) => {
     setEvaluations(prev => ({
@@ -211,33 +217,8 @@ function EvaluationForm({ studentInfo, sessionInfo, onDone }: {
     }));
   };
 
-  const assignedExclusiveRoles = useMemo(() => {
-    const map: Record<string, number> = {};
-    Object.values(evaluations).forEach(ev => {
-      if (!ev.absent && ["COORDENADOR", "MESA", "QUADRO"].includes(ev.role)) {
-        map[ev.role] = ev.evaluatedStudentId;
-      }
-    });
-    return map;
-  }, [evaluations]);
-
-  const handleRoleChange = (studentId: number, newRole: RoleType) => {
-    if (["COORDENADOR", "MESA", "QUADRO"].includes(newRole)) {
-      const currentHolder = assignedExclusiveRoles[newRole];
-      if (currentHolder && currentHolder !== studentId) {
-        updateEval(currentHolder, "role", "PARTICIPANTE");
-      }
-    }
-    updateEval(studentId, "role", newRole);
-  };
-
   const handleSubmit = () => {
     const items = Object.values(evaluations);
-    const exclusiveRoles = ["COORDENADOR", "MESA", "QUADRO"];
-    for (const role of exclusiveRoles) {
-      const holders = items.filter(i => i.role === role && !i.absent);
-      if (holders.length > 1) { toast.error(`O papel ${role} só pode ser atribuído a um aluno`); return; }
-    }
     submitMutation.mutate({
       sessionId: studentInfo.sessionId,
       evaluatorStudentId: studentInfo.studentId,
@@ -245,8 +226,8 @@ function EvaluationForm({ studentInfo, sessionInfo, onDone }: {
     });
   };
 
-  const totalPeers = peersToEvaluate.length;
-  const absentCount = Object.values(evaluations).filter(e => e.absent).length;
+  const totalPeers = activePeers.length;
+  const absentPeers = peersToEvaluate.filter(p => p.absent).length;
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -265,7 +246,7 @@ function EvaluationForm({ studentInfo, sessionInfo, onDone }: {
               <div className="flex items-center gap-2 mt-2">
                 <Badge variant="outline" className="bg-white/80 text-blue-700 border-blue-200">
                   <Users className="h-3 w-3 mr-1" />
-                  {totalPeers} colega(s)
+                  {totalPeers} colega{totalPeers !== 1 ? "s" : ""} {absentPeers > 0 && `(${absentPeers} ausente${absentPeers !== 1 ? "s" : ""})`}
                 </Badge>
                 <Badge variant="outline" className="bg-white/80 text-blue-700 border-blue-200">
                   Avaliador: {studentInfo.studentName}
@@ -283,19 +264,28 @@ function EvaluationForm({ studentInfo, sessionInfo, onDone }: {
             <HelpCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
             <div className="text-sm text-amber-800 space-y-1">
               <p className="font-semibold">Instruções de Avaliação</p>
-              <p>Avalie cada colega nos critérios abaixo. Atribua o papel desempenhado na sessão e marque como ausente se necessário.</p>
-              <p className="text-xs text-amber-700">Papéis exclusivos (Coordenador, Mesa, Quadro) só podem ser atribuídos a um aluno cada.</p>
+              <p>Avalie cada colega nos critérios abaixo. O papel de cada aluno já foi definido pelo professor. O critério "Desempenho no Papel" aparece apenas para alunos com papéis especiais (Coordenador, Mesa, Quadro).</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Peer evaluations */}
-      {peersToEvaluate.map((peer) => {
+      {activePeers.map((peer) => {
         const ev = evaluations[peer.studentId];
         if (!ev) return null;
+        const hasRolePenalty = ["COORDENADOR", "MESA", "QUADRO"].includes(peer.role);
+        const totalScore = ev.pontualidade * 1 + ev.pesquisaMetas * 3 + ev.dominio * 3 + ev.participacao * 3 - (hasRolePenalty ? ev.desempenhoPapel * 1 : 0);
+
+        const criteriaItems = [
+          { key: "pontualidade" as const, label: "Pontualidade", desc: "Chegou no horário e permaneceu durante toda a sessão", sublabel: "Peso 1" },
+          { key: "pesquisaMetas" as const, label: "Pesquisa/Metas", desc: "Cumpriu as metas de pesquisa e preparação", sublabel: "Peso 3" },
+          { key: "dominio" as const, label: "Domínio", desc: "Demonstrou domínio do conteúdo discutido", sublabel: "Peso 3" },
+          { key: "participacao" as const, label: "Participação", desc: "Participou ativamente das discussões", sublabel: "Peso 3" },
+        ];
+
         return (
-          <Card key={peer.studentId} className={ev.absent ? "opacity-60 border-red-200" : ""}>
+          <Card key={peer.studentId} className="transition-all">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -304,79 +294,87 @@ function EvaluationForm({ studentInfo, sessionInfo, onDone }: {
                   </div>
                   <div>
                     <CardTitle className="text-base">{peer.studentName}</CardTitle>
-                    <CardDescription className="text-xs">{peer.studentEnrollment}</CardDescription>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Select value={ev.role} onValueChange={(v) => handleRoleChange(peer.studentId, v as RoleType)} disabled={ev.absent}>
-                    <SelectTrigger className="w-[150px] h-8 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(Object.keys(roleLabels) as RoleType[]).map(r => {
-                        const taken = assignedExclusiveRoles[r] && assignedExclusiveRoles[r] !== peer.studentId;
-                        return (
-                          <SelectItem key={r} value={r} disabled={!!taken}>
-                            {roleLabels[r]} {taken ? "(atribuído)" : ""}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                  <div className="flex items-center gap-1.5">
-                    <Switch
-                      checked={ev.absent}
-                      onCheckedChange={(v) => updateEval(peer.studentId, "absent", v)}
-                    />
-                    <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                      <UserX className="h-3.5 w-3.5" /> Ausente
-                    </Label>
-                  </div>
-                </div>
-              </div>
-            </CardHeader>
-            {!ev.absent && (
-              <CardContent className="pt-0 space-y-4">
-                <Separator />
-                {[
-                  { key: "pontualidade" as const, label: "Pontualidade", desc: "Chegou no horário e permaneceu durante toda a sessão" },
-                  { key: "pesquisaMetas" as const, label: "Pesquisa/Metas", desc: "Cumpriu as metas de pesquisa e preparação" },
-                  { key: "dominio" as const, label: "Domínio", desc: "Demonstrou domínio do conteúdo discutido" },
-                  { key: "participacao" as const, label: "Participação", desc: "Participou ativamente das discussões" },
-                  { key: "desempenhoPapel" as const, label: "Desempenho do Papel", desc: "Desempenhou bem o papel atribuído na sessão" },
-                ].map(({ key, label, desc }) => (
-                  <div key={key} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Label className="text-sm font-medium">{label}</Label>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
-                            </TooltipTrigger>
-                            <TooltipContent><p className="text-xs max-w-xs">{desc}</p></TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                      <Badge variant="outline" className="text-xs font-medium">
-                        {gradeLabels[ev[key]] ?? ev[key]}
+                    <div className="flex items-center gap-2 mt-1">
+                      <CardDescription className="text-xs">{peer.studentEnrollment}</CardDescription>
+                      <Badge variant={peer.role === "PARTICIPANTE" ? "secondary" : "default"} className="text-xs">
+                        {roleLabels[peer.role as RoleType]}
                       </Badge>
                     </div>
-                    <Slider
-                      value={[gradeOptions.indexOf(ev[key])]}
-                      min={0}
-                      max={4}
-                      step={1}
-                      onValueChange={([idx]) => updateEval(peer.studentId, key, gradeOptions[idx])}
-                      className="w-full"
-                    />
-                    <div className="flex justify-between text-[10px] text-muted-foreground px-1">
-                      {gradeOptions.map(g => <span key={g}>{gradeLabels[g]}</span>)}
-                    </div>
                   </div>
-                ))}
-              </CardContent>
-            )}
+                </div>
+                <Badge variant="outline" className={`text-lg font-bold px-3 py-1 ${totalScore >= 8 ? "border-emerald-300 text-emerald-700" : totalScore >= 5 ? "border-amber-300 text-amber-700" : "border-red-300 text-red-700"}`}>
+                  {totalScore.toFixed(1)}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0 space-y-4">
+              <Separator />
+              {criteriaItems.map(({ key, label, desc, sublabel }) => (
+                <div key={key} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm font-medium">{label}</Label>
+                      <span className="text-[10px] text-muted-foreground">({sublabel})</span>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent><p className="text-xs max-w-xs">{desc}</p></TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <Badge variant="outline" className="text-xs font-medium">
+                      {gradeLabels[ev[key]] ?? ev[key]}
+                    </Badge>
+                  </div>
+                  <Slider
+                    value={[gradeOptions.indexOf(ev[key])]}
+                    min={0}
+                    max={4}
+                    step={1}
+                    onValueChange={([idx]) => updateEval(peer.studentId, key, gradeOptions[idx])}
+                    className="w-full"
+                  />
+                  <div className="flex justify-between text-[10px] text-muted-foreground px-1">
+                    {gradeOptions.map(g => <span key={g}>{gradeLabels[g]}</span>)}
+                  </div>
+                </div>
+              ))}
+
+              {hasRolePenalty && (
+                <div className="space-y-2 pt-2 border-t border-dashed">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm font-medium">Desempenho no Papel de {roleLabels[peer.role as RoleType]}</Label>
+                      <span className="text-[10px] text-muted-foreground">(Penalidade até -1)</span>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent><p className="text-xs max-w-xs">Penalidade aplicada quando o colega não desempenhou adequadamente o papel de {roleLabels[peer.role as RoleType]}. Se desempenhou bem, deixe em 'Sem penalidade'.</p></TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <Badge variant="outline" className={`text-xs font-medium ${ev.desempenhoPapel > 0 ? "border-red-300 text-red-700" : ""}`}>
+                      {penaltyLabels[ev.desempenhoPapel] ?? `-${ev.desempenhoPapel}`}
+                    </Badge>
+                  </div>
+                  <Slider
+                    value={[gradeOptions.indexOf(ev.desempenhoPapel)]}
+                    min={0}
+                    max={4}
+                    step={1}
+                    onValueChange={([idx]) => updateEval(peer.studentId, "desempenhoPapel", gradeOptions[idx])}
+                    className="w-full"
+                  />
+                  <div className="flex justify-between text-[10px] text-muted-foreground px-1">
+                    {gradeOptions.map(g => <span key={g}>{penaltyLabels[g]}</span>)}
+                  </div>
+                </div>
+              )}
+            </CardContent>
           </Card>
         );
       })}
@@ -389,7 +387,7 @@ function EvaluationForm({ studentInfo, sessionInfo, onDone }: {
               <div>
                 <p className="font-semibold text-emerald-900">Pronto para enviar?</p>
                 <p className="text-sm text-emerald-700">
-                  {totalPeers - absentCount} avaliação(ões) &middot; {absentCount} ausente(s)
+                  {totalPeers} avaliação(ões)
                 </p>
               </div>
               <Button

@@ -651,17 +651,29 @@ describe("Auto Session Numbering", () => {
     expect(appRouter._def.procedures["sessions.getNextInfo"]).toBeDefined();
   });
 
-  it("sessions.create no longer accepts sessionNumber in input", () => {
+  it("sessions.create accepts studentAssignments instead of studentIds", () => {
     const procedure = appRouter._def.procedures["sessions.create"] as any;
     const schema = procedure?._def?.inputs?.[0];
     if (schema) {
-      // Should work without sessionNumber
+      // Should work with studentAssignments
       const valid = schema.safeParse({
+        classId: 1,
+        problemNumber: 1,
+        studentAssignments: [
+          { studentId: 1, role: "COORDENADOR", absent: false },
+          { studentId: 2, role: "MESA", absent: false },
+          { studentId: 3, role: "PARTICIPANTE", absent: true },
+        ],
+      });
+      expect(valid.success).toBe(true);
+
+      // Should reject old studentIds format
+      const invalid = schema.safeParse({
         classId: 1,
         problemNumber: 1,
         studentIds: [1, 2, 3],
       });
-      expect(valid.success).toBe(true);
+      expect(invalid.success).toBe(false);
     }
   });
 

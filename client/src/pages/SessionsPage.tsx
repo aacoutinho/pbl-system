@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Plus, Lock, Unlock, Trash2, ClipboardList, Users, Eye, BookOpen, RotateCcw, CheckCircle2, Clock, FileSearch, AlertTriangle, Mail, Send } from "lucide-react";
@@ -87,9 +89,24 @@ function SessionsContent() {
     { enabled: !!selectedClassId && canManage }
   );
 
+  type RoleType = "COORDENADOR" | "MESA" | "QUADRO" | "PARTICIPANTE";
+  interface StudentAssignment { studentId: number; role: RoleType; absent: boolean; selected: boolean; }
   const [problemNum, setProblemNum] = useState("1");
   const [problemTitle, setProblemTitle] = useState("");
-  const [selectedStudents, setSelectedStudents] = useState<number[]>([]);
+  const [assignments, setAssignments] = useState<Record<number, StudentAssignment>>({});
+
+  // Initialize assignments when studentsList loads
+  useMemo(() => {
+    if (studentsList && Object.keys(assignments).length === 0) {
+      const init: Record<number, StudentAssignment> = {};
+      studentsList.forEach(s => {
+        init[s.id] = { studentId: s.id, role: "PARTICIPANTE", absent: false, selected: true };
+      });
+      setAssignments(init);
+    }
+  }, [studentsList]);
+
+  const selectedStudents = useMemo(() => Object.values(assignments).filter(a => a.selected), [assignments]);
 
   // Auto-set problem number when nextInfo loads
   useEffect(() => {
@@ -123,12 +140,19 @@ function SessionsContent() {
   const handleCreate = () => {
     const pn = parseInt(problemNum);
     if (isNaN(pn) || pn < 1) { toast.error("Número do problema inválido"); return; }
-    if (selectedStudents.length === 0) { toast.error("Selecione ao menos um aluno"); return; }
+    const selected = Object.values(assignments).filter(a => a.selected);
+    if (selected.length === 0) { toast.error("Selecione ao menos um aluno"); return; }
+    // Validate exclusive roles
+    const exclusiveRoles: RoleType[] = ["COORDENADOR", "MESA", "QUADRO"];
+    for (const role of exclusiveRoles) {
+      const count = selected.filter(sa => sa.role === role && !sa.absent).length;
+      if (count > 1) { toast.error(`O papel ${role} só pode ser atribuído a um aluno`); return; }
+    }
     createMutation.mutate({
       classId: selectedClassId,
       problemNumber: pn,
       problemTitle: problemTitle.trim() || undefined,
-      studentIds: selectedStudents,
+      studentAssignments: selected.map(sa => ({ studentId: sa.studentId, role: sa.role, absent: sa.absent })),
     });
   };
 
@@ -141,13 +165,42 @@ function SessionsContent() {
   }, [problemNum, problemTitle, autoSessionNumber]);
 
   const toggleStudent = (id: number) => {
-    setSelectedStudents(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
+    setAssignments(prev => ({ ...prev, [id]: { ...prev[id], selected: !prev[id]?.selected } }));
+  };
+
+  const updateRole = (id: number, role: RoleType) => {
+    // If exclusive role, remove from other students
+    if (["COORDENADOR", "MESA", "QUADRO"].includes(role)) {
+      setAssignments(prev => {
+        const updated = { ...prev };
+        Object.keys(updated).forEach(k => {
+          const kid = Number(k);
+          if (kid !== id && updated[kid].role === role) {
+            updated[kid] = { ...updated[kid], role: "PARTICIPANTE" };
+          }
+        });
+        updated[id] = { ...updated[id], role };
+        return updated;
+      });
+    } else {
+      setAssignments(prev => ({ ...prev, [id]: { ...prev[id], role } }));
+    }
+  };
+
+  const toggleAbsent = (id: number) => {
+    setAssignments(prev => ({ ...prev, [id]: { ...prev[id], absent: !prev[id]?.absent } }));
   };
 
   const selectAll = () => {
     if (studentsList) {
-      if (selectedStudents.length === studentsList.length) setSelectedStudents([]);
-      else setSelectedStudents(studentsList.map(s => s.id));
+      const allSelected = selectedStudents.length === studentsList.length;
+      setAssignments(prev => {
+        const updated = { ...prev };
+        studentsList.forEach(s => {
+          updated[s.id] = { ...updated[s.id], selected: !allSelected };
+        });
+        return updated;
+      });
     }
   };
 
@@ -243,30 +296,57 @@ function SessionsContent() {
                 )}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <Label>Alunos da Sessão</Label>
+                    <Label>Alunos da Sessão (presença e papéis)</Label>
                     <Button variant="ghost" size="sm" onClick={selectAll} className="text-xs h-7">
                       {selectedStudents.length === (studentsList?.length ?? 0) ? "Desmarcar todos" : "Selecionar todos"}
                     </Button>
                   </div>
-                  <div className="border rounded-lg max-h-60 overflow-y-auto">
+                  <p className="text-xs text-muted-foreground mb-2">Alunos não selecionados receberão falta. Defina o papel de cada aluno presente.</p>
+                  <div className="border rounded-lg max-h-72 overflow-y-auto divide-y">
                     {!studentsList || studentsList.length === 0 ? (
                       <p className="p-4 text-sm text-muted-foreground text-center">Nenhum aluno cadastrado. Cadastre alunos primeiro.</p>
                     ) : (
-                      studentsList.map(student => (
-                        <label key={student.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-accent/30 cursor-pointer transition-colors">
-                          <Checkbox
-                            checked={selectedStudents.includes(student.id)}
-                            onCheckedChange={() => toggleStudent(student.id)}
-                          />
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium truncate">{student.name}</p>
-                            <p className="text-xs text-muted-foreground truncate">{student.enrollment}</p>
+                      studentsList.map(student => {
+                        const a = assignments[student.id];
+                        if (!a) return null;
+                        return (
+                          <div key={student.id} className={`px-3 py-2.5 transition-colors ${a.selected ? 'bg-background' : 'bg-muted/30 opacity-60'}`}>
+                            <div className="flex items-center gap-3">
+                              <Checkbox
+                                checked={a.selected}
+                                onCheckedChange={() => toggleStudent(student.id)}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">{student.name}</p>
+                                <p className="text-xs text-muted-foreground truncate">{student.enrollment}</p>
+                              </div>
+                              {a.selected && (
+                                <Select value={a.role} onValueChange={(v) => updateRole(student.id, v as RoleType)}>
+                                  <SelectTrigger className="w-[140px] h-8 text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="PARTICIPANTE">Participante</SelectItem>
+                                    <SelectItem value="COORDENADOR">Coordenador</SelectItem>
+                                    <SelectItem value="MESA">Mesa</SelectItem>
+                                    <SelectItem value="QUADRO">Quadro</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              )}
+                            </div>
                           </div>
-                        </label>
-                      ))
+                        );
+                      })
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">{selectedStudents.length} aluno(s) selecionado(s)</p>
+                  <div className="flex items-center justify-between mt-1">
+                    <p className="text-xs text-muted-foreground">{selectedStudents.length} presente(s), {(studentsList?.length ?? 0) - selectedStudents.length} falta(s)</p>
+                    <div className="flex gap-1">
+                      {Object.values(assignments).filter(a => a.selected && a.role !== "PARTICIPANTE").map(a => (
+                        <Badge key={a.role} variant="outline" className="text-[10px] h-5">{a.role}</Badge>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
               <DialogFooter>

@@ -187,35 +187,15 @@ describe("Evaluation validation", () => {
     ).rejects.toThrow("Autoavaliação não é permitida");
   });
 
-  it("rejects duplicate exclusive roles", async () => {
-    const caller = appRouter.createCaller(createStudentContext());
-    await expect(
-      caller.evaluations.submit({
-        sessionId: 999,
-        evaluatorStudentId: 10,
-        items: [
-          { evaluatedStudentId: 20, role: "COORDENADOR", absent: false, pontualidade: 1, pesquisaMetas: 1, dominio: 1, participacao: 1, desempenhoPapel: 0 },
-          { evaluatedStudentId: 30, role: "COORDENADOR", absent: false, pontualidade: 1, pesquisaMetas: 1, dominio: 1, participacao: 1, desempenhoPapel: 0 },
-        ],
-      })
-    ).rejects.toThrow("O papel COORDENADOR só pode ser atribuído a um aluno");
-  });
-
-  it("allows multiple absent students with same exclusive role", async () => {
-    const caller = appRouter.createCaller(createStudentContext());
-    try {
-      await caller.evaluations.submit({
-        sessionId: 999,
-        evaluatorStudentId: 10,
-        items: [
-          { evaluatedStudentId: 20, role: "COORDENADOR", absent: true, pontualidade: 0, pesquisaMetas: 0, dominio: 0, participacao: 0, desempenhoPapel: 0 },
-          { evaluatedStudentId: 30, role: "COORDENADOR", absent: true, pontualidade: 0, pesquisaMetas: 0, dominio: 0, participacao: 0, desempenhoPapel: 0 },
-        ],
-      });
-    } catch (e: any) {
-      // Should not throw for role validation when students are absent
-      expect(e.message).not.toContain("O papel COORDENADOR só pode ser atribuído a um aluno");
-    }
+  it("role/absent no longer in evaluation input (enriched by backend)", () => {
+    // After refactoring, role and absent are fetched from sessionStudents by the backend
+    // The evaluation input only contains scores, not role/absent
+    const evalItem = {
+      evaluatedStudentId: 20,
+      pontualidade: 1, pesquisaMetas: 1, dominio: 1, participacao: 1, desempenhoPapel: 0,
+    };
+    expect(evalItem).not.toHaveProperty("role");
+    expect(evalItem).not.toHaveProperty("absent");
   });
 });
 

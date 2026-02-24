@@ -736,25 +736,33 @@ export const appRouter = router({
       classId: z.number(),
       problemNumber: z.number().min(1).max(10),
       problemTitle: z.string().max(255).optional(),
-      studentIds: z.array(z.number()),
+      studentAssignments: z.array(z.object({
+        studentId: z.number(),
+        role: z.enum(["COORDENADOR", "MESA", "QUADRO", "PARTICIPANTE"]),
+        absent: z.boolean(),
+      })),
     })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       await assertClassManager(ctx.user.id, ctx.user.role, cls);
+      if (input.studentAssignments.length === 0) throw new TRPCError({ code: "BAD_REQUEST", message: "Selecione ao menos um aluno" });
+      // Validate exclusive roles
+      const exclusiveRoles = ["COORDENADOR", "MESA", "QUADRO"];
+      for (const role of exclusiveRoles) {
+        const count = input.studentAssignments.filter(sa => sa.role === role && !sa.absent).length;
+        if (count > 1) throw new TRPCError({ code: "BAD_REQUEST", message: `O papel ${role} só pode ser atribuído a um aluno` });
+      }
       // Auto-calculate session number
       const info = await getNextSessionInfo(input.classId);
       let sessionNumber: number;
       if (info.lastProblemNumber === 0) {
-        // First session ever in this class: MUST be Problema 1 - Sessão 1
         if (input.problemNumber !== 1) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "A primeira sessão da turma deve ser obrigatoriamente Problema 1 - Sessão 1." });
         }
         sessionNumber = 1;
       } else if (input.problemNumber === info.nextProblemNumber) {
-        // Same problem: continue sequence
         sessionNumber = info.nextSessionNumber;
       } else if (input.problemNumber === info.lastProblemNumber + 1) {
-        // New problem: start at session 1
         sessionNumber = 1;
       } else {
         throw new TRPCError({ code: "BAD_REQUEST", message: `O número do problema deve ser ${info.lastProblemNumber} (continuar) ou ${info.lastProblemNumber + 1} (novo problema).` });
@@ -767,7 +775,7 @@ export const appRouter = router({
         sessionNumber,
         problemTitle: input.problemTitle || null,
         label,
-        studentIds: input.studentIds,
+        studentAssignments: input.studentAssignments,
       });
     }),
     getStudents: protectedProcedure.input(z.object({ sessionId: z.number() })).query(async ({ input }) => {
@@ -1223,8 +1231,6 @@ export const appRouter = router({
       evaluatorStudentId: z.number(),
       items: z.array(z.object({
         evaluatedStudentId: z.number(),
-        role: z.enum(["COORDENADOR", "MESA", "QUADRO", "PARTICIPANTE"]),
-        absent: z.boolean(),
         pontualidade: z.number().min(0).max(1),
         pesquisaMetas: z.number().min(0).max(1),
         dominio: z.number().min(0).max(1),
@@ -1239,15 +1245,19 @@ export const appRouter = router({
       if (alreadySubmitted) throw new TRPCError({ code: "BAD_REQUEST", message: "Você já realizou a avaliação desta sessão. Solicite ao professor a liberação para reavaliar." });
       const selfEval = input.items.find(i => i.evaluatedStudentId === input.evaluatorStudentId);
       if (selfEval) throw new TRPCError({ code: "BAD_REQUEST", message: "Autoavaliação não é permitida" });
-      const exclusiveRoles = ["COORDENADOR", "MESA", "QUADRO"];
-      for (const role of exclusiveRoles) {
-        const count = input.items.filter(i => i.role === role && !i.absent).length;
-        if (count > 1) throw new TRPCError({ code: "BAD_REQUEST", message: `O papel ${role} só pode ser atribuído a um aluno` });
-      }
+      // Fetch role/absent from sessionStudents (defined by professor)
+      const sessionStudentsList = await getSessionStudents(input.sessionId);
+      const studentMap = new Map(sessionStudentsList.map(s => [s.studentId, s]));
+      const itemsWithRoles = input.items.map(item => {
+        const ss = studentMap.get(item.evaluatedStudentId);
+        const role = ss?.role ?? "PARTICIPANTE";
+        const absent = ss?.absent ?? false;
+        return { ...item, role: role as "COORDENADOR" | "MESA" | "QUADRO" | "PARTICIPANTE", absent };
+      });
       const evalId = await submitEvaluation({
         sessionId: session.id,
         evaluatorStudentId: input.evaluatorStudentId,
-        items: input.items,
+        items: itemsWithRoles,
       });
       return { success: true, evaluationId: evalId };
     }),
@@ -1260,8 +1270,6 @@ export const appRouter = router({
       evaluatorStudentId: z.number(),
       items: z.array(z.object({
         evaluatedStudentId: z.number(),
-        role: z.enum(["COORDENADOR", "MESA", "QUADRO", "PARTICIPANTE"]),
-        absent: z.boolean(),
         pontualidade: z.number().min(0).max(1),
         pesquisaMetas: z.number().min(0).max(1),
         dominio: z.number().min(0).max(1),
@@ -1271,12 +1279,16 @@ export const appRouter = router({
     })).mutation(async ({ input }) => {
       const selfEval = input.items.find(i => i.evaluatedStudentId === input.evaluatorStudentId);
       if (selfEval) throw new TRPCError({ code: "BAD_REQUEST", message: "Autoavaliação não é permitida" });
-      const exclusiveRoles = ["COORDENADOR", "MESA", "QUADRO"];
-      for (const role of exclusiveRoles) {
-        const count = input.items.filter(i => i.role === role && !i.absent).length;
-        if (count > 1) throw new TRPCError({ code: "BAD_REQUEST", message: `O papel ${role} só pode ser atribuído a um aluno` });
-      }
-      const evalId = await submitEvaluation(input);
+      // Fetch role/absent from sessionStudents (defined by professor)
+      const sessionStudentsList = await getSessionStudents(input.sessionId);
+      const studentMap = new Map(sessionStudentsList.map(s => [s.studentId, s]));
+      const itemsWithRoles = input.items.map(item => {
+        const ss = studentMap.get(item.evaluatedStudentId);
+        const role = ss?.role ?? "PARTICIPANTE";
+        const absent = ss?.absent ?? false;
+        return { ...item, role: role as "COORDENADOR" | "MESA" | "QUADRO" | "PARTICIPANTE", absent };
+      });
+      const evalId = await submitEvaluation({ sessionId: input.sessionId, evaluatorStudentId: input.evaluatorStudentId, items: itemsWithRoles });
       return { success: true, evaluationId: evalId };
     }),
     hasSubmitted: protectedProcedure.input(z.object({

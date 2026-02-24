@@ -1,0 +1,2 @@
+ALTER TABLE `session_students` ADD `role` enum('COORDENADOR','MESA','QUADRO','PARTICIPANTE') DEFAULT 'PARTICIPANTE' NOT NULL;--> statement-breakpoint
+ALTER TABLE `session_students` ADD `absent` boolean DEFAULT false NOT NULL;

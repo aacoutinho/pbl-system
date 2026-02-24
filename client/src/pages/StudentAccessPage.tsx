@@ -4,12 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
+
 import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { LogIn, Send, UserX, CheckCircle2, AlertTriangle, ArrowLeft, BookOpen, HelpCircle, Camera, Mail, ShieldCheck, Upload, ClipboardList, Clock, GraduationCap, User, History, Users, KeyRound, RefreshCw, LogOut, Edit } from "lucide-react";
+import { LogIn, Send, CheckCircle2, AlertTriangle, ArrowLeft, BookOpen, HelpCircle, Camera, Mail, ShieldCheck, Upload, ClipboardList, Clock, GraduationCap, User, History, Users, KeyRound, RefreshCw, LogOut, Edit } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useMemo, useRef } from "react";
 import { resizeImageToSquare, base64SizeKB } from "@/lib/resizeImage";
@@ -18,8 +17,6 @@ type RoleType = "COORDENADOR" | "MESA" | "QUADRO" | "PARTICIPANTE";
 
 interface StudentEval {
   evaluatedStudentId: number;
-  role: RoleType;
-  absent: boolean;
   pontualidade: number;
   pesquisaMetas: number;
   dominio: number;
@@ -1092,20 +1089,23 @@ function EvaluationForm({ studentInfo, sessionInfo, studentEmail, studentPhotoUr
 
   const [evaluations, setEvaluations] = useState<Record<number, StudentEval>>({});
 
+  // Only evaluate non-absent peers
+  const activePeers = useMemo(() => {
+    return peersToEvaluate.filter(p => !p.absent);
+  }, [peersToEvaluate]);
+
   useMemo(() => {
-    if (peersToEvaluate.length > 0 && Object.keys(evaluations).length === 0) {
+    if (activePeers.length > 0 && Object.keys(evaluations).length === 0) {
       const init: Record<number, StudentEval> = {};
-      peersToEvaluate.forEach(p => {
+      activePeers.forEach(p => {
         init[p.studentId] = {
           evaluatedStudentId: p.studentId,
-          role: "PARTICIPANTE",
-          absent: false,
           pontualidade: 1, pesquisaMetas: 1, dominio: 1, participacao: 1, desempenhoPapel: 0,
         };
       });
       setEvaluations(init);
     }
-  }, [peersToEvaluate]);
+  }, [activePeers]);
 
   const updateEval = (studentId: number, field: keyof StudentEval, value: unknown) => {
     setEvaluations(prev => ({
@@ -1114,33 +1114,8 @@ function EvaluationForm({ studentInfo, sessionInfo, studentEmail, studentPhotoUr
     }));
   };
 
-  const assignedExclusiveRoles = useMemo(() => {
-    const map: Record<string, number> = {};
-    Object.values(evaluations).forEach(ev => {
-      if (!ev.absent && ["COORDENADOR", "MESA", "QUADRO"].includes(ev.role)) {
-        map[ev.role] = ev.evaluatedStudentId;
-      }
-    });
-    return map;
-  }, [evaluations]);
-
-  const handleRoleChange = (studentId: number, newRole: RoleType) => {
-    if (["COORDENADOR", "MESA", "QUADRO"].includes(newRole)) {
-      const currentHolder = assignedExclusiveRoles[newRole];
-      if (currentHolder && currentHolder !== studentId) {
-        updateEval(currentHolder, "role", "PARTICIPANTE");
-      }
-    }
-    updateEval(studentId, "role", newRole);
-  };
-
   const handleSubmit = () => {
     const items = Object.values(evaluations);
-    const exclusiveRoles = ["COORDENADOR", "MESA", "QUADRO"];
-    for (const role of exclusiveRoles) {
-      const holders = items.filter(i => i.role === role && !i.absent);
-      if (holders.length > 1) { toast.error(`O papel ${role} só pode ser atribuído a um aluno`); return; }
-    }
     submitMutation.mutate({
       sessionId: studentInfo.sessionId,
       evaluatorStudentId: studentInfo.studentId,
@@ -1148,8 +1123,9 @@ function EvaluationForm({ studentInfo, sessionInfo, studentEmail, studentPhotoUr
     });
   };
 
-  const totalPeers = peersToEvaluate.length;
-  const absentCount = Object.values(evaluations).filter(e => e.absent).length;
+  const roleLabels: Record<string, string> = { COORDENADOR: "Coordenador", MESA: "Mesa", QUADRO: "Quadro", PARTICIPANTE: "Participante" };
+  const totalPeers = activePeers.length;
+  const absentPeers = peersToEvaluate.filter(p => p.absent).length;
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -1189,23 +1165,24 @@ function EvaluationForm({ studentInfo, sessionInfo, studentEmail, studentPhotoUr
       <Card className="bg-primary/5 border-primary/20">
         <CardContent className="pt-4 pb-4">
           <div className="flex items-center justify-between text-sm">
-            <span>Avaliando <strong>{totalPeers - absentCount}</strong> colegas ({absentCount} falta{absentCount !== 1 ? "s" : ""})</span>
+            <span>Avaliando <strong>{totalPeers}</strong> colega{totalPeers !== 1 ? "s" : ""} {absentPeers > 0 && <span className="text-muted-foreground">({absentPeers} ausente{absentPeers !== 1 ? "s" : ""})</span>}</span>
             <div className="flex gap-2">
-              {Object.entries(assignedExclusiveRoles).map(([role]) => (
-                <Badge key={role} variant="outline" className="text-xs">{role}</Badge>
+              {activePeers.filter(p => ["COORDENADOR", "MESA", "QUADRO"].includes(p.role)).map(p => (
+                <Badge key={p.role} variant="outline" className="text-xs">{roleLabels[p.role]}</Badge>
               ))}
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {peersToEvaluate.map(peer => {
+      {activePeers.map(peer => {
         const ev = evaluations[peer.studentId];
         if (!ev) return null;
-        const totalScore = ev.absent ? 0 : ev.pontualidade * 1 + ev.pesquisaMetas * 3 + ev.dominio * 3 + ev.participacao * 3 - ev.desempenhoPapel * 1;
+        const hasRolePenalty = ["COORDENADOR", "MESA", "QUADRO"].includes(peer.role);
+        const totalScore = ev.pontualidade * 1 + ev.pesquisaMetas * 3 + ev.dominio * 3 + ev.participacao * 3 - (hasRolePenalty ? ev.desempenhoPapel * 1 : 0);
 
         return (
-          <Card key={peer.studentId} className={`transition-all ${ev.absent ? "opacity-60 bg-muted/30" : ""}`}>
+          <Card key={peer.studentId} className="transition-all">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -1216,73 +1193,34 @@ function EvaluationForm({ studentInfo, sessionInfo, studentEmail, studentPhotoUr
                       <span className="text-sm font-medium text-muted-foreground">{peer.studentName.charAt(0).toUpperCase()}</span>
                     </div>
                   )}
-                  <CardTitle className="text-base">{peer.studentName}</CardTitle>
-                </div>
-                <div className="flex items-center gap-3">
-                  {!ev.absent && (
-                    <Badge variant="outline" className={`text-lg font-bold px-3 py-1 ${totalScore >= 8 ? "border-emerald-300 text-emerald-700" : totalScore >= 5 ? "border-amber-300 text-amber-700" : "border-red-300 text-red-700"}`}>
-                      {totalScore.toFixed(1)}
+                  <div>
+                    <CardTitle className="text-base">{peer.studentName}</CardTitle>
+                    <Badge variant={peer.role === "PARTICIPANTE" ? "secondary" : "default"} className="text-xs mt-1">
+                      {roleLabels[peer.role]}
                     </Badge>
-                  )}
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor={`absent-${peer.studentId}`} className="text-sm text-muted-foreground">
-                      <UserX className="h-4 w-4" />
-                    </Label>
-                    <Switch
-                      id={`absent-${peer.studentId}`}
-                      checked={ev.absent}
-                      onCheckedChange={(checked) => updateEval(peer.studentId, "absent", checked)}
-                    />
                   </div>
                 </div>
+                <Badge variant="outline" className={`text-lg font-bold px-3 py-1 ${totalScore >= 8 ? "border-emerald-300 text-emerald-700" : totalScore >= 5 ? "border-amber-300 text-amber-700" : "border-red-300 text-red-700"}`}>
+                  {totalScore.toFixed(1)}
+                </Badge>
               </div>
             </CardHeader>
 
-            {!ev.absent && (
-              <CardContent className="space-y-4">
-                <div>
-                  <Label className="text-sm font-medium">Papel na sessão</Label>
-                  <Select value={ev.role} onValueChange={(v) => handleRoleChange(peer.studentId, v as RoleType)}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="PARTICIPANTE">Participante</SelectItem>
-                      <SelectItem value="COORDENADOR" disabled={!!assignedExclusiveRoles["COORDENADOR"] && assignedExclusiveRoles["COORDENADOR"] !== peer.studentId}>
-                        Coordenador {assignedExclusiveRoles["COORDENADOR"] && assignedExclusiveRoles["COORDENADOR"] !== peer.studentId ? "(já atribuído)" : ""}
-                      </SelectItem>
-                      <SelectItem value="MESA" disabled={!!assignedExclusiveRoles["MESA"] && assignedExclusiveRoles["MESA"] !== peer.studentId}>
-                        Mesa {assignedExclusiveRoles["MESA"] && assignedExclusiveRoles["MESA"] !== peer.studentId ? "(já atribuído)" : ""}
-                      </SelectItem>
-                      <SelectItem value="QUADRO" disabled={!!assignedExclusiveRoles["QUADRO"] && assignedExclusiveRoles["QUADRO"] !== peer.studentId}>
-                        Quadro {assignedExclusiveRoles["QUADRO"] && assignedExclusiveRoles["QUADRO"] !== peer.studentId ? "(já atribuído)" : ""}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+            <CardContent className="space-y-4">
+              <Separator />
 
-                <Separator />
-
-                <TooltipProvider>
-                <div className="space-y-4">
-                  <CriteriaSlider label="Pontualidade" sublabel="Peso 1" tooltip="Avalia se o colega chegou no horário e permaneceu durante toda a sessão tutorial." value={ev.pontualidade} onChange={(v) => updateEval(peer.studentId, "pontualidade", v)} gender="fem" />
-                  <CriteriaSlider label="Pesquisa / Metas" sublabel="Peso 3" tooltip="Avalia se o colega pesquisou previamente sobre o tema, trouxe materiais relevantes e cumpriu as metas estabelecidas na sessão anterior." value={ev.pesquisaMetas} onChange={(v) => updateEval(peer.studentId, "pesquisaMetas", v)} gender="fem" />
-                  <CriteriaSlider label="Domínio do Assunto" sublabel="Peso 3" tooltip="Avalia o nível de conhecimento demonstrado pelo colega sobre o tema discutido na sessão tutorial." value={ev.dominio} onChange={(v) => updateEval(peer.studentId, "dominio", v)} gender="masc" />
-                  <CriteriaSlider label="Participação" sublabel="Peso 3" tooltip="Avalia o envolvimento ativo do colega nas discussões, contribuindo com ideias, perguntas e argumentos durante a sessão." value={ev.participacao} onChange={(v) => updateEval(peer.studentId, "participacao", v)} gender="fem" />
-                  <CriteriaSlider label="Desempenho no Papel" sublabel="Penalidade (até -1)" tooltip="Penalidade aplicada quando o colega não desempenhou adequadamente o papel atribuído (Coordenador, Mesa ou Quadro). Se desempenhou bem, deixe em 'Sem penalidade'." value={ev.desempenhoPapel} onChange={(v) => updateEval(peer.studentId, "desempenhoPapel", v)} penalty />
-                </div>
-                </TooltipProvider>
-              </CardContent>
-            )}
-
-            {ev.absent && (
-              <CardContent>
-                <div className="flex items-center gap-2 text-muted-foreground text-sm py-2">
-                  <AlertTriangle className="h-4 w-4 text-amber-500" />
-                  Marcado como ausente. A nota será 0 e não será contabilizada na média.
-                </div>
-              </CardContent>
-            )}
+              <TooltipProvider>
+              <div className="space-y-4">
+                <CriteriaSlider label="Pontualidade" sublabel="Peso 1" tooltip="Avalia se o colega chegou no horário e permaneceu durante toda a sessão tutorial." value={ev.pontualidade} onChange={(v) => updateEval(peer.studentId, "pontualidade", v)} gender="fem" />
+                <CriteriaSlider label="Pesquisa / Metas" sublabel="Peso 3" tooltip="Avalia se o colega pesquisou previamente sobre o tema, trouxe materiais relevantes e cumpriu as metas estabelecidas na sessão anterior." value={ev.pesquisaMetas} onChange={(v) => updateEval(peer.studentId, "pesquisaMetas", v)} gender="fem" />
+                <CriteriaSlider label="Domínio do Assunto" sublabel="Peso 3" tooltip="Avalia o nível de conhecimento demonstrado pelo colega sobre o tema discutido na sessão tutorial." value={ev.dominio} onChange={(v) => updateEval(peer.studentId, "dominio", v)} gender="masc" />
+                <CriteriaSlider label="Participação" sublabel="Peso 3" tooltip="Avalia o envolvimento ativo do colega nas discussões, contribuindo com ideias, perguntas e argumentos durante a sessão." value={ev.participacao} onChange={(v) => updateEval(peer.studentId, "participacao", v)} gender="fem" />
+                {hasRolePenalty && (
+                  <CriteriaSlider label={`Desempenho no Papel de ${roleLabels[peer.role]}`} sublabel="Penalidade (até -1)" tooltip={`Penalidade aplicada quando o colega não desempenhou adequadamente o papel de ${roleLabels[peer.role]}. Se desempenhou bem, deixe em 'Sem penalidade'.`} value={ev.desempenhoPapel} onChange={(v) => updateEval(peer.studentId, "desempenhoPapel", v)} penalty />
+                )}
+              </div>
+              </TooltipProvider>
+            </CardContent>
           </Card>
         );
       })}
