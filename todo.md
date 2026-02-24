@@ -390,3 +390,6 @@
 - [x] Backend: rota para listar histórico de avaliações realizadas pelo aluno (data, sessão, nota total)
 - [x] Frontend: seção de histórico de avaliações no painel do aluno
 - [x] Testes unitários para histórico de avaliações do aluno
+- [x] Renomear "Histórico de Ações" → "Histórico" no menu lateral
+- [x] Renomear "Exportar Alunos" → "Exportar" no menu lateral
+- [x] Renomear "Config. E-mail" → "E-mails" no menu lateral

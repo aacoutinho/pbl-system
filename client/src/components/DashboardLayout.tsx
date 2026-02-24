@@ -49,7 +49,7 @@ const baseMenuItems = [
 const tutorialEvalItem = { icon: ClipboardCheck, label: "Avaliar Tutorial", path: "/tutorial-eval" };
 
 // Audit log: for coordinator and admin
-const auditLogItem = { icon: History, label: "Histórico de Ações", path: "/audit-log" };
+const auditLogItem = { icon: History, label: "Histórico", path: "/audit-log" };
 
 // Notifications: for all approved users
 const notificationsItem = { icon: Bell, label: "Notificações", path: "/notifications" };
@@ -59,8 +59,8 @@ const contactItem = { icon: MessageSquare, label: "Contato", path: "/contact" };
 
 // Admin-only items
 const adminOnlyItems = [
-  { icon: Download, label: "Exportar Alunos", path: "/export-students" },
-  { icon: Mail, label: "Config. E-mail", path: "/smtp-config" },
+  { icon: Download, label: "Exportar", path: "/export-students" },
+  { icon: Mail, label: "E-mails", path: "/smtp-config" },
   { icon: DatabaseBackup, label: "Backup / Restaurar", path: "/backup" },
 ];
 
