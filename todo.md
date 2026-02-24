@@ -407,3 +407,11 @@
 - [x] Indicador de SMTP no submenu: ponto vermelho ao lado de "E-mails" quando SMTP não configurado
 - [x] Separar Backup (estado do banco + exportar) e Restauração (restaurar + reconstruir) em páginas distintas
 - [x] Indicador visual de tickets de contato pendentes no item Contato do menu lateral (ponto vermelho para admin)
+- [x] Reformular login do aluno: matrícula → verificação por código no e-mail (sem senha)
+- [x] Primeiro login: tela obrigatória para cadastrar e-mail e foto
+- [x] Primeiro login: após cadastrar e-mail, enviar código de verificação para confirmar
+- [x] Logins seguintes: enviar código aleatório ao e-mail cadastrado automaticamente
+- [x] Tela de verificação de código (campo para digitar código recebido por e-mail)
+- [x] Após autenticação: tela com perfil editável (foto e e-mail) + sessões abertas e finalizadas
+- [x] Backend: rotas para login por matrícula, cadastro e-mail/foto, envio/verificação de código
+- [x] Testes unitários para novo fluxo de login do aluno

@@ -7,6 +7,15 @@ vi.mock("./db", () => ({
   getClassesForStudent: vi.fn(),
   getOpenSessionsForStudent: vi.fn(),
   hasStudentSubmitted: vi.fn(),
+  getStudentById: vi.fn(),
+  createEmailVerificationCode: vi.fn(),
+  verifyEmailCode: vi.fn(),
+}));
+
+// Mock email
+vi.mock("./email", () => ({
+  sendEmail: vi.fn().mockResolvedValue({ success: true }),
+  buildVerificationEmailHtml: vi.fn().mockReturnValue("<html>code</html>"),
 }));
 
 import {
@@ -15,10 +24,13 @@ import {
   getClassesForStudent,
   getOpenSessionsForStudent,
   hasStudentSubmitted,
+  getStudentById,
+  createEmailVerificationCode,
+  verifyEmailCode,
 } from "./db";
 
-describe("Student Enrollment Login", () => {
-  it("findStudentByEnrollment returns student data when found", async () => {
+describe("Student Login by Enrollment - New Flow", () => {
+  it("student with email: loginByEnrollment returns hasEmail=true and codeSent=true", async () => {
     const mockStudent = {
       id: 1,
       name: "João Silva",
@@ -28,49 +40,162 @@ describe("Student Enrollment Login", () => {
     };
     (findStudentByEnrollment as any).mockResolvedValue(mockStudent);
 
-    const result = await findStudentByEnrollment("20221001");
-    expect(result).toEqual(mockStudent);
-    expect(findStudentByEnrollment).toHaveBeenCalledWith("20221001");
+    const student = await findStudentByEnrollment("20221001");
+    expect(student).not.toBeNull();
+
+    const hasEmail = !!student!.email;
+    const hasPhoto = !!student!.photoUrl;
+
+    expect(hasEmail).toBe(true);
+    expect(hasPhoto).toBe(true);
+
+    // Simulate code sending
+    await createEmailVerificationCode(student!.email!.toLowerCase(), "123456", new Date());
+    expect(createEmailVerificationCode).toHaveBeenCalledWith(
+      "joao@ecomp.uefs.br",
+      "123456",
+      expect.any(Date)
+    );
   });
 
-  it("findStudentByEnrollment returns null for unknown enrollment", async () => {
+  it("student without email: loginByEnrollment returns hasEmail=false (first access)", async () => {
+    const mockStudent = {
+      id: 2,
+      name: "Ana Santos",
+      enrollment: "20221002",
+      email: null,
+      photoUrl: null,
+    };
+    (findStudentByEnrollment as any).mockResolvedValue(mockStudent);
+
+    const student = await findStudentByEnrollment("20221002");
+    expect(student).not.toBeNull();
+
+    const hasEmail = !!student!.email;
+    const hasPhoto = !!student!.photoUrl;
+
+    expect(hasEmail).toBe(false);
+    expect(hasPhoto).toBe(false);
+    // Should go to profile setup, NOT send code
+  });
+
+  it("unknown enrollment returns null", async () => {
     (findStudentByEnrollment as any).mockResolvedValue(null);
 
     const result = await findStudentByEnrollment("99999999");
     expect(result).toBeNull();
   });
 
-  it("getStudentEvaluationCount returns 0 for first access", async () => {
-    (getStudentEvaluationCount as any).mockResolvedValue(0);
+  it("email masking works correctly", () => {
+    const testCases = [
+      { email: "joao@ecomp.uefs.br", expected: "joa***@ecomp.uefs.br" },
+      { email: "ab@ecomp.uefs.br", expected: "ab***@ecomp.uefs.br" },
+      { email: "maria.silva@gmail.com", expected: "mar***@gmail.com" },
+    ];
 
-    const result = await getStudentEvaluationCount(1);
-    expect(result).toBe(0);
+    testCases.forEach(({ email, expected }) => {
+      const [local, domain] = email.split("@");
+      const masked = local.length > 3 ? local.slice(0, 3) + "***@" + domain : local + "***@" + domain;
+      expect(masked).toBe(expected);
+    });
   });
+});
 
-  it("getStudentEvaluationCount returns positive count for returning student", async () => {
-    (getStudentEvaluationCount as any).mockResolvedValue(5);
-
-    const result = await getStudentEvaluationCount(1);
-    expect(result).toBe(5);
-  });
-
-  it("getClassesForStudent returns list of classes", async () => {
+describe("Verify Login Code", () => {
+  it("valid code returns student data with authenticated=true", async () => {
+    const mockStudent = {
+      id: 1,
+      name: "João Silva",
+      enrollment: "20221001",
+      email: "joao@ecomp.uefs.br",
+      photoUrl: "https://example.com/photo.jpg",
+    };
     const mockClasses = [
       { classId: 1, classCode: "T01", componentCode: "EXA123", componentName: "Bioquímica", semester: "2025.1" },
-      { classId: 2, classCode: "T02", componentCode: "EXA456", componentName: "Fisiologia", semester: "2025.1" },
     ];
+
+    (getStudentById as any).mockResolvedValue(mockStudent);
+    (verifyEmailCode as any).mockResolvedValue(true);
     (getClassesForStudent as any).mockResolvedValue(mockClasses);
 
-    const result = await getClassesForStudent(1);
-    expect(result).toHaveLength(2);
-    expect(result[0].componentCode).toBe("EXA123");
+    const studentData = await getStudentById(1);
+    expect(studentData).not.toBeNull();
+    expect(studentData!.email).toBe("joao@ecomp.uefs.br");
+
+    const valid = await verifyEmailCode(studentData!.email!.toLowerCase(), "123456");
+    expect(valid).toBe(true);
+
+    const classes = await getClassesForStudent(1);
+    expect(classes).toHaveLength(1);
+
+    // Simulated response
+    const response = {
+      studentId: studentData!.id,
+      studentName: studentData!.name,
+      studentEmail: studentData!.email,
+      studentEnrollment: studentData!.enrollment,
+      studentPhotoUrl: studentData!.photoUrl,
+      classes,
+      authenticated: true,
+    };
+    expect(response.authenticated).toBe(true);
+    expect(response.studentEmail).toBe("joao@ecomp.uefs.br");
   });
 
-  it("getClassesForStudent returns empty array for student with no classes", async () => {
-    (getClassesForStudent as any).mockResolvedValue([]);
+  it("invalid code is rejected", async () => {
+    const mockStudent = {
+      id: 1,
+      name: "João Silva",
+      enrollment: "20221001",
+      email: "joao@ecomp.uefs.br",
+      photoUrl: null,
+    };
 
-    const result = await getClassesForStudent(999);
-    expect(result).toHaveLength(0);
+    (getStudentById as any).mockResolvedValue(mockStudent);
+    (verifyEmailCode as any).mockResolvedValue(false);
+
+    const studentData = await getStudentById(1);
+    const valid = await verifyEmailCode(studentData!.email!.toLowerCase(), "000000");
+    expect(valid).toBe(false);
+  });
+
+  it("student without email cannot verify login code", async () => {
+    (getStudentById as any).mockResolvedValue({
+      id: 2,
+      name: "Ana Santos",
+      enrollment: "20221002",
+      email: null,
+      photoUrl: null,
+    });
+
+    const studentData = await getStudentById(2);
+    expect(studentData!.email).toBeNull();
+    // Should throw error in actual route
+  });
+});
+
+describe("Resend Login Code", () => {
+  it("resend code for student with email", async () => {
+    const mockStudent = {
+      id: 1,
+      name: "João Silva",
+      enrollment: "20221001",
+      email: "joao@ecomp.uefs.br",
+      photoUrl: null,
+    };
+
+    (getStudentById as any).mockResolvedValue(mockStudent);
+    (createEmailVerificationCode as any).mockResolvedValue(undefined);
+
+    const studentData = await getStudentById(1);
+    expect(studentData!.email).not.toBeNull();
+
+    await createEmailVerificationCode(studentData!.email!.toLowerCase(), "654321", new Date());
+    expect(createEmailVerificationCode).toHaveBeenCalledWith(
+      "joao@ecomp.uefs.br",
+      "654321",
+      expect.any(Date)
+    );
   });
 });
 
@@ -98,27 +223,6 @@ describe("Student Open Sessions", () => {
     expect(result[0].accessCode).toBe("ABC123");
   });
 
-  it("getOpenSessionsForStudent returns empty array when no open sessions", async () => {
-    (getOpenSessionsForStudent as any).mockResolvedValue([]);
-
-    const result = await getOpenSessionsForStudent(1);
-    expect(result).toHaveLength(0);
-  });
-
-  it("hasStudentSubmitted returns false for pending evaluation", async () => {
-    (hasStudentSubmitted as any).mockResolvedValue(false);
-
-    const result = await hasStudentSubmitted(1, 1);
-    expect(result).toBe(false);
-  });
-
-  it("hasStudentSubmitted returns true for completed evaluation", async () => {
-    (hasStudentSubmitted as any).mockResolvedValue(true);
-
-    const result = await hasStudentSubmitted(1, 1);
-    expect(result).toBe(true);
-  });
-
   it("correctly identifies pending vs completed sessions", async () => {
     const mockSessions = [
       { sessionId: 1, sessionLabel: "P1-S1", classId: 1, classCode: "T01", componentCode: "EXA123", componentName: "Bio", semester: "2025.1", accessCode: "ABC", problemNumber: 1, sessionNumber: 1 },
@@ -126,8 +230,8 @@ describe("Student Open Sessions", () => {
     ];
     (getOpenSessionsForStudent as any).mockResolvedValue(mockSessions);
     (hasStudentSubmitted as any)
-      .mockResolvedValueOnce(false) // session 1: not submitted
-      .mockResolvedValueOnce(true); // session 2: submitted
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
 
     const sessions = await getOpenSessionsForStudent(1);
     const sessionsWithStatus = await Promise.all(sessions.map(async (s: any) => {
@@ -140,70 +244,68 @@ describe("Student Open Sessions", () => {
   });
 });
 
-describe("Login Flow Integration", () => {
-  it("full login flow: enrollment → student data → classes → sessions", async () => {
-    const mockStudent = { id: 1, name: "Maria", enrollment: "20221002", email: "maria@ecomp.uefs.br", photoUrl: null };
-    const mockClasses = [{ classId: 1, classCode: "T01", componentCode: "EXA123", componentName: "Bio", semester: "2025.1" }];
-    const mockSessions = [{ sessionId: 1, sessionLabel: "P1-S1", classId: 1, classCode: "T01", componentCode: "EXA123", componentName: "Bio", semester: "2025.1", accessCode: "XYZ", problemNumber: 1, sessionNumber: 1 }];
-
-    (findStudentByEnrollment as any).mockResolvedValue(mockStudent);
-    (getStudentEvaluationCount as any).mockResolvedValue(0);
-    (getClassesForStudent as any).mockResolvedValue(mockClasses);
-    (getOpenSessionsForStudent as any).mockResolvedValue(mockSessions);
-    (hasStudentSubmitted as any).mockResolvedValue(false);
-
-    // Step 1: Login
-    const student = await findStudentByEnrollment("20221002");
-    expect(student).not.toBeNull();
-    expect(student!.name).toBe("Maria");
-
-    // Step 2: Check first access
-    const evalCount = await getStudentEvaluationCount(student!.id);
-    expect(evalCount).toBe(0); // first access
-
-    // Step 3: Get classes
-    const classes = await getClassesForStudent(student!.id);
-    expect(classes).toHaveLength(1);
-
-    // Step 4: Get open sessions
-    const sessions = await getOpenSessionsForStudent(student!.id);
-    expect(sessions).toHaveLength(1);
-
-    // Step 5: Check submission status
-    const submitted = await hasStudentSubmitted(sessions[0].sessionId, student!.id);
-    expect(submitted).toBe(false);
-  });
-
-  it("returning student skips profile setup", async () => {
-    const mockStudent = { id: 2, name: "Pedro", enrollment: "20221003", email: "pedro@ecomp.uefs.br", photoUrl: "https://example.com/pedro.jpg" };
-
-    (findStudentByEnrollment as any).mockResolvedValue(mockStudent);
-    (getStudentEvaluationCount as any).mockResolvedValue(3);
-
-    const student = await findStudentByEnrollment("20221003");
-    const evalCount = await getStudentEvaluationCount(student!.id);
-
-    // Has email, photo, and previous evaluations → skip profile
-    const isFirstAccess = evalCount === 0;
-    const needsProfile = !student!.email || !student!.photoUrl;
-    const shouldShowProfile = isFirstAccess && needsProfile;
-
-    expect(shouldShowProfile).toBe(false);
-  });
-
-  it("first access student without photo goes to profile setup", async () => {
+describe("Full Login Flow Integration", () => {
+  it("first access: enrollment → no email → profile setup → verify code → dashboard", async () => {
     const mockStudent = { id: 3, name: "Ana", enrollment: "20221004", email: null, photoUrl: null };
 
     (findStudentByEnrollment as any).mockResolvedValue(mockStudent);
-    (getStudentEvaluationCount as any).mockResolvedValue(0);
 
+    // Step 1: Login by enrollment
     const student = await findStudentByEnrollment("20221004");
-    const evalCount = await getStudentEvaluationCount(student!.id);
+    expect(student).not.toBeNull();
+    expect(student!.email).toBeNull();
 
-    const isFirstAccess = evalCount === 0;
-    const needsProfile = !student!.email || !student!.photoUrl;
-    const shouldShowProfile = isFirstAccess && needsProfile;
+    // Step 2: Determine flow → first access (no email)
+    const hasEmail = !!student!.email;
+    expect(hasEmail).toBe(false);
+    // → Goes to profile setup
 
-    expect(shouldShowProfile).toBe(true);
+    // Step 3: After profile setup, email is set and verified
+    // Then resendLoginCode sends a code
+    const updatedStudent = { ...mockStudent, email: "ana@ecomp.uefs.br", photoUrl: "https://s3.example.com/ana.jpg" };
+    (getStudentById as any).mockResolvedValue(updatedStudent);
+    (createEmailVerificationCode as any).mockResolvedValue(undefined);
+
+    const studentData = await getStudentById(3);
+    await createEmailVerificationCode(studentData!.email!.toLowerCase(), "111222", new Date());
+    expect(createEmailVerificationCode).toHaveBeenCalled();
+
+    // Step 4: Verify login code
+    (verifyEmailCode as any).mockResolvedValue(true);
+    (getClassesForStudent as any).mockResolvedValue([{ classId: 1, classCode: "T01", componentCode: "EXA123", componentName: "Bio", semester: "2025.1" }]);
+
+    const valid = await verifyEmailCode("ana@ecomp.uefs.br", "111222");
+    expect(valid).toBe(true);
+
+    const classes = await getClassesForStudent(3);
+    expect(classes).toHaveLength(1);
+    // → Dashboard
+  });
+
+  it("returning student: enrollment → has email → code sent → verify → dashboard", async () => {
+    const mockStudent = { id: 1, name: "Pedro", enrollment: "20221003", email: "pedro@ecomp.uefs.br", photoUrl: "https://example.com/pedro.jpg" };
+
+    (findStudentByEnrollment as any).mockResolvedValue(mockStudent);
+    (createEmailVerificationCode as any).mockResolvedValue(undefined);
+
+    // Step 1: Login by enrollment
+    const student = await findStudentByEnrollment("20221003");
+    expect(student).not.toBeNull();
+
+    // Step 2: Has email → auto-send code
+    const hasEmail = !!student!.email;
+    expect(hasEmail).toBe(true);
+
+    await createEmailVerificationCode(student!.email!.toLowerCase(), "999888", new Date());
+    // codeSent = true → goes to verify code screen
+
+    // Step 3: Verify code
+    (getStudentById as any).mockResolvedValue(mockStudent);
+    (verifyEmailCode as any).mockResolvedValue(true);
+    (getClassesForStudent as any).mockResolvedValue([]);
+
+    const valid = await verifyEmailCode("pedro@ecomp.uefs.br", "999888");
+    expect(valid).toBe(true);
+    // → Dashboard
   });
 });

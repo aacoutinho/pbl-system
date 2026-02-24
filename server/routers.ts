@@ -31,7 +31,7 @@ import {
   getComponentCoordinators,
   grantEvalPermission, revokeEvalPermission, hasEvalPermission, listEvalPermissions, listComponentProfessorsForClass,
   createEmailVerificationCode, verifyEmailCode,
-  getStudentEvaluationCount, updateStudentPhoto,
+  getStudentEvaluationCount, updateStudentPhoto, getStudentById,
   transferStudentBetweenClasses,
   createAuditLog, listAuditLogs,
   createNotification, listNotifications, countUnreadNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification,
@@ -916,23 +916,91 @@ export const appRouter = router({
 
   // ─── Student simplified access (no login required) ───
   studentAccess: router({
-    // Login by enrollment only (no session code needed)
+    // Step 1: Student enters enrollment number
+    // Returns student info + whether email is registered (needs setup or code)
     loginByEnrollment: publicProcedure.input(z.object({
       enrollment: z.string().min(1),
     })).mutation(async ({ input }) => {
       const student = await findStudentByEnrollment(input.enrollment.trim());
       if (!student) throw new TRPCError({ code: "NOT_FOUND", message: "Matrícula não encontrada no sistema. Verifique se digitou corretamente." });
-      const evalCount = await getStudentEvaluationCount(student.id);
-      const classes = await getClassesForStudent(student.id);
+      const hasEmail = !!student.email;
+      const hasPhoto = !!student.photoUrl;
+      // If student has email, auto-send verification code
+      let codeSent = false;
+      if (hasEmail && student.email) {
+        try {
+          const code = Math.floor(100000 + Math.random() * 900000).toString();
+          const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+          await createEmailVerificationCode(student.email.toLowerCase(), code, expiresAt);
+          const html = buildVerificationEmailHtml(code, student.email.toLowerCase());
+          const result = await sendEmail({
+            to: student.email.toLowerCase(),
+            subject: "Código de Acesso - Avaliação Tutorial",
+            text: `Seu código de acesso é: ${code}. Válido por 15 minutos.`,
+            html,
+          });
+          codeSent = result.success;
+          if (!result.success) {
+            console.error("[StudentAccess] Failed to send login code:", result.error);
+          }
+        } catch (err) {
+          console.error("[StudentAccess] Error sending login code:", err);
+        }
+      }
+      // Mask email for display (show first 3 chars + domain)
+      let maskedEmail: string | null = null;
+      if (hasEmail && student.email) {
+        const [local, domain] = student.email.split("@");
+        maskedEmail = local.length > 3 ? local.slice(0, 3) + "***@" + domain : local + "***@" + domain;
+      }
       return {
         studentId: student.id,
         studentName: student.name,
-        studentEmail: student.email,
         studentEnrollment: student.enrollment,
-        studentPhotoUrl: student.photoUrl,
-        isFirstAccess: evalCount === 0,
-        classes,
+        hasEmail,
+        hasPhoto,
+        maskedEmail,
+        codeSent,
       };
+    }),
+    // Step 2a: Verify login code (for students who already have email)
+    verifyLoginCode: publicProcedure.input(z.object({
+      studentId: z.number(),
+      code: z.string().length(6),
+    })).mutation(async ({ input }) => {
+      const studentData = await getStudentById(input.studentId);
+      if (!studentData || !studentData.email) throw new TRPCError({ code: "BAD_REQUEST", message: "Aluno sem e-mail cadastrado" });
+      const valid = await verifyEmailCode(studentData.email.toLowerCase(), input.code);
+      if (!valid) throw new TRPCError({ code: "BAD_REQUEST", message: "Código inválido ou expirado. Verifique e tente novamente." });
+      const classes = await getClassesForStudent(input.studentId);
+      return {
+        studentId: studentData.id,
+        studentName: studentData.name,
+        studentEmail: studentData.email,
+        studentEnrollment: studentData.enrollment,
+        studentPhotoUrl: studentData.photoUrl,
+        classes,
+        authenticated: true,
+      };
+    }),
+    // Step 2b: Resend login code
+    resendLoginCode: publicProcedure.input(z.object({
+      studentId: z.number(),
+    })).mutation(async ({ input }) => {
+      const studentData = await getStudentById(input.studentId);
+      if (!studentData || !studentData.email) throw new TRPCError({ code: "BAD_REQUEST", message: "Aluno sem e-mail cadastrado" });
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+      await createEmailVerificationCode(studentData.email.toLowerCase(), code, expiresAt);
+      const html = buildVerificationEmailHtml(code, studentData.email.toLowerCase());
+      const result = await sendEmail({
+        to: studentData.email.toLowerCase(),
+        subject: "Código de Acesso - Avaliação Tutorial",
+        text: `Seu código de acesso é: ${code}. Válido por 15 minutos.`,
+        html,
+      });
+      if (!result.success) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: result.error || "Erro ao enviar código" });
+      return { success: true };
     }),
     // Get evaluation history for a student
     myEvaluationHistory: publicProcedure.input(z.object({

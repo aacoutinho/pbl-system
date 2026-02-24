@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { LogIn, Send, UserX, CheckCircle2, AlertTriangle, ArrowLeft, BookOpen, HelpCircle, Camera, Mail, ShieldCheck, Upload, ClipboardList, Clock, GraduationCap, User, History, Users } from "lucide-react";
+import { LogIn, Send, UserX, CheckCircle2, AlertTriangle, ArrowLeft, BookOpen, HelpCircle, Camera, Mail, ShieldCheck, Upload, ClipboardList, Clock, GraduationCap, User, History, Users, KeyRound, RefreshCw, LogOut, Edit } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useMemo, useRef } from "react";
 import { resizeImageToSquare, base64SizeKB } from "@/lib/resizeImage";
@@ -27,15 +27,29 @@ interface StudentEval {
   desempenhoPapel: number;
 }
 
-type Step = "login" | "dashboard" | "profile" | "evaluate" | "done";
+// Flow steps:
+// login → (first access: no email) → setupProfile → verifySetupEmail → dashboard
+// login → (has email) → verifyCode → dashboard
+// dashboard → evaluate → done → dashboard
+// dashboard → editProfile → dashboard
+type Step = "login" | "setupProfile" | "verifySetupEmail" | "verifyCode" | "dashboard" | "editProfile" | "evaluate" | "done";
 
-interface StudentData {
+interface LoginData {
+  studentId: number;
+  studentName: string;
+  studentEnrollment: string;
+  hasEmail: boolean;
+  hasPhoto: boolean;
+  maskedEmail: string | null;
+  codeSent: boolean;
+}
+
+interface AuthenticatedData {
   studentId: number;
   studentName: string;
   studentEmail: string | null;
   studentEnrollment: string;
   studentPhotoUrl: string | null;
-  isFirstAccess: boolean;
   classes: { classId: number; classCode: string; componentCode: string; componentName: string; semester: string }[];
 }
 
@@ -53,38 +67,62 @@ interface SelectedSession {
 export default function StudentAccessPage() {
   const [step, setStep] = useState<Step>("login");
   const [enrollment, setEnrollment] = useState("");
-  const [studentData, setStudentData] = useState<StudentData | null>(null);
-  const [studentEmail, setStudentEmail] = useState("");
-  const [studentPhotoUrl, setStudentPhotoUrl] = useState<string | null>(null);
+  const [loginData, setLoginData] = useState<LoginData | null>(null);
+  const [authData, setAuthData] = useState<AuthenticatedData | null>(null);
   const [selectedSession, setSelectedSession] = useState<SelectedSession | null>(null);
-  const [submittedSessionId, setSubmittedSessionId] = useState<number | null>(null);
 
-  // Login by enrollment
+  // Step 1: Login by enrollment
   const loginMutation = trpc.studentAccess.loginByEnrollment.useMutation({
     onSuccess: (data) => {
-      setStudentData(data);
-      setStudentEmail(data.studentEmail || "");
-      setStudentPhotoUrl(data.studentPhotoUrl || null);
-      // If first access and missing email or photo, go to profile setup
-      const needsProfile = !data.studentEmail || !data.studentPhotoUrl;
-      if (data.isFirstAccess && needsProfile) {
-        setStep("profile");
+      setLoginData(data);
+      if (!data.hasEmail) {
+        // First access: needs to set up email + photo
+        setStep("setupProfile");
       } else {
-        setStep("dashboard");
+        // Has email: code was sent automatically
+        if (data.codeSent) {
+          toast.success(`Código enviado para ${data.maskedEmail}`);
+        } else {
+          toast.error("Não foi possível enviar o código. Verifique a configuração de e-mail com o administrador.");
+        }
+        setStep("verifyCode");
       }
     },
     onError: (e) => toast.error(e.message),
   });
 
-  // Update email mutation
-  const updateEmailMutation = trpc.studentAccess.updateEmail.useMutation({
-    onSuccess: () => toast.success("E-mail atualizado"),
-    onError: (e: any) => toast.error(e.message),
+  // Step 2a: Verify login code
+  const verifyLoginCodeMutation = trpc.studentAccess.verifyLoginCode.useMutation({
+    onSuccess: (data) => {
+      setAuthData(data);
+      toast.success("Acesso autorizado!");
+      setStep("dashboard");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  // Resend code
+  const resendCodeMutation = trpc.studentAccess.resendLoginCode.useMutation({
+    onSuccess: () => toast.success("Novo código enviado!"),
+    onError: (e) => toast.error(e.message),
   });
 
   const handleLogin = () => {
     if (!enrollment.trim()) { toast.error("Digite sua matrícula"); return; }
     loginMutation.mutate({ enrollment: enrollment.trim() });
+  };
+
+  const handleLogout = () => {
+    setStep("login");
+    setLoginData(null);
+    setAuthData(null);
+    setEnrollment("");
+    setSelectedSession(null);
+  };
+
+  const handleProfileSetupComplete = (data: AuthenticatedData) => {
+    setAuthData(data);
+    setStep("dashboard");
   };
 
   const handleSelectSession = (session: SelectedSession) => {
@@ -93,18 +131,16 @@ export default function StudentAccessPage() {
   };
 
   const handleEvalDone = () => {
-    setSubmittedSessionId(selectedSession?.sessionId || null);
     setSelectedSession(null);
     setStep("done");
   };
 
   const handleBackToDashboard = () => {
     setSelectedSession(null);
-    setSubmittedSessionId(null);
     setStep("dashboard");
   };
 
-  // ─── Step: Login ───
+  // ─── Step: Login (enter enrollment) ───
   if (step === "login") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
@@ -150,38 +186,84 @@ export default function StudentAccessPage() {
     );
   }
 
-  // ─── Step: Profile setup (first access) ───
-  if (step === "profile") {
+  // ─── Step: Verify Code (has email, code sent) ───
+  if (step === "verifyCode" && loginData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50 p-4 flex items-center justify-center">
-        <ProfileSetup
-          studentId={studentData!.studentId}
-          studentName={studentData!.studentName}
-          currentEmail={studentEmail}
-          currentPhotoUrl={studentPhotoUrl}
-          isFirstEval={studentData!.isFirstAccess}
-          onComplete={(email, photoUrl) => {
-            if (email) setStudentEmail(email);
-            if (photoUrl) setStudentPhotoUrl(photoUrl);
-            setStep("dashboard");
-          }}
-          onBack={() => { setStep("login"); setStudentData(null); setEnrollment(""); }}
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
+        <VerifyCodeScreen
+          loginData={loginData}
+          onVerify={(code) => verifyLoginCodeMutation.mutate({ studentId: loginData.studentId, code })}
+          onResend={() => resendCodeMutation.mutate({ studentId: loginData.studentId })}
+          onBack={handleLogout}
+          isVerifying={verifyLoginCodeMutation.isPending}
+          isResending={resendCodeMutation.isPending}
         />
       </div>
     );
   }
 
-  // ─── Step: Dashboard (profile + open sessions) ───
-  if (step === "dashboard") {
+  // ─── Step: Setup Profile (first access, no email) ───
+  if (step === "setupProfile" && loginData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50 p-4 flex items-center justify-center">
+        <FirstAccessSetup
+          studentId={loginData.studentId}
+          studentName={loginData.studentName}
+          onComplete={handleProfileSetupComplete}
+          onBack={handleLogout}
+        />
+      </div>
+    );
+  }
+
+  // ─── Step: Verify Setup Email (after first access setup) ───
+  if (step === "verifySetupEmail" && loginData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
+        <VerifyCodeScreen
+          loginData={loginData}
+          onVerify={(code) => verifyLoginCodeMutation.mutate({ studentId: loginData.studentId, code })}
+          onResend={() => resendCodeMutation.mutate({ studentId: loginData.studentId })}
+          onBack={handleLogout}
+          isVerifying={verifyLoginCodeMutation.isPending}
+          isResending={resendCodeMutation.isPending}
+        />
+      </div>
+    );
+  }
+
+  // ─── Step: Edit Profile (from dashboard) ───
+  if (step === "editProfile" && authData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50 p-4 flex items-center justify-center">
+        <EditProfileScreen
+          studentId={authData.studentId}
+          studentName={authData.studentName}
+          currentEmail={authData.studentEmail || ""}
+          currentPhotoUrl={authData.studentPhotoUrl || null}
+          onComplete={(email, photoUrl) => {
+            setAuthData(prev => prev ? {
+              ...prev,
+              studentEmail: email || prev.studentEmail,
+              studentPhotoUrl: photoUrl || prev.studentPhotoUrl,
+            } : prev);
+            setStep("dashboard");
+          }}
+          onBack={() => setStep("dashboard")}
+        />
+      </div>
+    );
+  }
+
+  // ─── Step: Dashboard ───
+  if (step === "dashboard" && authData) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4">
         <StudentDashboard
-          studentData={studentData!}
-          studentEmail={studentEmail}
-          studentPhotoUrl={studentPhotoUrl}
+          authData={authData}
           onSelectSession={handleSelectSession}
-          onEditProfile={() => setStep("profile")}
-          onLogout={() => { setStep("login"); setStudentData(null); setEnrollment(""); setStudentEmail(""); setStudentPhotoUrl(null); }}
+          onEditProfile={() => setStep("editProfile")}
+          onLogout={handleLogout}
         />
       </div>
     );
@@ -213,55 +295,604 @@ export default function StudentAccessPage() {
   }
 
   // ─── Step: Evaluate ───
+  if (step === "evaluate" && authData && selectedSession) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4">
+        <EvaluationForm
+          accessCode={selectedSession.accessCode || ""}
+          studentInfo={{
+            studentId: authData.studentId,
+            studentName: authData.studentName,
+            sessionId: selectedSession.sessionId,
+            sessionLabel: selectedSession.sessionLabel,
+            classId: selectedSession.classId,
+          }}
+          sessionInfo={{
+            sessionId: selectedSession.sessionId,
+            label: selectedSession.sessionLabel,
+            classCode: selectedSession.classCode,
+            componentCode: selectedSession.componentCode,
+            componentName: selectedSession.componentName,
+            semester: selectedSession.semester,
+          }}
+          studentEmail={authData.studentEmail || ""}
+          studentPhotoUrl={authData.studentPhotoUrl || null}
+          onDone={handleEvalDone}
+          onBack={handleBackToDashboard}
+        />
+      </div>
+    );
+  }
+
+  // Fallback
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4">
-      <EvaluationForm
-        accessCode={selectedSession!.accessCode || ""}
-        studentInfo={{
-          studentId: studentData!.studentId,
-          studentName: studentData!.studentName,
-          sessionId: selectedSession!.sessionId,
-          sessionLabel: selectedSession!.sessionLabel,
-          classId: selectedSession!.classId,
-        }}
-        sessionInfo={{
-          sessionId: selectedSession!.sessionId,
-          label: selectedSession!.sessionLabel,
-          classCode: selectedSession!.classCode,
-          componentCode: selectedSession!.componentCode,
-          componentName: selectedSession!.componentName,
-          semester: selectedSession!.semester,
-        }}
-        studentEmail={studentEmail}
-        studentPhotoUrl={studentPhotoUrl}
-        onEmailChange={setStudentEmail}
-        onEmailSave={(email) => {
-          if (studentData) updateEmailMutation.mutate({ studentId: studentData.studentId, email });
-        }}
-        onPhotoChange={setStudentPhotoUrl}
-        onEditProfile={() => setStep("profile")}
-        onDone={handleEvalDone}
-        onBack={handleBackToDashboard}
-      />
+    <div className="min-h-screen flex items-center justify-center">
+      <Button onClick={handleLogout}>Voltar ao Login</Button>
     </div>
   );
 }
 
+// ─── Verify Code Screen ───
+function VerifyCodeScreen({ loginData, onVerify, onResend, onBack, isVerifying, isResending }: {
+  loginData: LoginData;
+  onVerify: (code: string) => void;
+  onResend: () => void;
+  onBack: () => void;
+  isVerifying: boolean;
+  isResending: boolean;
+}) {
+  const [code, setCode] = useState("");
+
+  return (
+    <Card className="w-full max-w-md shadow-lg">
+      <CardHeader className="text-center">
+        <div className="mx-auto w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center mb-3">
+          <KeyRound className="h-7 w-7 text-blue-600" />
+        </div>
+        <CardTitle className="text-xl">Verificação de Acesso</CardTitle>
+        <CardDescription>
+          Olá, <strong>{loginData.studentName}</strong>! Um código de 6 dígitos foi enviado para <strong>{loginData.maskedEmail}</strong>. Digite-o abaixo para acessar o sistema.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <Label htmlFor="code">Código de Verificação</Label>
+          <Input
+            id="code"
+            placeholder="000000"
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            onKeyDown={(e) => e.key === "Enter" && code.length === 6 && onVerify(code)}
+            maxLength={6}
+            className="mt-1 text-center text-3xl tracking-[0.5em] font-mono"
+            autoFocus
+          />
+        </div>
+        <Button
+          className="w-full"
+          size="lg"
+          onClick={() => onVerify(code)}
+          disabled={code.length !== 6 || isVerifying}
+        >
+          {isVerifying ? "Verificando..." : (
+            <>
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              Verificar Código
+            </>
+          )}
+        </Button>
+        <div className="flex items-center justify-between text-sm">
+          <button
+            onClick={onResend}
+            disabled={isResending}
+            className="text-primary hover:underline disabled:opacity-50 flex items-center gap-1"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isResending ? "animate-spin" : ""}`} />
+            {isResending ? "Enviando..." : "Reenviar código"}
+          </button>
+          <button
+            onClick={onBack}
+            className="text-muted-foreground hover:text-foreground flex items-center gap-1"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Voltar
+          </button>
+        </div>
+        {!loginData.codeSent && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+            <AlertTriangle className="h-4 w-4 inline mr-1" />
+            O código não pôde ser enviado automaticamente. Clique em "Reenviar código" ou entre em contato com o administrador.
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── First Access Setup (email + photo, mandatory) ───
+function FirstAccessSetup({ studentId, studentName, onComplete, onBack }: {
+  studentId: number;
+  studentName: string;
+  onComplete: (data: AuthenticatedData) => void;
+  onBack: () => void;
+}) {
+  const [email, setEmail] = useState("");
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<{ base64: string; mimeType: string } | null>(null);
+  const [photoUploaded, setPhotoUploaded] = useState(false);
+  const [uploadedPhotoUrl, setUploadedPhotoUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const sendCodeMutation = trpc.studentAccess.sendEmailVerification.useMutation({
+    onSuccess: () => { setCodeSent(true); toast.success("Código enviado para " + email); },
+    onError: (e: any) => toast.error(e.message || "Erro ao enviar código"),
+  });
+
+  const verifyCodeMutation = trpc.studentAccess.verifyEmailCode.useMutation({
+    onSuccess: () => { setEmailVerified(true); toast.success("E-mail verificado!"); },
+    onError: (e: any) => toast.error(e.message || "Código inválido"),
+  });
+
+  const uploadPhotoMutation = trpc.studentAccess.uploadPhoto.useMutation({
+    onSuccess: (data) => { setPhotoUploaded(true); setUploadedPhotoUrl(data.photoUrl); setPhotoPreview(data.photoUrl); toast.success("Foto salva!"); },
+    onError: (e: any) => toast.error(e.message || "Erro ao enviar foto"),
+  });
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { toast.error("Foto deve ter no máximo 10MB"); return; }
+    if (!file.type.startsWith("image/")) { toast.error("Selecione um arquivo de imagem"); return; }
+    try {
+      const resized = await resizeImageToSquare(file, 150, 0.7);
+      const previewUrl = `data:${resized.mimeType};base64,${resized.base64}`;
+      setPhotoPreview(previewUrl);
+      setPhotoFile(resized);
+      setPhotoUploaded(false);
+      toast.success(`Foto redimensionada (~${base64SizeKB(resized.base64)}KB)`);
+    } catch {
+      toast.error("Erro ao processar imagem");
+    }
+  };
+
+  const handleUploadPhoto = () => {
+    if (!photoFile) return;
+    uploadPhotoMutation.mutate({ studentId, photoBase64: photoFile.base64, mimeType: photoFile.mimeType });
+  };
+
+  const canProceed = emailVerified && photoUploaded;
+
+  const handleComplete = async () => {
+    // Fetch full student data after setup
+    const classes = await new Promise<AuthenticatedData["classes"]>((resolve) => {
+      // We'll use the verified data directly
+      resolve([]);
+    });
+    onComplete({
+      studentId,
+      studentName,
+      studentEmail: email,
+      studentEnrollment: "",
+      studentPhotoUrl: uploadedPhotoUrl,
+      classes: [],
+    });
+  };
+
+  // After completing setup, we need to get full student data via verifyLoginCode
+  // So we'll send a new code and verify it
+  const completeSetupMutation = trpc.studentAccess.resendLoginCode.useMutation({
+    onSuccess: () => {
+      toast.success("Código de acesso enviado para " + email);
+    },
+    onError: () => {
+      // Even if resend fails, we can still proceed since email is verified
+      toast.info("Prosseguindo...");
+    },
+  });
+
+  const verifyLoginMutation = trpc.studentAccess.verifyLoginCode.useMutation({
+    onSuccess: (data) => {
+      onComplete(data);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const [finalCode, setFinalCode] = useState("");
+  const [showFinalVerify, setShowFinalVerify] = useState(false);
+
+  const handleProceed = () => {
+    // Send a login code to the verified email
+    completeSetupMutation.mutate({ studentId });
+    setShowFinalVerify(true);
+  };
+
+  if (showFinalVerify) {
+    return (
+      <Card className="w-full max-w-md shadow-lg">
+        <CardHeader className="text-center">
+          <div className="mx-auto w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center mb-3">
+            <KeyRound className="h-7 w-7 text-blue-600" />
+          </div>
+          <CardTitle className="text-xl">Último Passo</CardTitle>
+          <CardDescription>
+            Um código de acesso foi enviado para <strong>{email}</strong>. Digite-o para completar o cadastro.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="finalCode">Código de Acesso</Label>
+            <Input
+              id="finalCode"
+              placeholder="000000"
+              value={finalCode}
+              onChange={(e) => setFinalCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              onKeyDown={(e) => e.key === "Enter" && finalCode.length === 6 && verifyLoginMutation.mutate({ studentId, code: finalCode })}
+              maxLength={6}
+              className="mt-1 text-center text-3xl tracking-[0.5em] font-mono"
+              autoFocus
+            />
+          </div>
+          <Button
+            className="w-full"
+            size="lg"
+            onClick={() => verifyLoginMutation.mutate({ studentId, code: finalCode })}
+            disabled={finalCode.length !== 6 || verifyLoginMutation.isPending}
+          >
+            {verifyLoginMutation.isPending ? "Verificando..." : "Acessar Sistema"}
+          </Button>
+          <button
+            onClick={() => completeSetupMutation.mutate({ studentId })}
+            disabled={completeSetupMutation.isPending}
+            className="text-sm text-primary hover:underline disabled:opacity-50 flex items-center gap-1 mx-auto"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${completeSetupMutation.isPending ? "animate-spin" : ""}`} />
+            Reenviar código
+          </button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="w-full max-w-lg shadow-lg">
+      <CardHeader className="text-center">
+        <div className="mx-auto w-14 h-14 rounded-full bg-purple-100 flex items-center justify-center mb-3">
+          <ShieldCheck className="h-7 w-7 text-purple-600" />
+        </div>
+        <CardTitle className="text-xl">Primeiro Acesso</CardTitle>
+        <CardDescription>
+          Olá, <strong>{studentName}</strong>! Para acessar o sistema, precisamos do seu e-mail e uma foto. O e-mail será usado para enviar códigos de acesso e suas notas.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* E-mail com verificação */}
+        <div className="space-y-3">
+          <Label className="flex items-center gap-2">
+            <Mail className="h-4 w-4" />
+            E-mail <Badge variant="destructive" className="text-xs">Obrigatório</Badge>
+          </Label>
+          <p className="text-xs text-muted-foreground">Informe seu e-mail para receber os códigos de acesso e as notas das avaliações.</p>
+          <div className="flex gap-2">
+            <Input
+              type="email"
+              placeholder="seu.email@ecomp.uefs.br"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); setEmailVerified(false); setCodeSent(false); setVerificationCode(""); }}
+              disabled={emailVerified}
+              className="flex-1"
+            />
+            {!emailVerified && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (!email.trim() || !email.includes("@")) { toast.error("E-mail inválido"); return; }
+                  sendCodeMutation.mutate({ studentId, email: email.trim().toLowerCase() });
+                }}
+                disabled={sendCodeMutation.isPending || !email.trim()}
+              >
+                {sendCodeMutation.isPending ? "Enviando..." : codeSent ? "Reenviar" : "Enviar Código"}
+              </Button>
+            )}
+          </div>
+          {emailVerified && (
+            <div className="flex items-center gap-2 text-emerald-600 text-sm">
+              <CheckCircle2 className="h-4 w-4" />
+              E-mail verificado
+              <Button variant="ghost" size="sm" className="text-xs ml-auto" onClick={() => { setEmailVerified(false); setCodeSent(false); setVerificationCode(""); }}>
+                Alterar
+              </Button>
+            </div>
+          )}
+          {codeSent && !emailVerified && (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">Digite o código de 6 dígitos enviado para <strong>{email}</strong>:</p>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="000000"
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  maxLength={6}
+                  className="w-32 text-center text-lg tracking-widest font-mono"
+                />
+                <Button
+                  onClick={() => verifyCodeMutation.mutate({ studentId, email: email.trim().toLowerCase(), code: verificationCode })}
+                  disabled={verificationCode.length !== 6 || verifyCodeMutation.isPending}
+                >
+                  {verifyCodeMutation.isPending ? "Verificando..." : "Verificar"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <Separator />
+
+        {/* Foto */}
+        <div className="space-y-3">
+          <Label className="flex items-center gap-2">
+            <Camera className="h-4 w-4" />
+            Foto <Badge variant="destructive" className="text-xs">Obrigatório</Badge>
+          </Label>
+          <p className="text-xs text-muted-foreground">Tire uma foto ou faça upload. A foto ajuda o professor a identificar os alunos nas avaliações.</p>
+          <div className="flex items-center gap-4">
+            {photoPreview ? (
+              <img src={photoPreview} alt="Preview" className="w-20 h-20 rounded-full object-cover border-2 border-purple-200" />
+            ) : (
+              <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center border-2 border-dashed border-muted-foreground/30">
+                <Camera className="h-8 w-8 text-muted-foreground/40" />
+              </div>
+            )}
+            <div className="flex flex-col gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="user"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                <Upload className="h-4 w-4 mr-1" />
+                {photoPreview ? "Trocar Foto" : "Tirar / Enviar Foto"}
+              </Button>
+              {photoFile && !photoUploaded && (
+                <Button size="sm" onClick={handleUploadPhoto} disabled={uploadPhotoMutation.isPending}>
+                  {uploadPhotoMutation.isPending ? "Salvando..." : "Salvar Foto"}
+                </Button>
+              )}
+              {photoUploaded && (
+                <span className="flex items-center gap-1 text-emerald-600 text-xs">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Foto salva
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <Separator />
+
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={onBack} className="flex-1">
+            <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
+          </Button>
+          <Button
+            onClick={handleProceed}
+            disabled={!canProceed || completeSetupMutation.isPending}
+            className="flex-1"
+          >
+            {completeSetupMutation.isPending ? "Preparando..." : "Continuar"}
+          </Button>
+        </div>
+        {!canProceed && (
+          <p className="text-xs text-center text-amber-600">
+            {!emailVerified && !photoUploaded ? "Verifique seu e-mail e envie uma foto para continuar." :
+             !emailVerified ? "Verifique seu e-mail para continuar." : "Envie uma foto para continuar."}
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Edit Profile Screen (from dashboard) ───
+function EditProfileScreen({ studentId, studentName, currentEmail, currentPhotoUrl, onComplete, onBack }: {
+  studentId: number;
+  studentName: string;
+  currentEmail: string;
+  currentPhotoUrl: string | null;
+  onComplete: (email: string | null, photoUrl: string | null) => void;
+  onBack: () => void;
+}) {
+  const [email, setEmail] = useState(currentEmail || "");
+  const [emailVerified, setEmailVerified] = useState(!!currentEmail);
+  const [emailChanged, setEmailChanged] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(currentPhotoUrl);
+  const [photoFile, setPhotoFile] = useState<{ base64: string; mimeType: string } | null>(null);
+  const [photoUploaded, setPhotoUploaded] = useState(!!currentPhotoUrl);
+  const [newPhotoUrl, setNewPhotoUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const sendCodeMutation = trpc.studentAccess.sendEmailVerification.useMutation({
+    onSuccess: () => { setCodeSent(true); toast.success("Código enviado para " + email); },
+    onError: (e: any) => toast.error(e.message || "Erro ao enviar código"),
+  });
+
+  const verifyCodeMutation = trpc.studentAccess.verifyEmailCode.useMutation({
+    onSuccess: () => { setEmailVerified(true); setEmailChanged(true); toast.success("E-mail atualizado e verificado!"); },
+    onError: (e: any) => toast.error(e.message || "Código inválido"),
+  });
+
+  const uploadPhotoMutation = trpc.studentAccess.uploadPhoto.useMutation({
+    onSuccess: (data) => { setPhotoUploaded(true); setNewPhotoUrl(data.photoUrl); setPhotoPreview(data.photoUrl); toast.success("Foto salva!"); },
+    onError: (e: any) => toast.error(e.message || "Erro ao enviar foto"),
+  });
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { toast.error("Foto deve ter no máximo 10MB"); return; }
+    if (!file.type.startsWith("image/")) { toast.error("Selecione um arquivo de imagem"); return; }
+    try {
+      const resized = await resizeImageToSquare(file, 150, 0.7);
+      const previewUrl = `data:${resized.mimeType};base64,${resized.base64}`;
+      setPhotoPreview(previewUrl);
+      setPhotoFile(resized);
+      setPhotoUploaded(false);
+    } catch {
+      toast.error("Erro ao processar imagem");
+    }
+  };
+
+  return (
+    <Card className="w-full max-w-lg shadow-lg">
+      <CardHeader className="text-center">
+        <div className="mx-auto w-14 h-14 rounded-full bg-purple-100 flex items-center justify-center mb-3">
+          <Edit className="h-7 w-7 text-purple-600" />
+        </div>
+        <CardTitle className="text-xl">Editar Perfil</CardTitle>
+        <CardDescription>
+          Atualize seu e-mail ou foto. Ao alterar o e-mail, será necessário verificá-lo novamente.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* E-mail */}
+        <div className="space-y-3">
+          <Label className="flex items-center gap-2">
+            <Mail className="h-4 w-4" /> E-mail
+          </Label>
+          <div className="flex gap-2">
+            <Input
+              type="email"
+              placeholder="seu.email@ecomp.uefs.br"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (e.target.value.toLowerCase() !== currentEmail.toLowerCase()) {
+                  setEmailVerified(false); setCodeSent(false); setVerificationCode("");
+                } else {
+                  setEmailVerified(true);
+                }
+              }}
+              disabled={emailVerified && !emailChanged && email === currentEmail}
+              className="flex-1"
+            />
+            {!emailVerified && email !== currentEmail && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (!email.trim() || !email.includes("@")) { toast.error("E-mail inválido"); return; }
+                  sendCodeMutation.mutate({ studentId, email: email.trim().toLowerCase() });
+                }}
+                disabled={sendCodeMutation.isPending || !email.trim()}
+              >
+                {sendCodeMutation.isPending ? "Enviando..." : codeSent ? "Reenviar" : "Enviar Código"}
+              </Button>
+            )}
+          </div>
+          {emailVerified && (
+            <div className="flex items-center gap-2 text-emerald-600 text-sm">
+              <CheckCircle2 className="h-4 w-4" />
+              E-mail verificado
+              <Button variant="ghost" size="sm" className="text-xs ml-auto" onClick={() => { setEmailVerified(false); setCodeSent(false); setVerificationCode(""); }}>
+                Alterar
+              </Button>
+            </div>
+          )}
+          {codeSent && !emailVerified && (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">Digite o código enviado para <strong>{email}</strong>:</p>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="000000"
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  maxLength={6}
+                  className="w-32 text-center text-lg tracking-widest font-mono"
+                />
+                <Button
+                  onClick={() => verifyCodeMutation.mutate({ studentId, email: email.trim().toLowerCase(), code: verificationCode })}
+                  disabled={verificationCode.length !== 6 || verifyCodeMutation.isPending}
+                >
+                  {verifyCodeMutation.isPending ? "Verificando..." : "Verificar"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <Separator />
+
+        {/* Foto */}
+        <div className="space-y-3">
+          <Label className="flex items-center gap-2">
+            <Camera className="h-4 w-4" /> Foto
+          </Label>
+          <div className="flex items-center gap-4">
+            {photoPreview ? (
+              <img src={photoPreview} alt="Preview" className="w-20 h-20 rounded-full object-cover border-2 border-purple-200" />
+            ) : (
+              <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center border-2 border-dashed border-muted-foreground/30">
+                <Camera className="h-8 w-8 text-muted-foreground/40" />
+              </div>
+            )}
+            <div className="flex flex-col gap-2">
+              <input ref={fileInputRef} type="file" accept="image/*" capture="user" onChange={handleFileSelect} className="hidden" />
+              <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                <Upload className="h-4 w-4 mr-1" />
+                {photoPreview ? "Trocar Foto" : "Enviar Foto"}
+              </Button>
+              {photoFile && !photoUploaded && (
+                <Button size="sm" onClick={() => uploadPhotoMutation.mutate({ studentId, photoBase64: photoFile.base64, mimeType: photoFile.mimeType })} disabled={uploadPhotoMutation.isPending}>
+                  {uploadPhotoMutation.isPending ? "Salvando..." : "Salvar Foto"}
+                </Button>
+              )}
+              {photoUploaded && (
+                <span className="flex items-center gap-1 text-emerald-600 text-xs">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Foto salva
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <Separator />
+
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={onBack} className="flex-1">
+            <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
+          </Button>
+          <Button
+            onClick={() => onComplete(emailChanged ? email : null, newPhotoUrl)}
+            className="flex-1"
+          >
+            Salvar e Voltar
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── Student Dashboard Component ───
-function StudentDashboard({ studentData, studentEmail, studentPhotoUrl, onSelectSession, onEditProfile, onLogout }: {
-  studentData: StudentData;
-  studentEmail: string;
-  studentPhotoUrl: string | null;
+function StudentDashboard({ authData, onSelectSession, onEditProfile, onLogout }: {
+  authData: AuthenticatedData;
   onSelectSession: (session: SelectedSession) => void;
   onEditProfile: () => void;
   onLogout: () => void;
 }) {
   const { data: openSessions, isLoading } = trpc.studentAccess.myOpenSessions.useQuery(
-    { studentId: studentData.studentId },
+    { studentId: authData.studentId },
     { refetchInterval: 15000 }
   );
   const { data: evalHistory, isLoading: historyLoading } = trpc.studentAccess.myEvaluationHistory.useQuery(
-    { studentId: studentData.studentId },
+    { studentId: authData.studentId },
   );
 
   const pendingSessions = openSessions?.filter(s => !s.alreadySubmitted) || [];
@@ -276,44 +907,29 @@ function StudentDashboard({ studentData, studentEmail, studentPhotoUrl, onSelect
           Painel do Aluno
         </h1>
         <Button variant="ghost" size="sm" onClick={onLogout} className="text-muted-foreground">
-          Sair
+          <LogOut className="h-4 w-4 mr-1" /> Sair
         </Button>
       </div>
 
       {/* Profile Card */}
-      <Card className="border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-        <CardContent className="pt-5 pb-5">
+      <Card className="border-blue-200 bg-blue-50/50">
+        <CardContent className="pt-4 pb-4">
           <div className="flex items-center gap-4">
-            {studentPhotoUrl ? (
-              <img src={studentPhotoUrl} alt="Foto" className="w-16 h-16 rounded-full object-cover border-3 border-blue-200 shadow-md" />
+            {authData.studentPhotoUrl ? (
+              <img src={authData.studentPhotoUrl} alt="Foto" className="w-16 h-16 rounded-full object-cover border-2 border-blue-200" />
             ) : (
-              <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center border-3 border-blue-200 shadow-md">
+              <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center border-2 border-blue-200">
                 <User className="h-7 w-7 text-blue-400" />
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-semibold truncate">{studentData.studentName}</h2>
-              <div className="flex flex-col gap-0.5 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Badge variant="secondary" className="text-xs font-mono">{studentData.studentEnrollment}</Badge>
-                </span>
-                <span className="flex items-center gap-1 truncate">
-                  <Mail className="h-3.5 w-3.5 shrink-0" />
-                  {studentEmail || "E-mail não informado"}
-                </span>
-              </div>
-              {studentData.classes.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1.5">
-                  {studentData.classes.map(c => (
-                    <Badge key={c.classId} variant="outline" className="text-xs">
-                      {c.componentCode} - {c.classCode}
-                    </Badge>
-                  ))}
-                </div>
-              )}
+              <p className="text-lg font-semibold truncate">{authData.studentName}</p>
+              <p className="text-sm text-muted-foreground truncate">{authData.studentEmail || "E-mail não informado"}</p>
+              <p className="text-xs text-muted-foreground">Matrícula: {authData.studentEnrollment}</p>
             </div>
-            <Button variant="outline" size="sm" onClick={onEditProfile} className="shrink-0">
-              Editar Perfil
+            <Button variant="outline" size="sm" onClick={onEditProfile}>
+              <Edit className="h-4 w-4 mr-1" />
+              Editar
             </Button>
           </div>
         </CardContent>
@@ -323,52 +939,35 @@ function StudentDashboard({ studentData, studentEmail, studentPhotoUrl, onSelect
       <div>
         <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
           <ClipboardList className="h-5 w-5 text-amber-600" />
-          Sessões Abertas para Avaliação
+          Sessões Pendentes
         </h3>
         {isLoading ? (
           <Card>
-            <CardContent className="py-8 text-center text-muted-foreground">
+            <CardContent className="py-6 text-center text-muted-foreground">
               Carregando sessões...
             </CardContent>
           </Card>
         ) : pendingSessions.length === 0 ? (
           <Card>
-            <CardContent className="py-8 text-center text-muted-foreground">
-              <Clock className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
-              <p className="font-medium">Nenhuma sessão aberta no momento</p>
-              <p className="text-sm mt-1">Quando o professor abrir uma sessão tutorial, ela aparecerá aqui.</p>
+            <CardContent className="py-6 text-center text-muted-foreground">
+              <ClipboardList className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
+              <p className="font-medium text-sm">Nenhuma sessão pendente</p>
+              <p className="text-xs mt-1">Quando o professor abrir uma sessão, ela aparecerá aqui.</p>
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-3">
-            {pendingSessions.map(session => (
-              <Card key={session.sessionId} className="hover:shadow-md transition-shadow cursor-pointer border-amber-200 bg-amber-50/30" onClick={() => onSelectSession({
-                sessionId: session.sessionId,
-                sessionLabel: session.sessionLabel,
-                classId: session.classId,
-                classCode: session.classCode,
-                componentCode: session.componentCode,
-                componentName: session.componentName,
-                semester: session.semester,
-                accessCode: session.accessCode,
-              })}>
-                <CardContent className="py-4">
+          <div className="space-y-2">
+            {pendingSessions.map(s => (
+              <Card key={s.sessionId} className="border-amber-200 hover:border-amber-300 cursor-pointer transition-colors" onClick={() => onSelectSession(s as any)}>
+                <CardContent className="py-3">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold">{session.sessionLabel}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {session.componentCode} - {session.classCode} ({session.semester})
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Problema {session.problemNumber} &middot; Sessão {session.sessionNumber}
-                      </p>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm">{s.sessionLabel}</p>
+                      <p className="text-xs text-muted-foreground">{s.componentCode} - {s.classCode} ({s.semester})</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-200">Pendente</Badge>
-                      <Button size="sm" className="shadow-sm">
-                        Avaliar
-                      </Button>
-                    </div>
+                    <Badge variant="outline" className="border-amber-300 text-amber-700 shrink-0">
+                      <Clock className="h-3 w-3 mr-1" /> Pendente
+                    </Badge>
                   </div>
                 </CardContent>
               </Card>
@@ -382,22 +981,19 @@ function StudentDashboard({ studentData, studentEmail, studentPhotoUrl, onSelect
         <div>
           <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-            Avaliações Já Realizadas (Sessões Abertas)
+            Sessões Avaliadas
           </h3>
           <div className="space-y-2">
-            {completedSessions.map(session => (
-              <Card key={session.sessionId} className="opacity-70">
+            {completedSessions.map(s => (
+              <Card key={s.sessionId} className="border-emerald-100">
                 <CardContent className="py-3">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-sm">{session.sessionLabel}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {session.componentCode} - {session.classCode} ({session.semester})
-                      </p>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm">{s.sessionLabel}</p>
+                      <p className="text-xs text-muted-foreground">{s.componentCode} - {s.classCode} ({s.semester})</p>
                     </div>
-                    <Badge variant="outline" className="text-emerald-600 border-emerald-300">
-                      <CheckCircle2 className="h-3 w-3 mr-1" />
-                      Concluída
+                    <Badge variant="secondary" className="shrink-0">
+                      <CheckCircle2 className="h-3 w-3 mr-1" /> Avaliado
                     </Badge>
                   </div>
                 </CardContent>
@@ -471,16 +1067,12 @@ function StudentDashboard({ studentData, studentEmail, studentPhotoUrl, onSelect
 }
 
 // ─── Evaluation Form Component ───
-function EvaluationForm({ accessCode, studentInfo, sessionInfo, studentEmail, studentPhotoUrl, onEmailChange, onEmailSave, onPhotoChange, onEditProfile, onDone, onBack }: {
+function EvaluationForm({ accessCode, studentInfo, sessionInfo, studentEmail, studentPhotoUrl, onDone, onBack }: {
   accessCode: string;
   studentInfo: { studentId: number; studentName: string; sessionId: number; sessionLabel: string; classId: number };
   sessionInfo: { sessionId: number; label: string; classCode: string; componentCode: string; componentName: string; semester: string };
   studentEmail: string;
   studentPhotoUrl: string | null;
-  onEmailChange: (email: string) => void;
-  onEmailSave: (email: string) => void;
-  onPhotoChange: (url: string) => void;
-  onEditProfile: () => void;
   onDone: () => void;
   onBack: () => void;
 }) {
@@ -591,12 +1183,9 @@ function EvaluationForm({ accessCode, studentInfo, sessionInfo, studentEmail, st
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{studentEmail || "E-mail não informado"}</p>
               <p className="text-xs text-muted-foreground">
-                {studentPhotoUrl && studentEmail ? "Perfil completo" : "Perfil incompleto"}
+                {sessionInfo.componentCode} - {sessionInfo.classCode} ({sessionInfo.semester})
               </p>
             </div>
-            <Button variant="outline" size="sm" onClick={onEditProfile}>
-              Editar Perfil
-            </Button>
           </div>
         </CardContent>
       </Card>
@@ -715,215 +1304,6 @@ function EvaluationForm({ accessCode, studentInfo, sessionInfo, studentEmail, st
         </Button>
       </div>
     </div>
-  );
-}
-
-// ─── Profile Setup Component ───
-function ProfileSetup({ studentId, studentName, currentEmail, currentPhotoUrl, isFirstEval, onComplete, onBack }: {
-  studentId: number;
-  studentName: string;
-  currentEmail: string;
-  currentPhotoUrl: string | null;
-  isFirstEval: boolean;
-  onComplete: (email: string | null, photoUrl: string | null) => void;
-  onBack: () => void;
-}) {
-  const [email, setEmail] = useState(currentEmail || "");
-  const [emailVerified, setEmailVerified] = useState(!!currentEmail);
-  const [verificationCode, setVerificationCode] = useState("");
-  const [codeSent, setCodeSent] = useState(false);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(currentPhotoUrl);
-  const [photoFile, setPhotoFile] = useState<{ base64: string; mimeType: string } | null>(null);
-  const [photoUploaded, setPhotoUploaded] = useState(!!currentPhotoUrl);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const sendCodeMutation = trpc.studentAccess.sendEmailVerification.useMutation({
-    onSuccess: () => { setCodeSent(true); toast.success("Código enviado para " + email); },
-    onError: (e: any) => toast.error(e.message || "Erro ao enviar código"),
-  });
-
-  const verifyCodeMutation = trpc.studentAccess.verifyEmailCode.useMutation({
-    onSuccess: () => { setEmailVerified(true); toast.success("E-mail verificado!"); },
-    onError: (e: any) => toast.error(e.message || "Código inválido"),
-  });
-
-  const uploadPhotoMutation = trpc.studentAccess.uploadPhoto.useMutation({
-    onSuccess: (data) => { setPhotoUploaded(true); setPhotoPreview(data.photoUrl); toast.success("Foto salva!"); },
-    onError: (e: any) => toast.error(e.message || "Erro ao enviar foto"),
-  });
-
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 10 * 1024 * 1024) { toast.error("Foto deve ter no máximo 10MB"); return; }
-    if (!file.type.startsWith("image/")) { toast.error("Selecione um arquivo de imagem"); return; }
-    try {
-      const resized = await resizeImageToSquare(file, 150, 0.7);
-      const previewUrl = `data:${resized.mimeType};base64,${resized.base64}`;
-      setPhotoPreview(previewUrl);
-      setPhotoFile(resized);
-      setPhotoUploaded(false);
-      toast.success(`Foto redimensionada para 150x150px (~${base64SizeKB(resized.base64)}KB)`);
-    } catch {
-      toast.error("Erro ao processar imagem");
-    }
-  };
-
-  const handleUploadPhoto = () => {
-    if (!photoFile) return;
-    uploadPhotoMutation.mutate({ studentId, photoBase64: photoFile.base64, mimeType: photoFile.mimeType });
-  };
-
-  const canProceed = isFirstEval ? (emailVerified && (photoUploaded || !!currentPhotoUrl)) : true;
-
-  const handleComplete = () => {
-    onComplete(
-      emailVerified ? email : null,
-      photoUploaded ? photoPreview : currentPhotoUrl
-    );
-  };
-
-  return (
-    <Card className="w-full max-w-lg shadow-lg">
-      <CardHeader className="text-center">
-        <div className="mx-auto w-14 h-14 rounded-full bg-purple-100 flex items-center justify-center mb-3">
-          <ShieldCheck className="h-7 w-7 text-purple-600" />
-        </div>
-        <CardTitle className="text-xl">{isFirstEval ? "Complete seu Perfil" : "Editar Perfil"}</CardTitle>
-        <CardDescription>
-          {isFirstEval
-            ? "Antes de avaliar, precisamos do seu e-mail e uma foto. O e-mail é para receber suas notas, e a foto ajuda o professor nas avaliações."
-            : "Atualize seu e-mail ou foto se desejar."}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* E-mail com verificação */}
-        <div className="space-y-3">
-          <Label className="flex items-center gap-2">
-            <Mail className="h-4 w-4" />
-            E-mail {isFirstEval && <Badge variant="destructive" className="text-xs">Obrigatório</Badge>}
-          </Label>
-          <p className="text-xs text-muted-foreground">Informe seu e-mail para receber as notas das avaliações.</p>
-          <div className="flex gap-2">
-            <Input
-              type="email"
-              placeholder="seu.email@ecomp.uefs.br"
-              value={email}
-              onChange={(e) => { setEmail(e.target.value); setEmailVerified(false); setCodeSent(false); setVerificationCode(""); }}
-              disabled={emailVerified}
-              className="flex-1"
-            />
-            {!emailVerified && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  if (!email.trim() || !email.includes("@")) { toast.error("E-mail inválido"); return; }
-                  sendCodeMutation.mutate({ studentId, email: email.trim().toLowerCase() });
-                }}
-                disabled={sendCodeMutation.isPending || !email.trim()}
-              >
-                {sendCodeMutation.isPending ? "Enviando..." : codeSent ? "Reenviar" : "Enviar Código"}
-              </Button>
-            )}
-          </div>
-          {emailVerified && (
-            <div className="flex items-center gap-2 text-emerald-600 text-sm">
-              <CheckCircle2 className="h-4 w-4" />
-              E-mail verificado
-              <Button variant="ghost" size="sm" className="text-xs ml-auto" onClick={() => { setEmailVerified(false); setCodeSent(false); setVerificationCode(""); }}>
-                Alterar
-              </Button>
-            </div>
-          )}
-          {codeSent && !emailVerified && (
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Digite o código de 6 dígitos enviado para <strong>{email}</strong>:</p>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="000000"
-                  value={verificationCode}
-                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  maxLength={6}
-                  className="w-32 text-center text-lg tracking-widest font-mono"
-                />
-                <Button
-                  onClick={() => verifyCodeMutation.mutate({ studentId, email: email.trim().toLowerCase(), code: verificationCode })}
-                  disabled={verificationCode.length !== 6 || verifyCodeMutation.isPending}
-                >
-                  {verifyCodeMutation.isPending ? "Verificando..." : "Verificar"}
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <Separator />
-
-        {/* Foto */}
-        <div className="space-y-3">
-          <Label className="flex items-center gap-2">
-            <Camera className="h-4 w-4" />
-            Foto {isFirstEval && <Badge variant="destructive" className="text-xs">Obrigatório</Badge>}
-          </Label>
-          <p className="text-xs text-muted-foreground">Tire uma foto ou faça upload. A foto ajuda o professor a identificar os alunos nas avaliações.</p>
-          <div className="flex items-center gap-4">
-            {photoPreview ? (
-              <img src={photoPreview} alt="Preview" className="w-20 h-20 rounded-full object-cover border-2 border-purple-200" />
-            ) : (
-              <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center border-2 border-dashed border-muted-foreground/30">
-                <Camera className="h-8 w-8 text-muted-foreground/40" />
-              </div>
-            )}
-            <div className="flex flex-col gap-2">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                capture="user"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-              <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-                <Upload className="h-4 w-4 mr-1" />
-                {photoPreview ? "Trocar Foto" : "Tirar / Enviar Foto"}
-              </Button>
-              {photoFile && !photoUploaded && (
-                <Button size="sm" onClick={handleUploadPhoto} disabled={uploadPhotoMutation.isPending}>
-                  {uploadPhotoMutation.isPending ? "Salvando..." : "Salvar Foto"}
-                </Button>
-              )}
-              {photoUploaded && (
-                <span className="flex items-center gap-1 text-emerald-600 text-xs">
-                  <CheckCircle2 className="h-3.5 w-3.5" /> Foto salva
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <Separator />
-
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={onBack} className="flex-1">
-            <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
-          </Button>
-          <Button
-            onClick={handleComplete}
-            disabled={isFirstEval && !canProceed}
-            className="flex-1"
-          >
-            {isFirstEval ? "Continuar" : "Salvar e Voltar"}
-          </Button>
-        </div>
-        {isFirstEval && !canProceed && (
-          <p className="text-xs text-center text-amber-600">
-            {!emailVerified && !photoUploaded ? "Verifique seu e-mail e envie uma foto para continuar." :
-             !emailVerified ? "Verifique seu e-mail para continuar." : "Envie uma foto para continuar."}
-          </p>
-        )}
-      </CardContent>
-    </Card>
   );
 }
 
