@@ -24,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useIsMobile } from "@/hooks/useMobile";
 import { useClassContext } from "@/contexts/ClassContext";
 import { trpc } from "@/lib/trpc";
-import { LayoutDashboard, Users, ClipboardList, BarChart3, LogOut, PanelLeft, GraduationCap, BookOpen, ClipboardCheck, Download, KeyRound, UserCheck, Clock, Eye, EyeOff, Loader2, Mail, ArrowRightLeft, Layers, User, History, Bell, MessageSquare, DatabaseBackup } from "lucide-react";
+import { LayoutDashboard, Users, ClipboardList, BarChart3, LogOut, PanelLeft, GraduationCap, BookOpen, ClipboardCheck, Download, KeyRound, UserCheck, Clock, Eye, EyeOff, Loader2, Mail, ArrowRightLeft, Layers, User, History, Bell, MessageSquare, DatabaseBackup, Settings, ChevronDown } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState, FormEvent } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -57,16 +57,18 @@ const notificationsItem = { icon: Bell, label: "Notificações", path: "/notific
 // Contact: for all approved users
 const contactItem = { icon: MessageSquare, label: "Contato", path: "/contact" };
 
-// Admin-only items
-const adminOnlyItems = [
-  { icon: Download, label: "Exportar", path: "/export-students" },
+// Admin-only config sub-items (grouped under "Configurações")
+const configSubItems = [
   { icon: Mail, label: "E-mails", path: "/smtp-config" },
   { icon: DatabaseBackup, label: "Backup / Restaurar", path: "/backup" },
+  { icon: Download, label: "Exportar", path: "/export-students" },
 ];
+
+const configGroupItem = { icon: Settings, label: "Configurações", path: "__config__", subItems: configSubItems };
 
 function getMenuItemsForRole(role: string) {
   if (role === "admin") {
-    return [...baseMenuItems, notificationsItem, contactItem, auditLogItem, ...adminOnlyItems];
+    return [...baseMenuItems, notificationsItem, contactItem, auditLogItem, configGroupItem];
   }
   // coordinator and prof: include tutorial eval
   const items = [...baseMenuItems];
@@ -568,12 +570,17 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
 
   const isAdmin = user?.role === "admin";
   const menuItems = getMenuItemsForRole(user?.role || "prof");
+  const [configOpen, setConfigOpen] = useState(() => {
+    // Auto-open if current location is a config sub-item
+    return configSubItems.some(si => si.path === window.location.pathname);
+  });
   const { data: unreadData } = trpc.notifications.unreadCount.useQuery(undefined, {
     refetchInterval: 30000,
     enabled: !!user,
   });
   const unreadCount = unreadData?.count ?? 0;
-  const activeMenuItem = menuItems.find(item => item.path === location);
+  const activeMenuItem = menuItems.find(item => item.path === location) 
+    || configSubItems.find(item => item.path === location);
 
   // Class selector for admin
   const { selectedClassId, setSelectedClassId } = useClassContext();
@@ -675,8 +682,48 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
           <SidebarContent className="gap-0">
             <SidebarMenu className="px-2 py-1">
               {menuItems.map(item => {
-                const isActive = location === item.path;
+                const hasSubItems = 'subItems' in item && (item as any).subItems;
                 const isNotifications = item.path === "/notifications";
+
+                if (hasSubItems) {
+                  const subItems = (item as any).subItems as typeof configSubItems;
+                  const isAnySubActive = subItems.some(si => si.path === location);
+                  return (
+                    <SidebarMenuItem key={item.path}>
+                      <SidebarMenuButton
+                        isActive={isAnySubActive}
+                        onClick={() => setConfigOpen(prev => !prev)}
+                        tooltip={item.label}
+                        className="h-10 transition-all font-normal"
+                      >
+                        <item.icon className={`h-4 w-4 ${isAnySubActive ? "text-primary" : ""}`} />
+                        <span className="flex-1">{item.label}</span>
+                        <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${configOpen ? "rotate-0" : "-rotate-90"}`} />
+                      </SidebarMenuButton>
+                      {configOpen && (
+                        <div className="ml-3 border-l border-border/50 pl-2 mt-0.5 mb-0.5">
+                          {subItems.map(sub => {
+                            const isSubActive = location === sub.path;
+                            return (
+                              <SidebarMenuButton
+                                key={sub.path}
+                                isActive={isSubActive}
+                                onClick={() => setLocation(sub.path)}
+                                tooltip={sub.label}
+                                className="h-9 transition-all font-normal text-sm"
+                              >
+                                <sub.icon className={`h-3.5 w-3.5 ${isSubActive ? "text-primary" : "text-muted-foreground"}`} />
+                                <span className="flex-1">{sub.label}</span>
+                              </SidebarMenuButton>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </SidebarMenuItem>
+                  );
+                }
+
+                const isActive = location === item.path;
                 return (
                   <SidebarMenuItem key={item.path}>
                     <SidebarMenuButton

@@ -393,3 +393,4 @@
 - [x] Renomear "Histórico de Ações" → "Histórico" no menu lateral
 - [x] Renomear "Exportar Alunos" → "Exportar" no menu lateral
 - [x] Renomear "Config. E-mail" → "E-mails" no menu lateral
+- [x] Agrupar E-mails, Backup / Restaurar e Exportar dentro de submenu "Configurações" no menu lateral
