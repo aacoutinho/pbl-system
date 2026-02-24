@@ -88,6 +88,7 @@ function SessionsContent() {
   );
 
   const [problemNum, setProblemNum] = useState("1");
+  const [problemTitle, setProblemTitle] = useState("");
   const [selectedStudents, setSelectedStudents] = useState<number[]>([]);
 
   // Auto-set problem number when nextInfo loads
@@ -126,9 +127,18 @@ function SessionsContent() {
     createMutation.mutate({
       classId: selectedClassId,
       problemNumber: pn,
+      problemTitle: problemTitle.trim() || undefined,
       studentIds: selectedStudents,
     });
   };
+
+  // Preview label
+  const previewLabel = useMemo(() => {
+    const pn = parseInt(problemNum);
+    if (isNaN(pn)) return "";
+    const titlePart = problemTitle.trim() ? ` - ${problemTitle.trim()}` : "";
+    return `Problema ${pn}${titlePart} - Sessão ${autoSessionNumber}`;
+  }, [problemNum, problemTitle, autoSessionNumber]);
 
   const toggleStudent = (id: number) => {
     setSelectedStudents(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
@@ -213,6 +223,25 @@ function SessionsContent() {
                   </div>
                 </div>
                 <div>
+                  <Label>Título/Tema do Problema (opcional)</Label>
+                  <Input
+                    placeholder="Ex: Febre Reumática, Diabetes Mellitus..."
+                    value={problemTitle}
+                    onChange={e => setProblemTitle(e.target.value)}
+                    maxLength={255}
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Opcional: dê um nome ao problema para facilitar a identificação
+                  </p>
+                </div>
+                {previewLabel && (
+                  <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
+                    <p className="text-xs font-medium text-blue-700 mb-1">Prévia da sessão:</p>
+                    <p className="text-sm font-semibold text-blue-900">{previewLabel}</p>
+                  </div>
+                )}
+                <div>
                   <div className="flex items-center justify-between mb-2">
                     <Label>Alunos da Sessão</Label>
                     <Button variant="ghost" size="sm" onClick={selectAll} className="text-xs h-7">
@@ -294,17 +323,25 @@ function SessionsContent() {
             </div>
           ) : (
             <div className="space-y-3">
-              {filteredSessions.map(session => (
+              {filteredSessions.map(session => {
+                // Determine if this is the last session (highest problem + session number)
+                const lastSession = sessionsList ? sessionsList.reduce((last, s) => {
+                  if (s.problemNumber > last.problemNumber || (s.problemNumber === last.problemNumber && s.sessionNumber > last.sessionNumber)) return s;
+                  return last;
+                }, sessionsList[0]) : null;
+                const isLast = lastSession ? session.id === lastSession.id : false;
+                return (
                 <SessionRow
                   key={session.id}
                   session={session}
                   canManage={canManage}
+                  isLastSession={isLast}
                   onClose={() => closeMutation.mutate({ id: session.id })}
                   onOpen={() => openMutation.mutate({ id: session.id })}
                   onDelete={() => { if (confirm(`Excluir "${session.label}"? Todas as avaliações serão perdidas.`)) deleteMutation.mutate({ id: session.id }); }}
                   onViewResults={() => setLocation(`/results?session=${session.id}`)}
-                />
-              ))}
+                />);
+              })}
             </div>
           )}
         </CardContent>
@@ -313,9 +350,10 @@ function SessionsContent() {
   );
 }
 
-function SessionRow({ session, canManage, onClose, onOpen, onDelete, onViewResults }: {
+function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onDelete, onViewResults }: {
   session: { id: number; label: string; problemNumber: number; sessionNumber: number; status: string; accessCode?: string | null };
   canManage: boolean;
+  isLastSession: boolean;
   onClose: () => void;
   onOpen: () => void;
   onDelete: () => void;
@@ -581,7 +619,14 @@ function SessionRow({ session, canManage, onClose, onOpen, onDelete, onViewResul
                 </Dialog>
               </>
             ) : null}
-            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={onDelete} title="Excluir sessão">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={isLastSession ? "text-destructive hover:text-destructive" : "text-muted-foreground/40 cursor-not-allowed"}
+              onClick={isLastSession ? onDelete : undefined}
+              disabled={!isLastSession}
+              title={isLastSession ? "Excluir sessão" : "Só a última sessão pode ser excluída"}
+            >
               <Trash2 className="h-4 w-4" />
             </Button>
           </>

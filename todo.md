@@ -395,3 +395,7 @@
 - [x] Renomear "Config. E-mail" → "E-mails" no menu lateral
 - [x] Agrupar E-mails, Backup / Restaurar e Exportar dentro de submenu "Configurações" no menu lateral
 - [x] Primeira sessão de qualquer turma deve ser obrigatoriamente Problema 1 - Sessão 1
+- [x] Impedir exclusão de sessões intermediárias (só permitir deletar a última sessão da turma)
+- [x] Preview da numeração no diálogo de criação ("Será criada: Problema X - Sessão Y")
+- [x] Campo opcional de título/tema para problemas (ex: "Febre Reumática")
+- [x] Exibir título do problema junto à numeração nas listagens

@@ -1,0 +1,1 @@
+ALTER TABLE `sessions` ADD `problemTitle` varchar(255);

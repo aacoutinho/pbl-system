@@ -162,6 +162,13 @@
       "when": 1771887397469,
       "tag": "0022_cool_hex",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "5",
+      "when": 1771894194527,
+      "tag": "0023_tidy_shooting_star",
+      "breakpoints": true
     }
   ]
 }

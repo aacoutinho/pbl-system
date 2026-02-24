@@ -735,6 +735,7 @@ export const appRouter = router({
     create: approvedProcedure.input(z.object({
       classId: z.number(),
       problemNumber: z.number().min(1).max(10),
+      problemTitle: z.string().max(255).optional(),
       studentIds: z.array(z.number()),
     })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.classId);
@@ -758,11 +759,13 @@ export const appRouter = router({
       } else {
         throw new TRPCError({ code: "BAD_REQUEST", message: `O número do problema deve ser ${info.lastProblemNumber} (continuar) ou ${info.lastProblemNumber + 1} (novo problema).` });
       }
-      const label = `Problema ${input.problemNumber} - Sessão ${sessionNumber}`;
+      const titlePart = input.problemTitle ? ` - ${input.problemTitle}` : "";
+      const label = `Problema ${input.problemNumber}${titlePart} - Sessão ${sessionNumber}`;
       return createSession({
         classId: input.classId,
         problemNumber: input.problemNumber,
         sessionNumber,
+        problemTitle: input.problemTitle || null,
         label,
         studentIds: input.studentIds,
       });
@@ -795,6 +798,17 @@ export const appRouter = router({
       const cls = await getClassById(session.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       await assertClassManager(ctx.user.id, ctx.user.role, cls);
+      // Only allow deleting the last session of the class to preserve sequential numbering
+      const info = await getNextSessionInfo(session.classId);
+      const lastProblem = info.lastProblemNumber;
+      const lastSession = info.nextSessionNumber - 1;
+      const isLastSession = session.problemNumber === lastProblem && session.sessionNumber === lastSession;
+      if (!isLastSession) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Só é possível excluir a última sessão da turma (Problema ${lastProblem} - Sessão ${lastSession}). Esta sessão é Problema ${session.problemNumber} - Sessão ${session.sessionNumber}.`,
+        });
+      }
       await deleteSession(input.id);
       return { success: true };
     }),

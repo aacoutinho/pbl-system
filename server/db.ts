@@ -733,13 +733,14 @@ export async function bulkImportStudents(data: { name: string; enrollment: strin
 }
 
 // ─── Session helpers ───
-export async function createSession(data: { classId: number; problemNumber: number; sessionNumber: number; label: string; studentIds: number[]; status?: string }) {
+export async function createSession(data: { classId: number; problemNumber: number; sessionNumber: number; problemTitle?: string | null; label: string; studentIds: number[]; status?: string }) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   const [result] = await db.insert(sessions).values({
     classId: data.classId,
     problemNumber: data.problemNumber,
     sessionNumber: data.sessionNumber,
+    problemTitle: data.problemTitle ?? null,
     label: data.label,
     status: "initiated",
   }).$returningId();
