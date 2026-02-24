@@ -406,3 +406,4 @@
 - [x] Proteção de rotas admin no backend: backup, exportação e histórico retornam 403 para não-admin
 - [x] Indicador de SMTP no submenu: ponto vermelho ao lado de "E-mails" quando SMTP não configurado
 - [x] Separar Backup (estado do banco + exportar) e Restauração (restaurar + reconstruir) em páginas distintas
+- [x] Indicador visual de tickets de contato pendentes no item Contato do menu lateral (ponto vermelho para admin)

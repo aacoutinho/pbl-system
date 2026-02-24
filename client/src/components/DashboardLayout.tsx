@@ -583,6 +583,13 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
     refetchOnWindowFocus: false,
   });
   const smtpConfigured = smtpStatusData?.configured ?? true; // default true to avoid flash
+
+  // Open contact tickets count for admin
+  const { data: openTicketsData } = trpc.contactTickets.openCount.useQuery(undefined, {
+    enabled: isAdmin,
+    refetchInterval: 60000,
+  });
+  const openTicketsCount = openTicketsData?.count ?? 0;
   const activeMenuItem = menuItems.find(item => item.path === location) 
     || configSubItems.find(item => item.path === location);
 
@@ -688,6 +695,8 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
               {menuItems.map(item => {
                 const hasSubItems = 'subItems' in item && (item as any).subItems;
                 const isNotifications = item.path === "/notifications";
+                const isContact = item.path === "/contact";
+                const showContactBadge = isContact && isAdmin && openTicketsCount > 0;
 
                 if (hasSubItems) {
                   const subItems = (item as any).subItems as typeof configSubItems;
@@ -756,11 +765,22 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                             {unreadCount > 9 ? "9+" : unreadCount}
                           </span>
                         )}
+                        {showContactBadge && (
+                          <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                          </span>
+                        )}
                       </div>
                       <span className="flex-1">{item.label}</span>
                       {isNotifications && unreadCount > 0 && (
                         <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
                           {unreadCount > 99 ? "99+" : unreadCount}
+                        </span>
+                      )}
+                      {showContactBadge && (
+                        <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white" title={`${openTicketsCount} ticket(s) pendente(s)`}>
+                          {openTicketsCount > 99 ? "99+" : openTicketsCount}
                         </span>
                       )}
                     </SidebarMenuButton>

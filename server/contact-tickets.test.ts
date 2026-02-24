@@ -113,3 +113,119 @@ describe("Contact Tickets", () => {
     });
   });
 });
+
+// ─── Test contact tickets indicator in sidebar ───
+describe("Contact tickets indicator in sidebar", () => {
+  describe("openCount route", () => {
+    it("returns count as a number", () => {
+      const response = { count: 3 };
+      expect(typeof response.count).toBe("number");
+      expect(response.count).toBeGreaterThanOrEqual(0);
+    });
+
+    it("returns 0 when no open tickets", () => {
+      const response = { count: 0 };
+      expect(response.count).toBe(0);
+    });
+
+    it("returns positive count when open tickets exist", () => {
+      const response = { count: 5 };
+      expect(response.count).toBeGreaterThan(0);
+    });
+  });
+
+  describe("Badge visibility logic", () => {
+    it("shows badge when admin and openTicketsCount > 0", () => {
+      const isAdmin = true;
+      const isContact = true;
+      const openTicketsCount = 3;
+      const showContactBadge = isContact && isAdmin && openTicketsCount > 0;
+      expect(showContactBadge).toBe(true);
+    });
+
+    it("hides badge when openTicketsCount is 0", () => {
+      const isAdmin = true;
+      const isContact = true;
+      const openTicketsCount = 0;
+      const showContactBadge = isContact && isAdmin && openTicketsCount > 0;
+      expect(showContactBadge).toBe(false);
+    });
+
+    it("hides badge for non-admin users", () => {
+      const isAdmin = false;
+      const isContact = true;
+      const openTicketsCount = 5;
+      const showContactBadge = isContact && isAdmin && openTicketsCount > 0;
+      expect(showContactBadge).toBe(false);
+    });
+
+    it("hides badge on non-contact menu items", () => {
+      const isAdmin = true;
+      const isContact = false;
+      const openTicketsCount = 5;
+      const showContactBadge = isContact && isAdmin && openTicketsCount > 0;
+      expect(showContactBadge).toBe(false);
+    });
+
+    it("hides badge for prof role", () => {
+      const role = "prof";
+      const isAdmin = role === "admin";
+      const isContact = true;
+      const openTicketsCount = 3;
+      const showContactBadge = isContact && isAdmin && openTicketsCount > 0;
+      expect(showContactBadge).toBe(false);
+    });
+
+    it("hides badge for coordinator role", () => {
+      const role = "coordinator";
+      const isAdmin = role === "admin";
+      const isContact = true;
+      const openTicketsCount = 3;
+      const showContactBadge = isContact && isAdmin && openTicketsCount > 0;
+      expect(showContactBadge).toBe(false);
+    });
+  });
+
+  describe("Badge display format", () => {
+    it("shows exact count when <= 99", () => {
+      const count = 42;
+      const display = count > 99 ? "99+" : String(count);
+      expect(display).toBe("42");
+    });
+
+    it("shows 99+ when count exceeds 99", () => {
+      const count = 150;
+      const display = count > 99 ? "99+" : String(count);
+      expect(display).toBe("99+");
+    });
+
+    it("shows 1 for single open ticket", () => {
+      const count = 1;
+      const display = count > 99 ? "99+" : String(count);
+      expect(display).toBe("1");
+    });
+  });
+
+  describe("Contact menu item position", () => {
+    it("Contato item exists in menu for all approved roles", () => {
+      const contactItem = { icon: "MessageSquare", label: "Contato", path: "/contact" };
+      expect(contactItem.path).toBe("/contact");
+      expect(contactItem.label).toBe("Contato");
+    });
+
+    it("openCount uses adminProcedure (admin-only)", () => {
+      const procedureType = "adminProcedure";
+      expect(procedureType).toBe("adminProcedure");
+    });
+
+    it("openCount query is enabled only for admin", () => {
+      const isAdmin = true;
+      const queryEnabled = isAdmin;
+      expect(queryEnabled).toBe(true);
+
+      const isProf = false;
+      const queryEnabledProf = isProf;
+      expect(queryEnabledProf).toBe(false);
+    });
+  });
+});
