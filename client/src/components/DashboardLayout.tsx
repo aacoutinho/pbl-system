@@ -48,8 +48,7 @@ const baseMenuItems = [
 // Tutorial evaluation: only for prof and coordinator (NOT admin)
 const tutorialEvalItem = { icon: ClipboardCheck, label: "Avaliar Tutorial", path: "/tutorial-eval" };
 
-// Audit log: for coordinator and admin
-const auditLogItem = { icon: History, label: "Histórico", path: "/audit-log" };
+// Audit log: moved to Configurações (admin only)
 
 // Notifications: for all approved users
 const notificationsItem = { icon: Bell, label: "Notificações", path: "/notifications" };
@@ -60,15 +59,16 @@ const contactItem = { icon: MessageSquare, label: "Contato", path: "/contact" };
 // Admin-only config sub-items (grouped under "Configurações")
 const configSubItems = [
   { icon: Mail, label: "E-mails", path: "/smtp-config" },
-  { icon: DatabaseBackup, label: "Backup / Restaurar", path: "/backup" },
+  { icon: DatabaseBackup, label: "Backup", path: "/backup" },
   { icon: Download, label: "Exportar", path: "/export-students" },
+  { icon: History, label: "Histórico", path: "/audit-log" },
 ];
 
 const configGroupItem = { icon: Settings, label: "Configurações", path: "__config__", subItems: configSubItems };
 
 function getMenuItemsForRole(role: string) {
   if (role === "admin") {
-    return [...baseMenuItems, notificationsItem, contactItem, auditLogItem, configGroupItem];
+    return [...baseMenuItems, notificationsItem, contactItem, configGroupItem];
   }
   // coordinator and prof: include tutorial eval
   const items = [...baseMenuItems];
@@ -78,10 +78,6 @@ function getMenuItemsForRole(role: string) {
   // All approved users get notifications and contact
   items.push(notificationsItem);
   items.push(contactItem);
-  // Coordinators also get audit log
-  if (role === "coordinator") {
-    items.push(auditLogItem);
-  }
   return items;
 }
 

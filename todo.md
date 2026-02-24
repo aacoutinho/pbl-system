@@ -400,3 +400,6 @@
 - [x] Campo opcional de título/tema para problemas (ex: "Febre Reumática")
 - [x] Exibir título do problema junto à numeração nas listagens
 - [x] Verificar compatibilidade do Backup/Restauração com o esquema atual do banco (faltava professorStudentNotes no TABLE_LABELS e nos testes)
+- [x] Separar Backup e Restauração em itens distintos no menu Configurações (renomeado para "Backup")
+- [x] Mover Histórico para dentro do submenu Configurações
+- [x] Restringir acesso ao submenu Configurações apenas para admin
