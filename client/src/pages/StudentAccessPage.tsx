@@ -1216,7 +1216,7 @@ function EvaluationForm({ studentInfo, sessionInfo, studentEmail, studentPhotoUr
                 <CriteriaSlider label="Domínio do Assunto" sublabel="Peso 3" tooltip="Avalia o nível de conhecimento demonstrado pelo colega sobre o tema discutido na sessão tutorial." value={ev.dominio} onChange={(v) => updateEval(peer.studentId, "dominio", v)} gender="masc" />
                 <CriteriaSlider label="Participação" sublabel="Peso 3" tooltip="Avalia o envolvimento ativo do colega nas discussões, contribuindo com ideias, perguntas e argumentos durante a sessão." value={ev.participacao} onChange={(v) => updateEval(peer.studentId, "participacao", v)} gender="fem" />
                 {hasRolePenalty && (
-                  <CriteriaSlider label={`Desempenho no Papel de ${roleLabels[peer.role]}`} sublabel="Penalidade (até -1)" tooltip={`Penalidade aplicada quando o colega não desempenhou adequadamente o papel de ${roleLabels[peer.role]}. Se desempenhou bem, deixe em 'Sem penalidade'.`} value={ev.desempenhoPapel} onChange={(v) => updateEval(peer.studentId, "desempenhoPapel", v)} penalty />
+                  <CriteriaSlider label={`Desempenho no Papel de ${roleLabels[peer.role]}`} sublabel="Penalidade (até -1)" tooltip={`Penalidade aplicada quando o colega não desempenhou adequadamente o papel de ${roleLabels[peer.role]}. Se desempenhou bem, deixe em 'Nenhuma'.`} value={ev.desempenhoPapel} onChange={(v) => updateEval(peer.studentId, "desempenhoPapel", v)} penalty />
                 )}
               </div>
               </TooltipProvider>
@@ -1251,11 +1251,11 @@ const SCORE_LABELS: Record<string, string> = {
 };
 
 const PENALTY_LABELS: Record<string, string> = {
-  "0.00": "Sem penalidade",
-  "0.25": "-0.25",
-  "0.50": "-0.50",
-  "0.75": "-0.75",
-  "1.00": "-1.0",
+  "0.00": "Nenhuma",
+  "0.25": "Fraca",
+  "0.50": "Razoável",
+  "0.75": "Boa",
+  "1.00": "Excelente",
 };
 
 function getScoreLabel(value: number, penalty?: boolean): string {
@@ -1297,11 +1297,11 @@ function CriteriaSlider({ label, sublabel, tooltip, value, onChange, penalty, ge
       <div className="flex justify-between text-xs font-medium">
         {penalty ? (
           <>
-            <span className="text-emerald-600">Sem</span>
-            <span className="text-lime-600">-0.25</span>
-            <span className="text-amber-500">-0.50</span>
-            <span className="text-orange-600">-0.75</span>
-            <span className="text-red-600">-1.0</span>
+            <span className="text-emerald-600">Nenhuma</span>
+            <span className="text-lime-600">Fraca</span>
+            <span className="text-amber-500">Razoável</span>
+            <span className="text-orange-600">Boa</span>
+            <span className="text-red-600">Excelente</span>
           </>
         ) : (
           <>

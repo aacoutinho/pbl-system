@@ -440,3 +440,5 @@
 - [x] Verificar e corrigir prévia do formulário nas Sessões para estar igual ao formulário atual do aluno
 - [x] Alterar texto "Crie e gerencie sessões de avaliação tutorial." para "Crie e gerencie sessões tutoriais"
 - [x] Alterar título "Sessões de Avaliação" para "Sessões Tutoriais Realizadas"
+- [x] Corrigir labels de penalidade (Desempenho no Papel) em todos os formulários (prévia, DirectEvalPage, StudentAccessPage) para usar conceitos: Sem/Leve/Moderada/Grave/Gravíssima
+- [x] Padronizar labels de penalidade para usar mesmos conceitos dos outros critérios (Nenhuma/Fraca/Razoável/Boa/Excelente) em todos os formulários e tooltips

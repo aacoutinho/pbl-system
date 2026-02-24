@@ -37,11 +37,11 @@ const gradeLabels: Record<number, string> = {
 };
 
 const penaltyLabels: Record<number, string> = {
-  0: "Sem penalidade",
-  0.25: "-0.25",
-  0.5: "-0.5",
-  0.75: "-0.75",
-  1: "-1.0",
+  0: "Nenhuma",
+  0.25: "Fraca",
+  0.5: "Razoável",
+  0.75: "Boa",
+  1: "Excelente",
 };
 
 const gradeOptions = [0, 0.25, 0.5, 0.75, 1];
@@ -353,7 +353,7 @@ function EvaluationForm({ studentInfo, sessionInfo, onDone }: {
                           <TooltipTrigger>
                             <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
                           </TooltipTrigger>
-                          <TooltipContent><p className="text-xs max-w-xs">Penalidade aplicada quando o colega não desempenhou adequadamente o papel de {roleLabels[peer.role as RoleType]}. Se desempenhou bem, deixe em 'Sem penalidade'.</p></TooltipContent>
+                          <TooltipContent><p className="text-xs max-w-xs">Penalidade aplicada quando o colega não desempenhou adequadamente o papel de {roleLabels[peer.role as RoleType]}. Se desempenhou bem, deixe em 'Nenhuma'.</p></TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
                     </div>

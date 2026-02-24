@@ -17,11 +17,11 @@ const SCORE_LABELS: Record<string, string> = {
 };
 
 const PENALTY_LABELS: Record<string, string> = {
-  "0.00": "Sem penalidade",
-  "0.25": "-0.25",
-  "0.50": "-0.50",
-  "0.75": "-0.75",
-  "1.00": "-1.0",
+  "0.00": "Nenhuma",
+  "0.25": "Fraca",
+  "0.50": "Razoável",
+  "0.75": "Boa",
+  "1.00": "Excelente",
 };
 
 function getScoreLabel(value: number, penalty?: boolean): string {
@@ -83,11 +83,11 @@ function PreviewCriteriaSlider({ label, sublabel, tooltip, value, penalty }: {
       <div className="flex justify-between text-xs font-medium">
         {penalty ? (
           <>
-            <span className="text-emerald-600">Sem</span>
-            <span className="text-lime-600">-0.25</span>
-            <span className="text-amber-500">-0.50</span>
-            <span className="text-orange-600">-0.75</span>
-            <span className="text-red-600">-1.0</span>
+            <span className="text-emerald-600">Nenhuma</span>
+            <span className="text-lime-600">Fraca</span>
+            <span className="text-amber-500">Razoável</span>
+            <span className="text-orange-600">Boa</span>
+            <span className="text-red-600">Excelente</span>
           </>
         ) : (
           <>
@@ -218,7 +218,7 @@ export function EvaluationPreviewDialog({ open, onOpenChange }: { open: boolean;
                         <PreviewCriteriaSlider
                           label={`Desempenho no Papel de ${roleLabels[peer.role]}`}
                           sublabel="Penalidade (até -1)"
-                          tooltip={`Penalidade aplicada quando o colega não desempenhou adequadamente o papel de ${roleLabels[peer.role]}. Se desempenhou bem, deixe em 'Sem penalidade'.`}
+                          tooltip={`Penalidade aplicada quando o colega não desempenhou adequadamente o papel de ${roleLabels[peer.role]}. Se desempenhou bem, deixe em 'Nenhuma'.`}
                           value={0}
                           penalty
                         />
