@@ -27,6 +27,7 @@ const TABLE_LABELS: Record<string, string> = {
   notifications: "Notificações",
   contactTickets: "Tickets de Contato",
   professorStudentNotes: "Notas do Professor por Aluno",
+  sessionAccessTokens: "Tokens de Acesso por Sessão",
 };
 
 export { TABLE_LABELS };

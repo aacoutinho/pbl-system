@@ -424,3 +424,4 @@
 - [x] Remover conceito de código de acesso compartilhado (accessCode) da interface do professor
 - [x] Atualizar e-mails: incluir link direto individual em vez de código compartilhado
 - [x] Testes unitários para novo fluxo de abertura de sessão com tokens individuais (18 testes)
+- [x] Verificar e corrigir Backup/Restauração para estar de acordo com o esquema atual do banco (sessionAccessTokens adicionada ao BACKUP_TABLES, TABLE_LABELS e testes)

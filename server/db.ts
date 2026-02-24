@@ -2239,6 +2239,7 @@ const BACKUP_TABLES = [
   { name: "notifications", table: notifications },
   { name: "contactTickets", table: contactTickets },
   { name: "professorStudentNotes", table: professorStudentNotes },
+  { name: "sessionAccessTokens", table: sessionAccessTokens },
 ] as const;
 
 // Tables to clear in reverse order (children first, parents last) to avoid FK issues
