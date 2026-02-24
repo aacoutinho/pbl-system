@@ -171,8 +171,9 @@ function SessionsContent() {
                     <Input
                       type="number"
                       min={nextInfo?.lastProblemNumber === 0 ? 1 : nextInfo?.lastProblemNumber ?? 1}
-                      max={(nextInfo?.lastProblemNumber ?? 0) + 1}
+                      max={nextInfo?.lastProblemNumber === 0 ? 1 : (nextInfo?.lastProblemNumber ?? 0) + 1}
                       value={problemNum}
+                      disabled={nextInfo?.lastProblemNumber === 0}
                       onChange={e => {
                         const val = parseInt(e.target.value);
                         if (!isNaN(val) && nextInfo) {
@@ -185,8 +186,13 @@ function SessionsContent() {
                           setProblemNum(e.target.value);
                         }
                       }}
-                      className="mt-1"
+                      className={`mt-1 ${nextInfo?.lastProblemNumber === 0 ? 'bg-muted' : ''}`}
                     />
+                    {nextInfo && nextInfo.lastProblemNumber === 0 && (
+                      <p className="text-xs text-blue-600 mt-1 font-medium">
+                        Primeira sessão: obrigatoriamente Problema 1
+                      </p>
+                    )}
                     {nextInfo && nextInfo.lastProblemNumber > 0 && (
                       <p className="text-xs text-muted-foreground mt-1">
                         Permitido: {nextInfo.lastProblemNumber} (continuar) ou {nextInfo.lastProblemNumber + 1} (novo)

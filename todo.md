@@ -394,3 +394,4 @@
 - [x] Renomear "Exportar Alunos" → "Exportar" no menu lateral
 - [x] Renomear "Config. E-mail" → "E-mails" no menu lateral
 - [x] Agrupar E-mails, Backup / Restaurar e Exportar dentro de submenu "Configurações" no menu lateral
+- [x] Primeira sessão de qualquer turma deve ser obrigatoriamente Problema 1 - Sessão 1

@@ -743,17 +743,17 @@ export const appRouter = router({
       // Auto-calculate session number
       const info = await getNextSessionInfo(input.classId);
       let sessionNumber: number;
-      if (input.problemNumber === info.nextProblemNumber) {
+      if (info.lastProblemNumber === 0) {
+        // First session ever in this class: MUST be Problema 1 - Sessão 1
+        if (input.problemNumber !== 1) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "A primeira sessão da turma deve ser obrigatoriamente Problema 1 - Sessão 1." });
+        }
+        sessionNumber = 1;
+      } else if (input.problemNumber === info.nextProblemNumber) {
         // Same problem: continue sequence
         sessionNumber = info.nextSessionNumber;
       } else if (input.problemNumber === info.lastProblemNumber + 1) {
         // New problem: start at session 1
-        sessionNumber = 1;
-      } else if (info.lastProblemNumber === 0) {
-        // First session ever: must be problem 1
-        if (input.problemNumber !== 1) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "O primeiro problema deve ser o número 1." });
-        }
         sessionNumber = 1;
       } else {
         throw new TRPCError({ code: "BAD_REQUEST", message: `O número do problema deve ser ${info.lastProblemNumber} (continuar) ou ${info.lastProblemNumber + 1} (novo problema).` });
