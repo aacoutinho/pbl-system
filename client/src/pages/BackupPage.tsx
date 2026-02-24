@@ -37,6 +37,7 @@ const TABLE_LABELS: Record<string, string> = {
   auditLogs: "Histórico de Ações",
   notifications: "Notificações",
   contactTickets: "Tickets de Contato",
+  professorStudentNotes: "Notas do Professor por Aluno",
 };
 
 export default function BackupPage() {

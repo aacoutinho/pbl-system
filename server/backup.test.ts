@@ -654,6 +654,7 @@ describe("Schema-backup alignment", () => {
     "auditLogs",
     "notifications",
     "contactTickets",
+    "professorStudentNotes",
   ];
 
   const BACKUP_TABLES = [
@@ -676,11 +677,12 @@ describe("Schema-backup alignment", () => {
     "auditLogs",
     "notifications",
     "contactTickets",
+    "professorStudentNotes",
   ];
 
-  it("schema and backup have the same number of tables (19)", () => {
-    expect(SCHEMA_TABLES).toHaveLength(19);
-    expect(BACKUP_TABLES).toHaveLength(19);
+  it("schema and backup have the same number of tables (20)", () => {
+    expect(SCHEMA_TABLES).toHaveLength(20);
+    expect(BACKUP_TABLES).toHaveLength(20);
   });
 
   it("every schema table is included in backup", () => {
