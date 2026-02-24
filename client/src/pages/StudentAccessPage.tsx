@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { LogIn, Send, UserX, CheckCircle2, AlertTriangle, ArrowLeft, BookOpen, HelpCircle, Camera, Mail, ShieldCheck, Upload, ClipboardList, Clock, GraduationCap, User } from "lucide-react";
+import { LogIn, Send, UserX, CheckCircle2, AlertTriangle, ArrowLeft, BookOpen, HelpCircle, Camera, Mail, ShieldCheck, Upload, ClipboardList, Clock, GraduationCap, User, History, Users } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useMemo, useRef } from "react";
 import { resizeImageToSquare, base64SizeKB } from "@/lib/resizeImage";
@@ -260,6 +260,9 @@ function StudentDashboard({ studentData, studentEmail, studentPhotoUrl, onSelect
     { studentId: studentData.studentId },
     { refetchInterval: 15000 }
   );
+  const { data: evalHistory, isLoading: historyLoading } = trpc.studentAccess.myEvaluationHistory.useQuery(
+    { studentId: studentData.studentId },
+  );
 
   const pendingSessions = openSessions?.filter(s => !s.alreadySubmitted) || [];
   const completedSessions = openSessions?.filter(s => s.alreadySubmitted) || [];
@@ -379,7 +382,7 @@ function StudentDashboard({ studentData, studentEmail, studentPhotoUrl, onSelect
         <div>
           <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-            Avaliações Já Realizadas
+            Avaliações Já Realizadas (Sessões Abertas)
           </h3>
           <div className="space-y-2">
             {completedSessions.map(session => (
@@ -403,6 +406,66 @@ function StudentDashboard({ studentData, studentEmail, studentPhotoUrl, onSelect
           </div>
         </div>
       )}
+
+      {/* Evaluation History */}
+      <div>
+        <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+          <History className="h-5 w-5 text-blue-600" />
+          Histórico de Avaliações
+        </h3>
+        {historyLoading ? (
+          <Card>
+            <CardContent className="py-6 text-center text-muted-foreground">
+              Carregando histórico...
+            </CardContent>
+          </Card>
+        ) : !evalHistory || evalHistory.length === 0 ? (
+          <Card>
+            <CardContent className="py-6 text-center text-muted-foreground">
+              <History className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
+              <p className="font-medium text-sm">Nenhuma avaliação realizada ainda</p>
+              <p className="text-xs mt-1">Seu histórico de avaliações aparecerá aqui após participar de sessões tutoriais.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-2">
+            {evalHistory.map((ev, idx) => (
+              <Card key={`${ev.sessionId}-${idx}`} className="border-blue-100">
+                <CardContent className="py-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-sm">{ev.sessionLabel}</p>
+                        <Badge variant={ev.sessionStatus === 'finished' ? 'secondary' : 'outline'} className="text-[10px] px-1.5 py-0">
+                          {ev.sessionStatus === 'finished' ? 'Encerrada' : ev.sessionStatus === 'closed' ? 'Fechada' : ev.sessionStatus === 'open' ? 'Aberta' : 'Iniciada'}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {ev.componentCode} - {ev.classCode} ({ev.semester})
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Problema {ev.problemNumber} &middot; Sessão {ev.sessionNumber}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0 ml-3">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                        <Users className="h-3 w-3" />
+                        {ev.peersEvaluated}/{ev.totalPeers} pares
+                      </div>
+                      <div className="text-sm font-semibold text-blue-700">
+                        Média: {ev.avgGradeGiven.toFixed(1)}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {new Date(ev.submittedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

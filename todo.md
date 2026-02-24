@@ -387,3 +387,6 @@
 - [x] Atualizar página de login: trocar campo de código por campo de matrícula
 - [x] Atualizar rotas do App.tsx para novo fluxo do aluno
 - [x] Testes unitários para novo login por matrícula e sessões do aluno
+- [x] Backend: rota para listar histórico de avaliações realizadas pelo aluno (data, sessão, nota total)
+- [x] Frontend: seção de histórico de avaliações no painel do aluno
+- [x] Testes unitários para histórico de avaliações do aluno

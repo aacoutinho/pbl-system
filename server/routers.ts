@@ -44,6 +44,7 @@ import {
   bulkUpsertProfessorStudentNotes, getProfessorStudentNotes,
   getNextSessionInfo,
   findStudentByEnrollment, getOpenSessionsForStudent, getClassesForStudent,
+  getStudentEvaluationHistory,
 } from "./db";
 import { storagePut } from "./storage";
 import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml, buildContactTicketEmailHtml, buildSessionOpenedEmailHtml, buildStudentGradeReportHtml } from "./email";
@@ -919,6 +920,12 @@ export const appRouter = router({
         isFirstAccess: evalCount === 0,
         classes,
       };
+    }),
+    // Get evaluation history for a student
+    myEvaluationHistory: publicProcedure.input(z.object({
+      studentId: z.number(),
+    })).query(async ({ input }) => {
+      return await getStudentEvaluationHistory(input.studentId);
     }),
     // Get open sessions for a logged-in student
     myOpenSessions: publicProcedure.input(z.object({
