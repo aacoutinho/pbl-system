@@ -54,7 +54,7 @@ import {
   shareBrainstormBoard, getComponentSessionsForSharing,
 } from "./db";
 import { storagePut } from "./storage";
-import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml, buildContactTicketEmailHtml, buildSessionOpenedEmailHtml, buildStudentGradeReportHtml } from "./email";
+import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml, buildContactTicketEmailHtml, buildSessionOpenedEmailHtml, buildStudentGradeReportHtml, buildBrainstormNotificationEmailHtml } from "./email";
 
 // Base: approved user (any role except "user" pending)
 const approvedProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -747,6 +747,7 @@ export const appRouter = router({
         role: z.enum(["COORDENADOR", "MESA", "QUADRO", "PARTICIPANTE"]),
         absent: z.boolean(),
       })),
+      origin: z.string().optional(),
     })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
@@ -780,7 +781,7 @@ export const appRouter = router({
       }
       const titlePart = input.problemTitle ? ` - ${input.problemTitle}` : "";
       const label = `Problema ${input.problemNumber}${titlePart} - Sessão ${sessionNumber}`;
-      return createSession({
+      const newSession = await createSession({
         classId: input.classId,
         problemNumber: input.problemNumber,
         sessionNumber,
@@ -788,6 +789,42 @@ export const appRouter = router({
         label,
         studentAssignments: input.studentAssignments,
       });
+
+      // Send brainstorm board link to Mesa student
+      if (newSession && input.origin) {
+        try {
+          const mesaAssignment = input.studentAssignments.find(sa => sa.role === "MESA" && !sa.absent);
+          if (mesaAssignment) {
+            const studentsInClass = await listStudentsByClass(input.classId);
+            const mesaStudent = studentsInClass.find(s => s.id === mesaAssignment.studentId);
+            if (mesaStudent?.email) {
+              let componentCode = "";
+              if (cls.componentId) {
+                const comp = await getComponentById(cls.componentId);
+                componentCode = comp?.code ?? "";
+              }
+              const brainstormUrl = `${input.origin}/avaliacao?sessionId=${newSession.id}&brainstorm=1`;
+              const html = buildBrainstormNotificationEmailHtml({
+                studentName: mesaStudent.name,
+                sessionLabel: label,
+                brainstormUrl,
+                componentCode,
+                classCode: cls.classCode,
+              });
+              sendEmail({
+                to: mesaStudent.email,
+                subject: `Quadro de Brainstorming - ${label}`,
+                text: `Ol\u00e1 ${mesaStudent.name}, voc\u00ea \u00e9 o respons\u00e1vel pelo Quadro de Brainstorming da sess\u00e3o ${label}. Acesse: ${brainstormUrl}`,
+                html,
+              }).catch(err => console.error(`[Email] Failed to send brainstorm link to ${mesaStudent.email}:`, err));
+            }
+          }
+        } catch (err) {
+          console.error("[Sessions] Error sending brainstorm email to Mesa:", err);
+        }
+      }
+
+      return newSession;
     }),
     getStudents: protectedProcedure.input(z.object({ sessionId: z.number() })).query(async ({ input }) => {
       return getSessionStudents(input.sessionId);

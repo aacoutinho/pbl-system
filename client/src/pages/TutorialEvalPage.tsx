@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { BookOpen, ClipboardCheck, Save, CheckCircle2, Info, ShieldCheck, ShieldAlert, Crown, UserCheck, FileEdit, SendHorizonal, ThumbsUp, ThumbsDown, MessageSquare, User } from "lucide-react";
+import { BookOpen, ClipboardCheck, Save, CheckCircle2, Info, ShieldCheck, ShieldAlert, Crown, UserCheck, FileEdit, SendHorizonal, ThumbsUp, ThumbsDown, MessageSquare, User, Lightbulb, ExternalLink } from "lucide-react";
+import { useLocation } from "wouter";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -559,6 +560,18 @@ function TutorialEvalContent() {
                   <FileEdit className="h-3.5 w-3.5 mr-1" />
                   Rascunho salvo
                 </Badge>
+              )}
+              {selectedSession && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-amber-700 border-amber-300 hover:bg-amber-50"
+                  onClick={() => window.open(`/brainstorm/${selectedSessionId}`, '_blank')}
+                >
+                  <Lightbulb className="h-3.5 w-3.5" />
+                  Quadro de Brainstorming
+                  <ExternalLink className="h-3 w-3 ml-0.5" />
+                </Button>
               )}
             </div>
           </div>

@@ -163,6 +163,7 @@ function SessionsContent() {
       problemNumber: pn,
       problemTitle: problemTitle.trim() || undefined,
       studentAssignments: selected.map(sa => ({ studentId: sa.studentId, role: sa.role, absent: sa.absent })),
+      origin: window.location.origin,
     });
   };
 

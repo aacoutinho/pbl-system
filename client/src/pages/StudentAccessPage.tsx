@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { LogIn, Send, CheckCircle2, AlertTriangle, ArrowLeft, BookOpen, HelpCircle, Camera, Mail, ShieldCheck, Upload, ClipboardList, Clock, GraduationCap, User, History, Users, KeyRound, RefreshCw, LogOut, Edit, Lightbulb } from "lucide-react";
 import BrainstormBoardPage from "./BrainstormBoardPage";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { resizeImageToSquare, base64SizeKB } from "@/lib/resizeImage";
 
 type RoleType = "COORDENADOR" | "MESA" | "QUADRO" | "PARTICIPANTE";
@@ -69,7 +69,29 @@ export default function StudentAccessPage() {
   const [loginData, setLoginData] = useState<LoginData | null>(null);
   const [authData, setAuthData] = useState<AuthenticatedData | null>(null);
   const [selectedSession, setSelectedSession] = useState<SelectedSession | null>(null);
-  const [brainstormSession, setBrainstormSession] = useState<{ sessionId: number; sessionLabel: string; isMesa: boolean } | null>(null);
+  const [brainstormSession, setBrainstormSession] = useState<{ sessionId: number; sessionLabel: string; canEdit: boolean } | null>(null);
+  const [pendingBrainstormSessionId, setPendingBrainstormSessionId] = useState<number | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('brainstorm') === '1' && params.get('sessionId')) {
+      return parseInt(params.get('sessionId')!, 10);
+    }
+    return null;
+  });
+
+  // Auto-open brainstorm board after login if URL has brainstorm=1&sessionId=X
+  useEffect(() => {
+    if (step === 'dashboard' && authData && pendingBrainstormSessionId) {
+      setBrainstormSession({
+        sessionId: pendingBrainstormSessionId,
+        sessionLabel: `Sessão #${pendingBrainstormSessionId}`,
+        canEdit: true, // Mesa student can edit
+      });
+      setStep('brainstorm');
+      setPendingBrainstormSessionId(null);
+      // Clean URL params
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [step, authData, pendingBrainstormSessionId]);
 
   // Step 1: Login by enrollment
   const loginMutation = trpc.studentAccess.loginByEnrollment.useMutation({
@@ -262,7 +284,7 @@ export default function StudentAccessPage() {
         sessionId={brainstormSession.sessionId}
         studentId={authData.studentId}
         sessionLabel={brainstormSession.sessionLabel}
-        isMesa={brainstormSession.isMesa}
+        canEdit={brainstormSession.canEdit}
         onBack={() => { setBrainstormSession(null); setStep("dashboard"); }}
       />
     );
@@ -275,8 +297,8 @@ export default function StudentAccessPage() {
         <StudentDashboard
           authData={authData}
           onSelectSession={handleSelectSession}
-          onOpenBrainstorm={(sessionId, sessionLabel, isMesa) => {
-            setBrainstormSession({ sessionId, sessionLabel, isMesa });
+          onOpenBrainstorm={(sessionId, sessionLabel, canEdit) => {
+            setBrainstormSession({ sessionId, sessionLabel, canEdit });
             setStep("brainstorm");
           }}
           onEditProfile={() => setStep("editProfile")}
@@ -899,7 +921,7 @@ function EditProfileScreen({ studentId, studentName, currentEmail, currentPhotoU
 function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditProfile, onLogout }: {
   authData: AuthenticatedData;
   onSelectSession: (session: SelectedSession) => void;
-  onOpenBrainstorm: (sessionId: number, sessionLabel: string, isMesa: boolean) => void;
+  onOpenBrainstorm: (sessionId: number, sessionLabel: string, canEdit: boolean) => void;
   onEditProfile: () => void;
   onLogout: () => void;
 }) {

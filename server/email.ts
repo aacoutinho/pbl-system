@@ -381,6 +381,55 @@ export function buildSessionOpenedEmailHtml(data: {
   `;
 }
 
+export function buildBrainstormNotificationEmailHtml(data: {
+  studentName: string;
+  sessionLabel: string;
+  brainstormUrl: string;
+  componentCode: string;
+  classCode: string;
+}): string {
+  return `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <h2 style="color: #1f2937; margin: 0 0 8px;">Quadro de Brainstorming</h2>
+        <p style="color: #6b7280; margin: 0; font-size: 14px;">Voc\u00ea foi designado como Mesa</p>
+      </div>
+      <p style="color: #374151; font-size: 15px; line-height: 1.6;">
+        Ol\u00e1 <strong>${data.studentName}</strong>,
+      </p>
+      <p style="color: #374151; font-size: 15px; line-height: 1.6;">
+        Voc\u00ea \u00e9 o respons\u00e1vel pelo <strong>Quadro de Brainstorming</strong> da sess\u00e3o abaixo. Use o quadro digital para registrar as Ideias, Fatos, Quest\u00f5es e Metas discutidas durante o tutorial.
+      </p>
+      <div style="text-align: center; margin: 24px 0;">
+        <div style="display: inline-block; background: #f0fdf4; border: 2px solid #86efac; border-radius: 8px; padding: 16px 32px;">
+          <span style="font-size: 14px; color: #16a34a;">${data.componentCode} - ${data.classCode}</span>
+          <br />
+          <span style="font-size: 18px; font-weight: 600; color: #15803d;">${data.sessionLabel}</span>
+        </div>
+      </div>
+      <div style="text-align: center; margin: 28px 0;">
+        <a href="${data.brainstormUrl}" style="display: inline-block; background: #16a34a; color: #ffffff; text-decoration: none; padding: 14px 40px; border-radius: 8px; font-size: 16px; font-weight: 600;">Abrir Quadro de Brainstorming</a>
+      </div>
+      <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin: 16px 0;">
+        <p style="color: #374151; font-size: 13px; margin: 0;"><strong>Instru\u00e7\u00f5es:</strong></p>
+        <ol style="color: #374151; font-size: 13px; margin: 8px 0 0; padding-left: 20px;">
+          <li>Clique no bot\u00e3o acima para acessar o quadro digital</li>
+          <li>Registre as Ideias, Fatos, Quest\u00f5es e Metas da discuss\u00e3o</li>
+          <li>Voc\u00ea pode adicionar links, imagens e fotos ao quadro</li>
+          <li>O quadro fica vis\u00edvel para todos os colegas e o professor</li>
+        </ol>
+      </div>
+      <div style="background: #ecfdf5; border-radius: 8px; padding: 12px 16px; margin: 12px 0;">
+        <p style="color: #065f46; font-size: 12px; margin: 0;">\ud83d\udcdd Voc\u00ea pode preencher o quadro durante toda a sess\u00e3o (iniciada ou aberta).</p>
+      </div>
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+      <p style="color: #9ca3af; font-size: 12px; text-align: center;">
+        Sistema de Avalia\u00e7\u00e3o de Desempenho Tutorial
+      </p>
+    </div>
+  `;
+}
+
 export function buildContactTicketEmailHtml(data: {
   ticketType: "bug" | "feature";
   subject: string;

@@ -474,3 +474,7 @@
 - [x] Quadro de Brainstorming: visualização nos resultados da sessão e exportação CSV
 - [x] Quadro de Brainstorming: compartilhamento do quadro para alunos de todos ou qualquer tutorial do mesmo componente
 - [x] Quadro de Brainstorming: atualizar BACKUP_TABLES e TABLE_LABELS com novas tabelas (23 tabelas total)
+- [x] Enviar link do quadro de brainstorming por e-mail ao aluno Mesa quando a sessão for iniciada
+- [x] Permitir que professor e Mesa editem o quadro (não apenas Mesa)
+- [x] Adicionar botão para acessar o quadro da sessão na página de avaliação tutorial do professor
+- [x] Auto-redirecionamento para quadro de brainstorming quando aluno Mesa acessa via link do e-mail (parâmetros brainstorm=1&sessionId=X na URL)

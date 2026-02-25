@@ -96,11 +96,11 @@ interface BrainstormBoardPageProps {
   sessionId: number;
   studentId: number;
   sessionLabel: string;
-  isMesa: boolean;
+  canEdit: boolean;
   onBack: () => void;
 }
 
-export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel, isMesa, onBack }: BrainstormBoardPageProps) {
+export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel, canEdit, onBack }: BrainstormBoardPageProps) {
   const [newItemTexts, setNewItemTexts] = useState<Record<Section, string>>({
     ideias: "", fatos: "", questoes: "", metas: "",
   });
@@ -120,7 +120,7 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
 
   const { data: boardData, isLoading } = trpc.brainstorm.getBoard.useQuery(
     { sessionId },
-    { refetchInterval: isMesa ? false : 10000 } // Auto-refresh for viewers
+    { refetchInterval: canEdit ? false : 10000 } // Auto-refresh for viewers
   );
 
   // Use sessionLabel from props, or from board data if available
@@ -130,10 +130,10 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
 
   // Initialize board if Mesa and no board exists
   const initBoard = useCallback(() => {
-    if (isMesa && !hasBoard) {
+    if (canEdit && !hasBoard) {
       createBoardMutation.mutate({ sessionId, studentId });
     }
-  }, [isMesa, hasBoard, sessionId, studentId]);
+  }, [canEdit, hasBoard, sessionId, studentId]);
 
   // Mutations
   const addItemMutation = trpc.brainstorm.addItem.useMutation({
@@ -290,12 +290,12 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
             <h1 className="text-xl md:text-2xl font-bold tracking-tight">Quadro de Brainstorming</h1>
             <p className="text-sm text-muted-foreground">{displayLabel}</p>
           </div>
-          {isMesa && !hasBoard && (
+          {canEdit && !hasBoard && (
             <Button onClick={initBoard} disabled={createBoardMutation.isPending}>
               <Plus className="h-4 w-4 mr-1" /> Iniciar Quadro
             </Button>
           )}
-          {!isMesa && (
+          {!canEdit && (
             <Badge variant="secondary" className="text-xs">Somente Visualização</Badge>
           )}
         </div>
@@ -319,7 +319,7 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
               </CardHeader>
               <CardContent className="p-3 space-y-2">
                 {/* Add new item (Mesa only) */}
-                {isMesa && (
+                {canEdit && (
                   <div className="flex gap-2">
                     <Input
                       placeholder={`Adicionar ${config.label.toLowerCase()}...`}
@@ -357,7 +357,7 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
                     return (
                       <div key={item.id} className="bg-white rounded-lg border p-3 space-y-2 shadow-sm">
                         {/* Content */}
-                        {isMesa ? (
+                        {canEdit ? (
                           <Textarea
                             defaultValue={item.content}
                             onBlur={(e) => {
@@ -378,7 +378,7 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
                             {(item.attachmentType === "image" || item.attachmentType === "photo") ? (
                               <div className="relative">
                                 <img src={item.attachmentUrl} alt="" className="w-full max-h-40 object-cover" />
-                                {isMesa && (
+                                {canEdit && (
                                   <Button
                                     variant="destructive"
                                     size="icon"
@@ -394,7 +394,7 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
                                 <a href={item.attachmentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 text-xs text-blue-600 hover:underline">
                                   <Video className="h-4 w-4" /> Ver vídeo <ExternalLink className="h-3 w-3" />
                                 </a>
-                                {isMesa && (
+                                {canEdit && (
                                   <Button
                                     variant="destructive"
                                     size="icon"
@@ -410,7 +410,7 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
                                 <a href={item.attachmentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 text-xs text-blue-600 hover:underline">
                                   <Link2 className="h-4 w-4" /> {item.attachmentUrl.length > 40 ? item.attachmentUrl.substring(0, 40) + "..." : item.attachmentUrl} <ExternalLink className="h-3 w-3" />
                                 </a>
-                                {isMesa && (
+                                {canEdit && (
                                   <Button
                                     variant="destructive"
                                     size="icon"
@@ -428,7 +428,7 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
                         {/* Status + Actions */}
                         <div className="flex items-center gap-1 flex-wrap">
                           {/* Status badge/selector */}
-                          {isMesa ? (
+                          {canEdit ? (
                             <Select
                               value={item.status}
                               onValueChange={(val) => handleUpdateStatus(item.id, val)}
@@ -453,7 +453,7 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
                           <div className="flex-1" />
 
                           {/* Actions (Mesa only) */}
-                          {isMesa && (
+                          {canEdit && (
                             <div className="flex items-center gap-0.5">
                               {/* Move between Questões ↔ Fatos */}
                               {(section === "questoes" || section === "fatos") && (

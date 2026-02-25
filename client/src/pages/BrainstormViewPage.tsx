@@ -89,7 +89,7 @@ function BrainstormViewContent() {
         sessionId={sessionId}
         studentId={0}
         sessionLabel=""
-        isMesa={false}
+        canEdit={true}
         onBack={() => navigate("/sessions")}
       />
 
