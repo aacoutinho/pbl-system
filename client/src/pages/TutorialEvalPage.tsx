@@ -221,7 +221,7 @@ function TutorialEvalContent() {
   }, [selectedSessionId, effectiveSessions]);
 
   const canEvaluateSelected = selectedSession
-    ? selectedSession.evalPermission !== "no_permission" && selectedSession.evalPermission !== "admin"
+    ? selectedSession.evalPermission !== "no_permission"
     : false;
 
   const sessionIdNum = selectedSessionId ? parseInt(selectedSessionId) : 0;
@@ -592,14 +592,7 @@ function TutorialEvalContent() {
             </div>
           )}
 
-          {selectedSession && selectedSession.evalPermission === "admin" && (
-            <div className="mt-4 flex items-start gap-2 p-3 rounded-lg bg-gray-50 border border-gray-200 text-sm text-gray-700">
-              <Info className="h-4 w-4 mt-0.5 shrink-0" />
-              <p>
-                Administradores podem visualizar as avaliações, mas não podem avaliar sessões tutoriais diretamente.
-              </p>
-            </div>
-          )}
+
         </CardContent>
       </Card>
 

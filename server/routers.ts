@@ -1355,7 +1355,7 @@ export const appRouter = router({
   }),
 
   // ─── Tutorial Evaluation (professor evaluates session) ───
-  // Only coordinator/prof of the component can evaluate (NOT admin)
+  // Coordinator/prof of the component or admin can evaluate
   tutorialEval: router({
     submit: professorProcedure.input(z.object({
       sessionId: z.number(),
@@ -1365,10 +1365,6 @@ export const appRouter = router({
       objetivo: z.number().min(0).max(1),
       metas: z.number().min(0).max(1),
     })).mutation(async ({ ctx, input }) => {
-      // Admin doesn't evaluate tutorials
-      if (ctx.user.role === "admin") {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Administradores não avaliam sessões tutoriais" });
-      }
       const session = await getSessionById(input.sessionId);
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
       // Professor pode avaliar a qualquer momento (sessão aberta, fechada ou iniciada)
@@ -1376,8 +1372,8 @@ export const appRouter = router({
       const cls = await getClassById(session.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);
-      // If not the class owner and not coordinator of component, check eval permission
-      if (cls.professorUserId !== ctx.user.id) {
+      // Admin can always evaluate; otherwise check permissions
+      if ((ctx.user as any).role !== "admin" && cls.professorUserId !== ctx.user.id) {
         const compRole = await getUserComponentRole(ctx.user.id, cls.componentId);
         if (compRole !== "coordinator") {
           const permitted = await hasEvalPermission(cls.id, ctx.user.id);
@@ -1404,7 +1400,7 @@ export const appRouter = router({
     }),
     // Check if current user can evaluate a specific session
     canEvaluate: professorProcedure.input(z.object({ sessionId: z.number() })).query(async ({ ctx, input }) => {
-      if (ctx.user.role === "admin") return { canEvaluate: false, reason: "admin" };
+      if (ctx.user.role === "admin") return { canEvaluate: true, reason: "admin" };
       const session = await getSessionById(input.sessionId);
       if (!session) return { canEvaluate: false, reason: "session_not_found" };
       const cls = await getClassById(session.classId);
