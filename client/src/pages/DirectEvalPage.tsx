@@ -355,7 +355,7 @@ function EvaluationForm({ studentInfo, sessionInfo, onDone }: {
                 <div className="space-y-2 pt-2 border-t border-dashed">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Label className="text-sm font-medium">Desempenho como {roleLabels[peer.role as RoleType]}</Label>
+                      <Label className="text-sm font-medium">Desempenho no Papel</Label>
                       <span className="text-[10px] text-muted-foreground">(Penalidade até -1)</span>
                       <TooltipProvider>
                         <Tooltip>
