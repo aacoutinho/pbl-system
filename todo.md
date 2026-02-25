@@ -450,3 +450,4 @@
 - [x] Alterar label de penalidade para "Desempenho no Papel" (fixo, sem nome do papel específico) em todos os formulários e prévia
 - [x] Alterar sublabel do Desempenho no Papel de "Penalidade (até -1)" para "Penalidade: até -1" em todos os formulários e prévia
 - [x] Ajustar quadro de avaliação do tutor nos resultados por sessão com colunas: Critério, Nota, Peso, Pontuação
+- [x] Adicionar coluna de nota normalizada (máximo 10) na tabela de resultados dos alunos por sessão

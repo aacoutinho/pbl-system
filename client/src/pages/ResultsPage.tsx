@@ -429,6 +429,7 @@ function ResultsContent() {
                             <th className="pb-3 pr-4 font-semibold">Papel</th>
                             <th className="pb-3 pr-4 font-semibold text-center">Média Pares</th>
                             {tutorialEval && <th className="pb-3 pr-4 font-semibold text-center">Nota Final</th>}
+                            {tutorialEval && <th className="pb-3 pr-4 font-semibold text-center">Nota Normalizada</th>}
                             <th className="pb-3 font-semibold text-center">Status</th>
                           </tr>
                         </thead>
@@ -455,8 +456,15 @@ function ResultsContent() {
                               </td>
                               {tutorialEval && (
                                 <td className="py-3 pr-4 text-center">
-                                  <span className={`font-bold text-base ${r.absent ? "text-muted-foreground" : r.finalGrade >= 8 ? "text-emerald-600" : r.finalGrade >= 5 ? "text-amber-600" : "text-red-600"}`}>
+                                  <span className={`font-medium ${r.absent ? "text-muted-foreground" : r.finalGrade >= 8 ? "text-emerald-600" : r.finalGrade >= 5 ? "text-amber-600" : "text-red-600"}`}>
                                     {r.finalGrade.toFixed(1)}
+                                  </span>
+                                </td>
+                              )}
+                              {tutorialEval && (
+                                <td className="py-3 pr-4 text-center">
+                                  <span className={`font-bold text-base ${r.absent ? "text-muted-foreground" : Math.min(r.finalGrade, 10) >= 8 ? "text-emerald-600" : Math.min(r.finalGrade, 10) >= 5 ? "text-amber-600" : "text-red-600"}`}>
+                                    {Math.min(r.finalGrade, 10).toFixed(1)}
                                   </span>
                                 </td>
                               )}
