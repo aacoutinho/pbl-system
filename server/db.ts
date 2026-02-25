@@ -22,6 +22,8 @@ import {
   contactTickets,
   professorStudentNotes,
   sessionAccessTokens,
+  brainstormBoards, InsertBrainstormBoard, BrainstormBoard,
+  brainstormItems, InsertBrainstormItem, BrainstormItem,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -2254,6 +2256,8 @@ const BACKUP_TABLES = [
   { name: "contactTickets", table: contactTickets },
   { name: "professorStudentNotes", table: professorStudentNotes },
   { name: "sessionAccessTokens", table: sessionAccessTokens },
+  { name: "brainstormBoards", table: brainstormBoards },
+  { name: "brainstormItems", table: brainstormItems },
 ] as const;
 
 // Tables to clear in reverse order (children first, parents last) to avoid FK issues
@@ -2493,6 +2497,7 @@ export async function getOpenSessionsForStudent(studentId: number) {
     componentName: components.name,
     semester: classes.semester,
     accessCode: sessions.accessCode,
+    studentRole: sessionStudents.role,
   })
     .from(sessionStudents)
     .innerJoin(sessions, eq(sessionStudents.sessionId, sessions.id))
@@ -2751,4 +2756,246 @@ export async function getRoleSummaryByClass(classId: number) {
   }
 
   return Array.from(summaryMap.values()).sort((a, b) => a.studentName.localeCompare(b.studentName));
+}
+
+
+// ─── Brainstorm Board helpers ───
+
+export async function getOrCreateBrainstormBoard(sessionId: number, mesaStudentId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+
+  const [existing] = await db.select().from(brainstormBoards)
+    .where(eq(brainstormBoards.sessionId, sessionId))
+    .limit(1);
+
+  if (existing) return existing;
+
+  const [result] = await db.insert(brainstormBoards).values({ sessionId, mesaStudentId }).$returningId();
+  return { id: result.id, sessionId, mesaStudentId, createdAt: new Date(), updatedAt: new Date() };
+}
+
+export async function getBrainstormBoard(sessionId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const [board] = await db.select().from(brainstormBoards)
+    .where(eq(brainstormBoards.sessionId, sessionId))
+    .limit(1);
+
+  return board ?? null;
+}
+
+export async function getBrainstormItems(boardId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db.select().from(brainstormItems)
+    .where(eq(brainstormItems.boardId, boardId))
+    .orderBy(brainstormItems.section, brainstormItems.sortOrder, brainstormItems.createdAt);
+}
+
+export async function addBrainstormItem(data: {
+  boardId: number;
+  section: "ideias" | "fatos" | "questoes" | "metas";
+  content: string;
+  status: string;
+  attachmentUrl?: string | null;
+  attachmentType?: "link" | "image" | "video" | "photo" | null;
+  sortOrder?: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+
+  // Get max sortOrder for this section
+  const [maxRow] = await db.select({ maxOrder: sql<number>`COALESCE(MAX(${brainstormItems.sortOrder}), -1)` })
+    .from(brainstormItems)
+    .where(and(
+      eq(brainstormItems.boardId, data.boardId),
+      eq(brainstormItems.section, data.section),
+    ));
+
+  const sortOrder = data.sortOrder ?? ((maxRow?.maxOrder ?? -1) + 1);
+
+  const [result] = await db.insert(brainstormItems).values({
+    boardId: data.boardId,
+    section: data.section,
+    content: data.content,
+    status: data.status,
+    attachmentUrl: data.attachmentUrl ?? null,
+    attachmentType: data.attachmentType ?? null,
+    sortOrder,
+  }).$returningId();
+
+  return { id: result.id, ...data, sortOrder };
+}
+
+export async function updateBrainstormItem(itemId: number, data: {
+  content?: string;
+  status?: string;
+  section?: "ideias" | "fatos" | "questoes" | "metas";
+  attachmentUrl?: string | null;
+  attachmentType?: "link" | "image" | "video" | "photo" | null;
+  sortOrder?: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+
+  const updateData: Record<string, unknown> = {};
+  if (data.content !== undefined) updateData.content = data.content;
+  if (data.status !== undefined) updateData.status = data.status;
+  if (data.section !== undefined) updateData.section = data.section;
+  if (data.attachmentUrl !== undefined) updateData.attachmentUrl = data.attachmentUrl;
+  if (data.attachmentType !== undefined) updateData.attachmentType = data.attachmentType;
+  if (data.sortOrder !== undefined) updateData.sortOrder = data.sortOrder;
+
+  if (Object.keys(updateData).length > 0) {
+    await db.update(brainstormItems).set(updateData as any).where(eq(brainstormItems.id, itemId));
+  }
+
+  const [updated] = await db.select().from(brainstormItems).where(eq(brainstormItems.id, itemId)).limit(1);
+  return updated;
+}
+
+export async function deleteBrainstormItem(itemId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(brainstormItems).where(eq(brainstormItems.id, itemId));
+}
+
+export async function moveBrainstormItem(itemId: number, targetSection: "fatos" | "questoes") {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+
+  // Get current item
+  const [item] = await db.select().from(brainstormItems).where(eq(brainstormItems.id, itemId)).limit(1);
+  if (!item) throw new Error("Item not found");
+
+  // Only allow moving between questoes and fatos
+  if ((item.section !== "questoes" && item.section !== "fatos") || (targetSection !== "questoes" && targetSection !== "fatos")) {
+    throw new Error("Can only move items between Questões and Fatos");
+  }
+
+  // Set default status for target section
+  const defaultStatus = targetSection === "fatos" ? "verificar" : "duvida";
+
+  // Get max sortOrder in target section
+  const [maxRow] = await db.select({ maxOrder: sql<number>`COALESCE(MAX(${brainstormItems.sortOrder}), -1)` })
+    .from(brainstormItems)
+    .where(and(
+      eq(brainstormItems.boardId, item.boardId),
+      eq(brainstormItems.section, targetSection),
+    ));
+
+  await db.update(brainstormItems).set({
+    section: targetSection,
+    status: defaultStatus,
+    sortOrder: (maxRow?.maxOrder ?? -1) + 1,
+  }).where(eq(brainstormItems.id, itemId));
+
+  const [updated] = await db.select().from(brainstormItems).where(eq(brainstormItems.id, itemId)).limit(1);
+  return updated;
+}
+
+export async function getBrainstormBoardWithItems(sessionId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const board = await getBrainstormBoard(sessionId);
+  if (!board) {
+    // Even if no board, return session label for display
+    const [session] = await db.select({ label: sessions.label }).from(sessions).where(eq(sessions.id, sessionId)).limit(1);
+    return { id: 0, sessionId, mesaStudentId: 0, sessionLabel: session?.label || '', items: [], createdAt: new Date(), updatedAt: new Date(), noBoard: true };
+  }
+
+  const items = await getBrainstormItems(board.id);
+  const [session] = await db.select({ label: sessions.label }).from(sessions).where(eq(sessions.id, sessionId)).limit(1);
+  return { ...board, sessionLabel: session?.label || '', items };
+}
+
+export async function getComponentSessionsForSharing(sessionId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  // sessions -> classes -> componentId
+  const [sourceInfo] = await db.select({
+    componentId: classes.componentId,
+  }).from(sessions)
+    .innerJoin(classes, eq(sessions.classId, classes.id))
+    .where(eq(sessions.id, sessionId)).limit(1);
+
+  if (!sourceInfo) return [];
+
+  const allSessions = await db.select({
+    id: sessions.id,
+    label: sessions.label,
+    status: sessions.status,
+  }).from(sessions)
+    .innerJoin(classes, eq(sessions.classId, classes.id))
+    .where(and(
+      eq(classes.componentId, sourceInfo.componentId),
+      sql`${sessions.id} != ${sessionId}`
+    ));
+
+  const result = [];
+  for (const s of allSessions) {
+    const board = await getBrainstormBoard(s.id);
+    result.push({ ...s, hasBoard: !!board });
+  }
+  return result;
+}
+
+export async function shareBrainstormBoard(sessionId: number, targetSessionIds?: number[]) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+
+  // Get source board
+  const sourceBoard = await getBrainstormBoardWithItems(sessionId);
+  if (!sourceBoard || (sourceBoard as any).noBoard) {
+    throw new Error("Quadro de brainstorming não encontrado para esta sessão");
+  }
+
+  // sessions -> classes -> componentId
+  const [sourceInfo] = await db.select({
+    componentId: classes.componentId,
+  }).from(sessions)
+    .innerJoin(classes, eq(sessions.classId, classes.id))
+    .where(eq(sessions.id, sessionId)).limit(1);
+
+  if (!sourceInfo) throw new Error("Sessão não encontrada");
+
+  // Get target sessions
+  let targetIds = targetSessionIds;
+  if (!targetIds || targetIds.length === 0) {
+    const allSessions = await db.select({ id: sessions.id }).from(sessions)
+      .innerJoin(classes, eq(sessions.classId, classes.id))
+      .where(and(
+        eq(classes.componentId, sourceInfo.componentId),
+        sql`${sessions.id} != ${sessionId}`
+      ));
+    targetIds = allSessions.map(s => s.id);
+  }
+
+  let sharedCount = 0;
+  for (const targetSessionId of targetIds) {
+    const existingBoard = await getBrainstormBoard(targetSessionId);
+    if (existingBoard) continue;
+
+    const newBoard = await getOrCreateBrainstormBoard(targetSessionId, sourceBoard.mesaStudentId);
+
+    for (const item of sourceBoard.items) {
+      await addBrainstormItem({
+        boardId: newBoard.id,
+        section: item.section as "ideias" | "fatos" | "questoes" | "metas",
+        content: item.content,
+        status: item.status,
+        attachmentUrl: item.attachmentUrl,
+        attachmentType: item.attachmentType as "link" | "image" | "video" | "photo" | null,
+        sortOrder: item.sortOrder,
+      });
+    }
+    sharedCount++;
+  }
+
+  return { sharedCount, totalTargets: targetIds.length };
 }

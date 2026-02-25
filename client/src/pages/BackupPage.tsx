@@ -28,6 +28,8 @@ const TABLE_LABELS: Record<string, string> = {
   contactTickets: "Tickets de Contato",
   professorStudentNotes: "Notas do Professor por Aluno",
   sessionAccessTokens: "Tokens de Acesso por Sessão",
+  brainstormBoards: "Quadros de Brainstorming",
+  brainstormItems: "Itens de Brainstorming",
 };
 
 export { TABLE_LABELS };

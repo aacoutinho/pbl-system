@@ -353,10 +353,12 @@ describe("Table label mapping", () => {
     contactTickets: "Tickets de Contato",
     professorStudentNotes: "Notas do Professor por Aluno",
     sessionAccessTokens: "Tokens de Acesso por Sessão",
+    brainstormBoards: "Quadros de Brainstorming",
+    brainstormItems: "Itens de Brainstorming",
   };
 
-  it("has labels for all 21 backup tables", () => {
-    expect(Object.keys(TABLE_LABELS)).toHaveLength(21);
+  it("has labels for all 23 backup tables", () => {
+    expect(Object.keys(TABLE_LABELS)).toHaveLength(23);
   });
 
   it("all labels are non-empty strings in Portuguese", () => {
@@ -658,6 +660,8 @@ describe("Schema-backup alignment", () => {
     "contactTickets",
     "professorStudentNotes",
     "sessionAccessTokens",
+    "brainstormBoards",
+    "brainstormItems",
   ];
 
   const BACKUP_TABLES = [
@@ -682,11 +686,13 @@ describe("Schema-backup alignment", () => {
     "contactTickets",
     "professorStudentNotes",
     "sessionAccessTokens",
+    "brainstormBoards",
+    "brainstormItems",
   ];
 
-  it("schema and backup have the same number of tables (21)", () => {
-    expect(SCHEMA_TABLES).toHaveLength(21);
-    expect(BACKUP_TABLES).toHaveLength(21);
+  it("schema and backup have the same number of tables (23)", () => {
+    expect(SCHEMA_TABLES).toHaveLength(23);
+    expect(BACKUP_TABLES).toHaveLength(23);
   });
 
   it("every schema table is included in backup", () => {

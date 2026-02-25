@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Lock, Unlock, Trash2, ClipboardList, Users, Eye, BookOpen, RotateCcw, CheckCircle2, Clock, FileSearch, AlertTriangle, Mail, Send, Pencil } from "lucide-react";
+import { Plus, Lock, Unlock, Trash2, ClipboardList, Users, Eye, BookOpen, RotateCcw, CheckCircle2, Clock, FileSearch, AlertTriangle, Mail, Send, Pencil, Lightbulb } from "lucide-react";
 import { EvaluationPreviewDialog } from "@/components/EvaluationPreview";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -530,6 +530,7 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onDele
   onDelete: () => void;
   onViewResults: () => void;
 }) {
+  const [, navigate] = useLocation();
   const utils = trpc.useUtils();
   const { data: status } = trpc.sessions.submissionStatus.useQuery({ sessionId: session.id });
   const submitted = status?.filter(s => s.submitted).length ?? 0;
@@ -692,6 +693,16 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onDele
             title="Reenviar e-mails aos alunos"
           >
             <Mail className="h-4 w-4" />
+          </Button>
+        )}
+        {(session.status === "initiated" || session.status === "open" || session.status === "closed" || session.status === "finished") && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(`/brainstorm/${session.id}`)}
+            title="Ver Quadro de Brainstorming"
+          >
+            <Lightbulb className="h-4 w-4" />
           </Button>
         )}
 

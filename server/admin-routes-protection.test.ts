@@ -290,10 +290,12 @@ describe("Backup and Restore page separation", () => {
       contactTickets: "Tickets de Contato",
       professorStudentNotes: "Notas do Professor por Aluno",
       sessionAccessTokens: "Tokens de Acesso por Sessão",
+      brainstormBoards: "Quadros de Brainstorming",
+      brainstormItems: "Itens de Brainstorming",
     };
 
-    it("TABLE_LABELS has 21 entries for all tables", () => {
-      expect(Object.keys(TABLE_LABELS)).toHaveLength(21);
+    it("TABLE_LABELS has 23 entries for all tables", () => {
+      expect(Object.keys(TABLE_LABELS)).toHaveLength(23);
     });
 
     it("all labels are non-empty Portuguese strings", () => {

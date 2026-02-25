@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { LogIn, Send, CheckCircle2, AlertTriangle, ArrowLeft, BookOpen, HelpCircle, Camera, Mail, ShieldCheck, Upload, ClipboardList, Clock, GraduationCap, User, History, Users, KeyRound, RefreshCw, LogOut, Edit } from "lucide-react";
+import { LogIn, Send, CheckCircle2, AlertTriangle, ArrowLeft, BookOpen, HelpCircle, Camera, Mail, ShieldCheck, Upload, ClipboardList, Clock, GraduationCap, User, History, Users, KeyRound, RefreshCw, LogOut, Edit, Lightbulb } from "lucide-react";
+import BrainstormBoardPage from "./BrainstormBoardPage";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useMemo, useRef } from "react";
 import { resizeImageToSquare, base64SizeKB } from "@/lib/resizeImage";
@@ -29,7 +30,8 @@ interface StudentEval {
 // login → (has email) → verifyCode → dashboard
 // dashboard → evaluate → done → dashboard
 // dashboard → editProfile → dashboard
-type Step = "login" | "setupProfile" | "verifySetupEmail" | "verifyCode" | "dashboard" | "editProfile" | "evaluate" | "done";
+// dashboard → brainstorm → dashboard
+type Step = "login" | "setupProfile" | "verifySetupEmail" | "verifyCode" | "dashboard" | "editProfile" | "evaluate" | "done" | "brainstorm";
 
 interface LoginData {
   studentId: number;
@@ -58,6 +60,7 @@ interface SelectedSession {
   componentCode: string;
   componentName: string;
   semester: string;
+  studentRole?: string;
 }
 
 export default function StudentAccessPage() {
@@ -66,6 +69,7 @@ export default function StudentAccessPage() {
   const [loginData, setLoginData] = useState<LoginData | null>(null);
   const [authData, setAuthData] = useState<AuthenticatedData | null>(null);
   const [selectedSession, setSelectedSession] = useState<SelectedSession | null>(null);
+  const [brainstormSession, setBrainstormSession] = useState<{ sessionId: number; sessionLabel: string; isMesa: boolean } | null>(null);
 
   // Step 1: Login by enrollment
   const loginMutation = trpc.studentAccess.loginByEnrollment.useMutation({
@@ -251,6 +255,19 @@ export default function StudentAccessPage() {
     );
   }
 
+  // ─── Step: Brainstorm ───
+  if (step === "brainstorm" && authData && brainstormSession) {
+    return (
+      <BrainstormBoardPage
+        sessionId={brainstormSession.sessionId}
+        studentId={authData.studentId}
+        sessionLabel={brainstormSession.sessionLabel}
+        isMesa={brainstormSession.isMesa}
+        onBack={() => { setBrainstormSession(null); setStep("dashboard"); }}
+      />
+    );
+  }
+
   // ─── Step: Dashboard ───
   if (step === "dashboard" && authData) {
     return (
@@ -258,6 +275,10 @@ export default function StudentAccessPage() {
         <StudentDashboard
           authData={authData}
           onSelectSession={handleSelectSession}
+          onOpenBrainstorm={(sessionId, sessionLabel, isMesa) => {
+            setBrainstormSession({ sessionId, sessionLabel, isMesa });
+            setStep("brainstorm");
+          }}
           onEditProfile={() => setStep("editProfile")}
           onLogout={handleLogout}
         />
@@ -875,9 +896,10 @@ function EditProfileScreen({ studentId, studentName, currentEmail, currentPhotoU
 }
 
 // ─── Student Dashboard Component ───
-function StudentDashboard({ authData, onSelectSession, onEditProfile, onLogout }: {
+function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditProfile, onLogout }: {
   authData: AuthenticatedData;
   onSelectSession: (session: SelectedSession) => void;
+  onOpenBrainstorm: (sessionId: number, sessionLabel: string, isMesa: boolean) => void;
   onEditProfile: () => void;
   onLogout: () => void;
 }) {
@@ -952,9 +974,9 @@ function StudentDashboard({ authData, onSelectSession, onEditProfile, onLogout }
         ) : (
           <div className="space-y-2">
             {pendingSessions.map(s => (
-              <Card key={s.sessionId} className="border-amber-200 hover:border-amber-300 cursor-pointer transition-colors" onClick={() => onSelectSession(s as any)}>
+              <Card key={s.sessionId} className="border-amber-200 hover:border-amber-300 transition-colors">
                 <CardContent className="py-3">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between cursor-pointer" onClick={() => onSelectSession(s as any)}>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm">{s.sessionLabel}</p>
                       <p className="text-xs text-muted-foreground">{s.componentCode} - {s.classCode} ({s.semester})</p>
@@ -962,6 +984,20 @@ function StudentDashboard({ authData, onSelectSession, onEditProfile, onLogout }
                     <Badge variant="outline" className="border-amber-300 text-amber-700 shrink-0">
                       <Clock className="h-3 w-3 mr-1" /> Pendente
                     </Badge>
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenBrainstorm(s.sessionId, s.sessionLabel, (s as any).studentRole === "MESA");
+                      }}
+                    >
+                      <Lightbulb className="h-3 w-3 mr-1" />
+                      {(s as any).studentRole === "MESA" ? "Editar Brainstorming" : "Ver Brainstorming"}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>

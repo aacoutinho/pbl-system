@@ -23,6 +23,7 @@ import ContactPage from "./pages/ContactPage";
 import BackupPage from "./pages/BackupPage";
 import RestorePage from "./pages/RestorePage";
 import DirectEvalPage from "./pages/DirectEvalPage";
+import BrainstormViewPage from "./pages/BrainstormViewPage";
 
 function Router() {
   return (
@@ -45,6 +46,7 @@ function Router() {
       <Route path={"/contact"} component={ContactPage} />
       <Route path={"/backup"} component={BackupPage} />
       <Route path={"/restauracao"} component={RestorePage} />
+      <Route path={"/brainstorm/:sessionId"} component={BrainstormViewPage} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

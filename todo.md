@@ -463,3 +463,14 @@
 - [x] Verificar compatibilidade das funções de backup e restauração com o esquema atual do banco - OK, corrigido TABLE_LABELS no backup.test.ts (faltava professorStudentNotes, contagem era 20 em vez de 21)
 - [x] Permitir que o admin também possa avaliar tutoriais (mesma funcionalidade dos professores)
 - [x] Bug: admin não vê a opção Avaliar Tutorial no menu/sidebar - corrigido: adicionado tutorialEvalItem ao menu do admin no DashboardLayout
+- [x] Verificação completa de compatibilidade entre schema do banco, funções de backup/restauração, BACKUP_TABLES, TABLE_LABELS e testes - TUDO OK, sem inconsistências
+- [x] Quadro de Brainstorming: criar tabelas no schema (brainstormBoards, brainstormItems)
+- [x] Quadro de Brainstorming: 4 seções (Ideias, Fatos, Questões, Metas) com lista de itens individuais
+- [x] Quadro de Brainstorming: estados por tipo (Ideias: análise/aceita/descartada; Fatos: verificar/confirmado/inexato; Questões: dúvida/investigação/respondida; Metas: planejada/em andamento/concluída)
+- [x] Quadro de Brainstorming: movimentação de itens entre Questões e Fatos
+- [x] Quadro de Brainstorming: suporte a links (sites, imagens, vídeos) e upload de foto do celular
+- [x] Quadro de Brainstorming: editável apenas pelo aluno Mesa, visível para todos os alunos da sessão e professor
+- [x] Quadro de Brainstorming: preenchimento durante sessão iniciada ou aberta
+- [x] Quadro de Brainstorming: visualização nos resultados da sessão e exportação CSV
+- [x] Quadro de Brainstorming: compartilhamento do quadro para alunos de todos ou qualquer tutorial do mesmo componente
+- [x] Quadro de Brainstorming: atualizar BACKUP_TABLES e TABLE_LABELS com novas tabelas (23 tabelas total)

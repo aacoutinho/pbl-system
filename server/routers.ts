@@ -48,6 +48,10 @@ import {
   generateSessionTokenForStudent, getSessionByStudentToken, deleteSessionTokens, getTokensForSession,
   updateSessionAssignments,
   getRoleSummaryByClass,
+  getOrCreateBrainstormBoard, getBrainstormBoard, getBrainstormItems,
+  addBrainstormItem, updateBrainstormItem, deleteBrainstormItem,
+  moveBrainstormItem, getBrainstormBoardWithItems,
+  shareBrainstormBoard, getComponentSessionsForSharing,
 } from "./db";
 import { storagePut } from "./storage";
 import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml, buildContactTicketEmailHtml, buildSessionOpenedEmailHtml, buildStudentGradeReportHtml } from "./email";
@@ -2281,6 +2285,111 @@ export const appRouter = router({
         // audit log table may not accept inserts right after rebuild
       }
       return result;
+    }),
+  }),
+
+  // ─── Brainstorm Board (digital whiteboard per session) ───
+  brainstorm: router({
+    // Get or create board for a session (Mesa student)
+    getOrCreateBoard: publicProcedure.input(z.object({
+      sessionId: z.number(),
+      studentId: z.number(),
+    })).mutation(async ({ input }) => {
+      return getOrCreateBrainstormBoard(input.sessionId, input.studentId);
+    }),
+
+    // Get board with all items (read-only, for any viewer)
+    getBoard: publicProcedure.input(z.object({
+      sessionId: z.number(),
+    })).query(async ({ input }) => {
+      return getBrainstormBoardWithItems(input.sessionId);
+    }),
+
+    // Add item to a section
+    addItem: publicProcedure.input(z.object({
+      boardId: z.number(),
+      section: z.enum(["ideias", "fatos", "questoes", "metas"]),
+      content: z.string().min(1),
+      status: z.string().optional(),
+      attachmentUrl: z.string().nullable().optional(),
+      attachmentType: z.enum(["link", "image", "video", "photo"]).nullable().optional(),
+    })).mutation(async ({ input }) => {
+      // Set default status based on section
+      const defaultStatuses: Record<string, string> = {
+        ideias: "analise",
+        fatos: "verificar",
+        questoes: "duvida",
+        metas: "planejada",
+      };
+      const status = input.status || defaultStatuses[input.section] || "default";
+      return addBrainstormItem({
+        boardId: input.boardId,
+        section: input.section,
+        content: input.content,
+        status,
+        attachmentUrl: input.attachmentUrl,
+        attachmentType: input.attachmentType,
+      });
+    }),
+
+    // Update an item (content, status, attachment)
+    updateItem: publicProcedure.input(z.object({
+      itemId: z.number(),
+      content: z.string().optional(),
+      status: z.string().optional(),
+      attachmentUrl: z.string().nullable().optional(),
+      attachmentType: z.enum(["link", "image", "video", "photo"]).nullable().optional(),
+    })).mutation(async ({ input }) => {
+      const { itemId, ...data } = input;
+      return updateBrainstormItem(itemId, data);
+    }),
+
+    // Delete an item
+    deleteItem: publicProcedure.input(z.object({
+      itemId: z.number(),
+    })).mutation(async ({ input }) => {
+      await deleteBrainstormItem(input.itemId);
+      return { success: true };
+    }),
+
+    // Move item between Questões and Fatos
+    moveItem: publicProcedure.input(z.object({
+      itemId: z.number(),
+      targetSection: z.enum(["fatos", "questoes"]),
+    })).mutation(async ({ input }) => {
+      return moveBrainstormItem(input.itemId, input.targetSection);
+    }),
+
+    // Upload photo attachment (from Mesa student's phone)
+    uploadPhoto: publicProcedure.input(z.object({
+      fileName: z.string(),
+      fileBase64: z.string(),
+      contentType: z.string().default("image/jpeg"),
+    })).mutation(async ({ input }) => {
+      const buffer = Buffer.from(input.fileBase64, "base64");
+      const suffix = Math.random().toString(36).substring(2, 10);
+      const key = `brainstorm-photos/${Date.now()}-${suffix}-${input.fileName}`;
+      const { url } = await storagePut(key, buffer, input.contentType);
+      return { url };
+    }),
+
+    // Share board with all sessions of the same component
+    shareBoard: protectedProcedure.input(z.object({
+      sessionId: z.number(),
+      targetSessionIds: z.array(z.number()).optional(),
+    })).mutation(async ({ input }) => {
+      try {
+        return await shareBrainstormBoard(input.sessionId, input.targetSessionIds);
+      } catch (e: any) {
+        throw new TRPCError({ code: "NOT_FOUND", message: e.message || "Erro ao compartilhar quadro" });
+      }
+    }),
+
+    // Get all sessions of the same component (for sharing UI)
+    getComponentSessions: protectedProcedure.input(z.object({
+      sessionId: z.number(),
+    })).query(async ({ input }) => {
+      return getComponentSessionsForSharing(input.sessionId);
     }),
   }),
 });

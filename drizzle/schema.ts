@@ -310,3 +310,37 @@ export const sessionAccessTokens = mysqlTable("session_access_tokens", {
 
 export type SessionAccessToken = typeof sessionAccessTokens.$inferSelect;
 export type InsertSessionAccessToken = typeof sessionAccessTokens.$inferInsert;
+
+// ─── Brainstorm Boards (digital whiteboard per session, filled by Mesa student) ───
+export const brainstormBoards = mysqlTable("brainstorm_boards", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull().unique(), // One board per session
+  mesaStudentId: int("mesaStudentId").notNull(), // The student with role MESA who edits
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type BrainstormBoard = typeof brainstormBoards.$inferSelect;
+export type InsertBrainstormBoard = typeof brainstormBoards.$inferInsert;
+
+// ─── Brainstorm Items (individual items in each section of the board) ───
+export const brainstormItems = mysqlTable("brainstorm_items", {
+  id: int("id").autoincrement().primaryKey(),
+  boardId: int("boardId").notNull(), // References brainstormBoards.id
+  section: mysqlEnum("section", ["ideias", "fatos", "questoes", "metas"]).notNull(),
+  content: text("content").notNull(), // The text content of the item
+  // Status depends on section:
+  // ideias: analise, aceita, descartada
+  // fatos: verificar, confirmado, inexato
+  // questoes: duvida, investigacao, respondida
+  // metas: planejada, em_andamento, concluida
+  status: varchar("status", { length: 32 }).default("default").notNull(),
+  attachmentUrl: varchar("attachmentUrl", { length: 1024 }), // Link to site, image, video, or uploaded photo
+  attachmentType: mysqlEnum("attachmentType", ["link", "image", "video", "photo"]), // Type of attachment
+  sortOrder: int("sortOrder").default(0).notNull(), // For ordering items within a section
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type BrainstormItem = typeof brainstormItems.$inferSelect;
+export type InsertBrainstormItem = typeof brainstormItems.$inferInsert;

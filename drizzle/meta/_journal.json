@@ -190,6 +190,13 @@
       "when": 1771991617993,
       "tag": "0026_abandoned_rictor",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "5",
+      "when": 1772022967898,
+      "tag": "0027_woozy_lord_tyger",
+      "breakpoints": true
     }
   ]
 }
