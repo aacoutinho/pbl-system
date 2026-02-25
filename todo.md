@@ -460,3 +460,4 @@
 - [x] Remover campo de anotações privadas do quadro de cada aluno
 - [x] Colocar nome do aluno ao lado da foto no quadro de anotações
 - [x] Bug: foto do aluno não aparece no quadro de anotações da avaliação tutorial - corrigido: campos eram studentPhotoUrl e studentName (não photoUrl e name)
+- [x] Verificar compatibilidade das funções de backup e restauração com o esquema atual do banco - OK, corrigido TABLE_LABELS no backup.test.ts (faltava professorStudentNotes, contagem era 20 em vez de 21)

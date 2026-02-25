@@ -351,11 +351,12 @@ describe("Table label mapping", () => {
     auditLogs: "Histórico de Ações",
     notifications: "Notificações",
     contactTickets: "Tickets de Contato",
+    professorStudentNotes: "Notas do Professor por Aluno",
     sessionAccessTokens: "Tokens de Acesso por Sessão",
   };
 
-  it("has labels for all 20 backup tables", () => {
-    expect(Object.keys(TABLE_LABELS)).toHaveLength(20);
+  it("has labels for all 21 backup tables", () => {
+    expect(Object.keys(TABLE_LABELS)).toHaveLength(21);
   });
 
   it("all labels are non-empty strings in Portuguese", () => {
