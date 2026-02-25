@@ -811,15 +811,17 @@ export async function finishSession(id: number) {
 export async function deleteSession(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const evals = await db.select({ id: evaluations.id }).from(evaluations).where(eq(evaluations.sessionId, id));
-  if (evals.length > 0) {
-    const evalIds = evals.map(e => e.id);
-    await db.delete(evaluationItems).where(inArray(evaluationItems.evaluationId, evalIds));
-    await db.delete(evaluations).where(eq(evaluations.sessionId, id));
-  }
-  await db.delete(tutorialEvaluations).where(eq(tutorialEvaluations.sessionId, id));
-  await db.delete(sessionStudents).where(eq(sessionStudents.sessionId, id));
-  await db.delete(sessions).where(eq(sessions.id, id));
+  await db.transaction(async (tx) => {
+    const evals = await tx.select({ id: evaluations.id }).from(evaluations).where(eq(evaluations.sessionId, id));
+    if (evals.length > 0) {
+      const evalIds = evals.map(e => e.id);
+      await tx.delete(evaluationItems).where(inArray(evaluationItems.evaluationId, evalIds));
+      await tx.delete(evaluations).where(eq(evaluations.sessionId, id));
+    }
+    await tx.delete(tutorialEvaluations).where(eq(tutorialEvaluations.sessionId, id));
+    await tx.delete(sessionStudents).where(eq(sessionStudents.sessionId, id));
+    await tx.delete(sessions).where(eq(sessions.id, id));
+  });
 }
 
 export async function updateSessionAssignments(sessionId: number, assignments: Array<{ studentId: number; role: "COORDENADOR" | "MESA" | "QUADRO" | "PARTICIPANTE"; absent: boolean }>) {
@@ -852,36 +854,38 @@ export async function submitEvaluation(data: {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
 
-  const existing = await db.select().from(evaluations)
-    .where(and(eq(evaluations.sessionId, data.sessionId), eq(evaluations.evaluatorStudentId, data.evaluatorStudentId)))
-    .limit(1);
-  if (existing.length > 0) {
-    await db.delete(evaluationItems).where(eq(evaluationItems.evaluationId, existing[0].id));
-    await db.delete(evaluations).where(eq(evaluations.id, existing[0].id));
-  }
+  return db.transaction(async (tx) => {
+    const existing = await tx.select().from(evaluations)
+      .where(and(eq(evaluations.sessionId, data.sessionId), eq(evaluations.evaluatorStudentId, data.evaluatorStudentId)))
+      .limit(1);
+    if (existing.length > 0) {
+      await tx.delete(evaluationItems).where(eq(evaluationItems.evaluationId, existing[0].id));
+      await tx.delete(evaluations).where(eq(evaluations.id, existing[0].id));
+    }
 
-  const [result] = await db.insert(evaluations).values({
-    sessionId: data.sessionId,
-    evaluatorStudentId: data.evaluatorStudentId,
-  }).$returningId();
-  const evaluationId = result.id;
+    const [result] = await tx.insert(evaluations).values({
+      sessionId: data.sessionId,
+      evaluatorStudentId: data.evaluatorStudentId,
+    }).$returningId();
+    const evaluationId = result.id;
 
-  if (data.items.length > 0) {
-    await db.insert(evaluationItems).values(
-      data.items.map(item => ({
-        evaluationId,
-        evaluatedStudentId: item.evaluatedStudentId,
-        role: item.role,
-        absent: item.absent,
-        pontualidade: String(item.pontualidade),
-        pesquisaMetas: String(item.pesquisaMetas),
-        dominio: String(item.dominio),
-        participacao: String(item.participacao),
-        desempenhoPapel: String(item.desempenhoPapel),
-      }))
-    );
-  }
-  return evaluationId;
+    if (data.items.length > 0) {
+      await tx.insert(evaluationItems).values(
+        data.items.map(item => ({
+          evaluationId,
+          evaluatedStudentId: item.evaluatedStudentId,
+          role: item.role,
+          absent: item.absent,
+          pontualidade: String(item.pontualidade),
+          pesquisaMetas: String(item.pesquisaMetas),
+          dominio: String(item.dominio),
+          participacao: String(item.participacao),
+          desempenhoPapel: String(item.desempenhoPapel),
+        }))
+      );
+    }
+    return evaluationId;
+  });
 }
 
 export async function getSessionEvaluations(sessionId: number) {
@@ -908,14 +912,16 @@ export async function hasStudentSubmitted(sessionId: number, studentId: number) 
 export async function deleteStudentEvaluation(sessionId: number, studentId: number) {
   const db = await getDb();
   if (!db) return false;
-  const rows = await db.select().from(evaluations)
-    .where(and(eq(evaluations.sessionId, sessionId), eq(evaluations.evaluatorStudentId, studentId)))
-    .limit(1);
-  if (rows.length === 0) return false;
-  const evaluationId = rows[0].id;
-  await db.delete(evaluationItems).where(eq(evaluationItems.evaluationId, evaluationId));
-  await db.delete(evaluations).where(eq(evaluations.id, evaluationId));
-  return true;
+  return db.transaction(async (tx) => {
+    const rows = await tx.select().from(evaluations)
+      .where(and(eq(evaluations.sessionId, sessionId), eq(evaluations.evaluatorStudentId, studentId)))
+      .limit(1);
+    if (rows.length === 0) return false;
+    const evaluationId = rows[0].id;
+    await tx.delete(evaluationItems).where(eq(evaluationItems.evaluationId, evaluationId));
+    await tx.delete(evaluations).where(eq(evaluations.id, evaluationId));
+    return true;
+  });
 }
 
 // ─── Calculation engine ───
@@ -1087,32 +1093,34 @@ export async function submitTutorialEvaluation(data: {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
 
-  const existing = await db.select().from(tutorialEvaluations)
-    .where(eq(tutorialEvaluations.sessionId, data.sessionId))
-    .limit(1);
+  return db.transaction(async (tx) => {
+    const existing = await tx.select().from(tutorialEvaluations)
+      .where(eq(tutorialEvaluations.sessionId, data.sessionId))
+      .limit(1);
 
-  if (existing.length > 0) {
-    await db.update(tutorialEvaluations).set({
+    if (existing.length > 0) {
+      await tx.update(tutorialEvaluations).set({
+        organizacao: String(data.organizacao),
+        cooperacao: String(data.cooperacao),
+        conteudo: String(data.conteudo),
+        objetivo: String(data.objetivo),
+        metas: String(data.metas),
+        submittedAt: new Date(),
+      }).where(eq(tutorialEvaluations.id, existing[0].id));
+      return existing[0].id;
+    }
+
+    const [result] = await tx.insert(tutorialEvaluations).values({
+      sessionId: data.sessionId,
+      professorUserId: data.professorUserId,
       organizacao: String(data.organizacao),
       cooperacao: String(data.cooperacao),
       conteudo: String(data.conteudo),
       objetivo: String(data.objetivo),
       metas: String(data.metas),
-      submittedAt: new Date(),
-    }).where(eq(tutorialEvaluations.id, existing[0].id));
-    return existing[0].id;
-  }
-
-  const [result] = await db.insert(tutorialEvaluations).values({
-    sessionId: data.sessionId,
-    professorUserId: data.professorUserId,
-    organizacao: String(data.organizacao),
-    cooperacao: String(data.cooperacao),
-    conteudo: String(data.conteudo),
-    objetivo: String(data.objetivo),
-    metas: String(data.metas),
-  }).$returningId();
-  return result.id;
+    }).$returningId();
+    return result.id;
+  });
 }
 
 export async function getTutorialEvaluation(sessionId: number) {
@@ -1136,31 +1144,33 @@ export async function saveTutorialEvalDraft(data: {
 }) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const existing = await db.select().from(tutorialEvalDrafts)
-    .where(eq(tutorialEvalDrafts.sessionId, data.sessionId))
-    .limit(1);
-  if (existing.length > 0) {
-    await db.update(tutorialEvalDrafts).set({
+  return db.transaction(async (tx) => {
+    const existing = await tx.select().from(tutorialEvalDrafts)
+      .where(eq(tutorialEvalDrafts.sessionId, data.sessionId))
+      .limit(1);
+    if (existing.length > 0) {
+      await tx.update(tutorialEvalDrafts).set({
+        organizacao: String(data.organizacao),
+        cooperacao: String(data.cooperacao),
+        conteudo: String(data.conteudo),
+        objetivo: String(data.objetivo),
+        metas: String(data.metas),
+        professorUserId: data.professorUserId,
+        savedAt: new Date(),
+      }).where(eq(tutorialEvalDrafts.id, existing[0].id));
+      return existing[0].id;
+    }
+    const [result] = await tx.insert(tutorialEvalDrafts).values({
+      sessionId: data.sessionId,
+      professorUserId: data.professorUserId,
       organizacao: String(data.organizacao),
       cooperacao: String(data.cooperacao),
       conteudo: String(data.conteudo),
       objetivo: String(data.objetivo),
       metas: String(data.metas),
-      professorUserId: data.professorUserId,
-      savedAt: new Date(),
-    }).where(eq(tutorialEvalDrafts.id, existing[0].id));
-    return existing[0].id;
-  }
-  const [result] = await db.insert(tutorialEvalDrafts).values({
-    sessionId: data.sessionId,
-    professorUserId: data.professorUserId,
-    organizacao: String(data.organizacao),
-    cooperacao: String(data.cooperacao),
-    conteudo: String(data.conteudo),
-    objetivo: String(data.objetivo),
-    metas: String(data.metas),
-  }).$returningId();
-  return result.id;
+    }).$returningId();
+    return result.id;
+  });
 }
 
 export async function getTutorialEvalDraft(sessionId: number) {
@@ -1684,20 +1694,22 @@ export async function createEmailVerificationCode(email: string, code: string, e
 
 export async function verifyEmailCode(email: string, code: string): Promise<boolean> {
   const db = (await getDb())!;
-  const [record] = await db.select().from(emailVerificationCodes)
-    .where(and(
-      eq(emailVerificationCodes.email, email),
-      eq(emailVerificationCodes.code, code),
-      eq(emailVerificationCodes.used, false),
-    ))
-    .limit(1);
-  if (!record) return false;
-  if (record.expiresAt < new Date()) return false;
-  // Mark as used
-  await db.update(emailVerificationCodes)
-    .set({ used: true })
-    .where(eq(emailVerificationCodes.id, record.id));
-  return true;
+  return db.transaction(async (tx) => {
+    const [record] = await tx.select().from(emailVerificationCodes)
+      .where(and(
+        eq(emailVerificationCodes.email, email),
+        eq(emailVerificationCodes.code, code),
+        eq(emailVerificationCodes.used, false),
+      ))
+      .limit(1);
+    if (!record) return false;
+    if (record.expiresAt < new Date()) return false;
+    // Mark as used atomically
+    await tx.update(emailVerificationCodes)
+      .set({ used: true })
+      .where(eq(emailVerificationCodes.id, record.id));
+    return true;
+  });
 }
 
 
@@ -2413,29 +2425,31 @@ export async function upsertProfessorStudentNote(data: {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
 
-  // Check if note already exists
-  const [existing] = await db.select().from(professorStudentNotes)
-    .where(and(
-      eq(professorStudentNotes.sessionId, data.sessionId),
-      eq(professorStudentNotes.studentId, data.studentId),
-      eq(professorStudentNotes.professorUserId, data.professorUserId),
-    )).limit(1);
+  return db.transaction(async (tx) => {
+    // Check if note already exists
+    const [existing] = await tx.select().from(professorStudentNotes)
+      .where(and(
+        eq(professorStudentNotes.sessionId, data.sessionId),
+        eq(professorStudentNotes.studentId, data.studentId),
+        eq(professorStudentNotes.professorUserId, data.professorUserId),
+      )).limit(1);
 
-  if (existing) {
-    await db.update(professorStudentNotes)
-      .set({
-        positivePoints: data.positivePoints,
-        negativePoints: data.negativePoints,
-        positiveTexts: data.positiveTexts,
-        negativeTexts: data.negativeTexts,
-        notes: data.notes,
-      })
-      .where(eq(professorStudentNotes.id, existing.id));
-    return { ...existing, ...data };
-  } else {
-    const [result] = await db.insert(professorStudentNotes).values(data).$returningId();
-    return { id: result.id, ...data };
-  }
+    if (existing) {
+      await tx.update(professorStudentNotes)
+        .set({
+          positivePoints: data.positivePoints,
+          negativePoints: data.negativePoints,
+          positiveTexts: data.positiveTexts,
+          negativeTexts: data.negativeTexts,
+          notes: data.notes,
+        })
+        .where(eq(professorStudentNotes.id, existing.id));
+      return { ...existing, ...data };
+    } else {
+      const [result] = await tx.insert(professorStudentNotes).values(data).$returningId();
+      return { id: result.id, ...data };
+    }
+  });
 }
 
 export async function getProfessorStudentNotes(sessionId: number, professorUserId: number) {
@@ -2663,12 +2677,14 @@ export async function generateSessionTokenForStudent(sessionId: number, studentI
   for (let i = 0; i < 32; i++) {
     token += chars[Math.floor(Math.random() * chars.length)];
   }
-  // Upsert: if token already exists for this student+session, update it
-  await db.delete(sessionAccessTokens).where(
-    and(eq(sessionAccessTokens.sessionId, sessionId), eq(sessionAccessTokens.studentId, studentId))
-  );
-  await db.insert(sessionAccessTokens).values({ sessionId, studentId, token });
-  return token;
+  // Upsert atomically: if token already exists for this student+session, replace it
+  return db.transaction(async (tx) => {
+    await tx.delete(sessionAccessTokens).where(
+      and(eq(sessionAccessTokens.sessionId, sessionId), eq(sessionAccessTokens.studentId, studentId))
+    );
+    await tx.insert(sessionAccessTokens).values({ sessionId, studentId, token });
+    return token;
+  });
 }
 
 export async function getSessionByStudentToken(token: string) {
@@ -2790,14 +2806,16 @@ export async function getOrCreateBrainstormBoard(sessionId: number, mesaStudentI
   const db = await getDb();
   if (!db) throw new Error("DB not available");
 
-  const [existing] = await db.select().from(brainstormBoards)
-    .where(eq(brainstormBoards.sessionId, sessionId))
-    .limit(1);
+  return db.transaction(async (tx) => {
+    const [existing] = await tx.select().from(brainstormBoards)
+      .where(eq(brainstormBoards.sessionId, sessionId))
+      .limit(1);
 
-  if (existing) return existing;
+    if (existing) return existing;
 
-  const [result] = await db.insert(brainstormBoards).values({ sessionId, mesaStudentId }).$returningId();
-  return { id: result.id, sessionId, mesaStudentId, createdAt: new Date(), updatedAt: new Date() };
+    const [result] = await tx.insert(brainstormBoards).values({ sessionId, mesaStudentId }).$returningId();
+    return { id: result.id, sessionId, mesaStudentId, createdAt: new Date(), updatedAt: new Date() };
+  });
 }
 
 export async function getBrainstormBoard(sessionId: number) {
@@ -2848,22 +2866,24 @@ export async function addBrainstormAttachment(data: {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
 
-  // Get max sortOrder for this item
-  const [maxRow] = await db.select({ maxOrder: sql<number>`COALESCE(MAX(${brainstormItemAttachments.sortOrder}), -1)` })
-    .from(brainstormItemAttachments)
-    .where(eq(brainstormItemAttachments.itemId, data.itemId));
+  return db.transaction(async (tx) => {
+    // Get max sortOrder for this item atomically
+    const [maxRow] = await tx.select({ maxOrder: sql<number>`COALESCE(MAX(${brainstormItemAttachments.sortOrder}), -1)` })
+      .from(brainstormItemAttachments)
+      .where(eq(brainstormItemAttachments.itemId, data.itemId));
 
-  const sortOrder = (maxRow?.maxOrder ?? -1) + 1;
+    const sortOrder = (maxRow?.maxOrder ?? -1) + 1;
 
-  const [result] = await db.insert(brainstormItemAttachments).values({
-    itemId: data.itemId,
-    url: data.url,
-    type: data.type,
-    title: data.title || "",
-    sortOrder,
-  }).$returningId();
+    const [result] = await tx.insert(brainstormItemAttachments).values({
+      itemId: data.itemId,
+      url: data.url,
+      type: data.type,
+      title: data.title || "",
+      sortOrder,
+    }).$returningId();
 
-  return { id: result.id, ...data, title: data.title || "", sortOrder, createdAt: new Date() };
+    return { id: result.id, ...data, title: data.title || "", sortOrder, createdAt: new Date() };
+  });
 }
 
 export async function removeBrainstormAttachment(attachmentId: number) {
@@ -2892,27 +2912,29 @@ export async function addBrainstormItem(data: {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
 
-  // Get max sortOrder for this section
-  const [maxRow] = await db.select({ maxOrder: sql<number>`COALESCE(MAX(${brainstormItems.sortOrder}), -1)` })
-    .from(brainstormItems)
-    .where(and(
-      eq(brainstormItems.boardId, data.boardId),
-      eq(brainstormItems.section, data.section),
-    ));
+  return db.transaction(async (tx) => {
+    // Get max sortOrder for this section atomically
+    const [maxRow] = await tx.select({ maxOrder: sql<number>`COALESCE(MAX(${brainstormItems.sortOrder}), -1)` })
+      .from(brainstormItems)
+      .where(and(
+        eq(brainstormItems.boardId, data.boardId),
+        eq(brainstormItems.section, data.section),
+      ));
 
-  const sortOrder = data.sortOrder ?? ((maxRow?.maxOrder ?? -1) + 1);
+    const sortOrder = data.sortOrder ?? ((maxRow?.maxOrder ?? -1) + 1);
 
-  const [result] = await db.insert(brainstormItems).values({
-    boardId: data.boardId,
-    section: data.section,
-    content: data.content,
-    status: data.status,
-    attachmentUrl: data.attachmentUrl ?? null,
-    attachmentType: data.attachmentType ?? null,
-    sortOrder,
-  }).$returningId();
+    const [result] = await tx.insert(brainstormItems).values({
+      boardId: data.boardId,
+      section: data.section,
+      content: data.content,
+      status: data.status,
+      attachmentUrl: data.attachmentUrl ?? null,
+      attachmentType: data.attachmentType ?? null,
+      sortOrder,
+    }).$returningId();
 
-  return { id: result.id, ...data, sortOrder };
+    return { id: result.id, ...data, sortOrder };
+  });
 }
 
 export async function updateBrainstormItem(itemId: number, data: {
@@ -2954,40 +2976,42 @@ export async function moveBrainstormItem(itemId: number, targetSection: "ideias"
   const db = await getDb();
   if (!db) throw new Error("DB not available");
 
-  // Get current item
-  const [item] = await db.select().from(brainstormItems).where(eq(brainstormItems.id, itemId)).limit(1);
-  if (!item) throw new Error("Item not found");
+  return db.transaction(async (tx) => {
+    // Get current item
+    const [item] = await tx.select().from(brainstormItems).where(eq(brainstormItems.id, itemId)).limit(1);
+    if (!item) throw new Error("Item not found");
 
-  // Don't move to the same section
-  if (item.section === targetSection) {
-    return item;
-  }
+    // Don't move to the same section
+    if (item.section === targetSection) {
+      return item;
+    }
 
-  // Set default status for target section
-  const defaultStatusMap: Record<string, string> = {
-    ideias: "analise",
-    fatos: "verificar",
-    questoes: "duvida",
-    metas: "planejada",
-  };
-  const defaultStatus = defaultStatusMap[targetSection] || "analise";
+    // Set default status for target section
+    const defaultStatusMap: Record<string, string> = {
+      ideias: "analise",
+      fatos: "verificar",
+      questoes: "duvida",
+      metas: "planejada",
+    };
+    const defaultStatus = defaultStatusMap[targetSection] || "analise";
 
-  // Get max sortOrder in target section
-  const [maxRow] = await db.select({ maxOrder: sql<number>`COALESCE(MAX(${brainstormItems.sortOrder}), -1)` })
-    .from(brainstormItems)
-    .where(and(
-      eq(brainstormItems.boardId, item.boardId),
-      eq(brainstormItems.section, targetSection),
-    ));
+    // Get max sortOrder in target section atomically
+    const [maxRow] = await tx.select({ maxOrder: sql<number>`COALESCE(MAX(${brainstormItems.sortOrder}), -1)` })
+      .from(brainstormItems)
+      .where(and(
+        eq(brainstormItems.boardId, item.boardId),
+        eq(brainstormItems.section, targetSection),
+      ));
 
-  await db.update(brainstormItems).set({
-    section: targetSection,
-    status: defaultStatus,
-    sortOrder: (maxRow?.maxOrder ?? -1) + 1,
-  }).where(eq(brainstormItems.id, itemId));
+    await tx.update(brainstormItems).set({
+      section: targetSection,
+      status: defaultStatus,
+      sortOrder: (maxRow?.maxOrder ?? -1) + 1,
+    }).where(eq(brainstormItems.id, itemId));
 
-  const [updated] = await db.select().from(brainstormItems).where(eq(brainstormItems.id, itemId)).limit(1);
-  return updated;
+    const [updated] = await tx.select().from(brainstormItems).where(eq(brainstormItems.id, itemId)).limit(1);
+    return updated;
+  });
 }
 
 export async function getBrainstormBoardWithItems(sessionId: number) {
