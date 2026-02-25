@@ -95,7 +95,7 @@ describe("Reset email HTML generation", () => {
   it("includes system name in the HTML", async () => {
     const { buildResetEmailHtml } = await import("./email");
     const html = buildResetEmailHtml("222222", "Teste");
-    expect(html).toContain("Avaliação Tutorial");
+    expect(html).toContain("Sessão Tutorial");
   });
 });
 
@@ -129,7 +129,7 @@ describe("SMTP config validation", () => {
       username: "user@gmail.com",
       password: "apppassword",
       fromEmail: "user@gmail.com",
-      fromName: "Avaliação Tutorial",
+      fromName: "Sessão Tutorial",
     };
     expect(config.host.length).toBeGreaterThan(0);
     expect(config.port).toBeGreaterThan(0);

@@ -43,7 +43,7 @@ function GmailHelpSection() {
             <h3 className="font-semibold text-blue-800 mb-2">Passo 2: Criar uma Senha de Aplicativo</h3>
             <ol className="list-decimal list-inside space-y-1 text-blue-800/80">
               <li>Acesse <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline hover:text-blue-800 inline-flex items-center gap-0.5">myaccount.google.com/apppasswords <ExternalLink className="h-3 w-3" /></a></li>
-              <li>Em "Nome do app", digite <strong>Sistema Avaliação</strong> (ou outro nome de sua preferência)</li>
+              <li>Em "Nome do app", digite <strong>Sessão Tutorial</strong> (ou outro nome de sua preferência)</li>
               <li>Clique em <strong>Criar</strong></li>
               <li>O Google gerará uma senha de 16 caracteres (ex: <code className="bg-blue-100 px-1.5 py-0.5 rounded text-xs font-mono">abcd efgh ijkl mnop</code>)</li>
               <li>Copie essa senha — ela será usada no campo "Senha" abaixo</li>
@@ -68,7 +68,7 @@ function GmailHelpSection() {
                   <tr><td className="px-3 py-2 font-medium">Usuário</td><td className="px-3 py-2">Seu e-mail completo do Gmail</td></tr>
                   <tr><td className="px-3 py-2 font-medium">Senha</td><td className="px-3 py-2">A senha de app de 16 caracteres gerada</td></tr>
                   <tr><td className="px-3 py-2 font-medium">E-mail do remetente</td><td className="px-3 py-2">Mesmo e-mail do Gmail</td></tr>
-                  <tr><td className="px-3 py-2 font-medium">Nome do remetente</td><td className="px-3 py-2">Seu nome ou "Avaliação Tutorial"</td></tr>
+                  <tr><td className="px-3 py-2 font-medium">Nome do remetente</td><td className="px-3 py-2">Seu nome ou "Sessão Tutorial"</td></tr>
                 </tbody>
               </table>
             </div>
@@ -119,7 +119,7 @@ function SmtpConfigContent() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [fromEmail, setFromEmail] = useState("");
-  const [fromName, setFromName] = useState("Avaliação Tutorial");
+  const [fromName, setFromName] = useState("Sessão Tutorial");
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
@@ -157,7 +157,7 @@ function SmtpConfigContent() {
   const deleteMut = trpc.smtp.delete.useMutation({
     onSuccess: () => {
       utils.smtp.get.invalidate();
-      setHost(""); setPort(587); setSecure(false); setUsername(""); setPassword(""); setFromEmail(""); setFromName("Avaliação Tutorial");
+      setHost(""); setPort(587); setSecure(false); setUsername(""); setPassword(""); setFromEmail(""); setFromName("Sessão Tutorial");
       toast.success("Configuração SMTP removida");
     },
     onError: (err) => toast.error(err.message),
@@ -325,7 +325,7 @@ function SmtpConfigContent() {
               <Label htmlFor="fromName">Nome do remetente</Label>
               <Input
                 id="fromName"
-                placeholder="Avaliação Tutorial"
+                placeholder="Sessão Tutorial"
                 value={fromName}
                 onChange={(e) => setFromName(e.target.value)}
               />

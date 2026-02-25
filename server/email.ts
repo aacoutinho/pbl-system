@@ -96,12 +96,12 @@ export async function testSmtpConnection(config: {
 
     // Se tiver destinatário, envia e-mail de teste
     if (config.testRecipient && config.fromEmail) {
-      const senderName = config.fromName || "Avaliação Tutorial";
+      const senderName = config.fromName || "Sessão Tutorial";
       await transporter.sendMail({
         from: `"${senderName}" <${config.fromEmail}>`,
         to: config.testRecipient,
-        subject: "Teste de Configuração SMTP - Avaliação Tutorial",
-        text: "Este é um e-mail de teste do Sistema de Avaliação Tutorial. Se você recebeu esta mensagem, a configuração SMTP está funcionando corretamente.",
+        subject: "Teste de Configuração SMTP - Sessão Tutorial",
+        text: "Este é um e-mail de teste do Sistema Sessão Tutorial. Se você recebeu esta mensagem, a configuração SMTP está funcionando corretamente.",
         html: buildTestEmailHtml(),
       });
       return { success: true, emailSent: true };
@@ -118,7 +118,7 @@ function buildTestEmailHtml(): string {
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb;">
       <div style="text-align: center; margin-bottom: 24px;">
         <h2 style="color: #1f2937; margin: 0 0 8px;">Teste de Configuração SMTP</h2>
-        <p style="color: #6b7280; margin: 0; font-size: 14px;">Avaliação Tutorial</p>
+        <p style="color: #6b7280; margin: 0; font-size: 14px;">Sessão Tutorial</p>
       </div>
       <div style="text-align: center; margin: 24px 0;">
         <div style="display: inline-block; background: #ecfdf5; border: 2px solid #6ee7b7; border-radius: 8px; padding: 16px 32px;">
@@ -130,7 +130,7 @@ function buildTestEmailHtml(): string {
       </p>
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
       <p style="color: #9ca3af; font-size: 12px; text-align: center;">
-        Sistema de Avaliação de Desempenho Tutorial
+        Sessão Tutorial
       </p>
     </div>
   `;
@@ -145,7 +145,7 @@ export function buildVerificationEmailHtml(code: string, email: string): string 
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb;">
       <div style="text-align: center; margin-bottom: 24px;">
         <h2 style="color: #1f2937; margin: 0 0 8px;">Verificação de E-mail</h2>
-        <p style="color: #6b7280; margin: 0; font-size: 14px;">Avaliação Tutorial</p>
+        <p style="color: #6b7280; margin: 0; font-size: 14px;">Sessão Tutorial</p>
       </div>
       <p style="color: #374151; font-size: 15px; line-height: 1.6;">
         Olá,
@@ -163,7 +163,7 @@ export function buildVerificationEmailHtml(code: string, email: string): string 
       </p>
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
       <p style="color: #9ca3af; font-size: 12px; text-align: center;">
-        Sistema de Avaliação de Desempenho Tutorial
+        Sessão Tutorial
       </p>
     </div>
   `;
@@ -174,7 +174,7 @@ export function buildResetEmailHtml(code: string, userName: string): string {
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb;">
       <div style="text-align: center; margin-bottom: 24px;">
         <h2 style="color: #1f2937; margin: 0 0 8px;">Recuperação de Senha</h2>
-        <p style="color: #6b7280; margin: 0; font-size: 14px;">Avaliação Tutorial</p>
+        <p style="color: #6b7280; margin: 0; font-size: 14px;">Sessão Tutorial</p>
       </div>
       <p style="color: #374151; font-size: 15px; line-height: 1.6;">
         Olá <strong>${userName}</strong>,
@@ -192,7 +192,7 @@ export function buildResetEmailHtml(code: string, userName: string): string {
       </p>
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
       <p style="color: #9ca3af; font-size: 12px; text-align: center;">
-        Sistema de Avaliação de Desempenho Tutorial
+        Sessão Tutorial
       </p>
     </div>
   `;
@@ -203,7 +203,7 @@ export function buildComponentApprovalEmailHtml(userName: string, componentCode:
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb;">
       <div style="text-align: center; margin-bottom: 24px;">
         <h2 style="color: #1f2937; margin: 0 0 8px;">Solicitação Aprovada</h2>
-        <p style="color: #6b7280; margin: 0; font-size: 14px;">Avaliação Tutorial</p>
+        <p style="color: #6b7280; margin: 0; font-size: 14px;">Sessão Tutorial</p>
       </div>
       <p style="color: #374151; font-size: 15px; line-height: 1.6;">
         Olá <strong>${userName}</strong>,
@@ -221,7 +221,7 @@ export function buildComponentApprovalEmailHtml(userName: string, componentCode:
       </p>
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
       <p style="color: #9ca3af; font-size: 12px; text-align: center;">
-        Sistema de Avaliação de Desempenho Tutorial
+        Sessão Tutorial
       </p>
     </div>
   `;
@@ -232,7 +232,7 @@ export function buildComponentRejectionEmailHtml(userName: string, componentCode
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb;">
       <div style="text-align: center; margin-bottom: 24px;">
         <h2 style="color: #1f2937; margin: 0 0 8px;">Solicitação Rejeitada</h2>
-        <p style="color: #6b7280; margin: 0; font-size: 14px;">Avaliação Tutorial</p>
+        <p style="color: #6b7280; margin: 0; font-size: 14px;">Sessão Tutorial</p>
       </div>
       <p style="color: #374151; font-size: 15px; line-height: 1.6;">
         Olá <strong>${userName}</strong>,
@@ -250,7 +250,7 @@ export function buildComponentRejectionEmailHtml(userName: string, componentCode
       </p>
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
       <p style="color: #9ca3af; font-size: 12px; text-align: center;">
-        Sistema de Avaliação de Desempenho Tutorial
+        Sessão Tutorial
       </p>
     </div>
   `;
@@ -261,7 +261,7 @@ export function buildNewRequestEmailHtml(coordinatorName: string, professorName:
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb;">
       <div style="text-align: center; margin-bottom: 24px;">
         <h2 style="color: #1f2937; margin: 0 0 8px;">Nova Solicitação de Entrada</h2>
-        <p style="color: #6b7280; margin: 0; font-size: 14px;">Avaliação Tutorial</p>
+        <p style="color: #6b7280; margin: 0; font-size: 14px;">Sessão Tutorial</p>
       </div>
       <p style="color: #374151; font-size: 15px; line-height: 1.6;">
         Olá <strong>${coordinatorName}</strong>,
@@ -283,7 +283,7 @@ export function buildNewRequestEmailHtml(coordinatorName: string, professorName:
       </p>
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
       <p style="color: #9ca3af; font-size: 12px; text-align: center;">
-        Sistema de Avaliação de Desempenho Tutorial
+        Sessão Tutorial
       </p>
     </div>
   `;
@@ -300,7 +300,7 @@ export function buildEvalPermissionGrantedEmailHtml(
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb;">
       <div style="text-align: center; margin-bottom: 24px;">
         <h2 style="color: #1f2937; margin: 0 0 8px;">Permissão de Avaliação Concedida</h2>
-        <p style="color: #6b7280; margin: 0; font-size: 14px;">Avaliação Tutorial</p>
+        <p style="color: #6b7280; margin: 0; font-size: 14px;">Sessão Tutorial</p>
       </div>
       <p style="color: #374151; font-size: 15px; line-height: 1.6;">
         Olá <strong>${professorName}</strong>,
@@ -323,7 +323,7 @@ export function buildEvalPermissionGrantedEmailHtml(
       </p>
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
       <p style="color: #9ca3af; font-size: 12px; text-align: center;">
-        Sistema de Avaliação de Desempenho Tutorial
+        Sessão Tutorial
       </p>
     </div>
   `;
@@ -344,7 +344,7 @@ export function buildSessionOpenedEmailHtml(data: {
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb;">
       <div style="text-align: center; margin-bottom: 24px;">
         <h2 style="color: #1f2937; margin: 0 0 8px;">Sessão de Avaliação Aberta</h2>
-        <p style="color: #6b7280; margin: 0; font-size: 14px;">Avaliação de Desempenho Tutorial</p>
+        <p style="color: #6b7280; margin: 0; font-size: 14px;">Sessão Tutorial</p>
       </div>
       <p style="color: #374151; font-size: 15px; line-height: 1.6;">
         Olá <strong>${data.studentName}</strong>,
@@ -375,7 +375,7 @@ export function buildSessionOpenedEmailHtml(data: {
       </div>
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
       <p style="color: #9ca3af; font-size: 12px; text-align: center;">
-        Sistema de Avaliação de Desempenho Tutorial
+        Sessão Tutorial
       </p>
     </div>
   `;
@@ -568,7 +568,7 @@ export function buildStudentGradeReportHtml(data: {
         </div>
 
         <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #e5e7eb; text-align: center;">
-          <p style="margin: 0; font-size: 12px; color: #9ca3af;">Este relatório foi gerado automaticamente pelo Sistema de Avaliação Tutorial.</p>
+          <p style="margin: 0; font-size: 12px; color: #9ca3af;">Este relatório foi gerado automaticamente pelo sistema Sessão Tutorial.</p>
           <p style="margin: 4px 0 0; font-size: 12px; color: #9ca3af;">Em caso de dúvidas, entre em contato com o professor responsável.</p>
         </div>
       </div>

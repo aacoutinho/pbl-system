@@ -481,3 +481,4 @@
 - [x] Exibir conteúdo do quadro de brainstorming nos resultados da sessão (seção separada com itens das 4 seções)
 - [x] Incluir quadro de brainstorming no CSV de exportação dos resultados da sessão
 - [x] Polling em tempo real no quadro de brainstorming (alterações aparecem automaticamente para visualizadores)
+- [x] Renomear sistema na interface de "Avaliação Tutorial" para "Sessão Tutorial" (manter "Avaliação Tutorial" apenas onde diz respeito à avaliação)

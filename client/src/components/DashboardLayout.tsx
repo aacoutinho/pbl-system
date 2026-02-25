@@ -211,7 +211,7 @@ function LoginScreen() {
             <GraduationCap className="h-8 w-8 text-primary" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-center text-card-foreground">
-            Avaliação Tutorial
+            Sessão Tutorial
           </h1>
           {isFirstUser && mode === "register" && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
@@ -221,7 +221,7 @@ function LoginScreen() {
           )}
           {!isFirstUser && (
             <p className="text-sm text-muted-foreground text-center max-w-sm leading-relaxed">
-              Sistema de avaliação de Desempenho Tutorial.
+              Sistema de gestão de sessões tutoriais.
             </p>
           )}
         </div>
@@ -664,7 +664,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                 <div className="flex items-center gap-2 min-w-0">
                   <GraduationCap className="h-5 w-5 text-primary shrink-0" />
                   <span className="font-bold tracking-tight truncate text-sm">
-                    Avaliação Tutorial
+                    Sessão Tutorial
                   </span>
                 </div>
               ) : null}

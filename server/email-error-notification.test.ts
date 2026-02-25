@@ -27,7 +27,7 @@ describe("Email error notification structure", () => {
   });
 
   it("notification message includes subject", () => {
-    const subject = "Código de Verificação - Avaliação Tutorial";
+    const subject = "Código de Verificação - Sessão Tutorial";
     const message = `Erro ao enviar e-mail para test@test.com (assunto: "${subject}"): SMTP error`;
     expect(message).toContain(subject);
   });
@@ -44,13 +44,13 @@ describe("Email error notification metadata", () => {
   it("metadata contains recipient, subject, error, and occurredAt", () => {
     const metadata = JSON.stringify({
       recipient: "aluno@ecomp.uefs.br",
-      subject: "Código de Verificação - Avaliação Tutorial",
+      subject: "Código de Verificação - Sessão Tutorial",
       error: "Connection refused",
       occurredAt: new Date().toISOString(),
     });
     const parsed = JSON.parse(metadata);
     expect(parsed.recipient).toBe("aluno@ecomp.uefs.br");
-    expect(parsed.subject).toBe("Código de Verificação - Avaliação Tutorial");
+    expect(parsed.subject).toBe("Código de Verificação - Sessão Tutorial");
     expect(parsed.error).toBe("Connection refused");
     expect(parsed.occurredAt).toBeDefined();
   });
@@ -169,15 +169,15 @@ describe("Email error notification resilience", () => {
 // ─── Test different email types that can fail ───
 describe("Email types that trigger failure notifications", () => {
   const emailTypes = [
-    { subject: "Código de Verificação - Avaliação Tutorial", context: "verificação de e-mail do aluno" },
-    { subject: "Código de Recuperação de Senha - Avaliação Tutorial", context: "recuperação de senha" },
+    { subject: "Código de Verificação - Sessão Tutorial", context: "verificação de e-mail do aluno" },
+    { subject: "Código de Recuperação de Senha - Sessão Tutorial", context: "recuperação de senha" },
     { subject: "Nova Solicitação de Entrada - TEC502", context: "notificação ao coordenador" },
     { subject: "Solicitação Aprovada - TEC502", context: "aprovação de professor" },
     { subject: "Solicitação Rejeitada - TEC502", context: "rejeição de professor" },
-    { subject: "Avaliação Tutorial - Sessão 1 (Código: ABC123)", context: "notificação de sessão aberta" },
+    { subject: "Sessão Tutorial - Sessão 1 (Código: ABC123)", context: "notificação de sessão aberta" },
     { subject: "Permissão de Avaliação Concedida - TEC502 TP01", context: "permissão de avaliação" },
     { subject: "[Bug] Erro no sistema", context: "ticket de contato" },
-    { subject: "Teste de Configuração SMTP - Avaliação Tutorial", context: "teste SMTP" },
+    { subject: "Teste de Configuração SMTP - Sessão Tutorial", context: "teste SMTP" },
   ];
 
   emailTypes.forEach(({ subject, context }) => {

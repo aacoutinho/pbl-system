@@ -27,7 +27,7 @@ describe("Component request email notification templates", () => {
 
     it("contains system footer", () => {
       const html = buildComponentApprovalEmailHtml("Pedro", "QUI301", "Química");
-      expect(html).toContain("Sistema de Avaliação de Desempenho Tutorial");
+      expect(html).toContain("Sessão Tutorial");
     });
 
     it("contains access instruction", () => {
@@ -58,7 +58,7 @@ describe("Component request email notification templates", () => {
 
     it("contains system footer", () => {
       const html = buildComponentRejectionEmailHtml("Pedro", "QUI301", "Química");
-      expect(html).toContain("Sistema de Avaliação de Desempenho Tutorial");
+      expect(html).toContain("Sessão Tutorial");
     });
 
     it("contains contact instruction", () => {

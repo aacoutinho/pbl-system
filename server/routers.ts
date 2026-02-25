@@ -150,7 +150,7 @@ export const appRouter = router({
       await createEmailVerificationCode(input.email.toLowerCase(), code, expiresAt);
       const result = await sendEmail({
         to: input.email.toLowerCase(),
-        subject: "Código de Verificação - Avaliação Tutorial",
+        subject: "Código de Verificação - Sessão Tutorial",
         text: `Seu código de verificação é: ${code}. Válido por 15 minutos.`,
         html: buildVerificationEmailHtml(code, input.email.toLowerCase()),
       });
@@ -311,7 +311,7 @@ export const appRouter = router({
       await createPasswordResetCode(user.id, code, expiresAt);
       const result = await sendEmail({
         to: user.email!,
-        subject: "Código de Recuperação de Senha - Avaliação Tutorial",
+        subject: "Código de Recuperação de Senha - Sessão Tutorial",
         text: `Seu código de recuperação é: ${code}. Válido por 15 minutos.`,
         html: buildResetEmailHtml(code, user.name || "Professor"),
       });
@@ -877,7 +877,7 @@ export const appRouter = router({
             });
             sendEmail({
               to: student.email,
-              subject: `Avaliação Tutorial - ${session.label} (Reaberta)`,
+              subject: `Sessão Tutorial - ${session.label} (Reaberta)`,
               text: `Olá ${student.name}, a sessão ${session.label} foi reaberta. Acesse o link para avaliar: ${accessUrl}`,
               html,
             }).catch(err => console.error(`[Email] Failed to send to ${student.email}:`, err));
@@ -992,7 +992,7 @@ export const appRouter = router({
             });
             sendEmail({
               to: student.email,
-              subject: `Avaliação Tutorial - ${session.label}`,
+              subject: `Sessão Tutorial - ${session.label}`,
               text: `Olá ${student.name}, a sessão ${session.label} foi aberta. Acesse o link para avaliar: ${accessUrl}`,
               html,
             }).catch(err => console.error(`[Email] Failed to send to ${student.email}:`, err));
@@ -1048,7 +1048,7 @@ export const appRouter = router({
           });
           sendEmail({
             to: student.email,
-            subject: `Avaliação Tutorial - ${session.label}`,
+            subject: `Sessão Tutorial - ${session.label}`,
             text: `Olá ${student.name}, a sessão ${session.label} está aberta. Acesse o link para avaliar: ${accessUrl}`,
             html,
           }).catch(err => console.error(`[Email] Failed to send to ${student.email}:`, err));
@@ -1081,7 +1081,7 @@ export const appRouter = router({
           const html = buildVerificationEmailHtml(code, student.email.toLowerCase());
           const result = await sendEmail({
             to: student.email.toLowerCase(),
-            subject: "Código de Acesso - Avaliação Tutorial",
+            subject: "Código de Acesso - Sessão Tutorial",
             text: `Seu código de acesso é: ${code}. Válido por 15 minutos.`,
             html,
           });
@@ -1141,7 +1141,7 @@ export const appRouter = router({
       const html = buildVerificationEmailHtml(code, studentData.email.toLowerCase());
       const result = await sendEmail({
         to: studentData.email.toLowerCase(),
-        subject: "Código de Acesso - Avaliação Tutorial",
+        subject: "Código de Acesso - Sessão Tutorial",
         text: `Seu código de acesso é: ${code}. Válido por 15 minutos.`,
         html,
       });
@@ -1225,7 +1225,7 @@ export const appRouter = router({
       const html = buildVerificationEmailHtml(code, input.email.toLowerCase());
       const result = await sendEmail({
         to: input.email.toLowerCase(),
-        subject: "Código de Verificação - Avaliação Tutorial",
+        subject: "Código de Verificação - Sessão Tutorial",
         text: `Seu código de verificação é: ${code}. Válido por 15 minutos.`,
         html,
       });
