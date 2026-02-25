@@ -606,24 +606,26 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
                 <div className="space-y-1.5">
                   <h3 className="font-semibold text-slate-800 flex items-center gap-1.5">
                     <div className="h-5 w-5 rounded bg-blue-100 flex items-center justify-center"><Paperclip className="h-3 w-3 text-blue-600" /></div>
-                    Múltiplos Anexos
+                    Anexos (múltiplos por item)
                   </h3>
-                  <p className="text-xs leading-relaxed">Cada item pode ter <strong>vários anexos</strong>. Clique no ícone 📎 para adicionar:</p>
+                  <p className="text-xs leading-relaxed">Clique no ícone 📎 para adicionar anexos:</p>
                   <ul className="text-xs space-y-0.5 ml-1">
-                    <li>• Links, imagens, vídeos, fotos, documentos</li>
-                    <li>• Upload do celular ou computador</li>
+                    <li>• <strong>Foto da Câmera</strong> — câmera do celular (5MB)</li>
+                    <li>• <strong>Documento</strong> — PDF, DOC, XLS... (10MB)</li>
+                    <li>• <strong>Link da Internet</strong> — qualquer URL</li>
                   </ul>
                 </div>
 
                 <div className="space-y-1.5">
                   <h3 className="font-semibold text-slate-800 flex items-center gap-1.5">
                     <div className="h-5 w-5 rounded bg-purple-100 flex items-center justify-center"><Upload className="h-3 w-3 text-purple-600" /></div>
-                    Upload de Arquivos
+                    Mais Tipos de Anexo
                   </h3>
                   <ul className="text-xs space-y-0.5 ml-1">
-                    <li>• <strong>Tirar Foto</strong> — câmera do celular (5MB)</li>
+                    <li>• <strong>URL de Imagem</strong> — link direto de imagem</li>
+                    <li>• <strong>URL de Vídeo</strong> — YouTube, Vimeo...</li>
                     <li>• <strong>Upload de Imagem</strong> — galeria/PC (5MB)</li>
-                    <li>• <strong>Documento</strong> — PDF, DOC, XLS... (10MB)</li>
+                    <li>• Cada anexo pode ter uma <strong>descrição</strong></li>
                   </ul>
                 </div>
 

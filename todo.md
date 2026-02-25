@@ -503,3 +503,4 @@
 - [x] Campo title/descrição editável em cada anexo (schema + backend + frontend)
 - [x] Remover contador de anexos (badge numérico) do ícone de clipe
 - [x] Reordenar tipos de anexo no submenu: Foto da Câmera, Documento, Link da Internet, URL de Imagem, URL de Vídeo, Upload de Imagem
+- [x] Atualizar ajuda/manual do quadro com nova ordem e nomes dos tipos de anexo
