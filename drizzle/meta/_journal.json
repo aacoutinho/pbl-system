@@ -211,6 +211,13 @@
       "when": 1772040309407,
       "tag": "0029_slow_agent_brand",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "5",
+      "when": 1772041493062,
+      "tag": "0030_true_wrecker",
+      "breakpoints": true
     }
   ]
 }

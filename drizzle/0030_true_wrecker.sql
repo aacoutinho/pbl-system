@@ -1,0 +1,1 @@
+ALTER TABLE `brainstorm_item_attachments` ADD `title` varchar(255) DEFAULT '' NOT NULL;

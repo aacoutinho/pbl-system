@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import {
   Plus, Trash2, ArrowLeft, Lightbulb, BookOpen, HelpCircle, Target,
   ArrowRightLeft, Link2, ImageIcon, Video, Camera, X, ExternalLink,
-  ChevronDown, ChevronUp, Info, FileText, Upload, Play, Paperclip
+  ChevronDown, ChevronUp, Info, FileText, Upload, Play, Paperclip, Pencil, Check
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
@@ -26,6 +26,7 @@ interface AttachmentData {
   itemId: number;
   url: string;
   type: "link" | "image" | "video" | "photo" | "document";
+  title?: string;
   sortOrder: number;
 }
 
@@ -182,6 +183,14 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
     onError: (err) => toast.error(err.message),
   });
 
+  const updateAttachmentTitleMutation = trpc.brainstorm.updateAttachmentTitle.useMutation({
+    onSuccess: () => utils.brainstorm.getBoard.invalidate({ sessionId }),
+    onError: (err) => toast.error(err.message),
+  });
+
+  const [editingAttachmentId, setEditingAttachmentId] = useState<number | null>(null);
+  const [editingAttachmentTitle, setEditingAttachmentTitle] = useState("");
+
   const handleAddItem = (section: Section) => {
     const content = newItemTexts[section].trim();
     if (!content) return;
@@ -309,12 +318,12 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
   };
 
   // Get all attachments for an item: new table + legacy single attachment
-  const getItemAttachments = (item: BrainstormItemData): { id: number; url: string; type: string; isLegacy?: boolean }[] => {
-    const result: { id: number; url: string; type: string; isLegacy?: boolean }[] = [];
+  const getItemAttachments = (item: BrainstormItemData): { id: number; url: string; type: string; title?: string; isLegacy?: boolean }[] => {
+    const result: { id: number; url: string; type: string; title?: string; isLegacy?: boolean }[] = [];
     // New attachments from the attachments table
     if (item.attachments && item.attachments.length > 0) {
       for (const att of item.attachments) {
-        result.push({ id: att.id, url: att.url, type: att.type });
+        result.push({ id: att.id, url: att.url, type: att.type, title: att.title });
       }
     }
     // Legacy single attachment (from old items)
@@ -341,8 +350,73 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
     );
   }
 
+  const handleSaveAttachmentTitle = (attachmentId: number) => {
+    updateAttachmentTitleMutation.mutate({ attachmentId, title: editingAttachmentTitle });
+    setEditingAttachmentId(null);
+    setEditingAttachmentTitle("");
+  };
+
+  // Render attachment title line
+  const renderAttachmentTitle = (att: { id: number; title?: string; isLegacy?: boolean }) => {
+    if (att.isLegacy) return null; // Legacy attachments can't have titles
+    const hasTitle = att.title && att.title.trim().length > 0;
+    
+    if (editingAttachmentId === att.id) {
+      return (
+        <div className="flex items-center gap-1 px-1 mt-0.5">
+          <Input
+            value={editingAttachmentTitle}
+            onChange={(e) => setEditingAttachmentTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSaveAttachmentTitle(att.id);
+              if (e.key === "Escape") { setEditingAttachmentId(null); setEditingAttachmentTitle(""); }
+            }}
+            placeholder="Descrição do anexo..."
+            className="text-[10px] h-5 px-1"
+            autoFocus
+          />
+          <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0" onClick={() => handleSaveAttachmentTitle(att.id)}>
+            <Check className="h-3 w-3 text-emerald-600" />
+          </Button>
+          <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0" onClick={() => { setEditingAttachmentId(null); setEditingAttachmentTitle(""); }}>
+            <X className="h-3 w-3" />
+          </Button>
+        </div>
+      );
+    }
+
+    if (hasTitle) {
+      return (
+        <div className="flex items-center gap-1 px-1 mt-0.5">
+          <p className="text-[10px] text-slate-600 font-medium truncate flex-1">{att.title}</p>
+          {canEdit && (
+            <Button size="icon" variant="ghost" className="h-4 w-4 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={() => { setEditingAttachmentId(att.id); setEditingAttachmentTitle(att.title || ""); }}>
+              <Pencil className="h-2.5 w-2.5 text-muted-foreground" />
+            </Button>
+          )}
+        </div>
+      );
+    }
+
+    // No title yet - show add button on hover
+    if (canEdit) {
+      return (
+        <div className="px-1 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            className="text-[10px] text-muted-foreground hover:text-slate-600 flex items-center gap-0.5"
+            onClick={() => { setEditingAttachmentId(att.id); setEditingAttachmentTitle(""); }}
+          >
+            <Pencil className="h-2.5 w-2.5" /> Adicionar descrição
+          </button>
+        </div>
+      );
+    }
+    return null;
+  };
+
   // Render a single attachment preview
-  const renderAttachmentPreview = (att: { id: number; url: string; type: string; isLegacy?: boolean }, itemId: number) => {
+  const renderAttachmentPreview = (att: { id: number; url: string; type: string; title?: string; isLegacy?: boolean }, itemId: number) => {
     const isLegacy = att.isLegacy;
     const onRemove = () => {
       if (isLegacy) {
@@ -356,7 +430,7 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
       return (
         <div key={att.id} className="relative group">
           <a href={att.url} target="_blank" rel="noopener noreferrer">
-            <img src={att.url} alt="" className="w-full max-h-36 object-cover rounded cursor-pointer hover:opacity-90 transition-opacity" />
+            <img src={att.url} alt={att.title || ""} className="w-full max-h-36 object-cover rounded cursor-pointer hover:opacity-90 transition-opacity" />
           </a>
           {canEdit && (
             <Button variant="destructive" size="icon"
@@ -365,6 +439,7 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
               <X className="h-3 w-3" />
             </Button>
           )}
+          {renderAttachmentTitle(att)}
         </div>
       );
     }
@@ -387,7 +462,7 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
               <div className="h-8 w-8 rounded bg-purple-100 flex items-center justify-center shrink-0">
                 <Video className="h-4 w-4 text-purple-600" />
               </div>
-              <p className="text-[10px] text-muted-foreground truncate flex-1">{att.url}</p>
+              <p className="text-[10px] text-muted-foreground truncate flex-1">{att.title || att.url}</p>
               <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0" />
             </a>
           )}
@@ -398,6 +473,7 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
               <X className="h-3 w-3" />
             </Button>
           )}
+          {renderAttachmentTitle(att)}
         </div>
       );
     }
@@ -410,7 +486,7 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
               <FileText className="h-4 w-4 text-orange-600" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-medium text-slate-700">Documento</p>
+              <p className="text-[10px] font-medium text-slate-700">{att.title || "Documento"}</p>
               <p className="text-[9px] text-muted-foreground">{getFileExtension(att.url)} • Clique para abrir</p>
             </div>
             <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0" />
@@ -422,6 +498,7 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
               <X className="h-3 w-3" />
             </Button>
           )}
+          {renderAttachmentTitle(att)}
         </div>
       );
     }
@@ -433,7 +510,7 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
           <div className="h-8 w-8 rounded bg-blue-100 flex items-center justify-center shrink-0">
             <Link2 className="h-4 w-4 text-blue-600" />
           </div>
-          <p className="text-[10px] text-muted-foreground truncate flex-1">{att.url}</p>
+          <p className="text-[10px] text-muted-foreground truncate flex-1">{att.title || att.url}</p>
           <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0" />
         </a>
         {canEdit && (
@@ -443,6 +520,7 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
             <X className="h-3 w-3" />
           </Button>
         )}
+        {renderAttachmentTitle(att)}
       </div>
     );
   };
@@ -485,6 +563,11 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
             <h1 className="text-xl md:text-2xl font-bold tracking-tight">Quadro de Brainstorming</h1>
             <p className="text-sm text-muted-foreground">{displayLabel}</p>
           </div>
+          {items.length > 0 && (
+            <Badge variant="outline" className="text-xs font-medium gap-1 px-3 py-1">
+              {items.length} {items.length === 1 ? 'item' : 'itens'}
+            </Badge>
+          )}
           {!canEdit && (
             <Badge variant="secondary" className="text-xs">Somente Visualização</Badge>
           )}
@@ -707,8 +790,13 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
                               {/* Add attachment (always available for multiple) */}
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6" title="Adicionar anexo">
+                                  <Button variant="ghost" size="icon" className="h-6 w-6 relative" title="Adicionar anexo">
                                     <Paperclip className="h-3 w-3" />
+                                    {itemAttachments.length > 0 && (
+                                      <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-blue-500 text-white text-[8px] font-bold flex items-center justify-center shadow-sm">
+                                        {itemAttachments.length}
+                                      </span>
+                                    )}
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">

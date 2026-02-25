@@ -2840,6 +2840,7 @@ export async function addBrainstormAttachment(data: {
   itemId: number;
   url: string;
   type: "link" | "image" | "video" | "photo" | "document";
+  title?: string;
 }) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
@@ -2855,16 +2856,25 @@ export async function addBrainstormAttachment(data: {
     itemId: data.itemId,
     url: data.url,
     type: data.type,
+    title: data.title || "",
     sortOrder,
   }).$returningId();
 
-  return { id: result.id, ...data, sortOrder, createdAt: new Date() };
+  return { id: result.id, ...data, title: data.title || "", sortOrder, createdAt: new Date() };
 }
 
 export async function removeBrainstormAttachment(attachmentId: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db.delete(brainstormItemAttachments).where(eq(brainstormItemAttachments.id, attachmentId));
+}
+
+export async function updateBrainstormAttachmentTitle(attachmentId: number, title: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(brainstormItemAttachments)
+    .set({ title })
+    .where(eq(brainstormItemAttachments.id, attachmentId));
 }
 
 export async function addBrainstormItem(data: {

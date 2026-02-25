@@ -351,6 +351,7 @@ export const brainstormItemAttachments = mysqlTable("brainstorm_item_attachments
   itemId: int("itemId").notNull(), // References brainstormItems.id
   url: varchar("url", { length: 1024 }).notNull(),
   type: mysqlEnum("type", ["link", "image", "video", "photo", "document"]).notNull(),
+  title: varchar("title", { length: 255 }).default("").notNull(),
   sortOrder: int("sortOrder").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });

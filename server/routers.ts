@@ -52,7 +52,7 @@ import {
   addBrainstormItem, updateBrainstormItem, deleteBrainstormItem,
   moveBrainstormItem, getBrainstormBoardWithItems,
   shareBrainstormBoard, getComponentSessionsForSharing,
-  addBrainstormAttachment, removeBrainstormAttachment, getAttachmentsByItemId,
+  addBrainstormAttachment, removeBrainstormAttachment, getAttachmentsByItemId, updateBrainstormAttachmentTitle,
 } from "./db";
 import { storagePut } from "./storage";
 import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml, buildContactTicketEmailHtml, buildSessionOpenedEmailHtml, buildStudentGradeReportHtml, buildBrainstormNotificationEmailHtml } from "./email";
@@ -2422,6 +2422,7 @@ export const appRouter = router({
       itemId: z.number(),
       url: z.string().min(1),
       type: z.enum(["link", "image", "video", "photo", "document"]),
+      title: z.string().optional(),
     })).mutation(async ({ input }) => {
       return addBrainstormAttachment(input);
     }),
@@ -2431,6 +2432,15 @@ export const appRouter = router({
       attachmentId: z.number(),
     })).mutation(async ({ input }) => {
       await removeBrainstormAttachment(input.attachmentId);
+      return { success: true };
+    }),
+
+    // Update attachment title
+    updateAttachmentTitle: publicProcedure.input(z.object({
+      attachmentId: z.number(),
+      title: z.string(),
+    })).mutation(async ({ input }) => {
+      await updateBrainstormAttachmentTitle(input.attachmentId, input.title);
       return { success: true };
     }),
 

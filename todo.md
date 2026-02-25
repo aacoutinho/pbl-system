@@ -498,3 +498,6 @@
 - [x] Redesenhar interface frontend para exibir e gerenciar múltiplos anexos por item
 - [x] Compatibilidade com dados legados (attachmentUrl/attachmentType) exibidos junto com novos anexos
 - [x] Adicionar fundo levemente mais escuro nos itens do quadro para destacá-los (cor da seção)
+- [x] Contador de itens total no cabeçalho do quadro de brainstorming
+- [x] Contador de anexos (badge numérico) no ícone de clipe de cada item
+- [x] Campo title/descrição editável em cada anexo (schema + backend + frontend)
