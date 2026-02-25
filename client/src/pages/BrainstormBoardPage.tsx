@@ -291,11 +291,6 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
             <h1 className="text-xl md:text-2xl font-bold tracking-tight">Quadro de Brainstorming</h1>
             <p className="text-sm text-muted-foreground">{displayLabel}</p>
           </div>
-          {canEdit && !hasBoard && (
-            <Button onClick={initBoard} disabled={createBoardMutation.isPending}>
-              <Plus className="h-4 w-4 mr-1" /> Iniciar Quadro
-            </Button>
-          )}
           {!canEdit && (
             <Badge variant="secondary" className="text-xs">Somente Visualização</Badge>
           )}
