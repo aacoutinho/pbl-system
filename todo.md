@@ -456,3 +456,6 @@
 - [x] Adicionar coluna Nota Normalizada no CSV de exportação dos resultados por sessão
 - [x] Aplicar normalização proporcional na aba Por Problema (médias finais com nota normalizada)
 - [x] Adicionar quadro de anotações por aluno na avaliação tutorial com 10 pontos positivos e 10 negativos lado a lado (cada ponto com botão + caixa de texto individual, positivos e negativos lado a lado)
+- [x] Simplificar quadro de anotações: substituir 10 botões por 1 campo texto positivo e 1 campo texto negativo
+- [x] Remover campo de anotações privadas do quadro de cada aluno
+- [x] Colocar nome do aluno ao lado da foto no quadro de anotações
