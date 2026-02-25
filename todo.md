@@ -537,3 +537,4 @@
 - [x] Migrar componentes existentes no banco: todos já estão como TP (confirmado pelo usuário)
 - [x] Bug: último botão "Boa" desmarcando sozinho no formulário de avaliação do professor (concorrência na interface)
 - [x] Verificar e garantir que múltiplos usuários simultâneos não causem conflitos de concorrência
+- [x] Separar campo de semestre em dois campos lado a lado: Ano e Semestre (1 ou 2) na criação/edição de turma

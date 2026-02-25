@@ -50,11 +50,13 @@ function ClassesContent() {
 
   const [newClassNumber, setNewClassNumber] = useState("");
   const [newComponentId, setNewComponentId] = useState<number | null>(null);
-  const [newSemester, setNewSemester] = useState("");
+  const [newSemYear, setNewSemYear] = useState(() => String(new Date().getFullYear()));
+  const [newSemNum, setNewSemNum] = useState<"1" | "2">("1");
   const [editId, setEditId] = useState<number | null>(null);
   const [editClassNumber, setEditClassNumber] = useState("");
   const [editComponentId, setEditComponentId] = useState<number | null>(null);
-  const [editSemester, setEditSemester] = useState("");
+  const [editSemYear, setEditSemYear] = useState("");
+  const [editSemNum, setEditSemNum] = useState<"1" | "2">("1");
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [permDialogClassId, setPermDialogClassId] = useState<number | null>(null);
@@ -79,26 +81,30 @@ function ClassesContent() {
 
   const handleCreate = () => {
     const num = parseInt(newClassNumber, 10);
-    if (!num || !newComponentId || !newSemester.trim()) { 
-      toast.error("Preencha todos os campos"); 
+    const year = parseInt(newSemYear, 10);
+    if (!num || !newComponentId || !year || year < 2000 || year > 2100) { 
+      toast.error("Preencha todos os campos corretamente"); 
       return; 
     }
+    const semester = `${year}.${newSemNum}`;
     createMutation.mutate({ 
       classNumber: num, 
       componentId: newComponentId, 
-      semester: newSemester.trim() 
+      semester 
     });
-    setNewClassNumber(""); setNewComponentId(null); setNewSemester(""); setCreateOpen(false);
+    setNewClassNumber(""); setNewComponentId(null); setNewSemYear(String(new Date().getFullYear())); setNewSemNum("1"); setCreateOpen(false);
   };
 
   const handleEdit = () => {
     const num = parseInt(editClassNumber, 10);
-    if (!editId || !num || !editComponentId || !editSemester.trim()) return;
+    const year = parseInt(editSemYear, 10);
+    if (!editId || !num || !editComponentId || !year || year < 2000 || year > 2100) return;
+    const semester = `${year}.${editSemNum}`;
     updateMutation.mutate({ 
       id: editId, 
       classNumber: num, 
       componentId: editComponentId, 
-      semester: editSemester.trim() 
+      semester 
     });
     setEditOpen(false);
   };
@@ -169,7 +175,30 @@ function ClassesContent() {
               </div>
               <div className="space-y-2">
                 <Label>Semestre</Label>
-                <Input placeholder="Ex: 2026.1" value={newSemester} onChange={e => setNewSemester(e.target.value)} />
+                <div className="flex items-center gap-2">
+                  <Input 
+                    type="number" 
+                    min={2000} 
+                    max={2100} 
+                    placeholder="Ano" 
+                    value={newSemYear} 
+                    onChange={e => setNewSemYear(e.target.value)} 
+                    className="w-28"
+                  />
+                  <span className="text-muted-foreground font-medium">.</span>
+                  <Select value={newSemNum} onValueChange={(v) => setNewSemNum(v as "1" | "2")}>
+                    <SelectTrigger className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">1</SelectItem>
+                      <SelectItem value="2">2</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-sm text-muted-foreground">
+                    = <strong className="font-mono">{newSemYear}.{newSemNum}</strong>
+                  </span>
+                </div>
               </div>
             </div>
             <DialogFooter>
@@ -224,7 +253,9 @@ function ClassesContent() {
                         setEditId(cls.id); 
                         setEditClassNumber(extractClassNumber(cls.classCode)); 
                         setEditComponentId(cls.componentId ?? null); 
-                        setEditSemester(cls.semester); 
+                        const semParts = cls.semester.split(".");
+                        setEditSemYear(semParts[0] || String(new Date().getFullYear()));
+                        setEditSemNum((semParts[1] === "2" ? "2" : "1") as "1" | "2"); 
                         setEditOpen(true);
                       }}>
                         <Pencil className="h-3 w-3 mr-1" />Editar
@@ -313,7 +344,30 @@ function ClassesContent() {
             </div>
             <div className="space-y-2">
               <Label>Semestre</Label>
-              <Input placeholder="Ex: 2026.1" value={editSemester} onChange={e => setEditSemester(e.target.value)} />
+              <div className="flex items-center gap-2">
+                <Input 
+                  type="number" 
+                  min={2000} 
+                  max={2100} 
+                  placeholder="Ano" 
+                  value={editSemYear} 
+                  onChange={e => setEditSemYear(e.target.value)} 
+                  className="w-28"
+                />
+                <span className="text-muted-foreground font-medium">.</span>
+                <Select value={editSemNum} onValueChange={(v) => setEditSemNum(v as "1" | "2")}>
+                  <SelectTrigger className="w-24">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1</SelectItem>
+                    <SelectItem value="2">2</SelectItem>
+                  </SelectContent>
+                </Select>
+                <span className="text-sm text-muted-foreground">
+                  = <strong className="font-mono">{editSemYear}.{editSemNum}</strong>
+                </span>
+              </div>
             </div>
           </div>
           <DialogFooter>
