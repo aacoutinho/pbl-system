@@ -1,0 +1,1 @@
+ALTER TABLE `brainstorm_items` MODIFY COLUMN `attachmentType` enum('link','image','video','photo','document');

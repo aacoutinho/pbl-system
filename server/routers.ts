@@ -2355,7 +2355,7 @@ export const appRouter = router({
       content: z.string().min(1),
       status: z.string().optional(),
       attachmentUrl: z.string().nullable().optional(),
-      attachmentType: z.enum(["link", "image", "video", "photo"]).nullable().optional(),
+      attachmentType: z.enum(["link", "image", "video", "photo", "document"]).nullable().optional(),
     })).mutation(async ({ input }) => {
       // Set default status based on section
       const defaultStatuses: Record<string, string> = {
@@ -2381,7 +2381,7 @@ export const appRouter = router({
       content: z.string().optional(),
       status: z.string().optional(),
       attachmentUrl: z.string().nullable().optional(),
-      attachmentType: z.enum(["link", "image", "video", "photo"]).nullable().optional(),
+      attachmentType: z.enum(["link", "image", "video", "photo", "document"]).nullable().optional(),
     })).mutation(async ({ input }) => {
       const { itemId, ...data } = input;
       return updateBrainstormItem(itemId, data);

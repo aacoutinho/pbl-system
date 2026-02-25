@@ -489,3 +489,7 @@
 - [x] Remover botão 'Iniciar Quadro' desnecessário (quadro é criado automaticamente ao adicionar primeiro item)
 - [x] Reformular visual do manual do quadro para faixa branca destacada
 - [x] Permitir mover itens do quadro de brainstorming para qualquer seção (ideias, fatos, questões, metas), não apenas entre Questões e Fatos
+- [x] Adicionar opção de anexar documentos (PDF, DOC, etc.) aos itens do quadro de brainstorming
+- [x] Adicionar upload de arquivo do computador (imagem ou documento) além de URL
+- [x] Melhorar previews/thumbnails: imagem com preview, vídeo YouTube com thumbnail, documento com ícone
+- [x] Destacar mais o estado/status do item no quadro de brainstorming (badge colorido mais visível)

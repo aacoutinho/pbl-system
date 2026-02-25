@@ -2822,7 +2822,7 @@ export async function addBrainstormItem(data: {
   content: string;
   status: string;
   attachmentUrl?: string | null;
-  attachmentType?: "link" | "image" | "video" | "photo" | null;
+  attachmentType?: "link" | "image" | "video" | "photo" | "document" | null;
   sortOrder?: number;
 }) {
   const db = await getDb();
@@ -2856,7 +2856,7 @@ export async function updateBrainstormItem(itemId: number, data: {
   status?: string;
   section?: "ideias" | "fatos" | "questoes" | "metas";
   attachmentUrl?: string | null;
-  attachmentType?: "link" | "image" | "video" | "photo" | null;
+  attachmentType?: "link" | "image" | "video" | "photo" | "document" | null;
   sortOrder?: number;
 }) {
   const db = await getDb();

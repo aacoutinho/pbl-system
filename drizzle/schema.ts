@@ -336,7 +336,7 @@ export const brainstormItems = mysqlTable("brainstorm_items", {
   // metas: planejada, em_andamento, concluida
   status: varchar("status", { length: 32 }).default("default").notNull(),
   attachmentUrl: varchar("attachmentUrl", { length: 1024 }), // Link to site, image, video, or uploaded photo
-  attachmentType: mysqlEnum("attachmentType", ["link", "image", "video", "photo"]), // Type of attachment
+  attachmentType: mysqlEnum("attachmentType", ["link", "image", "video", "photo", "document"]), // Type of attachment
   sortOrder: int("sortOrder").default(0).notNull(), // For ordering items within a section
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
