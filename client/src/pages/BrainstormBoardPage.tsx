@@ -297,69 +297,78 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
         </div>
       </div>
 
-      {/* Manual / Guia de Uso */}
-      <div className="max-w-[1600px] mx-auto mb-4">
-        <button
-          onClick={() => setShowGuide(!showGuide)}
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors px-1 py-1"
-        >
-          <Info className="h-4 w-4" />
-          <span className="font-medium">Como usar o quadro</span>
-          {showGuide ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-        </button>
+      {/* Manual / Guia de Uso - Faixa branca destacada */}
+      <div className="bg-white shadow-sm border-b border-slate-200 -mx-3 md:-mx-4 px-3 md:px-4 mb-4">
+        <div className="max-w-[1600px] mx-auto py-3">
+          <button
+            onClick={() => setShowGuide(!showGuide)}
+            className="w-full flex items-center gap-2.5 text-sm hover:opacity-80 transition-opacity"
+          >
+            <div className="flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 shrink-0">
+              <Info className="h-4 w-4 text-blue-600" />
+            </div>
+            <span className="font-semibold text-slate-700">Como usar o quadro</span>
+            <span className="text-xs text-muted-foreground hidden sm:inline">— clique para {showGuide ? 'ocultar' : 'ver'} as instruções</span>
+            <div className="flex-1" />
+            <div className={`h-6 w-6 rounded-full flex items-center justify-center bg-slate-100 transition-transform ${showGuide ? 'rotate-180' : ''}`}>
+              <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
+            </div>
+          </button>
 
-        {showGuide && (
-          <Card className="mt-2 border-blue-200 bg-blue-50/50">
-            <CardContent className="p-4 text-sm text-foreground/80 space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-foreground flex items-center gap-1.5">
-                    <Plus className="h-4 w-4 text-blue-600" /> Adicionar Itens
+          {showGuide && (
+            <div className="mt-3 pt-3 border-t border-slate-100">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 text-sm text-slate-600">
+                <div className="space-y-1.5">
+                  <h3 className="font-semibold text-slate-800 flex items-center gap-1.5">
+                    <div className="h-5 w-5 rounded bg-emerald-100 flex items-center justify-center"><Plus className="h-3 w-3 text-emerald-600" /></div>
+                    Adicionar Itens
                   </h3>
-                  <p>Digite o texto no campo de cada seção e pressione <kbd className="px-1.5 py-0.5 bg-white rounded border text-xs font-mono">Enter</kbd> ou clique no botão <strong>+</strong>.</p>
+                  <p className="text-xs leading-relaxed">Digite o texto no campo de cada seção e pressione <kbd className="px-1 py-0.5 bg-slate-100 rounded border text-[10px] font-mono">Enter</kbd> ou clique no botão <strong>+</strong>.</p>
                 </div>
 
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-foreground flex items-center gap-1.5">
-                    <Link2 className="h-4 w-4 text-blue-600" /> Anexar Links, Imagens e Vídeos
+                <div className="space-y-1.5">
+                  <h3 className="font-semibold text-slate-800 flex items-center gap-1.5">
+                    <div className="h-5 w-5 rounded bg-blue-100 flex items-center justify-center"><Link2 className="h-3 w-3 text-blue-600" /></div>
+                    Anexos
                   </h3>
-                  <p>Após criar um item, clique no ícone de <strong>corrente</strong> (🔗) e escolha:</p>
-                  <ul className="list-disc list-inside space-y-0.5 ml-1">
-                    <li><strong>Link</strong> — cole qualquer URL (artigo, site, documento)</li>
-                    <li><strong>URL de Imagem</strong> — cole o endereço direto de uma imagem</li>
-                    <li><strong>URL de Vídeo</strong> — cole o link de um vídeo (YouTube, etc.)</li>
+                  <p className="text-xs leading-relaxed">Clique no ícone 🔗 do item e escolha:</p>
+                  <ul className="text-xs space-y-0.5 ml-1">
+                    <li>• <strong>Link</strong> — URL de artigo, site ou documento</li>
+                    <li>• <strong>Imagem</strong> — endereço direto de uma imagem</li>
+                    <li>• <strong>Vídeo</strong> — link do YouTube, Vimeo, etc.</li>
                   </ul>
                 </div>
 
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-foreground flex items-center gap-1.5">
-                    <Camera className="h-4 w-4 text-blue-600" /> Tirar Foto
+                <div className="space-y-1.5">
+                  <h3 className="font-semibold text-slate-800 flex items-center gap-1.5">
+                    <div className="h-5 w-5 rounded bg-purple-100 flex items-center justify-center"><Camera className="h-3 w-3 text-purple-600" /></div>
+                    Tirar Foto
                   </h3>
-                  <p>No menu de anexos, escolha <strong>Tirar Foto</strong> para abrir a câmera do celular ou selecionar uma imagem do computador (máx. 5MB).</p>
+                  <p className="text-xs leading-relaxed">No menu de anexos, escolha <strong>Tirar Foto</strong> para abrir a câmera do celular ou selecionar uma imagem do computador (máx. 5MB).</p>
                 </div>
 
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-foreground flex items-center gap-1.5">
-                    <ArrowRightLeft className="h-4 w-4 text-blue-600" /> Outras Ações
+                <div className="space-y-1.5">
+                  <h3 className="font-semibold text-slate-800 flex items-center gap-1.5">
+                    <div className="h-5 w-5 rounded bg-amber-100 flex items-center justify-center"><ArrowRightLeft className="h-3 w-3 text-amber-600" /></div>
+                    Outras Ações
                   </h3>
-                  <ul className="list-disc list-inside space-y-0.5 ml-1">
-                    <li><strong>Editar texto</strong> — clique no conteúdo do item para editar</li>
-                    <li><strong>Alterar status</strong> — use o seletor de status em cada item</li>
-                    <li><strong>Mover</strong> — itens de Questões e Fatos podem ser movidos entre si</li>
-                    <li><strong>Excluir</strong> — clique no ícone de lixeira</li>
-                    <li><strong>Remover anexo</strong> — clique no <strong>X</strong> vermelho sobre o preview</li>
+                  <ul className="text-xs space-y-0.5 ml-1">
+                    <li>• <strong>Editar</strong> — clique no texto do item</li>
+                    <li>• <strong>Status</strong> — use o seletor em cada item</li>
+                    <li>• <strong>Mover</strong> — Questões ↔ Fatos</li>
+                    <li>• <strong>Excluir</strong> — ícone de lixeira</li>
                   </ul>
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-blue-200/60">
-                <p className="text-xs text-muted-foreground">
-                  As 4 seções representam: <strong>Ideias</strong> (hipóteses e sugestões), <strong>Fatos</strong> (informações confirmadas), <strong>Questões</strong> (dúvidas a investigar) e <strong>Metas</strong> (objetivos de aprendizagem). O quadro atualiza automaticamente a cada 5 segundos.
+              <div className="mt-3 pt-2 border-t border-slate-100">
+                <p className="text-[11px] text-muted-foreground">
+                  <strong>Ideias</strong> (hipóteses) · <strong>Fatos</strong> (informações confirmadas) · <strong>Questões</strong> (dúvidas a investigar) · <strong>Metas</strong> (objetivos de aprendizagem) — atualização automática a cada 5s.
                 </p>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Board Grid - 4 columns on desktop, 2 on tablet, 1 on mobile */}

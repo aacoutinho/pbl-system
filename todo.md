@@ -487,3 +487,4 @@
 - [x] Admin pode editar o quadro de brainstorming de qualquer sessão (já implementado - rotas públicas e canEdit=true para todos os usuários logados)
 - [x] Adicionar manual/guia de uso colapsável no topo do quadro de brainstorming
 - [x] Remover botão 'Iniciar Quadro' desnecessário (quadro é criado automaticamente ao adicionar primeiro item)
+- [x] Reformular visual do manual do quadro para faixa branca destacada
