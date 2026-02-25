@@ -2013,6 +2013,9 @@ export const appRouter = router({
       const smtpOk = await isSmtpConfigured();
       if (!smtpOk) throw new TRPCError({ code: "BAD_REQUEST", message: "SMTP não configurado. Configure o servidor de e-mail primeiro." });
 
+      // Calculate max final grade for normalization
+      const maxFinalGrade = Math.max(...finalGrades.filter(s => !s.absent && s.finalGrade > 0).map(s => s.finalGrade), 1);
+
       let sent = 0;
       let failed = 0;
       const errors: string[] = [];
@@ -2044,6 +2047,7 @@ export const appRouter = router({
           },
           peerAverage: student.peerScore > 0 ? student.peerScore : null,
           finalGrade: student.finalGrade > 0 ? student.finalGrade : null,
+          normalizedGrade: student.finalGrade > 0 ? Math.round((student.finalGrade / maxFinalGrade) * 10 * 10) / 10 : null,
           problemAverage: problemAvg,
         });
 

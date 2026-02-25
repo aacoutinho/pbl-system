@@ -452,3 +452,4 @@
 - [x] Ajustar quadro de avaliação do tutor nos resultados por sessão com colunas: Critério, Nota, Peso, Pontuação
 - [x] Adicionar coluna de nota normalizada (máximo 10) na tabela de resultados dos alunos por sessão
 - [x] Alterar Nota Normalizada para escalonamento proporcional (maior nota = 10, demais proporcionais)
+- [x] Ajustar e-mail de notas para incluir mesmas colunas dos resultados (Nota Final, Nota Normalizada, quadro tutor com Critério/Nota/Peso/Pontuação)

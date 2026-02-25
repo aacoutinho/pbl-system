@@ -436,6 +436,7 @@ export function buildStudentGradeReportHtml(data: {
   };
   peerAverage: number | null;
   finalGrade: number | null;
+  normalizedGrade: number | null;
   problemAverage: number | null;
 }): string {
   const gradeColor = (v: number) => v >= 7 ? "#059669" : v >= 5 ? "#d97706" : "#dc2626";
@@ -449,14 +450,16 @@ export function buildStudentGradeReportHtml(data: {
   ].map(c => `
     <tr>
       <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px; color: #374151;">${c.label}</td>
-      <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px; color: #6b7280; text-align: center;">×${c.weight}</td>
       <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px; font-weight: 600; text-align: center; color: ${gradeColor(c.value * 10)};">${c.value.toFixed(2)}</td>
+      <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px; color: #6b7280; text-align: center;">×${c.weight}</td>
+      <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px; font-weight: 600; text-align: center; color: #374151;">${(c.value * c.weight).toFixed(2)}</td>
     </tr>
   `).join("");
 
   const tutorialGrade = data.tutorialCriteria.tutorialGrade;
   const peerText = data.peerAverage !== null ? data.peerAverage.toFixed(1) : "Pendente";
   const finalText = data.finalGrade !== null ? data.finalGrade.toFixed(1) : "Pendente";
+  const normalizedText = data.normalizedGrade !== null ? data.normalizedGrade.toFixed(1) : "Pendente";
   const problemText = data.problemAverage !== null ? data.problemAverage.toFixed(1) : "Pendente";
 
   return `
@@ -477,28 +480,33 @@ export function buildStudentGradeReportHtml(data: {
           <thead>
             <tr style="background: #f9fafb;">
               <th style="padding: 10px 12px; text-align: left; font-size: 13px; color: #6b7280; font-weight: 600;">Critério</th>
-              <th style="padding: 10px 12px; text-align: center; font-size: 13px; color: #6b7280; font-weight: 600;">Peso</th>
               <th style="padding: 10px 12px; text-align: center; font-size: 13px; color: #6b7280; font-weight: 600;">Nota</th>
+              <th style="padding: 10px 12px; text-align: center; font-size: 13px; color: #6b7280; font-weight: 600;">Peso</th>
+              <th style="padding: 10px 12px; text-align: center; font-size: 13px; color: #6b7280; font-weight: 600;">Pontuação</th>
             </tr>
           </thead>
           <tbody>
             ${criteriaRows}
+            <tr style="background: #f0fdf4;">
+              <td colspan="3" style="padding: 10px 12px; font-size: 14px; font-weight: 700; color: #1f2937;">Nota do Tutorial</td>
+              <td style="padding: 10px 12px; font-size: 16px; font-weight: 700; text-align: center; color: ${gradeColor(tutorialGrade)};">${tutorialGrade.toFixed(1)}</td>
+            </tr>
           </tbody>
         </table>
 
         <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
           <table style="width: 100%; border-collapse: collapse;">
             <tr>
-              <td style="padding: 6px 0; font-size: 14px; color: #374151;">Nota do Tutorial (tutor)</td>
-              <td style="padding: 6px 0; font-size: 18px; font-weight: 700; text-align: right; color: ${gradeColor(tutorialGrade)};">${tutorialGrade.toFixed(1)} / 10</td>
-            </tr>
-            <tr>
               <td style="padding: 6px 0; font-size: 14px; color: #374151;">Média dos Pares</td>
               <td style="padding: 6px 0; font-size: 18px; font-weight: 700; text-align: right; color: ${data.peerAverage !== null ? gradeColor(data.peerAverage) : '#6b7280'};">${peerText}${data.peerAverage !== null ? ' / 10' : ''}</td>
             </tr>
+            <tr>
+              <td style="padding: 6px 0; font-size: 14px; color: #374151;">Nota Final</td>
+              <td style="padding: 6px 0; font-size: 18px; font-weight: 700; text-align: right; color: ${data.finalGrade !== null ? gradeColor(data.finalGrade) : '#6b7280'};">${finalText}</td>
+            </tr>
             <tr style="border-top: 2px solid #86efac;">
-              <td style="padding: 10px 0 6px; font-size: 15px; font-weight: 600; color: #1f2937;">Nota Final de Desempenho</td>
-              <td style="padding: 10px 0 6px; font-size: 22px; font-weight: 700; text-align: right; color: ${data.finalGrade !== null ? gradeColor(data.finalGrade) : '#6b7280'};">${finalText}${data.finalGrade !== null ? ' / 10' : ''}</td>
+              <td style="padding: 10px 0 6px; font-size: 15px; font-weight: 600; color: #1f2937;">Nota Normalizada</td>
+              <td style="padding: 10px 0 6px; font-size: 22px; font-weight: 700; text-align: right; color: ${data.normalizedGrade !== null ? gradeColor(data.normalizedGrade) : '#6b7280'};">${normalizedText}${data.normalizedGrade !== null ? ' / 10' : ''}</td>
             </tr>
           </table>
         </div>
