@@ -57,14 +57,14 @@ const CRITERIA = [
   },
   {
     key: "conteudo" as const,
-    label: "Conteúdo",
+    label: "Discussão",
     weight: 3,
-    gender: "masc" as const,
+    gender: "fem" as const,
     description: "As ideias, fatos e questões abordadas na sessão estavam coerentes, bem apresentadas e adequadas aos objetivos do problema.",
   },
   {
     key: "objetivo" as const,
-    label: "Objetivo",
+    label: "Progresso",
     weight: 3,
     gender: "masc" as const,
     description: "Resultado alcançado pelo produto em relação às metas estipuladas até a presente sessão tutorial.",

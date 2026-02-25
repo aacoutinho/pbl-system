@@ -528,3 +528,9 @@
 - [x] Converter semestres existentes no banco para o novo formato
 - [x] Validar entrada do semestre no frontend e backend
 - [x] Atualizar exibição do semestre em todas as telas
+- [x] (1) Adicionar tipo T/TP ao componente e ajustar criação de turma para pedir apenas número
+- [x] (2) Corrigir link da mesa inválido no email do quadro de brainstorming
+- [x] (3) Corrigir adição de itens no quadro de brainstorming (botão não funciona)
+- [x] (4) Não fechar avaliação quando tutor encerrar avaliação do tutorial
+- [x] (5) Email de avaliação já é enviado apenas quando avaliação é aberta (confirmado correto)
+- [x] (6) Renomear Objetivo→Progresso e Conteúdo→Discussão na avaliação do professor

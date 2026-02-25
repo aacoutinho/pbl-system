@@ -1,0 +1,1 @@
+ALTER TABLE `components` ADD `type` enum('T','TP') DEFAULT 'TP' NOT NULL;

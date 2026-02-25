@@ -23,6 +23,7 @@ export const components = mysqlTable("components", {
   id: int("id").autoincrement().primaryKey(),
   code: varchar("code", { length: 32 }).notNull().unique(), // Ex: TEC502
   name: varchar("name", { length: 255 }).notNull(), // Ex: Concorrência e Conectividade
+  type: mysqlEnum("type", ["T", "TP"]).default("TP").notNull(), // T = Teórico, TP = Teórico-Prático
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 

@@ -153,8 +153,8 @@ function ResultsContent() {
       lines.push("Critério,Nota (0-1),Peso,Contribuição");
       lines.push(`Organização,${Number(tutorialEval.organizacao).toFixed(2)},1,${(Number(tutorialEval.organizacao) * 1).toFixed(2)}`);
       lines.push(`Cooperação,${Number(tutorialEval.cooperacao).toFixed(2)},1,${(Number(tutorialEval.cooperacao) * 1).toFixed(2)}`);
-      lines.push(`Conteúdo,${Number(tutorialEval.conteudo).toFixed(2)},3,${(Number(tutorialEval.conteudo) * 3).toFixed(2)}`);
-      lines.push(`Objetivo,${Number(tutorialEval.objetivo).toFixed(2)},3,${(Number(tutorialEval.objetivo) * 3).toFixed(2)}`);
+      lines.push(`Discussão,${Number(tutorialEval.conteudo).toFixed(2)},3,${(Number(tutorialEval.conteudo) * 3).toFixed(2)}`);
+      lines.push(`Progresso,${Number(tutorialEval.objetivo).toFixed(2)},3,${(Number(tutorialEval.objetivo) * 3).toFixed(2)}`);
       lines.push(`Metas,${Number(tutorialEval.metas).toFixed(2)},2,${(Number(tutorialEval.metas) * 2).toFixed(2)}`);
       lines.push(`Nota do Tutorial,,,"${tutorialEval.tutorialGrade.toFixed(1)}"`);
       lines.push(`Alunos Presentes,,,${presentCount}`);
@@ -404,8 +404,8 @@ function ResultsContent() {
                           {[
                             { label: "Organização", value: Number(tutorialEval.organizacao), weight: 1 },
                             { label: "Cooperação", value: Number(tutorialEval.cooperacao), weight: 1 },
-                            { label: "Conteúdo", value: Number(tutorialEval.conteudo), weight: 3 },
-                            { label: "Objetivo", value: Number(tutorialEval.objetivo), weight: 3 },
+                            { label: "Discussão", value: Number(tutorialEval.conteudo), weight: 3 },
+                            { label: "Progresso", value: Number(tutorialEval.objetivo), weight: 3 },
                             { label: "Metas", value: Number(tutorialEval.metas), weight: 2 },
                           ].map((c) => (
                             <tr key={c.label} className="border-b border-blue-100">

@@ -9,6 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { Layers, Plus, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -28,7 +30,7 @@ function ComponentsContent() {
   const isAdmin = user?.role === "admin";
 
   const createMutation = trpc.components.create.useMutation({
-    onSuccess: () => { utils.components.list.invalidate(); toast.success("Componente criado com sucesso!"); setCreateOpen(false); setNewCode(""); setNewName(""); },
+    onSuccess: () => { utils.components.list.invalidate(); toast.success("Componente criado com sucesso!"); setCreateOpen(false); setNewCode(""); setNewName(""); setNewType("TP"); },
     onError: (e) => toast.error(e.message),
   });
   const updateMutation = trpc.components.update.useMutation({
@@ -44,18 +46,20 @@ function ComponentsContent() {
   const [editOpen, setEditOpen] = useState(false);
   const [newCode, setNewCode] = useState("");
   const [newName, setNewName] = useState("");
+  const [newType, setNewType] = useState<"T" | "TP">("TP");
   const [editId, setEditId] = useState<number | null>(null);
   const [editCode, setEditCode] = useState("");
   const [editName, setEditName] = useState("");
+  const [editType, setEditType] = useState<"T" | "TP">("TP");
 
   const handleCreate = () => {
     if (!newCode.trim() || !newName.trim()) { toast.error("Preencha código e nome"); return; }
-    createMutation.mutate({ code: newCode.trim().toUpperCase(), name: newName.trim() });
+    createMutation.mutate({ code: newCode.trim().toUpperCase(), name: newName.trim(), type: newType });
   };
 
   const handleEdit = () => {
     if (!editId || !editCode.trim() || !editName.trim()) return;
-    updateMutation.mutate({ id: editId, code: editCode.trim().toUpperCase(), name: editName.trim() });
+    updateMutation.mutate({ id: editId, code: editCode.trim().toUpperCase(), name: editName.trim(), type: editType });
   };
 
   if (isLoading) {
@@ -91,6 +95,19 @@ function ComponentsContent() {
                 <div className="space-y-2">
                   <Label>Nome</Label>
                   <Input placeholder="Ex: Concorrência e Conectividade" value={newName} onChange={e => setNewName(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Tipo</Label>
+                  <Select value={newType} onValueChange={(v) => setNewType(v as "T" | "TP")}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="TP">Teórico-Prático (TP)</SelectItem>
+                      <SelectItem value="T">Teórico (T)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Define o prefixo das turmas: TP01, TP02... ou T01, T02...</p>
                 </div>
               </div>
               <DialogFooter>
@@ -129,6 +146,7 @@ function ComponentsContent() {
                 <TableRow>
                   <TableHead className="w-[120px]">Código</TableHead>
                   <TableHead>Nome</TableHead>
+                  <TableHead className="w-[100px]">Tipo</TableHead>
                   {isAdmin && <TableHead className="w-[120px] text-right">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
@@ -137,6 +155,11 @@ function ComponentsContent() {
                   <TableRow key={comp.id}>
                     <TableCell className="font-mono font-medium">{comp.code}</TableCell>
                     <TableCell>{comp.name}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="font-mono">
+                        {(comp as any).type === "T" ? "Teórico" : "Teórico-Prático"}
+                      </Badge>
+                    </TableCell>
                     {isAdmin && (
                       <TableCell className="text-right">
                         <div className="flex gap-1 justify-end">
@@ -144,6 +167,7 @@ function ComponentsContent() {
                             setEditId(comp.id);
                             setEditCode(comp.code);
                             setEditName(comp.name);
+                            setEditType((comp as any).type || "TP");
                             setEditOpen(true);
                           }}>
                             <Pencil className="h-3.5 w-3.5" />
@@ -195,6 +219,19 @@ function ComponentsContent() {
             <div className="space-y-2">
               <Label>Nome</Label>
               <Input placeholder="Ex: Concorrência e Conectividade" value={editName} onChange={e => setEditName(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo</Label>
+              <Select value={editType} onValueChange={(v) => setEditType(v as "T" | "TP")}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TP">Teórico-Prático (TP)</SelectItem>
+                  <SelectItem value="T">Teórico (T)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Define o prefixo das turmas: TP01, TP02... ou T01, T02...</p>
             </div>
           </div>
           <DialogFooter>

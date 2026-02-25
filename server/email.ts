@@ -493,8 +493,8 @@ export function buildStudentGradeReportHtml(data: {
   const criteriaRows = [
     { label: "Organização", weight: 1, value: data.tutorialCriteria.organizacao },
     { label: "Cooperação", weight: 1, value: data.tutorialCriteria.cooperacao },
-    { label: "Conteúdo", weight: 3, value: data.tutorialCriteria.conteudo },
-    { label: "Objetivo", weight: 3, value: data.tutorialCriteria.objetivo },
+    { label: "Discussão", weight: 3, value: data.tutorialCriteria.conteudo },
+    { label: "Progresso", weight: 3, value: data.tutorialCriteria.objetivo },
     { label: "Metas", weight: 2, value: data.tutorialCriteria.metas },
   ].map(c => `
     <tr>

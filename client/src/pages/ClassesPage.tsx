@@ -48,43 +48,55 @@ function ClassesContent() {
     onError: (e) => toast.error(e.message),
   });
 
-  const [newClassCode, setNewClassCode] = useState("");
+  const [newClassNumber, setNewClassNumber] = useState("");
   const [newComponentId, setNewComponentId] = useState<number | null>(null);
   const [newSemester, setNewSemester] = useState("");
   const [editId, setEditId] = useState<number | null>(null);
-  const [editClassCode, setEditClassCode] = useState("");
+  const [editClassNumber, setEditClassNumber] = useState("");
   const [editComponentId, setEditComponentId] = useState<number | null>(null);
   const [editSemester, setEditSemester] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [permDialogClassId, setPermDialogClassId] = useState<number | null>(null);
 
-  // Build a map from componentId to component code for display
-  const componentMap = new Map<number, { code: string; name: string }>();
+  // Build a map from componentId to component info for display
+  const componentMap = new Map<number, { code: string; name: string; type: string }>();
   if (componentsList) {
     for (const c of componentsList) {
-      componentMap.set(c.id, { code: c.code, name: c.name });
+      componentMap.set(c.id, { code: c.code, name: c.name, type: (c as any).type || "TP" });
     }
   }
 
+  // Helper to extract number from classCode (e.g. "TP01" -> 1, "T03" -> 3)
+  const extractClassNumber = (classCode: string): string => {
+    const match = classCode.match(/\d+$/);
+    return match ? String(parseInt(match[0], 10)) : "1";
+  };
+
+  // Get the type prefix for the selected component in create form
+  const newCompType = newComponentId ? (componentMap.get(newComponentId)?.type || "TP") : "TP";
+  const editCompType = editComponentId ? (componentMap.get(editComponentId)?.type || "TP") : "TP";
+
   const handleCreate = () => {
-    if (!newClassCode.trim() || !newComponentId || !newSemester.trim()) { 
+    const num = parseInt(newClassNumber, 10);
+    if (!num || !newComponentId || !newSemester.trim()) { 
       toast.error("Preencha todos os campos"); 
       return; 
     }
     createMutation.mutate({ 
-      classCode: newClassCode.trim(), 
+      classNumber: num, 
       componentId: newComponentId, 
       semester: newSemester.trim() 
     });
-    setNewClassCode(""); setNewComponentId(null); setNewSemester(""); setCreateOpen(false);
+    setNewClassNumber(""); setNewComponentId(null); setNewSemester(""); setCreateOpen(false);
   };
 
   const handleEdit = () => {
-    if (!editId || !editClassCode.trim() || !editComponentId || !editSemester.trim()) return;
+    const num = parseInt(editClassNumber, 10);
+    if (!editId || !num || !editComponentId || !editSemester.trim()) return;
     updateMutation.mutate({ 
       id: editId, 
-      classCode: editClassCode.trim(), 
+      classNumber: num, 
       componentId: editComponentId, 
       semester: editSemester.trim() 
     });
@@ -136,8 +148,24 @@ function ClassesContent() {
                 )}
               </div>
               <div className="space-y-2">
-                <Label>Código da Turma</Label>
-                <Input placeholder="Ex: TP01" value={newClassCode} onChange={e => setNewClassCode(e.target.value)} />
+                <Label>Número da Turma</Label>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-mono text-muted-foreground">{newCompType}</span>
+                  <Input 
+                    type="number" 
+                    min={1} 
+                    max={99} 
+                    placeholder="Ex: 1" 
+                    value={newClassNumber} 
+                    onChange={e => setNewClassNumber(e.target.value)} 
+                    className="w-24"
+                  />
+                  {newClassNumber && (
+                    <span className="text-sm text-muted-foreground">
+                      = <strong className="font-mono">{newCompType}{String(parseInt(newClassNumber) || 0).padStart(2, "0")}</strong>
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Semestre</Label>
@@ -194,7 +222,7 @@ function ClassesContent() {
                     {canManage && (
                       <Button variant="outline" size="sm" onClick={() => {
                         setEditId(cls.id); 
-                        setEditClassCode(cls.classCode); 
+                        setEditClassNumber(extractClassNumber(cls.classCode)); 
                         setEditComponentId(cls.componentId ?? null); 
                         setEditSemester(cls.semester); 
                         setEditOpen(true);
@@ -264,8 +292,24 @@ function ClassesContent() {
               )}
             </div>
             <div className="space-y-2">
-              <Label>Código da Turma</Label>
-              <Input placeholder="Ex: TP01" value={editClassCode} onChange={e => setEditClassCode(e.target.value)} />
+              <Label>Número da Turma</Label>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-mono text-muted-foreground">{editCompType}</span>
+                <Input 
+                  type="number" 
+                  min={1} 
+                  max={99} 
+                  placeholder="Ex: 1" 
+                  value={editClassNumber} 
+                  onChange={e => setEditClassNumber(e.target.value)} 
+                  className="w-24"
+                />
+                {editClassNumber && (
+                  <span className="text-sm text-muted-foreground">
+                    = <strong className="font-mono">{editCompType}{String(parseInt(editClassNumber) || 0).padStart(2, "0")}</strong>
+                  </span>
+                )}
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Semestre</Label>

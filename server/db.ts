@@ -1540,12 +1540,13 @@ export async function isSmtpConfigured() {
 }
 
 // ─── Component CRUD helpers ───
-export async function createComponent(data: { code: string; name: string }) {
+export async function createComponent(data: { code: string; name: string; type?: "T" | "TP" }) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   const [result] = await db.insert(components).values({
     code: data.code.toUpperCase(),
     name: data.name,
+    type: data.type || "TP",
   }).$returningId();
   return getComponentById(result.id);
 }
@@ -1570,12 +1571,13 @@ export async function listComponents() {
   return db.select().from(components).orderBy(components.code);
 }
 
-export async function updateComponent(id: number, data: { code?: string; name?: string }) {
+export async function updateComponent(id: number, data: { code?: string; name?: string; type?: "T" | "TP" }) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   const updateSet: Record<string, unknown> = {};
   if (data.code !== undefined) updateSet.code = data.code.toUpperCase();
   if (data.name !== undefined) updateSet.name = data.name;
+  if (data.type !== undefined) updateSet.type = data.type;
   if (Object.keys(updateSet).length > 0) {
     await db.update(components).set(updateSet).where(eq(components.id, id));
   }

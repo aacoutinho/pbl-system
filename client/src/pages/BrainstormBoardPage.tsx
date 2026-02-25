@@ -398,7 +398,7 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
   const handleAddItem = (section: Section) => {
     const content = newItemTexts[section].trim();
     if (!content) return;
-    if (!boardData) {
+    if (!boardData || (boardData as any).noBoard) {
       createBoardMutation.mutate({ sessionId, studentId }, {
         onSuccess: (board) => {
           addItemMutation.mutate({ boardId: board.id, section, content });

@@ -442,6 +442,7 @@ export const appRouter = router({
     create: adminProcedure.input(z.object({
       code: z.string().min(1),
       name: z.string().min(1),
+      type: z.enum(["T", "TP"]).default("TP"),
     })).mutation(async ({ input }) => {
       const existing = await getComponentByCode(input.code);
       if (existing) throw new TRPCError({ code: "CONFLICT", message: "Já existe um componente com este código" });
@@ -451,12 +452,13 @@ export const appRouter = router({
       id: z.number(),
       code: z.string().min(1).optional(),
       name: z.string().min(1).optional(),
+      type: z.enum(["T", "TP"]).optional(),
     })).mutation(async ({ input }) => {
       if (input.code) {
         const existing = await getComponentByCode(input.code);
         if (existing && existing.id !== input.id) throw new TRPCError({ code: "CONFLICT", message: "Já existe um componente com este código" });
       }
-      return updateComponent(input.id, { code: input.code, name: input.name });
+      return updateComponent(input.id, { code: input.code, name: input.name, type: input.type });
     }),
     delete: adminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
       try {
@@ -481,7 +483,7 @@ export const appRouter = router({
     }),
     // Create: admin can create for any component, coordinator for their components
     create: approvedProcedure.input(z.object({
-      classCode: z.string().min(1),
+      classNumber: z.number().min(1).max(99),
       componentId: z.number(),
       semester: z.string().min(1),
     })).mutation(async ({ ctx, input }) => {
@@ -489,12 +491,17 @@ export const appRouter = router({
       await assertComponentAccess(ctx.user.id, ctx.user.role, input.componentId);
       const semester = normalizeSemester(input.semester);
       if (!semester) throw new TRPCError({ code: "BAD_REQUEST", message: "Formato de semestre inválido. Use ANO.SEMESTRE (ex: 2026.1)" });
-      return createClass({ ...input, semester, professorUserId: ctx.user.id });
+      // Build classCode from component type + number
+      const comp = await getComponentById(input.componentId);
+      if (!comp) throw new TRPCError({ code: "NOT_FOUND", message: "Componente não encontrado" });
+      const prefix = comp.type || "TP";
+      const classCode = `${prefix}${String(input.classNumber).padStart(2, "0")}`;
+      return createClass({ classCode, componentId: input.componentId, semester, professorUserId: ctx.user.id });
     }),
     // Update: admin can update any, coordinator can update classes of their components
     update: approvedProcedure.input(z.object({
       id: z.number(),
-      classCode: z.string().min(1),
+      classNumber: z.number().min(1).max(99),
       componentId: z.number(),
       semester: z.string().min(1),
     })).mutation(async ({ ctx, input }) => {
@@ -503,7 +510,12 @@ export const appRouter = router({
       await assertClassManager(ctx.user.id, ctx.user.role, cls);
       const semester = normalizeSemester(input.semester);
       if (!semester) throw new TRPCError({ code: "BAD_REQUEST", message: "Formato de semestre inválido. Use ANO.SEMESTRE (ex: 2026.1)" });
-      return updateClass(input.id, { classCode: input.classCode, componentId: input.componentId, semester });
+      // Build classCode from component type + number
+      const comp = await getComponentById(input.componentId);
+      if (!comp) throw new TRPCError({ code: "NOT_FOUND", message: "Componente não encontrado" });
+      const prefix = comp.type || "TP";
+      const classCode = `${prefix}${String(input.classNumber).padStart(2, "0")}`;
+      return updateClass(input.id, { classCode, componentId: input.componentId, semester });
     }),
     // Delete: admin can delete any, coordinator can delete classes of their components
     delete: approvedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
@@ -845,7 +857,7 @@ export const appRouter = router({
                 const comp = await getComponentById(cls.componentId);
                 componentCode = comp?.code ?? "";
               }
-              const brainstormUrl = `${input.origin}/avaliacao?sessionId=${newSession.id}&brainstorm=1`;
+              const brainstormUrl = `${input.origin}/brainstorm/${newSession.id}`;
               const html = buildBrainstormNotificationEmailHtml({
                 studentName: mesaStudent.name,
                 sessionLabel: label,
@@ -1471,8 +1483,9 @@ export const appRouter = router({
       });
       // Limpar rascunho se existir
       await deleteTutorialEvalDraft(input.sessionId);
-      // Mudar status da sessão para "finished" (Encerrada) após avaliação do tutor
-      await finishSession(input.sessionId);
+      // NÃO mudar status da sessão para "finished" aqui.
+      // A avaliação do tutor não deve fechar a sessão para os alunos,
+      // pois eles podem ainda estar preenchendo suas avaliações.
       return { success: true, evaluationId: evalId };
     }),
     get: protectedProcedure.input(z.object({ sessionId: z.number() })).query(async ({ input }) => {
@@ -2548,7 +2561,7 @@ export const appRouter = router({
         throw new TRPCError({ code: "BAD_REQUEST", message: "Nenhum aluno com e-mail cadastrado no componente" });
       }
 
-      const brainstormUrl = `${input.origin}/avaliacao?sessionId=${input.sessionId}&brainstorm=1`;
+      const brainstormUrl = `${input.origin}/brainstorm/${input.sessionId}`;
 
       // Group items by section
       const sections = {

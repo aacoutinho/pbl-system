@@ -548,8 +548,8 @@ describe("Send Grade Emails", () => {
     expect(html).toContain("Relatório de Avaliação Tutorial");
     expect(html).toContain("Organização");
     expect(html).toContain("Cooperação");
-    expect(html).toContain("Conteúdo");
-    expect(html).toContain("Objetivo");
+    expect(html).toContain("Discussão");
+    expect(html).toContain("Progresso");
     expect(html).toContain("Metas");
     expect(html).toContain("Pontuação");
     expect(html).toContain("Nota Normalizada");
