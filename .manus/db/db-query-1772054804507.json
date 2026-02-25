@@ -1,0 +1,34 @@
+{
+  "query": "SELECT id, classCode, semester, componentId FROM classes ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute SELECT id, classCode, semester, componentId FROM classes ORDER BY id;",
+  "rows": [
+    {
+      "id": "60001",
+      "classCode": "TP01",
+      "semester": "20261",
+      "componentId": "1"
+    },
+    {
+      "id": "90001",
+      "classCode": "TP03",
+      "semester": "20261",
+      "componentId": "1"
+    },
+    {
+      "id": "90002",
+      "classCode": "TP04",
+      "semester": "20261",
+      "componentId": "1"
+    },
+    {
+      "id": "90003",
+      "classCode": "TP02",
+      "semester": "20261",
+      "componentId": "1"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tclassCode\tsemester\tcomponentId\n60001\tTP01\t20261\t1\n90001\tTP03\t20261\t1\n90002\tTP04\t20261\t1\n90003\tTP02\t20261\t1\n",
+  "stderr": "",
+  "execution_time_ms": 63
+}

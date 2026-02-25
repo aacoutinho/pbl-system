@@ -1,0 +1,13 @@
+{
+  "query": "SELECT DISTINCT semester FROM classes ORDER BY semester;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute SELECT DISTINCT semester FROM classes ORDER BY semester;",
+  "rows": [
+    {
+      "semester": "20261"
+    }
+  ],
+  "messages": [],
+  "stdout": "semester\n20261\n",
+  "stderr": "",
+  "execution_time_ms": 80
+}

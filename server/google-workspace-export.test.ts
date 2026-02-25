@@ -46,7 +46,7 @@ function generateGoogleWorkspaceCSV(
 describe("Google Workspace CSV Export", () => {
   it("generates CSV with correct header (29 columns, semicolon-separated)", () => {
     const result = generateGoogleWorkspaceCSV([
-      { studentName: "ANTONIO AUGUSTO TEIXEIRA RIBEIRO COUTINHO", studentEmail: "aatrcoutinho@ecomp.uefs.br", studentEnrollment: "20221001", semester: "20262" },
+      { studentName: "ANTONIO AUGUSTO TEIXEIRA RIBEIRO COUTINHO", studentEmail: "aatrcoutinho@ecomp.uefs.br", studentEnrollment: "20221001", semester: "2026.2" },
     ]);
     const lines = result.csv.split("\n");
     const headerCols = lines[0].split(";");
@@ -62,7 +62,7 @@ describe("Google Workspace CSV Export", () => {
 
   it("formats names in Title Case from UPPERCASE input", () => {
     const result = generateGoogleWorkspaceCSV([
-      { studentName: "ANTONIO AUGUSTO TEIXEIRA RIBEIRO COUTINHO", studentEmail: "aatrcoutinho@ecomp.uefs.br", studentEnrollment: "20221001", semester: "20262" },
+      { studentName: "ANTONIO AUGUSTO TEIXEIRA RIBEIRO COUTINHO", studentEmail: "aatrcoutinho@ecomp.uefs.br", studentEnrollment: "20221001", semester: "2026.2" },
     ]);
     const lines = result.csv.split("\n");
     const cols = lines[1].split(";");
@@ -72,7 +72,7 @@ describe("Google Workspace CSV Export", () => {
 
   it("formats names with prepositions in lowercase", () => {
     const result = generateGoogleWorkspaceCSV([
-      { studentName: "JOSE MACEDO DOS SANTOS", studentEmail: "jmdsantos@ecomp.uefs.br", studentEnrollment: "20221001", semester: "20262" },
+      { studentName: "JOSE MACEDO DOS SANTOS", studentEmail: "jmdsantos@ecomp.uefs.br", studentEnrollment: "20221001", semester: "2026.2" },
     ]);
     const lines = result.csv.split("\n");
     const cols = lines[1].split(";");
@@ -82,7 +82,7 @@ describe("Google Workspace CSV Export", () => {
 
   it("handles 'da' preposition correctly", () => {
     const result = generateGoogleWorkspaceCSV([
-      { studentName: "MARIA DA CONCEICAO SANTOS", studentEmail: "mdcsantos@ecomp.uefs.br", studentEnrollment: "20221004", semester: "20262" },
+      { studentName: "MARIA DA CONCEICAO SANTOS", studentEmail: "mdcsantos@ecomp.uefs.br", studentEnrollment: "20221004", semester: "2026.2" },
     ]);
     const lines = result.csv.split("\n");
     const cols = lines[1].split(";");
@@ -92,7 +92,7 @@ describe("Google Workspace CSV Export", () => {
 
   it("handles 'de' preposition correctly", () => {
     const result = generateGoogleWorkspaceCSV([
-      { studentName: "CARLOS DE OLIVEIRA", studentEmail: "cdoliveira@ecomp.uefs.br", studentEnrollment: "20221005", semester: "20262" },
+      { studentName: "CARLOS DE OLIVEIRA", studentEmail: "cdoliveira@ecomp.uefs.br", studentEnrollment: "20221005", semester: "2026.2" },
     ]);
     const lines = result.csv.split("\n");
     const cols = lines[1].split(";");
@@ -102,7 +102,7 @@ describe("Google Workspace CSV Export", () => {
 
   it("preserves Title Case from mixed case input with prepositions", () => {
     const result = generateGoogleWorkspaceCSV([
-      { studentName: "Antonio Crispim Amorim Neto", studentEmail: "acamorim@ecomp.uefs.br", studentEnrollment: "20230303", semester: "20262" },
+      { studentName: "Antonio Crispim Amorim Neto", studentEmail: "acamorim@ecomp.uefs.br", studentEnrollment: "20230303", semester: "2026.2" },
     ]);
     const lines = result.csv.split("\n");
     const cols = lines[1].split(";");
@@ -112,7 +112,7 @@ describe("Google Workspace CSV Export", () => {
 
   it("generates password as iniciais_nome + matrícula", () => {
     const result = generateGoogleWorkspaceCSV([
-      { studentName: "ANTONIO AUGUSTO TEIXEIRA RIBEIRO COUTINHO", studentEmail: "aatrcoutinho@ecomp.uefs.br", studentEnrollment: "20221001", semester: "20262" },
+      { studentName: "ANTONIO AUGUSTO TEIXEIRA RIBEIRO COUTINHO", studentEmail: "aatrcoutinho@ecomp.uefs.br", studentEnrollment: "20221001", semester: "2026.2" },
     ]);
     const lines = result.csv.split("\n");
     const cols = lines[1].split(";");
@@ -121,7 +121,7 @@ describe("Google Workspace CSV Export", () => {
 
   it("generates password for two-name student", () => {
     const result = generateGoogleWorkspaceCSV([
-      { studentName: "JOSE SANTOS", studentEmail: "jsantos@ecomp.uefs.br", studentEnrollment: "20220505", semester: "20262" },
+      { studentName: "JOSE SANTOS", studentEmail: "jsantos@ecomp.uefs.br", studentEnrollment: "20220505", semester: "2026.2" },
     ]);
     const lines = result.csv.split("\n");
     const cols = lines[1].split(";");
@@ -130,7 +130,7 @@ describe("Google Workspace CSV Export", () => {
 
   it("generates password with empty enrollment when missing", () => {
     const result = generateGoogleWorkspaceCSV([
-      { studentName: "JOSE SANTOS", studentEmail: "jsantos@ecomp.uefs.br", studentEnrollment: null, semester: "20262" },
+      { studentName: "JOSE SANTOS", studentEmail: "jsantos@ecomp.uefs.br", studentEnrollment: null, semester: "2026.2" },
     ]);
     const lines = result.csv.split("\n");
     const cols = lines[1].split(";");
@@ -139,7 +139,7 @@ describe("Google Workspace CSV Export", () => {
 
   it("generates password for student with many names", () => {
     const result = generateGoogleWorkspaceCSV([
-      { studentName: "JOSE MACEDO DOS SANTOS JUNIOR", studentEmail: "jmdsantos@ecomp.uefs.br", studentEnrollment: "20230101", semester: "20262" },
+      { studentName: "JOSE MACEDO DOS SANTOS JUNIOR", studentEmail: "jmdsantos@ecomp.uefs.br", studentEnrollment: "20230101", semester: "2026.2" },
     ]);
     const lines = result.csv.split("\n");
     const cols = lines[1].split(";");
@@ -148,7 +148,7 @@ describe("Google Workspace CSV Export", () => {
 
   it("sets Org Unit Path to /Alunos", () => {
     const result = generateGoogleWorkspaceCSV([
-      { studentName: "JOSE SANTOS", studentEmail: "jsantos@ecomp.uefs.br", studentEnrollment: "20220505", semester: "20262" },
+      { studentName: "JOSE SANTOS", studentEmail: "jsantos@ecomp.uefs.br", studentEnrollment: "20220505", semester: "2026.2" },
     ]);
     const lines = result.csv.split("\n");
     const cols = lines[1].split(";");
@@ -157,7 +157,7 @@ describe("Google Workspace CSV Export", () => {
 
   it("sets Change Password at Next Sign-In to True", () => {
     const result = generateGoogleWorkspaceCSV([
-      { studentName: "JOSE SANTOS", studentEmail: "jsantos@ecomp.uefs.br", studentEnrollment: "20220505", semester: "20262" },
+      { studentName: "JOSE SANTOS", studentEmail: "jsantos@ecomp.uefs.br", studentEnrollment: "20220505", semester: "2026.2" },
     ]);
     const lines = result.csv.split("\n");
     const cols = lines[1].split(";");
@@ -166,7 +166,7 @@ describe("Google Workspace CSV Export", () => {
 
   it("sets Advanced Protection Program enrollment to False", () => {
     const result = generateGoogleWorkspaceCSV([
-      { studentName: "JOSE SANTOS", studentEmail: "jsantos@ecomp.uefs.br", studentEnrollment: "20220505", semester: "20262" },
+      { studentName: "JOSE SANTOS", studentEmail: "jsantos@ecomp.uefs.br", studentEnrollment: "20220505", semester: "2026.2" },
     ]);
     const lines = result.csv.split("\n");
     const cols = lines[1].split(";");
@@ -175,7 +175,7 @@ describe("Google Workspace CSV Export", () => {
 
   it("leaves unused columns empty", () => {
     const result = generateGoogleWorkspaceCSV([
-      { studentName: "JOSE SANTOS", studentEmail: "jsantos@ecomp.uefs.br", studentEnrollment: "20220505", semester: "20262" },
+      { studentName: "JOSE SANTOS", studentEmail: "jsantos@ecomp.uefs.br", studentEnrollment: "20220505", semester: "2026.2" },
     ]);
     const lines = result.csv.split("\n");
     const cols = lines[1].split(";");
@@ -186,9 +186,9 @@ describe("Google Workspace CSV Export", () => {
 
   it("exports multiple students correctly with Title Case and prepositions", () => {
     const result = generateGoogleWorkspaceCSV([
-      { studentName: "ANTONIO COUTINHO", studentEmail: "acoutinho@ecomp.uefs.br", studentEnrollment: "20221001", semester: "20262" },
-      { studentName: "JOSE MACEDO DOS SANTOS", studentEmail: "jmdsantos@ecomp.uefs.br", studentEnrollment: "20221002", semester: "20262" },
-      { studentName: "MARIA DA SILVA", studentEmail: "msilva@ecomp.uefs.br", studentEnrollment: "20221003", semester: "20262" },
+      { studentName: "ANTONIO COUTINHO", studentEmail: "acoutinho@ecomp.uefs.br", studentEnrollment: "20221001", semester: "2026.2" },
+      { studentName: "JOSE MACEDO DOS SANTOS", studentEmail: "jmdsantos@ecomp.uefs.br", studentEnrollment: "20221002", semester: "2026.2" },
+      { studentName: "MARIA DA SILVA", studentEmail: "msilva@ecomp.uefs.br", studentEnrollment: "20221003", semester: "2026.2" },
     ]);
     expect(result.count).toBe(3);
     const lines = result.csv.split("\n");
@@ -203,8 +203,8 @@ describe("Google Workspace CSV Export", () => {
 
   it("deduplicates students by email", () => {
     const result = generateGoogleWorkspaceCSV([
-      { studentName: "ANTONIO COUTINHO", studentEmail: "acoutinho@ecomp.uefs.br", studentEnrollment: "20221001", semester: "20262" },
-      { studentName: "ANTONIO COUTINHO", studentEmail: "acoutinho@ecomp.uefs.br", studentEnrollment: "20221001", semester: "20262" },
+      { studentName: "ANTONIO COUTINHO", studentEmail: "acoutinho@ecomp.uefs.br", studentEnrollment: "20221001", semester: "2026.2" },
+      { studentName: "ANTONIO COUTINHO", studentEmail: "acoutinho@ecomp.uefs.br", studentEnrollment: "20221001", semester: "2026.2" },
     ]);
     expect(result.count).toBe(1);
     const lines = result.csv.split("\n");
@@ -213,8 +213,8 @@ describe("Google Workspace CSV Export", () => {
 
   it("each row has exactly 29 columns", () => {
     const result = generateGoogleWorkspaceCSV([
-      { studentName: "ANTONIO AUGUSTO TEIXEIRA RIBEIRO COUTINHO", studentEmail: "aatrcoutinho@ecomp.uefs.br", studentEnrollment: "20221001", semester: "20262" },
-      { studentName: "JOSE MACEDO DOS SANTOS JUNIOR", studentEmail: "jmdsantos@ecomp.uefs.br", studentEnrollment: "20221002", semester: "20262" },
+      { studentName: "ANTONIO AUGUSTO TEIXEIRA RIBEIRO COUTINHO", studentEmail: "aatrcoutinho@ecomp.uefs.br", studentEnrollment: "20221001", semester: "2026.2" },
+      { studentName: "JOSE MACEDO DOS SANTOS JUNIOR", studentEmail: "jmdsantos@ecomp.uefs.br", studentEnrollment: "20221002", semester: "2026.2" },
     ]);
     const lines = result.csv.split("\n");
     for (const line of lines) {
@@ -225,7 +225,7 @@ describe("Google Workspace CSV Export", () => {
 
   it("handles single-name students in Title Case", () => {
     const result = generateGoogleWorkspaceCSV([
-      { studentName: "MADONNA", studentEmail: "madonna@ecomp.uefs.br", studentEnrollment: "20221099", semester: "20262" },
+      { studentName: "MADONNA", studentEmail: "madonna@ecomp.uefs.br", studentEnrollment: "20221099", semester: "2026.2" },
     ]);
     const lines = result.csv.split("\n");
     const cols = lines[1].split(";");
@@ -236,9 +236,9 @@ describe("Google Workspace CSV Export", () => {
 
   it("returns correct count", () => {
     const result = generateGoogleWorkspaceCSV([
-      { studentName: "A B", studentEmail: "a@x.br", studentEnrollment: "001", semester: "20262" },
-      { studentName: "C D", studentEmail: "c@x.br", studentEnrollment: "002", semester: "20262" },
-      { studentName: "E F", studentEmail: "e@x.br", studentEnrollment: "003", semester: "20262" },
+      { studentName: "A B", studentEmail: "a@x.br", studentEnrollment: "001", semester: "2026.2" },
+      { studentName: "C D", studentEmail: "c@x.br", studentEnrollment: "002", semester: "2026.2" },
+      { studentName: "E F", studentEmail: "e@x.br", studentEnrollment: "003", semester: "2026.2" },
     ]);
     expect(result.count).toBe(3);
   });

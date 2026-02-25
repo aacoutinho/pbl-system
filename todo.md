@@ -524,3 +524,7 @@
 - [x] Testes: 40 testes do brainstorm board (rotas, templates de e-mail, configuração, cooldown) - 766 testes passando
 - [x] Corrigir parser de importação CSV para suportar novo formato SAGRES (colunas deslocadas: N° na col 0, Matrícula na col 2, Nome na col 3)
 - [x] Atualizar testes de importação CSV para o novo formato
+- [x] Padronizar formato do semestre para ANO.SEMESTRE (ex: 2026.1, 2026.2) em todo o sistema
+- [x] Converter semestres existentes no banco para o novo formato
+- [x] Validar entrada do semestre no frontend e backend
+- [x] Atualizar exibição do semestre em todas as telas

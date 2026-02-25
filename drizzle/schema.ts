@@ -52,7 +52,7 @@ export const classes = mysqlTable("classes", {
   id: int("id").autoincrement().primaryKey(),
   classCode: varchar("classCode", { length: 32 }).notNull(), // Ex: TP01
   componentId: int("componentId").notNull(), // References components.id
-  semester: varchar("semester", { length: 16 }).notNull(), // Ex: 20262
+  semester: varchar("semester", { length: 16 }).notNull(), // Ex: 2026.1
   professorUserId: int("professorUserId").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });

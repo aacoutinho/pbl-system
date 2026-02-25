@@ -141,7 +141,7 @@ function ClassesContent() {
               </div>
               <div className="space-y-2">
                 <Label>Semestre</Label>
-                <Input placeholder="Ex: 20262" value={newSemester} onChange={e => setNewSemester(e.target.value)} />
+                <Input placeholder="Ex: 2026.1" value={newSemester} onChange={e => setNewSemester(e.target.value)} />
               </div>
             </div>
             <DialogFooter>
@@ -269,7 +269,7 @@ function ClassesContent() {
             </div>
             <div className="space-y-2">
               <Label>Semestre</Label>
-              <Input placeholder="Ex: 20262" value={editSemester} onChange={e => setEditSemester(e.target.value)} />
+              <Input placeholder="Ex: 2026.1" value={editSemester} onChange={e => setEditSemester(e.target.value)} />
             </div>
           </div>
           <DialogFooter>

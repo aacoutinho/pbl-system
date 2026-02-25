@@ -59,6 +59,25 @@ import {
 import { storagePut } from "./storage";
 import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml, buildContactTicketEmailHtml, buildSessionOpenedEmailHtml, buildStudentGradeReportHtml, buildBrainstormNotificationEmailHtml, buildBrainstormBoardEmailHtml } from "./email";
 
+/**
+ * Normaliza o semestre para o formato ANO.SEMESTRE (ex: 2026.1, 2026.2).
+ * Aceita formatos: "2026.1", "20261", "2026/1", "2026-1", "2026 1".
+ * Retorna null se o formato for inválido.
+ */
+export function normalizeSemester(raw: string): string | null {
+  const trimmed = raw.trim();
+  // Already in correct format: 2026.1 or 2026.2
+  const dotMatch = trimmed.match(/^(\d{4})\.(1|2)$/);
+  if (dotMatch) return `${dotMatch[1]}.${dotMatch[2]}`;
+  // Compact format: 20261 or 20262
+  const compactMatch = trimmed.match(/^(\d{4})(1|2)$/);
+  if (compactMatch) return `${compactMatch[1]}.${compactMatch[2]}`;
+  // Slash, dash, or space separator: 2026/1, 2026-1, 2026 1
+  const sepMatch = trimmed.match(/^(\d{4})[\/-\s](1|2)$/);
+  if (sepMatch) return `${sepMatch[1]}.${sepMatch[2]}`;
+  return null;
+}
+
 // Base: approved user (any role except "user" pending)
 const approvedProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (ctx.user.approvalStatus !== "approved") throw new TRPCError({ code: "FORBIDDEN", message: "Acesso pendente de aprovação" });
@@ -468,7 +487,9 @@ export const appRouter = router({
     })).mutation(async ({ ctx, input }) => {
       // Any approved professor who is member of the component can create a class
       await assertComponentAccess(ctx.user.id, ctx.user.role, input.componentId);
-      return createClass({ ...input, professorUserId: ctx.user.id });
+      const semester = normalizeSemester(input.semester);
+      if (!semester) throw new TRPCError({ code: "BAD_REQUEST", message: "Formato de semestre inválido. Use ANO.SEMESTRE (ex: 2026.1)" });
+      return createClass({ ...input, semester, professorUserId: ctx.user.id });
     }),
     // Update: admin can update any, coordinator can update classes of their components
     update: approvedProcedure.input(z.object({
@@ -480,7 +501,9 @@ export const appRouter = router({
       const cls = await getClassById(input.id);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       await assertClassManager(ctx.user.id, ctx.user.role, cls);
-      return updateClass(input.id, { classCode: input.classCode, componentId: input.componentId, semester: input.semester });
+      const semester = normalizeSemester(input.semester);
+      if (!semester) throw new TRPCError({ code: "BAD_REQUEST", message: "Formato de semestre inválido. Use ANO.SEMESTRE (ex: 2026.1)" });
+      return updateClass(input.id, { classCode: input.classCode, componentId: input.componentId, semester });
     }),
     // Delete: admin can delete any, coordinator can delete classes of their components
     delete: approvedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {

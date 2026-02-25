@@ -1,0 +1,9 @@
+{
+  "query": "UPDATE classes SET semester = CONCAT(LEFT(semester, 4), '.', RIGHT(semester, 1)) WHERE semester REGEXP '^[0-9]{5}$';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute UPDATE classes SET semester = CONCAT(LEFT(semester, 4), '.', RIGHT(semester, 1)) WHERE semester REGEXP '^[0-9]{5}$';",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 75
+}
