@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import {
   Plus, Trash2, ArrowLeft, Lightbulb, BookOpen, HelpCircle, Target,
   ArrowRightLeft, Link2, ImageIcon, Video, Camera, X, ExternalLink,
-  ChevronDown
+  ChevronDown, ChevronUp, Info
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
@@ -110,6 +110,7 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
   const [attachmentType, setAttachmentType] = useState<"link" | "image" | "video" | "photo">("link");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   const utils = trpc.useUtils();
 
@@ -299,6 +300,71 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
             <Badge variant="secondary" className="text-xs">Somente Visualização</Badge>
           )}
         </div>
+      </div>
+
+      {/* Manual / Guia de Uso */}
+      <div className="max-w-[1600px] mx-auto mb-4">
+        <button
+          onClick={() => setShowGuide(!showGuide)}
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors px-1 py-1"
+        >
+          <Info className="h-4 w-4" />
+          <span className="font-medium">Como usar o quadro</span>
+          {showGuide ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+        </button>
+
+        {showGuide && (
+          <Card className="mt-2 border-blue-200 bg-blue-50/50">
+            <CardContent className="p-4 text-sm text-foreground/80 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-foreground flex items-center gap-1.5">
+                    <Plus className="h-4 w-4 text-blue-600" /> Adicionar Itens
+                  </h3>
+                  <p>Digite o texto no campo de cada seção e pressione <kbd className="px-1.5 py-0.5 bg-white rounded border text-xs font-mono">Enter</kbd> ou clique no botão <strong>+</strong>.</p>
+                </div>
+
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-foreground flex items-center gap-1.5">
+                    <Link2 className="h-4 w-4 text-blue-600" /> Anexar Links, Imagens e Vídeos
+                  </h3>
+                  <p>Após criar um item, clique no ícone de <strong>corrente</strong> (🔗) e escolha:</p>
+                  <ul className="list-disc list-inside space-y-0.5 ml-1">
+                    <li><strong>Link</strong> — cole qualquer URL (artigo, site, documento)</li>
+                    <li><strong>URL de Imagem</strong> — cole o endereço direto de uma imagem</li>
+                    <li><strong>URL de Vídeo</strong> — cole o link de um vídeo (YouTube, etc.)</li>
+                  </ul>
+                </div>
+
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-foreground flex items-center gap-1.5">
+                    <Camera className="h-4 w-4 text-blue-600" /> Tirar Foto
+                  </h3>
+                  <p>No menu de anexos, escolha <strong>Tirar Foto</strong> para abrir a câmera do celular ou selecionar uma imagem do computador (máx. 5MB).</p>
+                </div>
+
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-foreground flex items-center gap-1.5">
+                    <ArrowRightLeft className="h-4 w-4 text-blue-600" /> Outras Ações
+                  </h3>
+                  <ul className="list-disc list-inside space-y-0.5 ml-1">
+                    <li><strong>Editar texto</strong> — clique no conteúdo do item para editar</li>
+                    <li><strong>Alterar status</strong> — use o seletor de status em cada item</li>
+                    <li><strong>Mover</strong> — itens de Questões e Fatos podem ser movidos entre si</li>
+                    <li><strong>Excluir</strong> — clique no ícone de lixeira</li>
+                    <li><strong>Remover anexo</strong> — clique no <strong>X</strong> vermelho sobre o preview</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-blue-200/60">
+                <p className="text-xs text-muted-foreground">
+                  As 4 seções representam: <strong>Ideias</strong> (hipóteses e sugestões), <strong>Fatos</strong> (informações confirmadas), <strong>Questões</strong> (dúvidas a investigar) e <strong>Metas</strong> (objetivos de aprendizagem). O quadro atualiza automaticamente a cada 5 segundos.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Board Grid - 4 columns on desktop, 2 on tablet, 1 on mobile */}

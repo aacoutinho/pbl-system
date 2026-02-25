@@ -484,3 +484,5 @@
 - [x] Renomear sistema na interface de "Avaliação Tutorial" para "Sessão Tutorial" (manter "Avaliação Tutorial" apenas onde diz respeito à avaliação)
 - [x] Backend: rota para apagar histórico de ações por período (última hora, último dia, tudo)
 - [x] Frontend: botões para apagar histórico de ações (última hora, último dia, tudo) com confirmação
+- [x] Admin pode editar o quadro de brainstorming de qualquer sessão (já implementado - rotas públicas e canEdit=true para todos os usuários logados)
+- [x] Adicionar manual/guia de uso colapsável no topo do quadro de brainstorming
