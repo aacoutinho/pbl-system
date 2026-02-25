@@ -522,3 +522,5 @@
 - [x] Frontend: diálogo de confirmação antes de enviar quadro mostrando quantos alunos receberão
 - [x] Backend: rota getStudentCount para contar alunos com e-mail no componente
 - [x] Testes: 40 testes do brainstorm board (rotas, templates de e-mail, configuração, cooldown) - 766 testes passando
+- [x] Corrigir parser de importação CSV para suportar novo formato SAGRES (colunas deslocadas: N° na col 0, Matrícula na col 2, Nome na col 3)
+- [x] Atualizar testes de importação CSV para o novo formato

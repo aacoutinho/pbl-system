@@ -7,12 +7,29 @@ function parseCSV(csvContent: string, emailDomain?: string) {
 
   for (const line of lines) {
     const cols = line.split(";");
-    const num = cols[1]?.trim();
-    if (!num || isNaN(parseInt(num))) continue;
-    const enrollment = cols[3]?.trim();
-    const name = cols[4]?.trim();
+    // Try format A: N° at col[0], Matrícula at col[2], Nome at col[3]
+    // Try format B: N° at col[1], Matrícula at col[3], Nome at col[4]
+    let num: string | undefined, enrollment: string | undefined, name: string | undefined;
+    const numA = cols[0]?.trim();
+    const numB = cols[1]?.trim();
+    if (numA && !isNaN(parseInt(numA)) && parseInt(numA) > 0) {
+      // Format A (new): N° in col 0
+      num = numA;
+      enrollment = cols[2]?.trim();
+      name = cols[3]?.trim();
+    } else if (numB && !isNaN(parseInt(numB)) && parseInt(numB) > 0) {
+      // Format B (old): N° in col 1
+      num = numB;
+      enrollment = cols[3]?.trim();
+      name = cols[4]?.trim();
+    } else {
+      continue;
+    }
     if (!name || !enrollment) continue;
     if (name === "Aluno" || enrollment === "Matrícula") continue;
+    // Clean enrollment (remove trailing spaces)
+    enrollment = enrollment.replace(/\s+$/, "");
+    name = name.trim();
 
     // Generate email: initials + last name (ignoring suffixes like Junior, Jr., Neto, Filho)
     const domain = emailDomain || "ecomp.uefs.br";
@@ -42,7 +59,8 @@ function parseCSV(csvContent: string, emailDomain?: string) {
   return parsed;
 }
 
-const SAMPLE_CSV_SIMPLE = `;;;;;UNIVERSIDADE ESTADUAL DE FEIRA DE SANTANA;;;;;;
+// ─── Format B (old): N° in col[1], semicolon-prefixed lines ───
+const SAMPLE_CSV_OLD_FORMAT = `;;;;;UNIVERSIDADE ESTADUAL DE FEIRA DE SANTANA;;;;;;
 ;;;;;Folha de Frequência;;;;;;
 ;;Professor:;;;;ANTÔNIO AUGUSTO TEIXEIRA RIBEIRO COUTINHO;;;;;
 ;;Data:;;;;;quinta-feira, 26 de fevereiro de 2026;;;;
@@ -59,7 +77,30 @@ const SAMPLE_CSV_SIMPLE = `;;;;;UNIVERSIDADE ESTADUAL DE FEIRA DE SANTANA;;;;;;
 ;10;;23211323 ;WALACE DE JESUS VENAS;;;;;   _;
 ;11;;22111240 ;YASMIN CORDEIRO DE SOUZA MEIRA;;;;;   _;`;
 
-const SAMPLE_CSV_WITH_TRIAL = `"This document was generated using a trial version of DevExpress libraries";;;;;;;;;;;
+// ─── Format A (new): N° in col[0], no leading semicolon ───
+const SAMPLE_CSV_NEW_FORMAT = `;;;;UNIVERSIDADE ESTADUAL DE FEIRA DE SANTANA;;;;;;Página 1 de 1
+;;;;SAGRES DIÁRIO 3;;;;;;
+;;;;Folha de Frequência;;;;;;
+;;;;Emissão: 25/02/2026 04:45;;;;;;
+;Unidade acadêmica:;;;;DEPARTAMENTO DE TECNOLOGIA              ;;;;;
+;Classe:;;;;TEC502 - MI - CONCORRÊNCIA E CONECTIVIDADE (Teórica-Prática - TP01);;;;;
+;Carga horária:;;;;;60 horas;Período letivo:;20261;;
+;Professor:;;;;ANTÔNIO AUGUSTO TEIXEIRA RIBEIRO COUTINHO;;;;;
+;Data:;;;;;quinta-feira, 26 de fevereiro de 2026;;;;
+N°;;Matrícula; Aluno;;;;;;   Assinatura do Aluno;
+1;;22211284 ;CAROLINE SANTOS DE JESUS;;;;;   _;
+2;;20111193 ;CLEIDSON RAMOS DE CARVALHO;;;;;   _;
+3;;23211291 ;FELIPE DA SILVA FERREIRA;;;;;   _;
+4;;22111211 ;GERSON FERREIRA DOS ANJOS NETO;;;;;   _;
+5;;22211297 ;ILSON MARINHO DA COSTA NETO;;;;;   _;
+6;;22221296 ;JEFFERSON MATEUS NASCIMENTO DOS SANTOS;;;;;   _;
+7;;24111300 ;JOAO VICTOR DA COSTA CERQUEIRA;;;;;   _;
+8;;24111305 ;LUIS FELIPE CARNEIRO PIMENTEL;;;;;   _;
+9;;24111310 ;NYCOLAS DE LIMA OLIVEIRA SILVA;;;;;   _;
+10;;23211319 ;UEMERSON VIRGEN DE JESUS;;;;;   _;
+11;;23211323 ;WALACE DE JESUS VENAS;;;;;   _;`;
+
+const SAMPLE_CSV_WITH_TRIAL_OLD = `"This document was generated using a trial version of DevExpress libraries";;;;;;;;;;;
 ;;;;;UNIVERSIDADE ESTADUAL DE FEIRA DE SANTANA;;;;;;Página 1 de 1
 ;;;;;SAGRES DIÁRIO 3;;;;;;
 ;;;;;Folha de Frequência;;;;;;
@@ -70,9 +111,9 @@ const SAMPLE_CSV_WITH_TRIAL = `"This document was generated using a trial versio
 ;2;;23211291 ;FELIPE DA SILVA FERREIRA;;;;;   _;
 ;3;;22111211 ;GERSON FERREIRA DOS ANJOS NETO;;;;;   _;`;
 
-describe("CSV Import - SAGRES Format Parser", () => {
-  it("parses simple SAGRES CSV and extracts all 11 students", () => {
-    const result = parseCSV(SAMPLE_CSV_SIMPLE);
+describe("CSV Import - Old Format (N° in col[1])", () => {
+  it("parses old SAGRES CSV and extracts all 11 students", () => {
+    const result = parseCSV(SAMPLE_CSV_OLD_FORMAT);
     expect(result).toHaveLength(11);
     expect(result[0].name).toBe("CLEIDSON RAMOS DE CARVALHO");
     expect(result[0].enrollment).toBe("20111193");
@@ -80,44 +121,104 @@ describe("CSV Import - SAGRES Format Parser", () => {
     expect(result[10].enrollment).toBe("22111240");
   });
 
-  it("generates emails with default domain when no domain is provided", () => {
-    const result = parseCSV(SAMPLE_CSV_SIMPLE);
-    // CLEIDSON RAMOS DE CARVALHO → crdcarvalho@ecomp.uefs.br
+  it("generates emails with default domain", () => {
+    const result = parseCSV(SAMPLE_CSV_OLD_FORMAT);
     expect(result[0].email).toBe("crdcarvalho@ecomp.uefs.br");
-    // FELIPE DA SILVA FERREIRA → fdsferreira@ecomp.uefs.br
     expect(result[1].email).toBe("fdsferreira@ecomp.uefs.br");
   });
 
-  it("generates emails from name when domain is provided (initials + last name)", () => {
-    const result = parseCSV(SAMPLE_CSV_SIMPLE, "uefs.br");
-    // CLEIDSON RAMOS DE CARVALHO → crdcarvalho@uefs.br
+  it("generates emails with custom domain", () => {
+    const result = parseCSV(SAMPLE_CSV_OLD_FORMAT, "uefs.br");
     expect(result[0].email).toBe("crdcarvalho@uefs.br");
-    // FELIPE DA SILVA FERREIRA → fdsferreira@uefs.br
     expect(result[1].email).toBe("fdsferreira@uefs.br");
-    // YASMIN CORDEIRO DE SOUZA MEIRA → ycdsmeira@uefs.br
     expect(result[10].email).toBe("ycdsmeira@uefs.br");
   });
 
-  it("removes accents from generated emails", () => {
-    const csvWithAccents = `;N°;;Matrícula; Aluno;
-;1;;12345 ;JOSÉ ANTÔNIO DA CONCEIÇÃO;;;;;   _;`;
-    const result = parseCSV(csvWithAccents, "uefs.br");
-    // JOSÉ ANTÔNIO DA CONCEIÇÃO → jadconceicao@uefs.br
-    expect(result[0].email).toBe("jadconceicao@uefs.br");
-  });
-
   it("handles CSV with DevExpress trial notice header", () => {
-    const result = parseCSV(SAMPLE_CSV_WITH_TRIAL, "uefs.br");
+    const result = parseCSV(SAMPLE_CSV_WITH_TRIAL_OLD, "uefs.br");
     expect(result).toHaveLength(3);
     expect(result[0].name).toBe("CLEIDSON RAMOS DE CARVALHO");
     expect(result[2].name).toBe("GERSON FERREIRA DOS ANJOS NETO");
+  });
+
+  it("handles multi-digit row numbers (10+)", () => {
+    const result = parseCSV(SAMPLE_CSV_OLD_FORMAT);
+    const student10 = result.find(s => s.enrollment === "23211323");
+    expect(student10).toBeDefined();
+    expect(student10!.name).toBe("WALACE DE JESUS VENAS");
+  });
+});
+
+describe("CSV Import - New Format (N° in col[0])", () => {
+  it("parses new SAGRES CSV and extracts all 11 students", () => {
+    const result = parseCSV(SAMPLE_CSV_NEW_FORMAT);
+    expect(result).toHaveLength(11);
+    expect(result[0].name).toBe("CAROLINE SANTOS DE JESUS");
+    expect(result[0].enrollment).toBe("22211284");
+    expect(result[10].name).toBe("WALACE DE JESUS VENAS");
+    expect(result[10].enrollment).toBe("23211323");
+  });
+
+  it("generates emails correctly from new format", () => {
+    const result = parseCSV(SAMPLE_CSV_NEW_FORMAT);
+    // CAROLINE SANTOS DE JESUS → csdjesus@ecomp.uefs.br
+    expect(result[0].email).toBe("csdjesus@ecomp.uefs.br");
+    // CLEIDSON RAMOS DE CARVALHO → crdcarvalho@ecomp.uefs.br
+    expect(result[1].email).toBe("crdcarvalho@ecomp.uefs.br");
+  });
+
+  it("generates emails with custom domain from new format", () => {
+    const result = parseCSV(SAMPLE_CSV_NEW_FORMAT, "uefs.br");
+    expect(result[0].email).toBe("csdjesus@uefs.br");
+    expect(result[1].email).toBe("crdcarvalho@uefs.br");
+  });
+
+  it("trims enrollment whitespace from new format", () => {
+    const result = parseCSV(SAMPLE_CSV_NEW_FORMAT);
+    // Enrollment "22211284 " should be trimmed to "22211284"
+    expect(result[0].enrollment).toBe("22211284");
+    expect(result[0].enrollment).not.toContain(" ");
+  });
+
+  it("trims name whitespace from new format", () => {
+    const result = parseCSV(SAMPLE_CSV_NEW_FORMAT);
+    // Name " CAROLINE SANTOS DE JESUS" should be trimmed
+    expect(result[0].name).toBe("CAROLINE SANTOS DE JESUS");
+    expect(result[0].name[0]).not.toBe(" ");
+  });
+
+  it("handles multi-digit row numbers (10+) in new format", () => {
+    const result = parseCSV(SAMPLE_CSV_NEW_FORMAT);
+    const student10 = result.find(s => s.enrollment === "23211319");
+    expect(student10).toBeDefined();
+    expect(student10!.name).toBe("UEMERSON VIRGEN DE JESUS");
+  });
+
+  it("skips header row in new format", () => {
+    // The header line "N°;;Matrícula; Aluno;..." should be skipped because N° is not a number
+    const result = parseCSV(SAMPLE_CSV_NEW_FORMAT);
+    const hasHeader = result.some(s => s.name === "Aluno");
+    expect(hasHeader).toBe(false);
+  });
+});
+
+describe("CSV Import - Common Features (both formats)", () => {
+  it("removes accents from generated emails", () => {
+    const csvWithAccents = `;1;;12345 ;JOSÉ ANTÔNIO DA CONCEIÇÃO;;;;;   _;`;
+    const result = parseCSV(csvWithAccents, "uefs.br");
+    expect(result[0].email).toBe("jadconceicao@uefs.br");
+  });
+
+  it("removes accents from new format emails", () => {
+    const csvNewAccents = `1;;12345 ;JOSÉ ANTÔNIO DA CONCEIÇÃO;;;;;   _;`;
+    const result = parseCSV(csvNewAccents, "uefs.br");
+    expect(result[0].email).toBe("jadconceicao@uefs.br");
   });
 
   it("skips header row with Matrícula/Aluno labels", () => {
     const csvWithHeader = `;N°;;Matrícula; Aluno;
 ;1;;20111193 ;CLEIDSON RAMOS DE CARVALHO;;;;;   _;`;
     const result = parseCSV(csvWithHeader);
-    // Should not include the header row
     expect(result).toHaveLength(1);
     expect(result[0].name).toBe("CLEIDSON RAMOS DE CARVALHO");
   });
@@ -127,8 +228,14 @@ describe("CSV Import - SAGRES Format Parser", () => {
     expect(result).toHaveLength(0);
   });
 
-  it("handles single-name students", () => {
+  it("handles single-name students (old format)", () => {
     const csvSingleName = `;1;;99999 ;MADONNA;;;;;   _;`;
+    const result = parseCSV(csvSingleName, "uefs.br");
+    expect(result[0].email).toBe("madonna@uefs.br");
+  });
+
+  it("handles single-name students (new format)", () => {
+    const csvSingleName = `1;;99999 ;MADONNA;;;;;   _;`;
     const result = parseCSV(csvSingleName, "uefs.br");
     expect(result[0].email).toBe("madonna@uefs.br");
   });
@@ -136,49 +243,50 @@ describe("CSV Import - SAGRES Format Parser", () => {
   it("ignores Junior suffix when generating email", () => {
     const csvWithJunior = `;1;;12345 ;JOSÉ MACEDO DOS SANTOS JUNIOR;;;;;   _;`;
     const result = parseCSV(csvWithJunior);
-    // JOSÉ MACEDO DOS SANTOS JUNIOR → jmdsantos@ecomp.uefs.br (ignoring JUNIOR)
     expect(result[0].email).toBe("jmdsantos@ecomp.uefs.br");
   });
 
   it("ignores Jr. suffix when generating email", () => {
     const csvWithJr = `;1;;12346 ;PEDRO SILVA JR.;;;;;   _;`;
     const result = parseCSV(csvWithJr);
-    // PEDRO SILVA JR. → psilva@ecomp.uefs.br (ignoring JR.)
     expect(result[0].email).toBe("psilva@ecomp.uefs.br");
   });
 
   it("ignores Neto suffix when generating email", () => {
     const csvWithNeto = `;1;;12347 ;GERSON FERREIRA DOS ANJOS NETO;;;;;   _;`;
     const result = parseCSV(csvWithNeto);
-    // GERSON FERREIRA DOS ANJOS NETO → gfdanjos@ecomp.uefs.br (ignoring NETO)
     expect(result[0].email).toBe("gfdanjos@ecomp.uefs.br");
   });
 
   it("ignores Filho suffix when generating email", () => {
     const csvWithFilho = `;1;;12348 ;ANTONIO RIBEIRO TEIXEIRA FILHO;;;;;   _;`;
     const result = parseCSV(csvWithFilho);
-    // ANTONIO RIBEIRO TEIXEIRA FILHO → arteixeira@ecomp.uefs.br (ignoring FILHO)
     expect(result[0].email).toBe("arteixeira@ecomp.uefs.br");
   });
 
-  it("trims whitespace from enrollment and name", () => {
+  it("ignores Neto suffix in new format", () => {
+    const csvWithNeto = `4;;22111211 ;GERSON FERREIRA DOS ANJOS NETO;;;;;   _;`;
+    const result = parseCSV(csvWithNeto);
+    expect(result[0].email).toBe("gfdanjos@ecomp.uefs.br");
+  });
+
+  it("trims whitespace from enrollment and name (old format)", () => {
     const csvWithSpaces = `;1;;20111193 ; CLEIDSON RAMOS DE CARVALHO ;;;;;   _;`;
     const result = parseCSV(csvWithSpaces);
     expect(result[0].enrollment).toBe("20111193");
     expect(result[0].name).toBe("CLEIDSON RAMOS DE CARVALHO");
   });
 
-  it("handles multi-digit row numbers (10+)", () => {
-    const result = parseCSV(SAMPLE_CSV_SIMPLE);
-    const student10 = result.find(s => s.enrollment === "23211323");
-    expect(student10).toBeDefined();
-    expect(student10!.name).toBe("WALACE DE JESUS VENAS");
+  it("trims whitespace from enrollment and name (new format)", () => {
+    const csvWithSpaces = `1;;20111193 ; CLEIDSON RAMOS DE CARVALHO ;;;;;   _;`;
+    const result = parseCSV(csvWithSpaces);
+    expect(result[0].enrollment).toBe("20111193");
+    expect(result[0].name).toBe("CLEIDSON RAMOS DE CARVALHO");
   });
 });
 
 describe("Cross-class visibility rules", () => {
   it("professor should see own class by default", () => {
-    // This is a logic test - the default viewingClassId is null, which falls back to selectedClassId
     const selectedClassId = 1;
     const viewingClassId = null;
     const activeClassId = viewingClassId ?? selectedClassId;

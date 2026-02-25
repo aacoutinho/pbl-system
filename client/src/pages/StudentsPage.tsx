@@ -209,13 +209,24 @@ function StudentsContent() {
     const parsed: { name: string; enrollment: string }[] = [];
     for (const line of lines) {
       const cols = line.split(";");
-      const num = cols[1]?.trim();
-      if (!num || isNaN(parseInt(num))) continue;
-      const enrollment = cols[3]?.trim();
-      const name = cols[4]?.trim();
+      // Try format A: N° at col[0], Matrícula at col[2], Nome at col[3]
+      // Try format B: N° at col[1], Matrícula at col[3], Nome at col[4]
+      let enrollment: string | undefined, name: string | undefined;
+      const numA = cols[0]?.trim();
+      const numB = cols[1]?.trim();
+      if (numA && !isNaN(parseInt(numA)) && parseInt(numA) > 0) {
+        enrollment = cols[2]?.trim();
+        name = cols[3]?.trim();
+      } else if (numB && !isNaN(parseInt(numB)) && parseInt(numB) > 0) {
+        enrollment = cols[3]?.trim();
+        name = cols[4]?.trim();
+      } else {
+        continue;
+      }
       if (!name || !enrollment) continue;
       if (name === "Aluno" || enrollment === "Matrícula") continue;
-      parsed.push({ name, enrollment });
+      enrollment = enrollment.replace(/\s+$/, "");
+      parsed.push({ name: name.trim(), enrollment });
     }
     return parsed;
   };

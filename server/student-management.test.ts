@@ -29,18 +29,27 @@ describe("Student management - new structure", () => {
       const parsed: { name: string; enrollment: string }[] = [];
       for (const line of lines) {
         const cols = line.split(";");
-        const num = cols[1]?.trim();
-        if (!num || isNaN(parseInt(num))) continue;
-        const enrollment = cols[3]?.trim();
-        const name = cols[4]?.trim();
+        let enrollment: string | undefined, name: string | undefined;
+        const numA = cols[0]?.trim();
+        const numB = cols[1]?.trim();
+        if (numA && !isNaN(parseInt(numA)) && parseInt(numA) > 0) {
+          enrollment = cols[2]?.trim();
+          name = cols[3]?.trim();
+        } else if (numB && !isNaN(parseInt(numB)) && parseInt(numB) > 0) {
+          enrollment = cols[3]?.trim();
+          name = cols[4]?.trim();
+        } else {
+          continue;
+        }
         if (!name || !enrollment) continue;
         if (name === "Aluno" || enrollment === "Matrícula") continue;
-        parsed.push({ name, enrollment });
+        enrollment = enrollment.replace(/\s+$/, "");
+        parsed.push({ name: name.trim(), enrollment });
       }
       return parsed;
     }
 
-    it("parses CSV and extracts only name and enrollment (no email)", () => {
+    it("parses CSV (old format) and extracts only name and enrollment (no email)", () => {
       const csv = `Turma;Num;Sit;Matrícula;Aluno
 TP01;1;A;20221001;ANTONIO AUGUSTO TEIXEIRA RIBEIRO COUTINHO
 TP01;2;A;20221002;JOSE MACEDO DOS SANTOS JUNIOR`;
@@ -48,8 +57,17 @@ TP01;2;A;20221002;JOSE MACEDO DOS SANTOS JUNIOR`;
       expect(result).toHaveLength(2);
       expect(result[0]).toEqual({ name: "ANTONIO AUGUSTO TEIXEIRA RIBEIRO COUTINHO", enrollment: "20221001" });
       expect(result[1]).toEqual({ name: "JOSE MACEDO DOS SANTOS JUNIOR", enrollment: "20221002" });
-      // No email field in the result
       expect((result[0] as any).email).toBeUndefined();
+    });
+
+    it("parses CSV (new format) and extracts name and enrollment", () => {
+      const csv = `N°;;Matrícula; Aluno;;;;;;
+1;;22211284 ;CAROLINE SANTOS DE JESUS;;;;;   _;
+2;;20111193 ;CLEIDSON RAMOS DE CARVALHO;;;;;   _;`;
+      const result = parseCSVForImport(csv);
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual({ name: "CAROLINE SANTOS DE JESUS", enrollment: "22211284" });
+      expect(result[1]).toEqual({ name: "CLEIDSON RAMOS DE CARVALHO", enrollment: "20111193" });
     });
 
     it("skips header rows", () => {
