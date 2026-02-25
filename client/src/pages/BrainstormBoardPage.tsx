@@ -790,22 +790,23 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
                               {/* Add attachment (always available for multiple) */}
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6 relative" title="Adicionar anexo">
+                                  <Button variant="ghost" size="icon" className="h-6 w-6" title="Adicionar anexo">
                                     <Paperclip className="h-3 w-3" />
-                                    {itemAttachments.length > 0 && (
-                                      <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-blue-500 text-white text-[8px] font-bold flex items-center justify-center shadow-sm">
-                                        {itemAttachments.length}
-                                      </span>
-                                    )}
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handlePhotoCapture(item.id)}>
+                                    <Camera className="h-4 w-4 mr-2" /> Foto da Câmera
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleDocSelect(item.id)}>
+                                    <FileText className="h-4 w-4 mr-2" /> Documento (PDF, DOC...)
+                                  </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => {
                                     setAttachmentDialogItemId(item.id);
                                     setAttachmentType("link");
                                     setAttachmentUrl("");
                                   }}>
-                                    <Link2 className="h-4 w-4 mr-2" /> Link
+                                    <Link2 className="h-4 w-4 mr-2" /> Link da Internet
                                   </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => {
                                     setAttachmentDialogItemId(item.id);
@@ -821,14 +822,8 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
                                   }}>
                                     <Video className="h-4 w-4 mr-2" /> URL de Vídeo
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handlePhotoCapture(item.id)}>
-                                    <Camera className="h-4 w-4 mr-2" /> Tirar Foto
-                                  </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => handleImageFromDevice(item.id)}>
                                     <Upload className="h-4 w-4 mr-2" /> Upload de Imagem
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleDocSelect(item.id)}>
-                                    <FileText className="h-4 w-4 mr-2" /> Documento (PDF, DOC...)
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>

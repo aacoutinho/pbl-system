@@ -501,3 +501,5 @@
 - [x] Contador de itens total no cabeçalho do quadro de brainstorming
 - [x] Contador de anexos (badge numérico) no ícone de clipe de cada item
 - [x] Campo title/descrição editável em cada anexo (schema + backend + frontend)
+- [x] Remover contador de anexos (badge numérico) do ícone de clipe
+- [x] Reordenar tipos de anexo no submenu: Foto da Câmera, Documento, Link da Internet, URL de Imagem, URL de Vídeo, Upload de Imagem
