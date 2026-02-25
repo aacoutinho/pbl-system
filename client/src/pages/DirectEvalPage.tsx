@@ -262,7 +262,7 @@ function EvaluationForm({ studentInfo, sessionInfo, onDone }: {
             <div className="text-sm text-amber-800 space-y-1">
               <p className="font-semibold">Instruções de Avaliação</p>
               <p><strong>Importante:</strong> O preenchimento deste formulário é um requisito obrigatório para obtenção da nota de desempenho da sessão tutorial do componente. Avalie de forma objetiva e imparcial, baseando-se apenas nas contribuições e discussões ocorridas durante a sessão tutorial.</p>
-              <p className="mt-1">O papel de cada aluno já foi definido pelo professor. O critério "Desempenho no Papel" aparece apenas para Coordenador, Mesa e Quadro. Clique no ícone <strong>?</strong> ao lado de cada critério para ver a descrição detalhada de cada conceito.</p>
+              <p className="mt-1">O papel de cada aluno já foi definido pelo professor. O critério "Desempenho" aparece apenas para Coordenador, Mesa e Quadro. Clique no ícone <strong>?</strong> ao lado de cada critério para ver a descrição detalhada de cada conceito.</p>
             </div>
           </div>
         </CardContent>
@@ -355,7 +355,7 @@ function EvaluationForm({ studentInfo, sessionInfo, onDone }: {
                 <div className="space-y-2 pt-2 border-t border-dashed">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Label className="text-sm font-medium">Desempenho no Papel de {roleLabels[peer.role as RoleType]}</Label>
+                      <Label className="text-sm font-medium">Desempenho como {roleLabels[peer.role as RoleType]}</Label>
                       <span className="text-[10px] text-muted-foreground">(Penalidade até -1)</span>
                       <TooltipProvider>
                         <Tooltip>

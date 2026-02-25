@@ -446,3 +446,4 @@
 - [x] Corrigir numeração de sessões: invalidar cache getNextInfo após delete e create para reutilizar numeração corretamente
 - [x] Corrigir conceitos para masculino nos itens Domínio, Participação e Desempenho (Nenhum/Fraco/Razoável/Bom/Excelente) em todos os formulários e prévia
 - [x] Corrigir Participação para conceitos femininos (Nenhuma/Fraca/Razoável/Boa/Excelente) em todos os formulários e prévia
+- [x] Alterar label "Desempenho no Papel de X" para "Desempenho como Coordenador/Mesa/Quadro" em todos os formulários e prévia

@@ -142,7 +142,7 @@ const demoPeers = [
  * Diálogo de prévia do formulário de avaliação dos alunos.
  * Mostra exatamente como o formulário aparece para os alunos, com dados fictícios.
  * Reflete o formulário atual: papel definido pelo professor (não editável), sem seleção de falta,
- * "Desempenho no Papel" apenas para Coordenador/Mesa/Quadro.
+ * "Desempenho" apenas para Coordenador/Mesa/Quadro.
  */
 export function EvaluationPreviewDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   return (
@@ -165,7 +165,7 @@ export function EvaluationPreviewDialog({ open, onOpenChange }: { open: boolean;
             <p className="text-sm text-blue-800">
               <strong>Exemplo:</strong> O aluno vê este formulário para cada colega presente na sessão.
               O papel de cada colega é definido pelo professor ao criar a sessão.
-              O critério "Desempenho no Papel" aparece apenas para Coordenador, Mesa e Quadro.
+              O critério "Desempenho" aparece apenas para Coordenador, Mesa e Quadro.
             </p>
             <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
               <strong>Importante:</strong> O preenchimento deste formulário é um requisito obrigatório para obtenção da nota de desempenho da sessão tutorial do componente. Avalie de forma objetiva e imparcial, baseando-se apenas nas contribuições e discussões ocorridas durante a sessão tutorial.
@@ -250,7 +250,7 @@ export function EvaluationPreviewDialog({ open, onOpenChange }: { open: boolean;
                       />
                       {hasRolePenalty && (
                         <PreviewCriteriaSlider
-                          label={`Desempenho no Papel de ${roleLabels[peer.role]}`}
+                          label={`Desempenho como ${roleLabels[peer.role]}`}
                           sublabel="Penalidade (até -1)"
                           tooltip={`Esta nota tem peso negativo porque trata de comportamentos já esperados durante o tutorial. | Excelente: Cumpriu todas as funções da forma esperada. | Bom: Executou a maior parte das funções, mas falhou em pontos isolados. | Razoável: Tentou executar a função, mas deixou de realizar metade das tarefas. | Fraco: Realizou apenas tarefas mínimas ou superficiais. | Nenhum: Não cumpriu as funções essenciais de sua responsabilidade.`}
                           value={0}
