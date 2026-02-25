@@ -2395,10 +2395,10 @@ export const appRouter = router({
       return { success: true };
     }),
 
-    // Move item between Questões and Fatos
+    // Move item to any section
     moveItem: publicProcedure.input(z.object({
       itemId: z.number(),
-      targetSection: z.enum(["fatos", "questoes"]),
+      targetSection: z.enum(["ideias", "fatos", "questoes", "metas"]),
     })).mutation(async ({ input }) => {
       return moveBrainstormItem(input.itemId, input.targetSection);
     }),

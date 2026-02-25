@@ -190,7 +190,7 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
     deleteItemMutation.mutate({ itemId });
   };
 
-  const handleMoveItem = (itemId: number, targetSection: "fatos" | "questoes") => {
+  const handleMoveItem = (itemId: number, targetSection: "ideias" | "fatos" | "questoes" | "metas") => {
     moveItemMutation.mutate({ itemId, targetSection });
   };
 
@@ -355,7 +355,7 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
                   <ul className="text-xs space-y-0.5 ml-1">
                     <li>• <strong>Editar</strong> — clique no texto do item</li>
                     <li>• <strong>Status</strong> — use o seletor em cada item</li>
-                    <li>• <strong>Mover</strong> — Questões ↔ Fatos</li>
+                    <li>• <strong>Mover</strong> — para qualquer seção</li>
                     <li>• <strong>Excluir</strong> — ícone de lixeira</li>
                   </ul>
                 </div>
@@ -525,19 +525,31 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
                           {/* Actions (Mesa only) */}
                           {canEdit && (
                             <div className="flex items-center gap-0.5">
-                              {/* Move between Questões ↔ Fatos */}
-                              {(section === "questoes" || section === "fatos") && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6"
-                                  title={section === "questoes" ? "Mover para Fatos" : "Mover para Questões"}
-                                  onClick={() => handleMoveItem(item.id, section === "questoes" ? "fatos" : "questoes")}
-                                  disabled={moveItemMutation.isPending}
-                                >
-                                  <ArrowRightLeft className="h-3 w-3" />
-                                </Button>
-                              )}
+                              {/* Move to any section */}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    title="Mover para outra seção"
+                                    disabled={moveItemMutation.isPending}
+                                  >
+                                    <ArrowRightLeft className="h-3 w-3" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  {SECTIONS_ORDER.filter(s => s !== section).map(s => {
+                                    const cfg = SECTION_CONFIG[s];
+                                    const SIcon = cfg.icon;
+                                    return (
+                                      <DropdownMenuItem key={s} onClick={() => handleMoveItem(item.id, s)}>
+                                        <SIcon className={`h-4 w-4 mr-2 ${cfg.color}`} /> {cfg.label}
+                                      </DropdownMenuItem>
+                                    );
+                                  })}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
 
                               {/* Attachment dropdown */}
                               {!item.attachmentUrl && (

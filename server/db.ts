@@ -2884,7 +2884,7 @@ export async function deleteBrainstormItem(itemId: number) {
   await db.delete(brainstormItems).where(eq(brainstormItems.id, itemId));
 }
 
-export async function moveBrainstormItem(itemId: number, targetSection: "fatos" | "questoes") {
+export async function moveBrainstormItem(itemId: number, targetSection: "ideias" | "fatos" | "questoes" | "metas") {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
 
@@ -2892,13 +2892,19 @@ export async function moveBrainstormItem(itemId: number, targetSection: "fatos" 
   const [item] = await db.select().from(brainstormItems).where(eq(brainstormItems.id, itemId)).limit(1);
   if (!item) throw new Error("Item not found");
 
-  // Only allow moving between questoes and fatos
-  if ((item.section !== "questoes" && item.section !== "fatos") || (targetSection !== "questoes" && targetSection !== "fatos")) {
-    throw new Error("Can only move items between Questões and Fatos");
+  // Don't move to the same section
+  if (item.section === targetSection) {
+    return item;
   }
 
   // Set default status for target section
-  const defaultStatus = targetSection === "fatos" ? "verificar" : "duvida";
+  const defaultStatusMap: Record<string, string> = {
+    ideias: "analise",
+    fatos: "verificar",
+    questoes: "duvida",
+    metas: "planejada",
+  };
+  const defaultStatus = defaultStatusMap[targetSection] || "analise";
 
   // Get max sortOrder in target section
   const [maxRow] = await db.select({ maxOrder: sql<number>`COALESCE(MAX(${brainstormItems.sortOrder}), -1)` })
