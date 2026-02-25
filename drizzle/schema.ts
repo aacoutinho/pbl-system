@@ -344,3 +344,16 @@ export const brainstormItems = mysqlTable("brainstorm_items", {
 
 export type BrainstormItem = typeof brainstormItems.$inferSelect;
 export type InsertBrainstormItem = typeof brainstormItems.$inferInsert;
+
+// ─── Brainstorm Item Attachments (multiple attachments per item) ───
+export const brainstormItemAttachments = mysqlTable("brainstorm_item_attachments", {
+  id: int("id").autoincrement().primaryKey(),
+  itemId: int("itemId").notNull(), // References brainstormItems.id
+  url: varchar("url", { length: 1024 }).notNull(),
+  type: mysqlEnum("type", ["link", "image", "video", "photo", "document"]).notNull(),
+  sortOrder: int("sortOrder").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type BrainstormItemAttachment = typeof brainstormItemAttachments.$inferSelect;
+export type InsertBrainstormItemAttachment = typeof brainstormItemAttachments.$inferInsert;

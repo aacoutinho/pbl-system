@@ -52,6 +52,7 @@ import {
   addBrainstormItem, updateBrainstormItem, deleteBrainstormItem,
   moveBrainstormItem, getBrainstormBoardWithItems,
   shareBrainstormBoard, getComponentSessionsForSharing,
+  addBrainstormAttachment, removeBrainstormAttachment, getAttachmentsByItemId,
 } from "./db";
 import { storagePut } from "./storage";
 import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml, buildContactTicketEmailHtml, buildSessionOpenedEmailHtml, buildStudentGradeReportHtml, buildBrainstormNotificationEmailHtml } from "./email";
@@ -2414,6 +2415,30 @@ export const appRouter = router({
       const key = `brainstorm-photos/${Date.now()}-${suffix}-${input.fileName}`;
       const { url } = await storagePut(key, buffer, input.contentType);
       return { url };
+    }),
+
+    // Add attachment to an item
+    addAttachment: publicProcedure.input(z.object({
+      itemId: z.number(),
+      url: z.string().min(1),
+      type: z.enum(["link", "image", "video", "photo", "document"]),
+    })).mutation(async ({ input }) => {
+      return addBrainstormAttachment(input);
+    }),
+
+    // Remove attachment from an item
+    removeAttachment: publicProcedure.input(z.object({
+      attachmentId: z.number(),
+    })).mutation(async ({ input }) => {
+      await removeBrainstormAttachment(input.attachmentId);
+      return { success: true };
+    }),
+
+    // Get attachments for an item
+    getAttachments: publicProcedure.input(z.object({
+      itemId: z.number(),
+    })).query(async ({ input }) => {
+      return getAttachmentsByItemId(input.itemId);
     }),
 
     // Share board with all sessions of the same component

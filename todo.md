@@ -493,3 +493,8 @@
 - [x] Adicionar upload de arquivo do computador (imagem ou documento) além de URL
 - [x] Melhorar previews/thumbnails: imagem com preview, vídeo YouTube com thumbnail, documento com ícone
 - [x] Destacar mais o estado/status do item no quadro de brainstorming (badge colorido mais visível)
+- [x] Criar tabela brainstormItemAttachments para múltiplos anexos por item
+- [x] Atualizar rotas backend para CRUD de anexos múltiplos (adicionar, remover anexo individual)
+- [x] Redesenhar interface frontend para exibir e gerenciar múltiplos anexos por item
+- [x] Compatibilidade com dados legados (attachmentUrl/attachmentType) exibidos junto com novos anexos
+- [x] Adicionar fundo levemente mais escuro nos itens do quadro para destacá-los (cor da seção)

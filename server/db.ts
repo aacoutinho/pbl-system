@@ -24,6 +24,7 @@ import {
   sessionAccessTokens,
   brainstormBoards, InsertBrainstormBoard, BrainstormBoard,
   brainstormItems, InsertBrainstormItem, BrainstormItem,
+  brainstormItemAttachments, BrainstormItemAttachment,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -2816,6 +2817,56 @@ export async function getBrainstormItems(boardId: number) {
     .orderBy(brainstormItems.section, brainstormItems.sortOrder, brainstormItems.createdAt);
 }
 
+// ─── Brainstorm Item Attachment helpers ───
+
+export async function getAttachmentsByItemId(itemId: number): Promise<BrainstormItemAttachment[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(brainstormItemAttachments)
+    .where(eq(brainstormItemAttachments.itemId, itemId))
+    .orderBy(brainstormItemAttachments.sortOrder, brainstormItemAttachments.createdAt);
+}
+
+export async function getAttachmentsByItemIds(itemIds: number[]): Promise<BrainstormItemAttachment[]> {
+  const db = await getDb();
+  if (!db) return [];
+  if (itemIds.length === 0) return [];
+  return db.select().from(brainstormItemAttachments)
+    .where(inArray(brainstormItemAttachments.itemId, itemIds))
+    .orderBy(brainstormItemAttachments.sortOrder, brainstormItemAttachments.createdAt);
+}
+
+export async function addBrainstormAttachment(data: {
+  itemId: number;
+  url: string;
+  type: "link" | "image" | "video" | "photo" | "document";
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+
+  // Get max sortOrder for this item
+  const [maxRow] = await db.select({ maxOrder: sql<number>`COALESCE(MAX(${brainstormItemAttachments.sortOrder}), -1)` })
+    .from(brainstormItemAttachments)
+    .where(eq(brainstormItemAttachments.itemId, data.itemId));
+
+  const sortOrder = (maxRow?.maxOrder ?? -1) + 1;
+
+  const [result] = await db.insert(brainstormItemAttachments).values({
+    itemId: data.itemId,
+    url: data.url,
+    type: data.type,
+    sortOrder,
+  }).$returningId();
+
+  return { id: result.id, ...data, sortOrder, createdAt: new Date() };
+}
+
+export async function removeBrainstormAttachment(attachmentId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(brainstormItemAttachments).where(eq(brainstormItemAttachments.id, attachmentId));
+}
+
 export async function addBrainstormItem(data: {
   boardId: number;
   section: "ideias" | "fatos" | "questoes" | "metas";
@@ -2881,6 +2932,8 @@ export async function updateBrainstormItem(itemId: number, data: {
 export async function deleteBrainstormItem(itemId: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
+  // Delete all attachments for this item first
+  await db.delete(brainstormItemAttachments).where(eq(brainstormItemAttachments.itemId, itemId));
   await db.delete(brainstormItems).where(eq(brainstormItems.id, itemId));
 }
 
@@ -2936,8 +2989,20 @@ export async function getBrainstormBoardWithItems(sessionId: number) {
   }
 
   const items = await getBrainstormItems(board.id);
+  // Fetch all attachments for all items in one query
+  const itemIds = items.map(i => i.id);
+  const allAttachments = itemIds.length > 0 ? await getAttachmentsByItemIds(itemIds) : [];
+  const attachmentsByItem = new Map<number, BrainstormItemAttachment[]>();
+  for (const att of allAttachments) {
+    if (!attachmentsByItem.has(att.itemId)) attachmentsByItem.set(att.itemId, []);
+    attachmentsByItem.get(att.itemId)!.push(att);
+  }
+  const itemsWithAttachments = items.map(item => ({
+    ...item,
+    attachments: attachmentsByItem.get(item.id) || [],
+  }));
   const [session] = await db.select({ label: sessions.label }).from(sessions).where(eq(sessions.id, sessionId)).limit(1);
-  return { ...board, sessionLabel: session?.label || '', items };
+  return { ...board, sessionLabel: session?.label || '', items: itemsWithAttachments };
 }
 
 export async function getComponentSessionsForSharing(sessionId: number) {

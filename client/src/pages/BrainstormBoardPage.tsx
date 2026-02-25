@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import {
   Plus, Trash2, ArrowLeft, Lightbulb, BookOpen, HelpCircle, Target,
   ArrowRightLeft, Link2, ImageIcon, Video, Camera, X, ExternalLink,
-  ChevronDown, ChevronUp, Info, FileText, Upload, Play
+  ChevronDown, ChevronUp, Info, FileText, Upload, Play, Paperclip
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
@@ -21,6 +21,14 @@ import { useLocation } from "wouter";
 
 type Section = "ideias" | "fatos" | "questoes" | "metas";
 
+interface AttachmentData {
+  id: number;
+  itemId: number;
+  url: string;
+  type: "link" | "image" | "video" | "photo" | "document";
+  sortOrder: number;
+}
+
 interface BrainstormItemData {
   id: number;
   boardId: number;
@@ -30,6 +38,7 @@ interface BrainstormItemData {
   attachmentUrl: string | null;
   attachmentType: "link" | "image" | "video" | "photo" | "document" | null;
   sortOrder: number;
+  attachments?: AttachmentData[];
 }
 
 const SECTION_CONFIG: Record<Section, {
@@ -38,6 +47,7 @@ const SECTION_CONFIG: Record<Section, {
   color: string;
   bgColor: string;
   borderColor: string;
+  itemBg: string;
   statuses: { value: string; label: string; color: string }[];
 }> = {
   ideias: {
@@ -46,6 +56,7 @@ const SECTION_CONFIG: Record<Section, {
     color: "text-amber-700",
     bgColor: "bg-amber-50",
     borderColor: "border-amber-200",
+    itemBg: "bg-amber-50/60",
     statuses: [
       { value: "analise", label: "Análise", color: "bg-amber-100 text-amber-800" },
       { value: "aceita", label: "Aceita", color: "bg-emerald-100 text-emerald-800" },
@@ -58,6 +69,7 @@ const SECTION_CONFIG: Record<Section, {
     color: "text-blue-700",
     bgColor: "bg-blue-50",
     borderColor: "border-blue-200",
+    itemBg: "bg-blue-50/60",
     statuses: [
       { value: "verificar", label: "Verificar", color: "bg-blue-100 text-blue-800" },
       { value: "confirmado", label: "Confirmado", color: "bg-emerald-100 text-emerald-800" },
@@ -70,6 +82,7 @@ const SECTION_CONFIG: Record<Section, {
     color: "text-purple-700",
     bgColor: "bg-purple-50",
     borderColor: "border-purple-200",
+    itemBg: "bg-purple-50/60",
     statuses: [
       { value: "duvida", label: "Dúvida", color: "bg-purple-100 text-purple-800" },
       { value: "investigacao", label: "Investigação", color: "bg-orange-100 text-orange-800" },
@@ -82,6 +95,7 @@ const SECTION_CONFIG: Record<Section, {
     color: "text-emerald-700",
     bgColor: "bg-emerald-50",
     borderColor: "border-emerald-200",
+    itemBg: "bg-emerald-50/60",
     statuses: [
       { value: "planejada", label: "Planejada", color: "bg-slate-100 text-slate-800" },
       { value: "em_andamento", label: "Em Andamento", color: "bg-orange-100 text-orange-800" },
@@ -104,7 +118,6 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
   const [newItemTexts, setNewItemTexts] = useState<Record<Section, string>>({
     ideias: "", fatos: "", questoes: "", metas: "",
   });
-  const [attachmentDialogSection, setAttachmentDialogSection] = useState<Section | null>(null);
   const [attachmentDialogItemId, setAttachmentDialogItemId] = useState<number | null>(null);
   const [attachmentUrl, setAttachmentUrl] = useState("");
   const [attachmentType, setAttachmentType] = useState<"link" | "image" | "video" | "photo" | "document">("link");
@@ -122,15 +135,12 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
 
   const { data: boardData, isLoading } = trpc.brainstorm.getBoard.useQuery(
     { sessionId },
-    { refetchInterval: 5000 } // Auto-refresh every 5s for all users (real-time collaboration)
+    { refetchInterval: 5000 }
   );
 
-  // Use sessionLabel from props, or from board data if available
   const displayLabel = sessionLabel || (boardData as any)?.sessionLabel || `Sessão #${sessionId}`;
-
   const hasBoard = boardData && !(boardData as any).noBoard;
 
-  // Initialize board if Mesa and no board exists
   const initBoard = useCallback(() => {
     if (canEdit && !hasBoard) {
       createBoardMutation.mutate({ sessionId, studentId });
@@ -162,11 +172,20 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
     onError: (err) => toast.error(err.message),
   });
 
+  const addAttachmentMutation = trpc.brainstorm.addAttachment.useMutation({
+    onSuccess: () => utils.brainstorm.getBoard.invalidate({ sessionId }),
+    onError: (err) => toast.error(err.message),
+  });
+
+  const removeAttachmentMutation = trpc.brainstorm.removeAttachment.useMutation({
+    onSuccess: () => utils.brainstorm.getBoard.invalidate({ sessionId }),
+    onError: (err) => toast.error(err.message),
+  });
+
   const handleAddItem = (section: Section) => {
     const content = newItemTexts[section].trim();
     if (!content) return;
     if (!boardData) {
-      // Create board first, then add item
       createBoardMutation.mutate({ sessionId, studentId }, {
         onSuccess: (board) => {
           addItemMutation.mutate({ boardId: board.id, section, content });
@@ -195,18 +214,24 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
     moveItemMutation.mutate({ itemId, targetSection });
   };
 
-  const handleAddAttachment = (itemId: number) => {
+  // --- Multiple attachments ---
+  const handleAddUrlAttachment = (itemId: number) => {
     if (!attachmentUrl.trim()) return;
-    updateItemMutation.mutate({
+    addAttachmentMutation.mutate({
       itemId,
-      attachmentUrl: attachmentUrl.trim(),
-      attachmentType,
+      url: attachmentUrl.trim(),
+      type: attachmentType,
     });
     setAttachmentDialogItemId(null);
     setAttachmentUrl("");
   };
 
-  const handleRemoveAttachment = (itemId: number) => {
+  const handleRemoveAttachment = (attachmentId: number) => {
+    removeAttachmentMutation.mutate({ attachmentId });
+  };
+
+  // Legacy single attachment removal (for old items)
+  const handleRemoveLegacyAttachment = (itemId: number) => {
     updateItemMutation.mutate({
       itemId,
       attachmentUrl: null,
@@ -214,11 +239,11 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
     });
   };
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, itemId: number) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("A foto deve ter no máximo 5MB");
+  const handleFileUpload = async (file: File, itemId: number, type: "photo" | "document") => {
+    const maxSize = type === "document" ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
+    const label = type === "document" ? "documento" : "imagem";
+    if (file.size > maxSize) {
+      toast.error(`O ${label} deve ter no máximo ${type === "document" ? "10" : "5"}MB`);
       return;
     }
     setUploadingPhoto(true);
@@ -231,17 +256,17 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
           fileBase64: base64,
           contentType: file.type,
         });
-        updateItemMutation.mutate({
+        addAttachmentMutation.mutate({
           itemId,
-          attachmentUrl: result.url,
-          attachmentType: "photo",
+          url: result.url,
+          type,
         });
         setUploadingPhoto(false);
       };
       reader.readAsDataURL(file);
     } catch {
       setUploadingPhoto(false);
-      toast.error("Erro ao enviar foto");
+      toast.error(`Erro ao enviar ${label}`);
     }
   };
 
@@ -265,37 +290,6 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
     }
   };
 
-  const handleDocUpload = async (e: React.ChangeEvent<HTMLInputElement>, itemId: number) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("O documento deve ter no máximo 10MB");
-      return;
-    }
-    setUploadingPhoto(true);
-    try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64 = (reader.result as string).split(",")[1];
-        const result = await uploadPhotoMutation.mutateAsync({
-          fileName: file.name,
-          fileBase64: base64,
-          contentType: file.type,
-        });
-        updateItemMutation.mutate({
-          itemId,
-          attachmentUrl: result.url,
-          attachmentType: "document",
-        });
-        setUploadingPhoto(false);
-      };
-      reader.readAsDataURL(file);
-    } catch {
-      setUploadingPhoto(false);
-      toast.error("Erro ao enviar documento");
-    }
-  };
-
   const handleDocSelect = (itemId: number) => {
     setAttachmentDialogItemId(itemId);
     if (docInputRef.current) {
@@ -304,16 +298,34 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
     }
   };
 
-  // Helper: extract YouTube video ID for thumbnail
   const getYouTubeThumbnail = (url: string): string | null => {
     const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/);
     return match ? `https://img.youtube.com/vi/${match[1]}/mqdefault.jpg` : null;
   };
 
-  // Helper: get file extension from URL
   const getFileExtension = (url: string): string => {
     const match = url.match(/\.([a-zA-Z0-9]+)(?:\?|$)/);
     return match ? match[1].toUpperCase() : "DOC";
+  };
+
+  // Get all attachments for an item: new table + legacy single attachment
+  const getItemAttachments = (item: BrainstormItemData): { id: number; url: string; type: string; isLegacy?: boolean }[] => {
+    const result: { id: number; url: string; type: string; isLegacy?: boolean }[] = [];
+    // New attachments from the attachments table
+    if (item.attachments && item.attachments.length > 0) {
+      for (const att of item.attachments) {
+        result.push({ id: att.id, url: att.url, type: att.type });
+      }
+    }
+    // Legacy single attachment (from old items)
+    if (item.attachmentUrl && item.attachmentType) {
+      // Only add if not already in new attachments
+      const alreadyExists = result.some(a => a.url === item.attachmentUrl);
+      if (!alreadyExists) {
+        result.push({ id: -item.id, url: item.attachmentUrl, type: item.attachmentType, isLegacy: true });
+      }
+    }
+    return result;
   };
 
   const items: BrainstormItemData[] = (boardData?.items as BrainstormItemData[] || []);
@@ -329,9 +341,115 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
     );
   }
 
+  // Render a single attachment preview
+  const renderAttachmentPreview = (att: { id: number; url: string; type: string; isLegacy?: boolean }, itemId: number) => {
+    const isLegacy = att.isLegacy;
+    const onRemove = () => {
+      if (isLegacy) {
+        handleRemoveLegacyAttachment(itemId);
+      } else {
+        handleRemoveAttachment(att.id);
+      }
+    };
+
+    if (att.type === "image" || att.type === "photo") {
+      return (
+        <div key={att.id} className="relative group">
+          <a href={att.url} target="_blank" rel="noopener noreferrer">
+            <img src={att.url} alt="" className="w-full max-h-36 object-cover rounded cursor-pointer hover:opacity-90 transition-opacity" />
+          </a>
+          {canEdit && (
+            <Button variant="destructive" size="icon"
+              className="absolute top-1 right-1 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+              onClick={onRemove}>
+              <X className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+      );
+    }
+
+    if (att.type === "video") {
+      const ytThumb = getYouTubeThumbnail(att.url);
+      return (
+        <div key={att.id} className="relative group">
+          {ytThumb ? (
+            <a href={att.url} target="_blank" rel="noopener noreferrer" className="block relative">
+              <img src={ytThumb} alt="" className="w-full max-h-28 object-cover rounded" />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/30 transition-colors rounded">
+                <div className="h-8 w-8 rounded-full bg-red-600 flex items-center justify-center shadow-lg">
+                  <Play className="h-4 w-4 text-white ml-0.5" />
+                </div>
+              </div>
+            </a>
+          ) : (
+            <a href={att.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 rounded hover:bg-white/60 transition-colors">
+              <div className="h-8 w-8 rounded bg-purple-100 flex items-center justify-center shrink-0">
+                <Video className="h-4 w-4 text-purple-600" />
+              </div>
+              <p className="text-[10px] text-muted-foreground truncate flex-1">{att.url}</p>
+              <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0" />
+            </a>
+          )}
+          {canEdit && (
+            <Button variant="destructive" size="icon"
+              className="absolute top-1 right-1 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+              onClick={onRemove}>
+              <X className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+      );
+    }
+
+    if (att.type === "document") {
+      return (
+        <div key={att.id} className="relative group">
+          <a href={att.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 rounded hover:bg-white/60 transition-colors">
+            <div className="h-8 w-8 rounded bg-orange-100 flex items-center justify-center shrink-0">
+              <FileText className="h-4 w-4 text-orange-600" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-medium text-slate-700">Documento</p>
+              <p className="text-[9px] text-muted-foreground">{getFileExtension(att.url)} • Clique para abrir</p>
+            </div>
+            <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0" />
+          </a>
+          {canEdit && (
+            <Button variant="destructive" size="icon"
+              className="absolute top-1 right-1 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+              onClick={onRemove}>
+              <X className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+      );
+    }
+
+    // Default: link
+    return (
+      <div key={att.id} className="relative group">
+        <a href={att.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 rounded hover:bg-white/60 transition-colors">
+          <div className="h-8 w-8 rounded bg-blue-100 flex items-center justify-center shrink-0">
+            <Link2 className="h-4 w-4 text-blue-600" />
+          </div>
+          <p className="text-[10px] text-muted-foreground truncate flex-1">{att.url}</p>
+          <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0" />
+        </a>
+        {canEdit && (
+          <Button variant="destructive" size="icon"
+            className="absolute top-1 right-1 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+            onClick={onRemove}>
+            <X className="h-3 w-3" />
+          </Button>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-3 md:p-4">
-      {/* Hidden file input for photo capture / image upload */}
+      {/* Hidden file inputs */}
       <input
         ref={fileInputRef}
         type="file"
@@ -339,10 +457,11 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
         className="hidden"
         onChange={(e) => {
           const itemId = Number(fileInputRef.current?.dataset.itemId);
-          if (itemId) handlePhotoUpload(e, itemId);
+          const file = e.target.files?.[0];
+          if (itemId && file) handleFileUpload(file, itemId, "photo");
+          e.target.value = "";
         }}
       />
-      {/* Hidden file input for document upload */}
       <input
         ref={docInputRef}
         type="file"
@@ -350,7 +469,9 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
         className="hidden"
         onChange={(e) => {
           const itemId = Number(docInputRef.current?.dataset.itemId);
-          if (itemId) handleDocUpload(e, itemId);
+          const file = e.target.files?.[0];
+          if (itemId && file) handleFileUpload(file, itemId, "document");
+          e.target.value = "";
         }}
       />
 
@@ -370,7 +491,7 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
         </div>
       </div>
 
-      {/* Manual / Guia de Uso - Faixa branca destacada */}
+      {/* Manual / Guia de Uso */}
       <div className="bg-white shadow-sm border-b border-slate-200 -mx-3 md:-mx-4 px-3 md:px-4 mb-4">
         <div className="max-w-[1600px] mx-auto py-3">
           <button
@@ -401,14 +522,13 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
 
                 <div className="space-y-1.5">
                   <h3 className="font-semibold text-slate-800 flex items-center gap-1.5">
-                    <div className="h-5 w-5 rounded bg-blue-100 flex items-center justify-center"><Link2 className="h-3 w-3 text-blue-600" /></div>
-                    Anexos (URLs)
+                    <div className="h-5 w-5 rounded bg-blue-100 flex items-center justify-center"><Paperclip className="h-3 w-3 text-blue-600" /></div>
+                    Múltiplos Anexos
                   </h3>
-                  <p className="text-xs leading-relaxed">Clique no ícone 🔗 do item e escolha:</p>
+                  <p className="text-xs leading-relaxed">Cada item pode ter <strong>vários anexos</strong>. Clique no ícone 📎 para adicionar:</p>
                   <ul className="text-xs space-y-0.5 ml-1">
-                    <li>• <strong>Link</strong> — URL de artigo ou site</li>
-                    <li>• <strong>URL de Imagem</strong> — endereço direto</li>
-                    <li>• <strong>URL de Vídeo</strong> — YouTube, Vimeo, etc.</li>
+                    <li>• Links, imagens, vídeos, fotos, documentos</li>
+                    <li>• Upload do celular ou computador</li>
                   </ul>
                 </div>
 
@@ -417,7 +537,6 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
                     <div className="h-5 w-5 rounded bg-purple-100 flex items-center justify-center"><Upload className="h-3 w-3 text-purple-600" /></div>
                     Upload de Arquivos
                   </h3>
-                  <p className="text-xs leading-relaxed">No menu de anexos:</p>
                   <ul className="text-xs space-y-0.5 ml-1">
                     <li>• <strong>Tirar Foto</strong> — câmera do celular (5MB)</li>
                     <li>• <strong>Upload de Imagem</strong> — galeria/PC (5MB)</li>
@@ -449,7 +568,7 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
         </div>
       </div>
 
-      {/* Board Grid - 4 columns on desktop, 2 on tablet, 1 on mobile */}
+      {/* Board Grid */}
       <div className="max-w-[1600px] mx-auto grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4">
         {SECTIONS_ORDER.map(section => {
           const config = SECTION_CONFIG[section];
@@ -466,7 +585,7 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-3 space-y-2">
-                {/* Add new item (Mesa only) */}
+                {/* Add new item */}
                 {canEdit && (
                   <div className="flex gap-2">
                     <Input
@@ -502,8 +621,10 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
                 <div className="space-y-2 max-h-[60vh] overflow-y-auto">
                   {sectionItems.map((item: BrainstormItemData) => {
                     const statusConfig = config.statuses.find(s => s.value === item.status);
+                    const itemAttachments = getItemAttachments(item);
+
                     return (
-                      <div key={item.id} className="bg-white rounded-lg border p-3 space-y-2 shadow-sm">
+                      <div key={item.id} className={`${config.itemBg} rounded-lg border p-3 space-y-2 shadow-sm`}>
                         {/* Content */}
                         {canEdit ? (
                           <Textarea
@@ -513,122 +634,28 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
                                 handleUpdateContent(item.id, e.target.value);
                               }
                             }}
-                            className="text-sm min-h-[40px] resize-none border-0 p-0 focus-visible:ring-0 shadow-none"
+                            className="text-sm min-h-[40px] resize-none border-0 p-0 focus-visible:ring-0 shadow-none bg-transparent"
                             rows={1}
                           />
                         ) : (
                           <p className="text-sm whitespace-pre-wrap">{item.content}</p>
                         )}
 
-                        {/* Attachment preview */}
-                        {item.attachmentUrl && (
-                          <div className="rounded-lg overflow-hidden border bg-slate-50">
-                            {(item.attachmentType === "image" || item.attachmentType === "photo") ? (
-                              <div className="relative group">
-                                <a href={item.attachmentUrl} target="_blank" rel="noopener noreferrer">
-                                  <img src={item.attachmentUrl} alt="" className="w-full max-h-48 object-cover cursor-pointer hover:opacity-90 transition-opacity" />
-                                </a>
-                                {canEdit && (
-                                  <Button
-                                    variant="destructive"
-                                    size="icon"
-                                    className="absolute top-1.5 right-1.5 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
-                                    onClick={() => handleRemoveAttachment(item.id)}
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </Button>
-                                )}
-                              </div>
-                            ) : item.attachmentType === "video" ? (
-                              <div className="relative group">
-                                {(() => {
-                                  const ytThumb = getYouTubeThumbnail(item.attachmentUrl!);
-                                  return ytThumb ? (
-                                    <a href={item.attachmentUrl!} target="_blank" rel="noopener noreferrer" className="block relative">
-                                      <img src={ytThumb} alt="" className="w-full max-h-36 object-cover" />
-                                      <div className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/30 transition-colors">
-                                        <div className="h-10 w-10 rounded-full bg-red-600 flex items-center justify-center shadow-lg">
-                                          <Play className="h-5 w-5 text-white ml-0.5" />
-                                        </div>
-                                      </div>
-                                    </a>
-                                  ) : (
-                                    <a href={item.attachmentUrl!} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 hover:bg-slate-100 transition-colors">
-                                      <div className="h-10 w-10 rounded-lg bg-purple-100 flex items-center justify-center shrink-0">
-                                        <Video className="h-5 w-5 text-purple-600" />
-                                      </div>
-                                      <div className="min-w-0 flex-1">
-                                        <p className="text-xs font-medium text-slate-700 truncate">Vídeo</p>
-                                        <p className="text-[10px] text-muted-foreground truncate">{item.attachmentUrl}</p>
-                                      </div>
-                                      <ExternalLink className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                                    </a>
-                                  );
-                                })()}
-                                {canEdit && (
-                                  <Button
-                                    variant="destructive"
-                                    size="icon"
-                                    className="absolute top-1.5 right-1.5 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
-                                    onClick={() => handleRemoveAttachment(item.id)}
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </Button>
-                                )}
-                              </div>
-                            ) : item.attachmentType === "document" ? (
-                              <div className="relative group">
-                                <a href={item.attachmentUrl!} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 hover:bg-slate-100 transition-colors">
-                                  <div className="h-10 w-10 rounded-lg bg-orange-100 flex items-center justify-center shrink-0">
-                                    <FileText className="h-5 w-5 text-orange-600" />
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-xs font-medium text-slate-700">Documento</p>
-                                    <p className="text-[10px] text-muted-foreground">{getFileExtension(item.attachmentUrl!)} • Clique para abrir</p>
-                                  </div>
-                                  <ExternalLink className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                                </a>
-                                {canEdit && (
-                                  <Button
-                                    variant="destructive"
-                                    size="icon"
-                                    className="absolute top-1.5 right-1.5 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
-                                    onClick={() => handleRemoveAttachment(item.id)}
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </Button>
-                                )}
-                              </div>
-                            ) : (
-                              <div className="relative group">
-                                <a href={item.attachmentUrl!} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 hover:bg-slate-100 transition-colors">
-                                  <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
-                                    <Link2 className="h-5 w-5 text-blue-600" />
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-xs font-medium text-slate-700 truncate">Link</p>
-                                    <p className="text-[10px] text-muted-foreground truncate">{item.attachmentUrl}</p>
-                                  </div>
-                                  <ExternalLink className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                                </a>
-                                {canEdit && (
-                                  <Button
-                                    variant="destructive"
-                                    size="icon"
-                                    className="absolute top-1.5 right-1.5 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
-                                    onClick={() => handleRemoveAttachment(item.id)}
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </Button>
-                                )}
+                        {/* Attachments preview - multiple */}
+                        {itemAttachments.length > 0 && (
+                          <div className="space-y-1.5 rounded-lg overflow-hidden border bg-white/70 p-1.5">
+                            {itemAttachments.length > 1 && (
+                              <div className="flex items-center gap-1 px-1">
+                                <Paperclip className="h-3 w-3 text-muted-foreground" />
+                                <span className="text-[10px] text-muted-foreground font-medium">{itemAttachments.length} anexos</span>
                               </div>
                             )}
+                            {itemAttachments.map(att => renderAttachmentPreview(att, item.id))}
                           </div>
                         )}
 
                         {/* Status + Actions */}
                         <div className="flex items-center gap-1 flex-wrap">
-                          {/* Status badge/selector - DESTACADO */}
                           {canEdit ? (
                             <Select
                               value={item.status}
@@ -654,19 +681,13 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
 
                           <div className="flex-1" />
 
-                          {/* Actions (Mesa only) */}
+                          {/* Actions */}
                           {canEdit && (
                             <div className="flex items-center gap-0.5">
-                              {/* Move to any section */}
+                              {/* Move */}
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6"
-                                    title="Mover para outra seção"
-                                    disabled={moveItemMutation.isPending}
-                                  >
+                                  <Button variant="ghost" size="icon" className="h-6 w-6" title="Mover para outra seção" disabled={moveItemMutation.isPending}>
                                     <ArrowRightLeft className="h-3 w-3" />
                                   </Button>
                                 </DropdownMenuTrigger>
@@ -683,48 +704,46 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
                                 </DropdownMenuContent>
                               </DropdownMenu>
 
-                              {/* Attachment dropdown */}
-                              {!item.attachmentUrl && (
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-6 w-6">
-                                      <Link2 className="h-3 w-3" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => {
-                                      setAttachmentDialogItemId(item.id);
-                                      setAttachmentType("link");
-                                      setAttachmentUrl("");
-                                    }}>
-                                      <Link2 className="h-4 w-4 mr-2" /> Link
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => {
-                                      setAttachmentDialogItemId(item.id);
-                                      setAttachmentType("image");
-                                      setAttachmentUrl("");
-                                    }}>
-                                      <ImageIcon className="h-4 w-4 mr-2" /> URL de Imagem
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => {
-                                      setAttachmentDialogItemId(item.id);
-                                      setAttachmentType("video");
-                                      setAttachmentUrl("");
-                                    }}>
-                                      <Video className="h-4 w-4 mr-2" /> URL de Vídeo
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handlePhotoCapture(item.id)}>
-                                      <Camera className="h-4 w-4 mr-2" /> Tirar Foto
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleImageFromDevice(item.id)}>
-                                      <Upload className="h-4 w-4 mr-2" /> Upload de Imagem
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleDocSelect(item.id)}>
-                                      <FileText className="h-4 w-4 mr-2" /> Documento (PDF, DOC...)
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              )}
+                              {/* Add attachment (always available for multiple) */}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-6 w-6" title="Adicionar anexo">
+                                    <Paperclip className="h-3 w-3" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => {
+                                    setAttachmentDialogItemId(item.id);
+                                    setAttachmentType("link");
+                                    setAttachmentUrl("");
+                                  }}>
+                                    <Link2 className="h-4 w-4 mr-2" /> Link
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => {
+                                    setAttachmentDialogItemId(item.id);
+                                    setAttachmentType("image");
+                                    setAttachmentUrl("");
+                                  }}>
+                                    <ImageIcon className="h-4 w-4 mr-2" /> URL de Imagem
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => {
+                                    setAttachmentDialogItemId(item.id);
+                                    setAttachmentType("video");
+                                    setAttachmentUrl("");
+                                  }}>
+                                    <Video className="h-4 w-4 mr-2" /> URL de Vídeo
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handlePhotoCapture(item.id)}>
+                                    <Camera className="h-4 w-4 mr-2" /> Tirar Foto
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleImageFromDevice(item.id)}>
+                                    <Upload className="h-4 w-4 mr-2" /> Upload de Imagem
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleDocSelect(item.id)}>
+                                    <FileText className="h-4 w-4 mr-2" /> Documento (PDF, DOC...)
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
 
                               {/* Delete */}
                               <Button
@@ -741,20 +760,20 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
                         </div>
 
                         {/* Inline attachment URL input */}
-                        {attachmentDialogItemId === item.id && attachmentType !== "photo" && attachmentType !== "document" && (
+                        {attachmentDialogItemId === item.id && (attachmentType === "link" || attachmentType === "image" || attachmentType === "video") && (
                           <div className="flex gap-2 items-center mt-1">
                             <Input
                               placeholder={attachmentType === "link" ? "https://..." : attachmentType === "image" ? "URL da imagem..." : "URL do vídeo..."}
                               value={attachmentUrl}
                               onChange={(e) => setAttachmentUrl(e.target.value)}
                               onKeyDown={(e) => {
-                                if (e.key === "Enter") handleAddAttachment(item.id);
+                                if (e.key === "Enter") handleAddUrlAttachment(item.id);
                                 if (e.key === "Escape") setAttachmentDialogItemId(null);
                               }}
                               className="text-xs h-7"
                               autoFocus
                             />
-                            <Button size="sm" className="h-7 text-xs" onClick={() => handleAddAttachment(item.id)}>
+                            <Button size="sm" className="h-7 text-xs" onClick={() => handleAddUrlAttachment(item.id)}>
                               OK
                             </Button>
                             <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setAttachmentDialogItemId(null)}>
@@ -776,7 +795,7 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
       {uploadingPhoto && (
         <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
           <Card className="p-6">
-            <p className="text-sm">Enviando foto...</p>
+            <p className="text-sm">Enviando arquivo...</p>
           </Card>
         </div>
       )}
