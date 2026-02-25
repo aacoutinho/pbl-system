@@ -28,19 +28,16 @@ const roleLabels: Record<RoleType, string> = {
   PARTICIPANTE: "Participante",
 };
 
-const gradeLabels: Record<number, string> = {
-  0: "Nenhuma",
-  0.25: "Fraco/Fraca",
-  0.5: "Razoável",
-  0.75: "Boa",
-  1: "Excelente",
+const gradeLabels: Record<string, Record<number, string>> = {
+  fem: { 0: "Nenhuma", 0.25: "Fraca", 0.5: "Razoável", 0.75: "Boa", 1: "Excelente" },
+  masc: { 0: "Nenhum", 0.25: "Fraco", 0.5: "Razoável", 0.75: "Bom", 1: "Excelente" },
 };
 
 const penaltyLabels: Record<number, string> = {
-  0: "Nenhuma",
-  0.25: "Fraca",
+  0: "Nenhum",
+  0.25: "Fraco",
   0.5: "Razoável",
-  0.75: "Boa",
+  0.75: "Bom",
   1: "Excelente",
 };
 
@@ -279,10 +276,10 @@ function EvaluationForm({ studentInfo, sessionInfo, onDone }: {
         const totalScore = ev.pontualidade * 1 + ev.pesquisaMetas * 3 + ev.dominio * 3 + ev.participacao * 3 - (hasRolePenalty ? ev.desempenhoPapel * 1 : 0);
 
         const criteriaItems = [
-          { key: "pontualidade" as const, label: "Pontualidade", desc: "Excelente: Estava presente desde o início do tutorial, cumprindo integralmente o horário. | Boa: Chegou com até 10 minutos de atraso. | Razoável: Chegou com atraso considerável, mas antes da primeira hora. | Fraca: Chegou até 1h10 depois do início. | Nenhuma: Chegou após 1h10 do início.", sublabel: "Peso 1" },
-          { key: "pesquisaMetas" as const, label: "Pesquisa/Metas", desc: "Excelente: Cumpriu todas as metas e/ou realizou tarefas extras. | Boa: Realizou a pesquisa e cumpriu a maior parte das metas. | Razoável: Cumpriu parcialmente ou pesquisou de forma superficial. | Fraca: Resultados insuficientes ou pesquisas irrelevantes. | Nenhuma: Não realizou pesquisas nem cumpriu metas.", sublabel: "Peso 3" },
-          { key: "dominio" as const, label: "Domínio", desc: "Excelente: Trouxe novos conceitos e/ou corrigiu equívocos com clareza. | Boa: Compreendeu a maioria dos pontos e aplicou conceitos com segurança. | Razoável: Conhecimento básico, dificuldade para explicar ideias. | Fraca: Citou termos, mas não soube explicá-los. | Nenhuma: Apenas ouvinte, sem demonstrar conhecimento.", sublabel: "Peso 3" },
-          { key: "participacao" as const, label: "Participação", desc: "Excelente: Participou ativamente, estimulou o debate e aprofundou a discussão. | Boa: Contribuiu frequentemente, ouviu colegas e fez perguntas pertinentes. | Razoável: Participou pontualmente ou só quando solicitado. | Fraca: Contribuiu minimamente, dispersou atenção. | Nenhuma: Silêncio absoluto ou total desinteresse.", sublabel: "Peso 3" },
+          { key: "pontualidade" as const, label: "Pontualidade", gender: "fem" as const, desc: "Excelente: Estava presente desde o início do tutorial, cumprindo integralmente o horário. | Boa: Chegou com até 10 minutos de atraso. | Razoável: Chegou com atraso considerável, mas antes da primeira hora. | Fraca: Chegou até 1h10 depois do início. | Nenhuma: Chegou após 1h10 do início.", sublabel: "Peso 1" },
+          { key: "pesquisaMetas" as const, label: "Pesquisa/Metas", gender: "fem" as const, desc: "Excelente: Cumpriu todas as metas e/ou realizou tarefas extras. | Boa: Realizou a pesquisa e cumpriu a maior parte das metas. | Razoável: Cumpriu parcialmente ou pesquisou de forma superficial. | Fraca: Resultados insuficientes ou pesquisas irrelevantes. | Nenhuma: Não realizou pesquisas nem cumpriu metas.", sublabel: "Peso 3" },
+          { key: "dominio" as const, label: "Domínio", gender: "masc" as const, desc: "Excelente: Trouxe novos conceitos e/ou corrigiu equívocos com clareza. | Bom: Compreendeu a maioria dos pontos e aplicou conceitos com segurança. | Razoável: Conhecimento básico, dificuldade para explicar ideias. | Fraco: Citou termos, mas não soube explicá-los. | Nenhum: Apenas ouvinte, sem demonstrar conhecimento.", sublabel: "Peso 3" },
+          { key: "participacao" as const, label: "Participação", gender: "masc" as const, desc: "Excelente: Participou ativamente, estimulou o debate e aprofundou a discussão. | Bom: Contribuiu frequentemente, ouviu colegas e fez perguntas pertinentes. | Razoável: Participou pontualmente ou só quando solicitado. | Fraco: Contribuiu minimamente, dispersou atenção. | Nenhum: Silêncio absoluto ou total desinteresse.", sublabel: "Peso 3" },
         ];
 
         return (
@@ -310,7 +307,7 @@ function EvaluationForm({ studentInfo, sessionInfo, onDone }: {
             </CardHeader>
             <CardContent className="pt-0 space-y-4">
               <Separator />
-              {criteriaItems.map(({ key, label, desc, sublabel }) => (
+              {criteriaItems.map(({ key, label, desc, sublabel, gender }) => (
                 <div key={key} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -337,7 +334,7 @@ function EvaluationForm({ studentInfo, sessionInfo, onDone }: {
                       </TooltipProvider>
                     </div>
                     <Badge variant="outline" className="text-xs font-medium">
-                      {gradeLabels[ev[key]] ?? ev[key]}
+                      {gradeLabels[gender][ev[key]] ?? ev[key]}
                     </Badge>
                   </div>
                   <Slider
@@ -349,7 +346,7 @@ function EvaluationForm({ studentInfo, sessionInfo, onDone }: {
                     className="w-full"
                   />
                   <div className="flex justify-between text-[10px] text-muted-foreground px-1">
-                    {gradeOptions.map(g => <span key={g}>{gradeLabels[g]}</span>)}
+                    {gradeOptions.map(g => <span key={g}>{gradeLabels[gender][g]}</span>)}
                   </div>
                 </div>
               ))}
@@ -369,10 +366,10 @@ function EvaluationForm({ studentInfo, sessionInfo, onDone }: {
                             <div className="space-y-1">
                               <p><em>Esta nota tem peso negativo porque trata de comportamentos já esperados durante o tutorial.</em></p>
                               <p><strong>Excelente:</strong> Cumpriu todas as funções da forma esperada.</p>
-                              <p><strong>Boa:</strong> Executou a maior parte das funções, mas falhou em pontos isolados.</p>
+                              <p><strong>Bom:</strong> Executou a maior parte das funções, mas falhou em pontos isolados.</p>
                               <p><strong>Razoável:</strong> Tentou executar a função, mas deixou de realizar metade das tarefas.</p>
-                              <p><strong>Fraca:</strong> Realizou apenas tarefas mínimas ou superficiais.</p>
-                              <p><strong>Nenhuma:</strong> Não cumpriu as funções essenciais de sua responsabilidade.</p>
+                              <p><strong>Fraco:</strong> Realizou apenas tarefas mínimas ou superficiais.</p>
+                              <p><strong>Nenhum:</strong> Não cumpriu as funções essenciais de sua responsabilidade.</p>
                             </div>
                           </TooltipContent>
                         </Tooltip>

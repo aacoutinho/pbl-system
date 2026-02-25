@@ -8,15 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { HelpCircle, Send, Eye } from "lucide-react";
 
-const SCORE_LABELS: Record<string, string> = {
-  "0.00": "Nenhuma",
-  "0.25": "Fraco/Fraca",
-  "0.50": "Razoável",
-  "0.75": "Boa",
-  "1.00": "Excelente",
-};
-
-const PENALTY_LABELS: Record<string, string> = {
+const SCORE_LABELS_FEM: Record<string, string> = {
   "0.00": "Nenhuma",
   "0.25": "Fraca",
   "0.50": "Razoável",
@@ -24,8 +16,25 @@ const PENALTY_LABELS: Record<string, string> = {
   "1.00": "Excelente",
 };
 
-function getScoreLabel(value: number, penalty?: boolean): string {
-  const labels = penalty ? PENALTY_LABELS : SCORE_LABELS;
+const SCORE_LABELS_MASC: Record<string, string> = {
+  "0.00": "Nenhum",
+  "0.25": "Fraco",
+  "0.50": "Razoável",
+  "0.75": "Bom",
+  "1.00": "Excelente",
+};
+
+const PENALTY_LABELS: Record<string, string> = {
+  "0.00": "Nenhum",
+  "0.25": "Fraco",
+  "0.50": "Razoável",
+  "0.75": "Bom",
+  "1.00": "Excelente",
+};
+
+function getScoreLabel(value: number, gender: "fem" | "masc" = "fem", penalty?: boolean): string {
+  if (penalty) return PENALTY_LABELS[value.toFixed(2)] ?? value.toFixed(2);
+  const labels = gender === "masc" ? SCORE_LABELS_MASC : SCORE_LABELS_FEM;
   return labels[value.toFixed(2)] ?? value.toFixed(2);
 }
 
@@ -43,12 +52,13 @@ const roleBadgeColors: Record<string, string> = {
   PARTICIPANTE: "bg-gray-100 text-gray-700 border-gray-300",
 };
 
-function PreviewCriteriaSlider({ label, sublabel, tooltip, value, penalty }: {
+function PreviewCriteriaSlider({ label, sublabel, tooltip, value, penalty, gender = "fem" }: {
   label: string;
   sublabel?: string;
   tooltip?: string;
   value: number;
   penalty?: boolean;
+  gender?: "fem" | "masc";
 }) {
   const color = penalty
     ? (value >= 0.75 ? "text-red-600" : value >= 0.5 ? "text-amber-600" : "text-emerald-600")
@@ -79,7 +89,7 @@ function PreviewCriteriaSlider({ label, sublabel, tooltip, value, penalty }: {
           )}
           {sublabel && <span className="text-xs text-muted-foreground ml-1">({sublabel})</span>}
         </div>
-        <span className={`text-sm font-bold ${color}`}>{getScoreLabel(value, penalty)}</span>
+        <span className={`text-sm font-bold ${color}`}>{getScoreLabel(value, penalty ? "masc" : gender, penalty)}</span>
       </div>
       <Slider
         min={0}
@@ -92,11 +102,19 @@ function PreviewCriteriaSlider({ label, sublabel, tooltip, value, penalty }: {
       <div className="flex justify-between text-xs font-medium">
         {penalty ? (
           <>
-            <span className="text-emerald-600">Nenhuma</span>
-            <span className="text-lime-600">Fraca</span>
+            <span className="text-emerald-600">Nenhum</span>
+            <span className="text-lime-600">Fraco</span>
             <span className="text-amber-500">Razoável</span>
-            <span className="text-orange-600">Boa</span>
+            <span className="text-orange-600">Bom</span>
             <span className="text-red-600">Excelente</span>
+          </>
+        ) : gender === "masc" ? (
+          <>
+            <span className="text-red-600">Nenhum</span>
+            <span className="text-orange-500">Fraco</span>
+            <span className="text-amber-500">Razoável</span>
+            <span className="text-lime-600">Bom</span>
+            <span className="text-emerald-600">Excelente</span>
           </>
         ) : (
           <>
@@ -207,30 +225,34 @@ export function EvaluationPreviewDialog({ open, onOpenChange }: { open: boolean;
                         sublabel="Peso 1"
                         tooltip="Excelente: Estava presente desde o início do tutorial, cumprindo integralmente o horário. | Boa: Chegou com até 10 minutos de atraso. | Razoável: Chegou com atraso considerável, mas antes da primeira hora. | Fraca: Chegou até 1h10 depois do início. | Nenhuma: Chegou após 1h10 do início."
                         value={1}
+                        gender="fem"
                       />
                       <PreviewCriteriaSlider
                         label="Pesquisa / Metas"
                         sublabel="Peso 3"
                         tooltip="Excelente: Cumpriu todas as metas e/ou realizou tarefas extras. | Boa: Realizou a pesquisa e cumpriu a maior parte das metas. | Razoável: Cumpriu parcialmente ou pesquisou de forma superficial. | Fraca: Resultados insuficientes ou pesquisas irrelevantes. | Nenhuma: Não realizou pesquisas nem cumpriu metas."
                         value={1}
+                        gender="fem"
                       />
                       <PreviewCriteriaSlider
                         label="Domínio do Assunto"
                         sublabel="Peso 3"
-                        tooltip="Excelente: Trouxe novos conceitos e/ou corrigiu equívocos com clareza. | Boa: Compreendeu a maioria dos pontos e aplicou conceitos com segurança. | Razoável: Conhecimento básico, dificuldade para explicar ideias. | Fraca: Citou termos, mas não soube explicá-los. | Nenhuma: Apenas ouvinte, sem demonstrar conhecimento."
+                        tooltip="Excelente: Trouxe novos conceitos e/ou corrigiu equívocos com clareza. | Bom: Compreendeu a maioria dos pontos e aplicou conceitos com segurança. | Razoável: Conhecimento básico, dificuldade para explicar ideias. | Fraco: Citou termos, mas não soube explicá-los. | Nenhum: Apenas ouvinte, sem demonstrar conhecimento."
                         value={1}
+                        gender="masc"
                       />
                       <PreviewCriteriaSlider
                         label="Participação"
                         sublabel="Peso 3"
-                        tooltip="Excelente: Participou ativamente, estimulou o debate e aprofundou a discussão. | Boa: Contribuiu frequentemente, ouviu colegas e fez perguntas pertinentes. | Razoável: Participou pontualmente ou só quando solicitado. | Fraca: Contribuiu minimamente, dispersou atenção. | Nenhuma: Silêncio absoluto ou total desinteresse."
+                        tooltip="Excelente: Participou ativamente, estimulou o debate e aprofundou a discussão. | Bom: Contribuiu frequentemente, ouviu colegas e fez perguntas pertinentes. | Razoável: Participou pontualmente ou só quando solicitado. | Fraco: Contribuiu minimamente, dispersou atenção. | Nenhum: Silêncio absoluto ou total desinteresse."
                         value={1}
+                        gender="masc"
                       />
                       {hasRolePenalty && (
                         <PreviewCriteriaSlider
                           label={`Desempenho no Papel de ${roleLabels[peer.role]}`}
                           sublabel="Penalidade (até -1)"
-                          tooltip={`Esta nota tem peso negativo porque trata de comportamentos já esperados durante o tutorial. | Excelente: Cumpriu todas as funções da forma esperada. | Boa: Executou a maior parte das funções, mas falhou em pontos isolados. | Razoável: Tentou executar a função, mas deixou de realizar metade das tarefas. | Fraca: Realizou apenas tarefas mínimas ou superficiais. | Nenhuma: Não cumpriu as funções essenciais de sua responsabilidade.`}
+                          tooltip={`Esta nota tem peso negativo porque trata de comportamentos já esperados durante o tutorial. | Excelente: Cumpriu todas as funções da forma esperada. | Bom: Executou a maior parte das funções, mas falhou em pontos isolados. | Razoável: Tentou executar a função, mas deixou de realizar metade das tarefas. | Fraco: Realizou apenas tarefas mínimas ou superficiais. | Nenhum: Não cumpriu as funções essenciais de sua responsabilidade.`}
                           value={0}
                           penalty
                         />

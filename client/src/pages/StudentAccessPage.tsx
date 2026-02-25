@@ -1216,10 +1216,10 @@ function EvaluationForm({ studentInfo, sessionInfo, studentEmail, studentPhotoUr
               <div className="space-y-4">
                 <CriteriaSlider label="Pontualidade" sublabel="Peso 1" tooltip="Excelente: Estava presente desde o início do tutorial, cumprindo integralmente o horário. | Boa: Chegou com até 10 minutos de atraso em relação ao início do tutorial. | Razoável: Chegou com atraso considerável, mas antes da primeira hora. | Fraca: Chegou até uma hora e 10 minutos depois do início do tutorial. | Nenhuma: Chegou após uma hora e 10 minutos do início do tutorial." value={ev.pontualidade} onChange={(v) => updateEval(peer.studentId, "pontualidade", v)} gender="fem" />
                 <CriteriaSlider label="Pesquisa / Metas" sublabel="Peso 3" tooltip="Excelente: Cumpriu todas as metas e pesquisas propostas e/ou realizou tarefas extras não solicitadas. | Boa: Realizou a pesquisa e cumpriu a maior parte das metas propostas de forma satisfatória. | Razoável: Cumpriu as metas apenas parcialmente ou realizou a pesquisa de forma superficial/insuficiente. | Fraca: Entregou resultados insuficientes para o grupo ou trouxe pesquisas irrelevantes para os objetivos do tutorial. | Nenhuma: Não realizou as pesquisas solicitadas nem cumpriu qualquer uma das metas estabelecidas." value={ev.pesquisaMetas} onChange={(v) => updateEval(peer.studentId, "pesquisaMetas", v)} gender="fem" />
-                <CriteriaSlider label="Domínio do Assunto" sublabel="Peso 3" tooltip="Excelente: Trouxe novos conceitos e/ou corrigiu com clareza equívocos apresentados pelo grupo. | Boa: Compreendeu a maioria dos pontos e aplicou os conceitos discutidos com segurança. | Razoável: Demonstrou conhecimento básico, mas apresentou dificuldade para explicar ou fundamentar suas ideias. | Fraca: Citou conceitos novos ou termos da área, porém não soube explicá-los ou aplicá-los corretamente. | Nenhuma: Atuou apenas como ouvinte e não demonstrou qualquer conhecimento sobre o tema proposto." value={ev.dominio} onChange={(v) => updateEval(peer.studentId, "dominio", v)} gender="masc" />
-                <CriteriaSlider label="Participação" sublabel="Peso 3" tooltip="Excelente: Participou ativamente, estimulou o debate construtivo e contribuiu para o aprofundamento da discussão. | Boa: Contribuiu com as discussões de forma frequente, ouviu os colegas e fez perguntas pertinentes. | Razoável: Participou de forma pontual ou apenas quando solicitado, com poucas contribuições voluntárias. | Fraca: Contribuiu minimamente com o grupo e, em alguns momentos, dispersou a atenção ou atrapalhou o fluxo. | Nenhuma: Permaneceu em silêncio absoluto ou demonstrou total desinteresse pelas atividades e pelo grupo." value={ev.participacao} onChange={(v) => updateEval(peer.studentId, "participacao", v)} gender="fem" />
+                <CriteriaSlider label="Domínio do Assunto" sublabel="Peso 3" tooltip="Excelente: Trouxe novos conceitos e/ou corrigiu com clareza equívocos apresentados pelo grupo. | Bom: Compreendeu a maioria dos pontos e aplicou os conceitos discutidos com segurança. | Razoável: Demonstrou conhecimento básico, mas apresentou dificuldade para explicar ou fundamentar suas ideias. | Fraco: Citou conceitos novos ou termos da área, porém não soube explicá-los ou aplicá-los corretamente. | Nenhum: Atuou apenas como ouvinte e não demonstrou qualquer conhecimento sobre o tema proposto." value={ev.dominio} onChange={(v) => updateEval(peer.studentId, "dominio", v)} gender="masc" />
+                <CriteriaSlider label="Participação" sublabel="Peso 3" tooltip="Excelente: Participou ativamente, estimulou o debate construtivo e contribuiu para o aprofundamento da discussão. | Bom: Contribuiu com as discussões de forma frequente, ouviu os colegas e fez perguntas pertinentes. | Razoável: Participou de forma pontual ou apenas quando solicitado, com poucas contribuições voluntárias. | Fraco: Contribuiu minimamente com o grupo e, em alguns momentos, dispersou a atenção ou atrapalhou o fluxo. | Nenhum: Permaneceu em silêncio absoluto ou demonstrou total desinteresse pelas atividades e pelo grupo." value={ev.participacao} onChange={(v) => updateEval(peer.studentId, "participacao", v)} gender="masc" />
                 {hasRolePenalty && (
-                  <CriteriaSlider label={`Desempenho no Papel de ${roleLabels[peer.role]}`} sublabel="Penalidade (até -1)" tooltip={`Esta nota tem peso negativo porque trata de comportamentos já esperados durante o tutorial. | Excelente: Cumpriu todas as funções da forma esperada (ex: coordenador seguiu a pauta e gerenciou o tempo; quadro anotou os pontos principais com clareza; mesa registrou todos os dados e publicou prontamente). | Boa: Executou a maior parte das funções, mas falhou em pontos isolados. | Razoável: Tentou executar a função, mas deixou de realizar metade das tarefas. | Fraca: Realizou apenas tarefas mínimas ou superficiais, demonstrando desinteresse. | Nenhuma: Não cumpriu as funções essenciais de sua responsabilidade.`} value={ev.desempenhoPapel} onChange={(v) => updateEval(peer.studentId, "desempenhoPapel", v)} penalty />
+                  <CriteriaSlider label={`Desempenho no Papel de ${roleLabels[peer.role]}`} sublabel="Penalidade (até -1)" tooltip={`Esta nota tem peso negativo porque trata de comportamentos já esperados durante o tutorial. | Excelente: Cumpriu todas as funções da forma esperada (ex: coordenador seguiu a pauta e gerenciou o tempo; quadro anotou os pontos principais com clareza; mesa registrou todos os dados e publicou prontamente). | Bom: Executou a maior parte das funções, mas falhou em pontos isolados. | Razoável: Tentou executar a função, mas deixou de realizar metade das tarefas. | Fraco: Realizou apenas tarefas mínimas ou superficiais, demonstrando desinteresse. | Nenhum: Não cumpriu as funções essenciais de sua responsabilidade.`} value={ev.desempenhoPapel} onChange={(v) => updateEval(peer.studentId, "desempenhoPapel", v)} penalty />
                 )}
               </div>
               </TooltipProvider>
@@ -1245,15 +1245,7 @@ function EvaluationForm({ studentInfo, sessionInfo, studentEmail, studentPhotoUr
 }
 
 // ─── Criteria Slider Component ───
-const SCORE_LABELS: Record<string, string> = {
-  "0.00": "Nenhuma",
-  "0.25": "Fraco/Fraca",
-  "0.50": "Razoável",
-  "0.75": "Boa",
-  "1.00": "Excelente",
-};
-
-const PENALTY_LABELS: Record<string, string> = {
+const SCORE_LABELS_FEM: Record<string, string> = {
   "0.00": "Nenhuma",
   "0.25": "Fraca",
   "0.50": "Razoável",
@@ -1261,8 +1253,16 @@ const PENALTY_LABELS: Record<string, string> = {
   "1.00": "Excelente",
 };
 
-function getScoreLabel(value: number, penalty?: boolean): string {
-  const labels = penalty ? PENALTY_LABELS : SCORE_LABELS;
+const SCORE_LABELS_MASC: Record<string, string> = {
+  "0.00": "Nenhum",
+  "0.25": "Fraco",
+  "0.50": "Razoável",
+  "0.75": "Bom",
+  "1.00": "Excelente",
+};
+
+function getScoreLabel(value: number, gender: "fem" | "masc" = "fem"): string {
+  const labels = gender === "masc" ? SCORE_LABELS_MASC : SCORE_LABELS_FEM;
   return labels[value.toFixed(2)] ?? value.toFixed(2);
 }
 
@@ -1296,7 +1296,7 @@ function CriteriaSlider({ label, sublabel, tooltip, value, onChange, penalty, ge
           )}
           {sublabel && <span className="text-xs text-muted-foreground ml-1">({sublabel})</span>}
         </div>
-        <span className={`text-sm font-bold ${color}`}>{getScoreLabel(value, penalty)}</span>
+        <span className={`text-sm font-bold ${color}`}>{getScoreLabel(value, penalty ? "masc" : gender)}</span>
       </div>
       <Slider
         min={0}
@@ -1309,11 +1309,19 @@ function CriteriaSlider({ label, sublabel, tooltip, value, onChange, penalty, ge
       <div className="flex justify-between text-xs font-medium">
         {penalty ? (
           <>
-            <span className="text-emerald-600">Nenhuma</span>
-            <span className="text-lime-600">Fraca</span>
+            <span className="text-emerald-600">Nenhum</span>
+            <span className="text-lime-600">Fraco</span>
             <span className="text-amber-500">Razoável</span>
-            <span className="text-orange-600">Boa</span>
+            <span className="text-orange-600">Bom</span>
             <span className="text-red-600">Excelente</span>
+          </>
+        ) : gender === "masc" ? (
+          <>
+            <span className="text-red-600">Nenhum</span>
+            <span className="text-orange-500">Fraco</span>
+            <span className="text-amber-500">Razoável</span>
+            <span className="text-lime-600">Bom</span>
+            <span className="text-emerald-600">Excelente</span>
           </>
         ) : (
           <>
