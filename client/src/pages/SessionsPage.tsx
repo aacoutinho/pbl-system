@@ -66,7 +66,7 @@ function SessionsContent() {
   const [showRoleSummary, setShowRoleSummary] = useState(false);
 
   const createMutation = trpc.sessions.create.useMutation({
-    onSuccess: () => { utils.sessions.list.invalidate(); utils.results.dashboard.invalidate(); toast.success("Sessão criada com sucesso"); setShowCreate(false); },
+    onSuccess: () => { utils.sessions.list.invalidate(); utils.sessions.getNextInfo.invalidate(); utils.results.dashboard.invalidate(); toast.success("Sessão criada com sucesso"); setShowCreate(false); },
     onError: (e) => toast.error(e.message),
   });
   const closeMutation = trpc.sessions.close.useMutation({
@@ -76,7 +76,7 @@ function SessionsContent() {
     onSuccess: () => { utils.sessions.list.invalidate(); utils.results.dashboard.invalidate(); toast.success("Sessão reaberta"); },
   });
   const deleteMutation = trpc.sessions.delete.useMutation({
-    onSuccess: () => { utils.sessions.list.invalidate(); utils.results.dashboard.invalidate(); toast.success("Sessão removida"); },
+    onSuccess: () => { utils.sessions.list.invalidate(); utils.sessions.getNextInfo.invalidate(); utils.results.dashboard.invalidate(); toast.success("Sessão removida"); },
   });
 
   const [showCreate, setShowCreate] = useState(false);
