@@ -534,3 +534,6 @@
 - [x] (4) Não fechar avaliação quando tutor encerrar avaliação do tutorial
 - [x] (5) Email de avaliação já é enviado apenas quando avaliação é aberta (confirmado correto)
 - [x] (6) Renomear Objetivo→Progresso e Conteúdo→Discussão na avaliação do professor
+- [x] Migrar componentes existentes no banco: todos já estão como TP (confirmado pelo usuário)
+- [x] Bug: último botão "Boa" desmarcando sozinho no formulário de avaliação do professor (concorrência na interface)
+- [x] Verificar e garantir que múltiplos usuários simultâneos não causem conflitos de concorrência

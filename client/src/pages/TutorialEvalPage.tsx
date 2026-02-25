@@ -263,9 +263,17 @@ function TutorialEvalContent() {
   studentNotesRef.current = studentNotes;
   const notesAutoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load existing evaluation or draft when session changes
+  // Track which session was last loaded to avoid overwriting local edits
+  // when tRPC refetches data for the same session
+  const lastLoadedSessionRef = useRef<string>("");
+  const hasUserEditedRef = useRef(false);
+
+  // Load existing evaluation or draft ONLY when session changes
   useEffect(() => {
+    const sessionChanged = lastLoadedSessionRef.current !== selectedSessionId;
+    
     if (existingEval) {
+      // Always load finalized evaluations (read-only state)
       setScores({
         organizacao: Number(existingEval.organizacao),
         cooperacao: Number(existingEval.cooperacao),
@@ -274,20 +282,30 @@ function TutorialEvalContent() {
         metas: Number(existingEval.metas),
       });
       setHasDraft(false);
-    } else if (existingDraft) {
-      setScores({
-        organizacao: Number(existingDraft.organizacao),
-        cooperacao: Number(existingDraft.cooperacao),
-        conteudo: Number(existingDraft.conteudo),
-        objetivo: Number(existingDraft.objetivo),
-        metas: Number(existingDraft.metas),
-      });
-      setHasDraft(true);
-    } else {
-      setScores({ ...DEFAULT_SCORES });
-      setHasDraft(false);
+      hasUserEditedRef.current = false;
+    } else if (sessionChanged) {
+      // Only load draft/defaults when switching to a different session
+      if (existingDraft) {
+        setScores({
+          organizacao: Number(existingDraft.organizacao),
+          cooperacao: Number(existingDraft.cooperacao),
+          conteudo: Number(existingDraft.conteudo),
+          objetivo: Number(existingDraft.objetivo),
+          metas: Number(existingDraft.metas),
+        });
+        setHasDraft(true);
+      } else {
+        setScores({ ...DEFAULT_SCORES });
+        setHasDraft(false);
+      }
+      hasUserEditedRef.current = false;
     }
-    setLastAutoSaved(null);
+    // If same session and user has edited, do NOT overwrite local scores
+    
+    if (sessionChanged) {
+      setLastAutoSaved(null);
+      lastLoadedSessionRef.current = selectedSessionId;
+    }
   }, [existingEval, existingDraft, selectedSessionId]);
 
   // Load existing student notes
@@ -311,12 +329,14 @@ function TutorialEvalContent() {
   }, [existingStudentNotes, selectedSessionId]);
 
   // Draft save mutation
+  // IMPORTANT: Do NOT invalidate getDraft on auto-save success.
+  // Invalidating causes the useEffect to re-run and overwrite the local scores
+  // with stale server data, causing the "last button deselecting" bug.
   const saveDraftMutation = trpc.tutorialEval.saveDraft.useMutation({
     onSuccess: () => {
       setDraftSaving(false);
       setLastAutoSaved(new Date());
       setHasDraft(true);
-      utils.tutorialEval.getDraft.invalidate({ sessionId: sessionIdNum });
     },
     onError: () => {
       setDraftSaving(false);
@@ -324,11 +344,8 @@ function TutorialEvalContent() {
   });
 
   // Student notes save mutation
-  const saveStudentNotesMutation = trpc.tutorialEval.saveStudentNotes.useMutation({
-    onSuccess: () => {
-      utils.tutorialEval.getStudentNotes.invalidate({ sessionId: sessionIdNum });
-    },
-  });
+  // IMPORTANT: Do NOT invalidate on auto-save to prevent overwriting local state
+  const saveStudentNotesMutation = trpc.tutorialEval.saveStudentNotes.useMutation({});
 
   // Auto-save debounced (2 seconds after last change)
   const triggerAutoSave = useCallback(() => {
@@ -377,6 +394,7 @@ function TutorialEvalContent() {
 
   const handleScoreChange = (key: CriteriaKey, value: number) => {
     setScores(prev => ({ ...prev, [key]: value }));
+    hasUserEditedRef.current = true;
     if (!existingEval) {
       triggerAutoSave();
     }

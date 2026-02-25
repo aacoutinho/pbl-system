@@ -1,0 +1,66 @@
+{
+  "query": "SELECT c.id, c.code, c.name, c.type, GROUP_CONCAT(DISTINCT cl.classCode ORDER BY cl.classCode SEPARATOR ', ') as turmas FROM components c LEFT JOIN classes cl ON cl.componentId = c.id GROUP BY c.id, c.code, c.name, c.type ORDER BY c.code;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute SELECT c.id, c.code, c.name, c.type, GROUP_CONCAT(DISTINCT cl.classCode ORDER BY cl.classCode SEPARATOR ', ') as turmas FROM components c LEFT JOIN classes cl ON cl.componentId = c.id GROUP BY c.id, c.code, c.name, c.type ORDER BY c.code;",
+  "rows": [
+    {
+      "id": "30002",
+      "code": "EXA613",
+      "name": "Engenharia de Software",
+      "type": "TP",
+      "turmas": "NULL"
+    },
+    {
+      "id": "30001",
+      "code": "EXA854",
+      "name": "Algoritmos",
+      "type": "TP",
+      "turmas": "NULL"
+    },
+    {
+      "id": "30003",
+      "code": "EXA863",
+      "name": "Programação",
+      "type": "TP",
+      "turmas": "NULL"
+    },
+    {
+      "id": "30004",
+      "code": "TEC498",
+      "name": "Projeto de Circuitos Digitais",
+      "type": "TP",
+      "turmas": "NULL"
+    },
+    {
+      "id": "30005",
+      "code": "TEC499",
+      "name": "Sistemas Digitais",
+      "type": "TP",
+      "turmas": "NULL"
+    },
+    {
+      "id": "1",
+      "code": "TEC502",
+      "name": "Concorrência e Conectividade",
+      "type": "TP",
+      "turmas": "TP01, TP02, TP03, TP04"
+    },
+    {
+      "id": "30006",
+      "code": "TEC506",
+      "name": "Projetos de Circuitos Eletrônicos",
+      "type": "TP",
+      "turmas": "NULL"
+    },
+    {
+      "id": "30007",
+      "code": "TEC513",
+      "name": "Processamento Digital de Sinais",
+      "type": "TP",
+      "turmas": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tcode\tname\ttype\tturmas\n30002\tEXA613\tEngenharia de Software\tTP\tNULL\n30001\tEXA854\tAlgoritmos\tTP\tNULL\n30003\tEXA863\tProgramação\tTP\tNULL\n30004\tTEC498\tProjeto de Circuitos Digitais\tTP\tNULL\n30005\tTEC499\tSistemas Digitais\tTP\tNULL\n1\tTEC502\tConcorrência e Conectividade\tTP\tTP01, TP02, TP03, TP04\n30006\tTEC506\tProjetos de Circuitos Eletrônicos\tTP\tNULL\n30007\tTEC513\tProcessamento Digital de Sinais\tTP\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 69
+}
