@@ -356,7 +356,7 @@ function EvaluationForm({ studentInfo, sessionInfo, onDone }: {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Label className="text-sm font-medium">Desempenho no Papel</Label>
-                      <span className="text-[10px] text-muted-foreground">(Penalidade até -1)</span>
+                      <span className="text-[10px] text-muted-foreground">(Penalidade: até -1)</span>
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger>
