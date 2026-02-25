@@ -449,3 +449,4 @@
 - [x] Alterar label "Desempenho no Papel de X" para "Desempenho como Coordenador/Mesa/Quadro" em todos os formulários e prévia
 - [x] Alterar label de penalidade para "Desempenho no Papel" (fixo, sem nome do papel específico) em todos os formulários e prévia
 - [x] Alterar sublabel do Desempenho no Papel de "Penalidade (até -1)" para "Penalidade: até -1" em todos os formulários e prévia
+- [x] Ajustar quadro de avaliação do tutor nos resultados por sessão com colunas: Critério, Nota, Peso, Pontuação

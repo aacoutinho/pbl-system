@@ -361,26 +361,28 @@ function ResultsContent() {
                         <thead>
                           <tr className="border-b border-blue-200 text-left">
                             <th className="pb-2 pr-4 font-medium text-blue-700">Critério</th>
+                            <th className="pb-2 pr-4 font-medium text-blue-700 text-center">Nota</th>
                             <th className="pb-2 pr-4 font-medium text-blue-700 text-center">Peso</th>
-                            <th className="pb-2 font-medium text-blue-700 text-center">Avaliação</th>
+                            <th className="pb-2 font-medium text-blue-700 text-center">Pontuação</th>
                           </tr>
                         </thead>
                         <tbody className="text-blue-900">
                           {[
-                            { label: "Organização", value: Number(tutorialEval.organizacao), weight: 1, gender: "fem" as const },
-                            { label: "Cooperação", value: Number(tutorialEval.cooperacao), weight: 1, gender: "fem" as const },
-                            { label: "Conteúdo", value: Number(tutorialEval.conteudo), weight: 3, gender: "masc" as const },
-                            { label: "Objetivo", value: Number(tutorialEval.objetivo), weight: 3, gender: "masc" as const },
-                            { label: "Metas", value: Number(tutorialEval.metas), weight: 2, gender: "fem" as const },
+                            { label: "Organização", value: Number(tutorialEval.organizacao), weight: 1 },
+                            { label: "Cooperação", value: Number(tutorialEval.cooperacao), weight: 1 },
+                            { label: "Conteúdo", value: Number(tutorialEval.conteudo), weight: 3 },
+                            { label: "Objetivo", value: Number(tutorialEval.objetivo), weight: 3 },
+                            { label: "Metas", value: Number(tutorialEval.metas), weight: 2 },
                           ].map((c) => (
                             <tr key={c.label} className="border-b border-blue-100">
                               <td className="py-1.5 pr-4">{c.label}</td>
+                              <td className={`py-1.5 pr-4 text-center font-medium ${c.value <= 0 ? "text-red-600" : c.value <= 0.25 ? "text-orange-600" : c.value <= 0.5 ? "text-amber-600" : c.value <= 0.75 ? "text-lime-600" : "text-emerald-600"}`}>{c.value.toFixed(2)}</td>
                               <td className="py-1.5 pr-4 text-center">×{c.weight}</td>
-                              <td className={`py-1.5 text-center font-medium ${c.value <= 0 ? "text-red-600" : c.value <= 0.25 ? "text-orange-600" : c.value <= 0.5 ? "text-amber-600" : c.value <= 0.75 ? "text-lime-600" : "text-emerald-600"}`}>{valueToLabel(c.value, c.gender)}</td>
+                              <td className="py-1.5 text-center font-medium">{(c.value * c.weight).toFixed(2)}</td>
                             </tr>
                           ))}
-                          <tr className="font-semibold">
-                            <td className="py-2 pr-4" colSpan={2}>Nota do Tutorial</td>
+                          <tr className="font-semibold border-t border-blue-300">
+                            <td className="py-2 pr-4" colSpan={3}>Nota do Tutorial</td>
                             <td className="py-2 text-center text-base">{tutorialEval.tutorialGrade.toFixed(1)}</td>
                           </tr>
                         </tbody>
