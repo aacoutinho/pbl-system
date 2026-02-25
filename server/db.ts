@@ -1,4 +1,4 @@
-import { eq, and, desc, inArray, sql, or, not } from "drizzle-orm";
+import { eq, and, desc, inArray, sql, or, not, gte, lt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser, users,
@@ -1783,6 +1783,27 @@ export async function listAuditLogs(opts: {
     .offset(offset);
 
   return { logs: rows, total: Number(countResult.count) };
+}
+
+export async function deleteAuditLogs(period: "last_hour" | "last_day" | "all"): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+
+  let condition;
+  if (period === "last_hour") {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    condition = gte(auditLogs.createdAt, oneHourAgo);
+  } else if (period === "last_day") {
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    condition = gte(auditLogs.createdAt, oneDayAgo);
+  }
+  // period === "all" => no condition, delete everything
+
+  const result = condition
+    ? await db.delete(auditLogs).where(condition)
+    : await db.delete(auditLogs);
+
+  return (result as any)[0]?.affectedRows ?? 0;
 }
 
 

@@ -4,9 +4,20 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { History, ChevronLeft, ChevronRight, CheckCircle2, XCircle, ArrowUpCircle, ArrowDownCircle, UserMinus, ShieldCheck, ShieldX, ArrowRightLeft, User } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { History, ChevronLeft, ChevronRight, CheckCircle2, XCircle, ArrowUpCircle, ArrowDownCircle, UserMinus, ShieldCheck, ShieldX, ArrowRightLeft, User, Trash2, Clock, CalendarDays, Loader2 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { toast } from "sonner";
 
 const ACTION_LABELS: Record<string, { label: string; icon: typeof CheckCircle2; color: string; bgColor: string }> = {
   approve_component_request: {
@@ -61,6 +72,24 @@ const ACTION_LABELS: Record<string, { label: string; icon: typeof CheckCircle2; 
 
 const PAGE_SIZE = 20;
 
+const DELETE_PERIOD_LABELS: Record<string, { label: string; description: string; icon: typeof Clock }> = {
+  last_hour: {
+    label: "Última Hora",
+    description: "Apagar todas as ações registradas na última hora.",
+    icon: Clock,
+  },
+  last_day: {
+    label: "Último Dia",
+    description: "Apagar todas as ações registradas nas últimas 24 horas.",
+    icon: CalendarDays,
+  },
+  all: {
+    label: "Tudo",
+    description: "Apagar todo o histórico de ações. Esta ação é irreversível.",
+    icon: Trash2,
+  },
+};
+
 export default function AuditLogPage() {
   return (
     <DashboardLayout>
@@ -72,10 +101,24 @@ export default function AuditLogPage() {
 function AuditLogContent() {
   const { user } = useAuth();
   const [page, setPage] = useState(0);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletePeriod, setDeletePeriod] = useState<"last_hour" | "last_day" | "all">("last_hour");
+
+  const utils = trpc.useUtils();
 
   const { data, isLoading } = trpc.auditLogs.list.useQuery({
     limit: PAGE_SIZE,
     offset: page * PAGE_SIZE,
+  });
+
+  const deleteMut = trpc.auditLogs.delete.useMutation({
+    onSuccess: (result) => {
+      utils.auditLogs.list.invalidate();
+      setPage(0);
+      const periodLabel = DELETE_PERIOD_LABELS[deletePeriod].label.toLowerCase();
+      toast.success(`${result.deleted} ação(ões) do período "${periodLabel}" removida(s) com sucesso.`);
+    },
+    onError: (err) => toast.error(err.message),
   });
 
   const { data: allComponents } = trpc.components.list.useQuery();
@@ -149,6 +192,16 @@ function AuditLogContent() {
     }
   }
 
+  function handleDeleteClick(period: "last_hour" | "last_day" | "all") {
+    setDeletePeriod(period);
+    setDeleteDialogOpen(true);
+  }
+
+  function handleConfirmDelete() {
+    deleteMut.mutate({ period: deletePeriod });
+    setDeleteDialogOpen(false);
+  }
+
   if (!user || (user.role !== "admin" && user.role !== "coordinator")) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
@@ -161,16 +214,56 @@ function AuditLogContent() {
     );
   }
 
+  const periodInfo = DELETE_PERIOD_LABELS[deletePeriod];
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <History className="h-6 w-6" />
-          Histórico de Ações
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Registro de aprovações, rejeições, promoções, alterações de permissão e transferências para rastreabilidade administrativa.
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            <History className="h-6 w-6" />
+            Histórico de Ações
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Registro de aprovações, rejeições, promoções, alterações de permissão e transferências para rastreabilidade administrativa.
+          </p>
+        </div>
+
+        {/* Delete buttons - only for admin */}
+        {user.role === "admin" && data && data.total > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleDeleteClick("last_hour")}
+              disabled={deleteMut.isPending}
+              className="gap-1.5 text-muted-foreground hover:text-red-600 hover:border-red-300"
+            >
+              <Clock className="h-3.5 w-3.5" />
+              Última Hora
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleDeleteClick("last_day")}
+              disabled={deleteMut.isPending}
+              className="gap-1.5 text-muted-foreground hover:text-red-600 hover:border-red-300"
+            >
+              <CalendarDays className="h-3.5 w-3.5" />
+              Último Dia
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleDeleteClick("all")}
+              disabled={deleteMut.isPending}
+              className="gap-1.5 text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+            >
+              {deleteMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              Apagar Tudo
+            </Button>
+          </div>
+        )}
       </div>
 
       <Card>
@@ -265,6 +358,35 @@ function AuditLogContent() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-500" />
+              Apagar Histórico
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {periodInfo.description}
+              {deletePeriod === "all" && (
+                <span className="block mt-2 font-semibold text-red-600">
+                  Atenção: todos os registros serão permanentemente removidos.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Confirmar Exclusão
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

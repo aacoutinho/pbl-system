@@ -33,7 +33,7 @@ import {
   createEmailVerificationCode, verifyEmailCode,
   getStudentEvaluationCount, updateStudentPhoto, getStudentById,
   transferStudentBetweenClasses,
-  createAuditLog, listAuditLogs,
+  createAuditLog, listAuditLogs, deleteAuditLogs,
   createNotification, listNotifications, countUnreadNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification,
   listPendingNotifications, countPendingNotifications,
   getPeerGradesMatrix,
@@ -2140,6 +2140,12 @@ export const appRouter = router({
       offset: z.number().min(0).optional().default(0),
     })).query(async ({ ctx, input }) => {
       return listAuditLogs({ limit: input.limit, offset: input.offset });
+    }),
+    delete: adminProcedure.input(z.object({
+      period: z.enum(["last_hour", "last_day", "all"]),
+    })).mutation(async ({ ctx, input }) => {
+      const deleted = await deleteAuditLogs(input.period);
+      return { success: true, deleted };
     }),
   }),
 

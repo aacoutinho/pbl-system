@@ -482,3 +482,5 @@
 - [x] Incluir quadro de brainstorming no CSV de exportação dos resultados da sessão
 - [x] Polling em tempo real no quadro de brainstorming (alterações aparecem automaticamente para visualizadores)
 - [x] Renomear sistema na interface de "Avaliação Tutorial" para "Sessão Tutorial" (manter "Avaliação Tutorial" apenas onde diz respeito à avaliação)
+- [x] Backend: rota para apagar histórico de ações por período (última hora, último dia, tudo)
+- [x] Frontend: botões para apagar histórico de ações (última hora, último dia, tudo) com confirmação
