@@ -2377,6 +2377,8 @@ export async function upsertProfessorStudentNote(data: {
   professorUserId: number;
   positivePoints: number;
   negativePoints: number;
+  positiveTexts: string[] | null;
+  negativeTexts: string[] | null;
   notes: string | null;
 }) {
   const db = await getDb();
@@ -2395,6 +2397,8 @@ export async function upsertProfessorStudentNote(data: {
       .set({
         positivePoints: data.positivePoints,
         negativePoints: data.negativePoints,
+        positiveTexts: data.positiveTexts,
+        negativeTexts: data.negativeTexts,
         notes: data.notes,
       })
       .where(eq(professorStudentNotes.id, existing.id));
@@ -2421,6 +2425,8 @@ export async function bulkUpsertProfessorStudentNotes(notes: Array<{
   professorUserId: number;
   positivePoints: number;
   negativePoints: number;
+  positiveTexts: string[] | null;
+  negativeTexts: string[] | null;
   notes: string | null;
 }>) {
   const results = [];

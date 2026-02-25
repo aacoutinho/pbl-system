@@ -93,6 +93,8 @@ type StudentNote = {
   studentId: number;
   positivePoints: number;
   negativePoints: number;
+  positiveTexts: string[];
+  negativeTexts: string[];
   notes: string;
 };
 
@@ -296,6 +298,8 @@ function TutorialEvalContent() {
           studentId: n.studentId,
           positivePoints: n.positivePoints,
           negativePoints: n.negativePoints,
+          positiveTexts: (n.positiveTexts as string[] | null) ?? Array(10).fill(""),
+          negativeTexts: (n.negativeTexts as string[] | null) ?? Array(10).fill(""),
           notes: n.notes ?? "",
         };
       }
@@ -344,7 +348,7 @@ function TutorialEvalContent() {
     if (notesAutoSaveTimerRef.current) clearTimeout(notesAutoSaveTimerRef.current);
     notesAutoSaveTimerRef.current = setTimeout(() => {
       const notesArray = Object.values(studentNotesRef.current).filter(
-        n => n.positivePoints > 0 || n.negativePoints > 0 || n.notes.trim().length > 0
+        n => n.positivePoints > 0 || n.negativePoints > 0 || n.notes.trim().length > 0 || (n.positiveTexts && n.positiveTexts.some(t => t.trim().length > 0)) || (n.negativeTexts && n.negativeTexts.some(t => t.trim().length > 0))
       );
       if (notesArray.length > 0) {
         saveStudentNotesMutation.mutate({
@@ -353,6 +357,8 @@ function TutorialEvalContent() {
             studentId: n.studentId,
             positivePoints: n.positivePoints,
             negativePoints: n.negativePoints,
+            positiveTexts: n.positiveTexts ?? [],
+            negativeTexts: n.negativeTexts ?? [],
             notes: n.notes || null,
           })),
         });
@@ -414,7 +420,7 @@ function TutorialEvalContent() {
     });
     // Also save student notes
     const notesArray = Object.values(studentNotes).filter(
-      n => n.positivePoints > 0 || n.negativePoints > 0 || n.notes.trim().length > 0
+      n => n.positivePoints > 0 || n.negativePoints > 0 || n.notes.trim().length > 0 || (n.positiveTexts && n.positiveTexts.some(t => t.trim().length > 0)) || (n.negativeTexts && n.negativeTexts.some(t => t.trim().length > 0))
     );
     if (notesArray.length > 0) {
       saveStudentNotesMutation.mutate({
@@ -423,6 +429,8 @@ function TutorialEvalContent() {
           studentId: n.studentId,
           positivePoints: n.positivePoints,
           negativePoints: n.negativePoints,
+          positiveTexts: n.positiveTexts ?? [],
+          negativeTexts: n.negativeTexts ?? [],
           notes: n.notes || null,
         })),
       });
@@ -438,7 +446,7 @@ function TutorialEvalContent() {
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     // Save student notes before submitting
     const notesArray = Object.values(studentNotes).filter(
-      n => n.positivePoints > 0 || n.negativePoints > 0 || n.notes.trim().length > 0
+      n => n.positivePoints > 0 || n.negativePoints > 0 || n.notes.trim().length > 0 || (n.positiveTexts && n.positiveTexts.some(t => t.trim().length > 0)) || (n.negativeTexts && n.negativeTexts.some(t => t.trim().length > 0))
     );
     if (notesArray.length > 0) {
       saveStudentNotesMutation.mutate({
@@ -447,6 +455,8 @@ function TutorialEvalContent() {
           studentId: n.studentId,
           positivePoints: n.positivePoints,
           negativePoints: n.negativePoints,
+          positiveTexts: n.positiveTexts ?? [],
+          negativeTexts: n.negativeTexts ?? [],
           notes: n.notes || null,
         })),
       });
@@ -663,7 +673,7 @@ function TutorialEvalContent() {
                 <CardContent>
                   <div className="space-y-4">
                     {sessionStudents.map((student: any) => {
-                      const note = studentNotes[student.studentId] ?? { studentId: student.studentId, positivePoints: 0, negativePoints: 0, notes: "" };
+                      const note = studentNotes[student.studentId] ?? { studentId: student.studentId, positivePoints: 0, negativePoints: 0, positiveTexts: Array(10).fill(""), negativeTexts: Array(10).fill(""), notes: "" };
                       return (
                         <div key={student.studentId} className="p-4 rounded-lg border bg-card">
                           {/* Student header with photo */}
@@ -685,31 +695,90 @@ function TutorialEvalContent() {
                             </div>
                           </div>
 
-                          {/* Point bars */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                            <div>
-                              <div className="flex items-center gap-1.5 mb-1.5">
-                                <ThumbsUp className="h-3.5 w-3.5 text-emerald-600" />
-                                <span className="text-xs font-medium text-emerald-700">Positivo ({note.positivePoints}/10)</span>
+                          {/* Points with individual text fields */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                            {/* Positive points column */}
+                            <div className="border rounded-lg p-3 bg-emerald-50/50">
+                              <div className="flex items-center gap-1.5 mb-3">
+                                <ThumbsUp className="h-4 w-4 text-emerald-600" />
+                                <span className="text-sm font-semibold text-emerald-700">Pontos Positivos ({note.positivePoints}/10)</span>
                               </div>
-                              <PointBar
-                                value={note.positivePoints}
-                                max={10}
-                                color="green"
-                                onChange={(v) => handleStudentNoteChange(student.studentId, "positivePoints", v)}
-                              />
+                              <div className="space-y-1.5">
+                                {Array.from({ length: 10 }, (_, i) => {
+                                  const isActive = i < note.positivePoints;
+                                  return (
+                                    <div key={i} className="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const newVal = i + 1 === note.positivePoints ? i : i + 1;
+                                          handleStudentNoteChange(student.studentId, "positivePoints", newVal);
+                                        }}
+                                        className={cn(
+                                          "w-7 h-7 rounded-sm text-xs font-medium flex-shrink-0 transition-all",
+                                          isActive ? "bg-emerald-500 text-white" : "bg-gray-200 hover:bg-emerald-200"
+                                        )}
+                                        title={`Ponto positivo ${i + 1}`}
+                                      >
+                                        {i + 1}
+                                      </button>
+                                      <input
+                                        type="text"
+                                        placeholder={`Anotação ${i + 1}...`}
+                                        value={note.positiveTexts[i] ?? ""}
+                                        onChange={(e) => {
+                                          const newTexts = [...(note.positiveTexts || Array(10).fill(""))];
+                                          newTexts[i] = e.target.value;
+                                          handleStudentNoteChange(student.studentId, "positiveTexts", newTexts as any);
+                                        }}
+                                        className="flex-1 h-7 px-2 text-xs border rounded bg-white focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                                      />
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </div>
-                            <div>
-                              <div className="flex items-center gap-1.5 mb-1.5">
-                                <ThumbsDown className="h-3.5 w-3.5 text-red-600" />
-                                <span className="text-xs font-medium text-red-700">Negativo ({note.negativePoints}/10)</span>
+
+                            {/* Negative points column */}
+                            <div className="border rounded-lg p-3 bg-red-50/50">
+                              <div className="flex items-center gap-1.5 mb-3">
+                                <ThumbsDown className="h-4 w-4 text-red-600" />
+                                <span className="text-sm font-semibold text-red-700">Pontos Negativos ({note.negativePoints}/10)</span>
                               </div>
-                              <PointBar
-                                value={note.negativePoints}
-                                max={10}
-                                color="red"
-                                onChange={(v) => handleStudentNoteChange(student.studentId, "negativePoints", v)}
-                              />
+                              <div className="space-y-1.5">
+                                {Array.from({ length: 10 }, (_, i) => {
+                                  const isActive = i < note.negativePoints;
+                                  return (
+                                    <div key={i} className="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const newVal = i + 1 === note.negativePoints ? i : i + 1;
+                                          handleStudentNoteChange(student.studentId, "negativePoints", newVal);
+                                        }}
+                                        className={cn(
+                                          "w-7 h-7 rounded-sm text-xs font-medium flex-shrink-0 transition-all",
+                                          isActive ? "bg-red-500 text-white" : "bg-gray-200 hover:bg-red-200"
+                                        )}
+                                        title={`Ponto negativo ${i + 1}`}
+                                      >
+                                        {i + 1}
+                                      </button>
+                                      <input
+                                        type="text"
+                                        placeholder={`Anotação ${i + 1}...`}
+                                        value={note.negativeTexts[i] ?? ""}
+                                        onChange={(e) => {
+                                          const newTexts = [...(note.negativeTexts || Array(10).fill(""))];
+                                          newTexts[i] = e.target.value;
+                                          handleStudentNoteChange(student.studentId, "negativeTexts", newTexts as any);
+                                        }}
+                                        className="flex-1 h-7 px-2 text-xs border rounded bg-white focus:outline-none focus:ring-1 focus:ring-red-400"
+                                      />
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </div>
                           </div>
 

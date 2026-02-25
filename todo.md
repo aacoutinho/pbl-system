@@ -453,3 +453,6 @@
 - [x] Adicionar coluna de nota normalizada (máximo 10) na tabela de resultados dos alunos por sessão
 - [x] Alterar Nota Normalizada para escalonamento proporcional (maior nota = 10, demais proporcionais)
 - [x] Ajustar e-mail de notas para incluir mesmas colunas dos resultados (Nota Final, Nota Normalizada, quadro tutor com Critério/Nota/Peso/Pontuação)
+- [x] Adicionar coluna Nota Normalizada no CSV de exportação dos resultados por sessão
+- [x] Aplicar normalização proporcional na aba Por Problema (médias finais com nota normalizada)
+- [x] Adicionar quadro de anotações por aluno na avaliação tutorial com 10 pontos positivos e 10 negativos lado a lado (cada ponto com botão + caixa de texto individual, positivos e negativos lado a lado)

@@ -183,6 +183,13 @@
       "when": 1771904652151,
       "tag": "0025_charming_king_bedlam",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "5",
+      "when": 1771991617993,
+      "tag": "0026_abandoned_rictor",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, decimal, boolean, unique } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, decimal, boolean, unique, json } from "drizzle-orm/mysql-core";
 
 // ─── Users (auth) ───
 export const users = mysqlTable("users", {
@@ -271,6 +271,8 @@ export const professorStudentNotes = mysqlTable("professor_student_notes", {
   professorUserId: int("professorUserId").notNull(),
   positivePoints: int("positivePoints").default(0).notNull(), // 0-10
   negativePoints: int("negativePoints").default(0).notNull(), // 0-10
+  positiveTexts: json("positiveTexts").$type<string[]>(), // Array of up to 10 text annotations for positive points
+  negativeTexts: json("negativeTexts").$type<string[]>(), // Array of up to 10 text annotations for negative points
   notes: text("notes"), // Private notes/comments (not visible to student)
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => [

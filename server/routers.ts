@@ -1456,6 +1456,8 @@ export const appRouter = router({
         studentId: z.number(),
         positivePoints: z.number().min(0).max(10),
         negativePoints: z.number().min(0).max(10),
+        positiveTexts: z.array(z.string()).max(10).optional(),
+        negativeTexts: z.array(z.string()).max(10).optional(),
         notes: z.string().nullable(),
       })),
     })).mutation(async ({ ctx, input }) => {
@@ -1474,6 +1476,8 @@ export const appRouter = router({
           professorUserId: ctx.user.id,
           positivePoints: n.positivePoints,
           negativePoints: n.negativePoints,
+          positiveTexts: n.positiveTexts ?? null,
+          negativeTexts: n.negativeTexts ?? null,
           notes: n.notes,
         }))
       );
