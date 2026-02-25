@@ -575,3 +575,81 @@ export function buildStudentGradeReportHtml(data: {
     </div>
   `;
 }
+
+export function buildBrainstormBoardEmailHtml(data: {
+  sessionLabel: string;
+  sections: {
+    ideias: Array<{ content: string; status: string | null }>;
+    fatos: Array<{ content: string; status: string | null }>;
+    questoes: Array<{ content: string; status: string | null }>;
+    metas: Array<{ content: string; status: string | null }>;
+  };
+  tutorComments: string;
+  brainstormUrl: string;
+}): string {
+  const sectionConfig = [
+    { key: "ideias" as const, label: "Ideias", icon: "💡", color: "#f59e0b", bgColor: "#fffbeb", borderColor: "#fcd34d" },
+    { key: "fatos" as const, label: "Fatos", icon: "📋", color: "#3b82f6", bgColor: "#eff6ff", borderColor: "#93c5fd" },
+    { key: "questoes" as const, label: "Questões", icon: "❓", color: "#8b5cf6", bgColor: "#f5f3ff", borderColor: "#c4b5fd" },
+    { key: "metas" as const, label: "Metas", icon: "🎯", color: "#10b981", bgColor: "#ecfdf5", borderColor: "#6ee7b7" },
+  ];
+
+  const renderSection = (config: typeof sectionConfig[0]) => {
+    const items = data.sections[config.key];
+    if (items.length === 0) {
+      return `
+        <div style="margin-bottom: 20px;">
+          <div style="background: ${config.bgColor}; border-left: 4px solid ${config.color}; border-radius: 0 8px 8px 0; padding: 12px 16px; margin-bottom: 8px;">
+            <h3 style="margin: 0; color: ${config.color}; font-size: 16px;">${config.icon} ${config.label} <span style="color: #9ca3af; font-size: 13px; font-weight: normal;">(0 itens)</span></h3>
+          </div>
+          <p style="color: #9ca3af; font-size: 13px; padding: 0 16px; margin: 4px 0;">Nenhum item registrado.</p>
+        </div>
+      `;
+    }
+    const itemsHtml = items.map((item, idx) => {
+      const statusBadge = item.status
+        ? `<span style="display: inline-block; background: ${config.bgColor}; color: ${config.color}; border: 1px solid ${config.borderColor}; border-radius: 12px; padding: 2px 8px; font-size: 11px; margin-left: 8px;">${item.status}</span>`
+        : "";
+      return `<li style="padding: 6px 0; border-bottom: 1px solid #f3f4f6; font-size: 14px; color: #374151;">${item.content}${statusBadge}</li>`;
+    }).join("");
+
+    return `
+      <div style="margin-bottom: 20px;">
+        <div style="background: ${config.bgColor}; border-left: 4px solid ${config.color}; border-radius: 0 8px 8px 0; padding: 12px 16px; margin-bottom: 8px;">
+          <h3 style="margin: 0; color: ${config.color}; font-size: 16px;">${config.icon} ${config.label} <span style="color: #6b7280; font-size: 13px; font-weight: normal;">(${items.length} ${items.length === 1 ? "item" : "itens"})</span></h3>
+        </div>
+        <ul style="list-style: none; padding: 0 16px; margin: 0;">${itemsHtml}</ul>
+      </div>
+    `;
+  };
+
+  const sectionsHtml = sectionConfig.map(renderSection).join("");
+
+  const tutorCommentsHtml = data.tutorComments
+    ? `
+      <div style="margin: 20px 0; background: #fefce8; border: 1px solid #fde68a; border-radius: 8px; padding: 16px;">
+        <h3 style="margin: 0 0 8px; color: #92400e; font-size: 15px;">📝 Comentários do Tutor</h3>
+        <p style="margin: 0; color: #78350f; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">${data.tutorComments}</p>
+      </div>
+    `
+    : "";
+
+  return `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+      <div style="background: linear-gradient(135deg, #059669, #10b981); padding: 24px 32px; text-align: center;">
+        <h1 style="color: #ffffff; margin: 0 0 4px; font-size: 22px;">📋 Quadro de Brainstorming</h1>
+        <p style="color: #d1fae5; margin: 0; font-size: 14px;">${data.sessionLabel}</p>
+      </div>
+      <div style="padding: 24px 24px 16px;">
+        ${sectionsHtml}
+        ${tutorCommentsHtml}
+        <div style="text-align: center; margin: 24px 0 16px;">
+          <a href="${data.brainstormUrl}" style="display: inline-block; background: #059669; color: #ffffff; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-size: 15px; font-weight: 600;">Abrir Quadro Online</a>
+        </div>
+      </div>
+      <div style="background: #f9fafb; padding: 16px 24px; text-align: center; border-top: 1px solid #e5e7eb;">
+        <p style="color: #9ca3af; font-size: 12px; margin: 0;">Sistema de Sessão Tutorial</p>
+      </div>
+    </div>
+  `;
+}

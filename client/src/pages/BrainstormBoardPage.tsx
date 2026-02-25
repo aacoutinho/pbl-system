@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -190,6 +190,47 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
 
   const [editingAttachmentId, setEditingAttachmentId] = useState<number | null>(null);
   const [editingAttachmentTitle, setEditingAttachmentTitle] = useState("");
+  const [tutorComments, setTutorComments] = useState("");
+  const [tutorCommentsLoaded, setTutorCommentsLoaded] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const tutorCommentsSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const updateTutorCommentsMutation = trpc.brainstorm.updateTutorComments.useMutation({
+    onError: (err) => toast.error(err.message),
+  });
+
+  const sendBoardEmailMutation = trpc.brainstorm.sendBoardEmail.useMutation({
+    onSuccess: (data) => {
+      setSendingEmail(false);
+      toast.success(`Quadro enviado para ${data.sentCount} aluno(s)!${data.failCount > 0 ? ` (${data.failCount} falha(s))` : ""}`);
+    },
+    onError: (err) => {
+      setSendingEmail(false);
+      toast.error(err.message);
+    },
+  });
+
+  // Load tutor comments from board data
+  useEffect(() => {
+    if (boardData && !tutorCommentsLoaded) {
+      setTutorComments((boardData as any).tutorComments || "");
+      setTutorCommentsLoaded(true);
+    }
+  }, [boardData, tutorCommentsLoaded]);
+
+  const handleTutorCommentsChange = (value: string) => {
+    setTutorComments(value);
+    if (tutorCommentsSaveTimeout.current) clearTimeout(tutorCommentsSaveTimeout.current);
+    tutorCommentsSaveTimeout.current = setTimeout(() => {
+      updateTutorCommentsMutation.mutate({ sessionId, comments: value });
+    }, 1000);
+  };
+
+  const handleSendBoardEmail = () => {
+    if (sendingEmail) return;
+    setSendingEmail(true);
+    sendBoardEmailMutation.mutate({ sessionId, origin: window.location.origin });
+  };
 
   const handleAddItem = (section: Section) => {
     const content = newItemTexts[section].trim();
@@ -874,6 +915,56 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
             </Card>
           );
         })}
+      </div>
+
+      {/* Tutor Comments Section */}
+      <div className="max-w-[1600px] mx-auto mt-4">
+        <Card className="border-2 border-yellow-200">
+          <CardHeader className="bg-yellow-50 py-3 px-4">
+            <CardTitle className="text-base font-bold text-yellow-800 flex items-center gap-2">
+              <Pencil className="h-5 w-5" />
+              Comentários do Tutor
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4">
+            {canEdit ? (
+              <div className="space-y-2">
+                <Textarea
+                  placeholder="Adicione comentários sobre as anotações do quadro..."
+                  value={tutorComments}
+                  onChange={(e) => handleTutorCommentsChange(e.target.value)}
+                  className="min-h-[100px] text-sm"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {updateTutorCommentsMutation.isPending ? "Salvando..." : "Salvo automaticamente"}
+                </p>
+              </div>
+            ) : (
+              <div className="min-h-[60px]">
+                {tutorComments ? (
+                  <p className="text-sm text-slate-700 whitespace-pre-wrap">{tutorComments}</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Nenhum comentário do tutor.</p>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Send Board Email Button */}
+      <div className="max-w-[1600px] mx-auto mt-4 mb-6 flex justify-center">
+        <Button
+          onClick={handleSendBoardEmail}
+          disabled={sendingEmail || !hasBoard}
+          className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
+        >
+          {sendingEmail ? (
+            <><span className="animate-spin">⏳</span> Enviando...</>
+          ) : (
+            <><ExternalLink className="h-4 w-4" /> Enviar Quadro por E-mail</>
+          )}
+        </Button>
       </div>
 
       {/* Upload indicator */}

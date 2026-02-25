@@ -53,9 +53,10 @@ import {
   moveBrainstormItem, getBrainstormBoardWithItems,
   shareBrainstormBoard, getComponentSessionsForSharing,
   addBrainstormAttachment, removeBrainstormAttachment, getAttachmentsByItemId, updateBrainstormAttachmentTitle,
+  updateTutorComments, getStudentsByComponentFromSession,
 } from "./db";
 import { storagePut } from "./storage";
-import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml, buildContactTicketEmailHtml, buildSessionOpenedEmailHtml, buildStudentGradeReportHtml, buildBrainstormNotificationEmailHtml } from "./email";
+import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml, buildContactTicketEmailHtml, buildSessionOpenedEmailHtml, buildStudentGradeReportHtml, buildBrainstormNotificationEmailHtml, buildBrainstormBoardEmailHtml } from "./email";
 
 // Base: approved user (any role except "user" pending)
 const approvedProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -2468,6 +2469,68 @@ export const appRouter = router({
       sessionId: z.number(),
     })).query(async ({ input }) => {
       return getComponentSessionsForSharing(input.sessionId);
+    }),
+
+    // Update tutor comments on a brainstorm board
+    updateTutorComments: publicProcedure.input(z.object({
+      sessionId: z.number(),
+      comments: z.string(),
+    })).mutation(async ({ input }) => {
+      return updateTutorComments(input.sessionId, input.comments);
+    }),
+
+    // Send brainstorm board by email to all students in the component
+    sendBoardEmail: publicProcedure.input(z.object({
+      sessionId: z.number(),
+      origin: z.string(),
+    })).mutation(async ({ input }) => {
+      const board = await getBrainstormBoardWithItems(input.sessionId);
+      if (!board || board.noBoard) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Quadro n\u00e3o encontrado" });
+      }
+
+      const studentsInComponent = await getStudentsByComponentFromSession(input.sessionId);
+      const studentsWithEmail = studentsInComponent.filter(s => s.email);
+
+      if (studentsWithEmail.length === 0) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Nenhum aluno com e-mail cadastrado no componente" });
+      }
+
+      const brainstormUrl = `${input.origin}/avaliacao?sessionId=${input.sessionId}&brainstorm=1`;
+
+      // Group items by section
+      const sections = {
+        ideias: board.items.filter(i => i.section === "ideias"),
+        fatos: board.items.filter(i => i.section === "fatos"),
+        questoes: board.items.filter(i => i.section === "questoes"),
+        metas: board.items.filter(i => i.section === "metas"),
+      };
+
+      const html = buildBrainstormBoardEmailHtml({
+        sessionLabel: board.sessionLabel,
+        sections,
+        tutorComments: (board as any).tutorComments || "",
+        brainstormUrl,
+      });
+
+      let sentCount = 0;
+      let failCount = 0;
+      for (const student of studentsWithEmail) {
+        try {
+          await sendEmail({
+            to: student.email!,
+            subject: `Quadro de Brainstorming - ${board.sessionLabel}`,
+            text: `Quadro de Brainstorming da sess\u00e3o ${board.sessionLabel}. Acesse: ${brainstormUrl}`,
+            html,
+          });
+          sentCount++;
+        } catch (err) {
+          failCount++;
+          console.error(`[Email] Failed to send board to ${student.email}:`, err);
+        }
+      }
+
+      return { sentCount, failCount, totalStudents: studentsWithEmail.length };
     }),
   }),
 });

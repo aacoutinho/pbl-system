@@ -504,3 +504,11 @@
 - [x] Remover contador de anexos (badge numérico) do ícone de clipe
 - [x] Reordenar tipos de anexo no submenu: Foto da Câmera, Documento, Link da Internet, URL de Imagem, URL de Vídeo, Upload de Imagem
 - [x] Atualizar ajuda/manual do quadro com nova ordem e nomes dos tipos de anexo
+- [x] Backend: rota para enviar quadro de brainstorming por e-mail para todos os alunos do componente da sessão
+- [x] Frontend: botão 'Enviar quadro' no quadro de brainstorming (visível para aluno Mesa e professor)
+- [x] Schema: campo tutorComments na tabela brainstormBoards
+- [x] Backend: rota para salvar/atualizar comentários do tutor no quadro
+- [x] Backend: rota para enviar quadro de brainstorming por e-mail para todos os alunos do componente
+- [x] Backend: template de e-mail com conteúdo completo do quadro (4 seções + comentários do tutor)
+- [x] Frontend: campo "Comentários do Tutor" no rodapé do quadro (editável pelo professor/admin)
+- [x] Frontend: botão "Enviar Quadro" para o aluno Mesa enviar por e-mail

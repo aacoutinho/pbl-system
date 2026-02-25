@@ -218,6 +218,13 @@
       "when": 1772041493062,
       "tag": "0030_true_wrecker",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "5",
+      "when": 1772042842137,
+      "tag": "0031_vengeful_true_believers",
+      "breakpoints": true
     }
   ]
 }

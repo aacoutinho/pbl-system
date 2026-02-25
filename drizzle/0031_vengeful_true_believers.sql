@@ -1,0 +1,1 @@
+ALTER TABLE `brainstorm_boards` ADD `tutorComments` text;

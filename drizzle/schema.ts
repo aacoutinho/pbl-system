@@ -316,6 +316,7 @@ export const brainstormBoards = mysqlTable("brainstorm_boards", {
   id: int("id").autoincrement().primaryKey(),
   sessionId: int("sessionId").notNull().unique(), // One board per session
   mesaStudentId: int("mesaStudentId").notNull(), // The student with role MESA who edits
+  tutorComments: text("tutorComments"), // Tutor/professor comments on the board
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

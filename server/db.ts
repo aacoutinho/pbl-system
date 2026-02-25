@@ -3101,3 +3101,51 @@ export async function shareBrainstormBoard(sessionId: number, targetSessionIds?:
 
   return { sharedCount, totalTargets: targetIds.length };
 }
+
+// ─── Update tutor comments on brainstorm board ───
+export async function updateTutorComments(sessionId: number, comments: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const board = await getBrainstormBoard(sessionId);
+  if (!board) throw new Error("Quadro não encontrado");
+  await db.update(brainstormBoards).set({ tutorComments: comments }).where(eq(brainstormBoards.id, board.id));
+  return true;
+}
+
+// ─── Get all students from the same component as a session (across all classes) ───
+export async function getStudentsByComponentFromSession(sessionId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  // Find the componentId from the session
+  const [sessionInfo] = await db.select({
+    componentId: classes.componentId,
+    componentCode: components.code,
+    componentName: components.name,
+  }).from(sessions)
+    .innerJoin(classes, eq(sessions.classId, classes.id))
+    .innerJoin(components, eq(classes.componentId, components.id))
+    .where(eq(sessions.id, sessionId)).limit(1);
+
+  if (!sessionInfo) return [];
+
+  // Get all classes for this component
+  const componentClasses = await db.select({ id: classes.id }).from(classes)
+    .where(eq(classes.componentId, sessionInfo.componentId));
+
+  if (componentClasses.length === 0) return [];
+
+  const classIds = componentClasses.map(c => c.id);
+
+  // Get all students from those classes (distinct)
+  const rows = await db.selectDistinct({
+    id: students.id,
+    name: students.name,
+    email: students.email,
+    enrollment: students.enrollment,
+  }).from(classStudents)
+    .innerJoin(students, eq(classStudents.studentId, students.id))
+    .where(inArray(classStudents.classId, classIds));
+
+  return rows;
+}
