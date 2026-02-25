@@ -478,3 +478,6 @@
 - [x] Permitir que professor e Mesa editem o quadro (não apenas Mesa)
 - [x] Adicionar botão para acessar o quadro da sessão na página de avaliação tutorial do professor
 - [x] Auto-redirecionamento para quadro de brainstorming quando aluno Mesa acessa via link do e-mail (parâmetros brainstorm=1&sessionId=X na URL)
+- [x] Exibir conteúdo do quadro de brainstorming nos resultados da sessão (seção separada com itens das 4 seções)
+- [x] Incluir quadro de brainstorming no CSV de exportação dos resultados da sessão
+- [x] Polling em tempo real no quadro de brainstorming (alterações aparecem automaticamente para visualizadores)

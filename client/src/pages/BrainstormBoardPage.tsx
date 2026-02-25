@@ -120,7 +120,7 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
 
   const { data: boardData, isLoading } = trpc.brainstorm.getBoard.useQuery(
     { sessionId },
-    { refetchInterval: canEdit ? false : 10000 } // Auto-refresh for viewers
+    { refetchInterval: 5000 } // Auto-refresh every 5s for all users (real-time collaboration)
   );
 
   // Use sessionLabel from props, or from board data if available

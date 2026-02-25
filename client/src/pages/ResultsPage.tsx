@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, Download, Trophy, UserX, BookOpen, Info, Eye, FileSpreadsheet, Table2, Mail, Loader2 } from "lucide-react";
+import { BarChart3, Download, Trophy, UserX, BookOpen, Info, Eye, FileSpreadsheet, Table2, Mail, Loader2, Lightbulb, HelpCircle, Target, ExternalLink, Link2, ImageIcon } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
@@ -77,6 +77,12 @@ function ResultsContent() {
 
   // Peer grades matrix (individual grades from each evaluator)
   const { data: peerMatrix, isLoading: peerMatrixLoading } = trpc.results.peerGradesMatrix.useQuery(
+    { sessionId: parseInt(selectedSessionId) },
+    { enabled: !!selectedSessionId }
+  );
+
+  // Brainstorm board data
+  const { data: brainstormBoard } = trpc.brainstorm.getBoard.useQuery(
     { sessionId: parseInt(selectedSessionId) },
     { enabled: !!selectedSessionId }
   );
@@ -178,6 +184,27 @@ function ResultsContent() {
       const status = r.absent ? "Faltou" : "Presente";
       const normalized = r.absent || r.finalGrade === 0 ? 0 : Math.round((r.finalGrade / maxFinalGradeCSV) * 10 * 10) / 10;
       lines.push(`${escapeCSV(r.studentName)},${r.role},${r.peerScore.toFixed(1)},${r.finalGrade.toFixed(1)},${normalized.toFixed(1)},${status}`);
+    }
+
+    // Brainstorm board section
+    if (brainstormBoard && !(brainstormBoard as any).noBoard && (brainstormBoard as any).items?.length > 0) {
+      const boardItems = (brainstormBoard as any).items as BrainstormItemResult[];
+      lines.push("");
+      lines.push("QUADRO DE BRAINSTORMING");
+      const sectionLabels: Record<string, string> = { ideias: "Ideias", fatos: "Fatos", questoes: "Questões", metas: "Metas" };
+      const statusLabels: Record<string, string> = {
+        analise: "Análise", aceita: "Aceita", descartada: "Descartada",
+        verificar: "Verificar", confirmado: "Confirmado", inexato: "Inexato",
+        duvida: "Dúvida", investigacao: "Investigação", respondida: "Respondida",
+        planejada: "Planejada", em_andamento: "Em Andamento", concluida: "Concluída",
+      };
+      lines.push("Seção,Conteúdo,Status,Anexo");
+      for (const section of ["ideias", "fatos", "questoes", "metas"]) {
+        const sectionItems = boardItems.filter(i => i.section === section).sort((a, b) => a.sortOrder - b.sortOrder);
+        for (const item of sectionItems) {
+          lines.push(`${sectionLabels[section] || section},${escapeCSV(item.content)},${statusLabels[item.status] || item.status},${item.attachmentUrl ? escapeCSV(item.attachmentUrl) : ""}`);
+        }
+      }
     }
 
     downloadCSV(lines.join("\n"), `resultados_${sessionLabel.replace(/\s/g, "_")}.csv`);
@@ -609,6 +636,11 @@ function ResultsContent() {
                   )}
                 </CardContent>
               </Card>
+
+              {/* ─── Brainstorm Board ─── */}
+              {brainstormBoard && !(brainstormBoard as any).noBoard && (brainstormBoard as any).items?.length > 0 && (
+                <BrainstormResultsCard items={(brainstormBoard as any).items} />
+              )}
             </>
           )}
         </TabsContent>
@@ -794,5 +826,156 @@ function SendGradeEmailsButton({ sessionId, hasTutorialEval }: { sessionId: numb
       )}
       Enviar Notas por E-mail
     </Button>
+  );
+}
+
+const BRAINSTORM_SECTIONS: Record<string, {
+  label: string;
+  icon: typeof Lightbulb;
+  color: string;
+  bgColor: string;
+  borderColor: string;
+  statuses: Record<string, { label: string; color: string }>;
+}> = {
+  ideias: {
+    label: "Ideias",
+    icon: Lightbulb,
+    color: "text-amber-700",
+    bgColor: "bg-amber-50",
+    borderColor: "border-amber-200",
+    statuses: {
+      analise: { label: "Análise", color: "bg-amber-100 text-amber-800" },
+      aceita: { label: "Aceita", color: "bg-emerald-100 text-emerald-800" },
+      descartada: { label: "Descartada", color: "bg-red-100 text-red-800" },
+    },
+  },
+  fatos: {
+    label: "Fatos",
+    icon: BookOpen,
+    color: "text-blue-700",
+    bgColor: "bg-blue-50",
+    borderColor: "border-blue-200",
+    statuses: {
+      verificar: { label: "Verificar", color: "bg-blue-100 text-blue-800" },
+      confirmado: { label: "Confirmado", color: "bg-emerald-100 text-emerald-800" },
+      inexato: { label: "Inexato", color: "bg-red-100 text-red-800" },
+    },
+  },
+  questoes: {
+    label: "Questões",
+    icon: HelpCircle,
+    color: "text-purple-700",
+    bgColor: "bg-purple-50",
+    borderColor: "border-purple-200",
+    statuses: {
+      duvida: { label: "Dúvida", color: "bg-purple-100 text-purple-800" },
+      investigacao: { label: "Investigação", color: "bg-orange-100 text-orange-800" },
+      respondida: { label: "Respondida", color: "bg-emerald-100 text-emerald-800" },
+    },
+  },
+  metas: {
+    label: "Metas",
+    icon: Target,
+    color: "text-emerald-700",
+    bgColor: "bg-emerald-50",
+    borderColor: "border-emerald-200",
+    statuses: {
+      planejada: { label: "Planejada", color: "bg-slate-100 text-slate-800" },
+      em_andamento: { label: "Em Andamento", color: "bg-orange-100 text-orange-800" },
+      concluida: { label: "Concluída", color: "bg-emerald-100 text-emerald-800" },
+    },
+  },
+};
+
+interface BrainstormItemResult {
+  id: number;
+  section: string;
+  content: string;
+  status: string;
+  attachmentUrl?: string | null;
+  attachmentType?: string | null;
+  sortOrder: number;
+}
+
+function BrainstormResultsCard({ items }: { items: BrainstormItemResult[] }) {
+  const sections = ["ideias", "fatos", "questoes", "metas"] as const;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg flex items-center gap-2">
+          <Lightbulb className="h-5 w-5 text-amber-600" />
+          Quadro de Brainstorming
+        </CardTitle>
+        <CardDescription>
+          Registro das ideias, fatos, questões e metas discutidas durante a sessão tutorial.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {sections.map((sectionKey) => {
+            const config = BRAINSTORM_SECTIONS[sectionKey];
+            const sectionItems = items
+              .filter((item) => item.section === sectionKey)
+              .sort((a, b) => a.sortOrder - b.sortOrder);
+            const Icon = config.icon;
+
+            return (
+              <div
+                key={sectionKey}
+                className={`rounded-lg border ${config.borderColor} ${config.bgColor} p-4`}
+              >
+                <h4 className={`font-semibold text-sm mb-3 flex items-center gap-2 ${config.color}`}>
+                  <Icon className="h-4 w-4" />
+                  {config.label}
+                  <Badge variant="secondary" className="ml-auto text-xs">
+                    {sectionItems.length}
+                  </Badge>
+                </h4>
+                {sectionItems.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic">Nenhum item registrado.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {sectionItems.map((item) => {
+                      const statusInfo = config.statuses[item.status] || { label: item.status, color: "bg-gray-100 text-gray-700" };
+                      return (
+                        <li key={item.id} className="bg-white/80 rounded-md p-2.5 border border-white/60 shadow-sm">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-sm flex-1 break-words">{item.content}</p>
+                            <Badge className={`text-[10px] shrink-0 ${statusInfo.color}`}>
+                              {statusInfo.label}
+                            </Badge>
+                          </div>
+                          {item.attachmentUrl && (
+                            <div className="mt-1.5 flex items-center gap-1.5">
+                              {item.attachmentType === "image" || item.attachmentType === "photo" ? (
+                                <a href={item.attachmentUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                                  <ImageIcon className="h-3 w-3" />
+                                  Ver imagem
+                                </a>
+                              ) : item.attachmentType === "video" ? (
+                                <a href={item.attachmentUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                                  <ExternalLink className="h-3 w-3" />
+                                  Ver vídeo
+                                </a>
+                              ) : (
+                                <a href={item.attachmentUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                                  <Link2 className="h-3 w-3" />
+                                  Abrir link
+                                </a>
+                              )}
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
