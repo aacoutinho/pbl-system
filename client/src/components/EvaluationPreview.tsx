@@ -244,9 +244,9 @@ export function EvaluationPreviewDialog({ open, onOpenChange }: { open: boolean;
                       <PreviewCriteriaSlider
                         label="Participação"
                         sublabel="Peso 3"
-                        tooltip="Excelente: Participou ativamente, estimulou o debate e aprofundou a discussão. | Bom: Contribuiu frequentemente, ouviu colegas e fez perguntas pertinentes. | Razoável: Participou pontualmente ou só quando solicitado. | Fraco: Contribuiu minimamente, dispersou atenção. | Nenhum: Silêncio absoluto ou total desinteresse."
+                        tooltip="Excelente: Participou ativamente, estimulou o debate e aprofundou a discussão. | Boa: Contribuiu frequentemente, ouviu colegas e fez perguntas pertinentes. | Razoável: Participou pontualmente ou só quando solicitado. | Fraca: Contribuiu minimamente, dispersou atenção. | Nenhuma: Silêncio absoluto ou total desinteresse."
                         value={1}
-                        gender="masc"
+                        gender="fem"
                       />
                       {hasRolePenalty && (
                         <PreviewCriteriaSlider

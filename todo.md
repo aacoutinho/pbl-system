@@ -445,3 +445,4 @@
 - [x] Adicionar explicações detalhadas dos conceitos nos formulários de avaliação de pares (Atuação no Papel, Pontualidade, Domínio, Metas, Participação) com texto introdutório e descrições por conceito em todos os 3 formulários
 - [x] Corrigir numeração de sessões: invalidar cache getNextInfo após delete e create para reutilizar numeração corretamente
 - [x] Corrigir conceitos para masculino nos itens Domínio, Participação e Desempenho (Nenhum/Fraco/Razoável/Bom/Excelente) em todos os formulários e prévia
+- [x] Corrigir Participação para conceitos femininos (Nenhuma/Fraca/Razoável/Boa/Excelente) em todos os formulários e prévia
