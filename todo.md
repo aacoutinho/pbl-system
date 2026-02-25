@@ -462,3 +462,4 @@
 - [x] Bug: foto do aluno não aparece no quadro de anotações da avaliação tutorial - corrigido: campos eram studentPhotoUrl e studentName (não photoUrl e name)
 - [x] Verificar compatibilidade das funções de backup e restauração com o esquema atual do banco - OK, corrigido TABLE_LABELS no backup.test.ts (faltava professorStudentNotes, contagem era 20 em vez de 21)
 - [x] Permitir que o admin também possa avaliar tutoriais (mesma funcionalidade dos professores)
+- [x] Bug: admin não vê a opção Avaliar Tutorial no menu/sidebar - corrigido: adicionado tutorialEvalItem ao menu do admin no DashboardLayout

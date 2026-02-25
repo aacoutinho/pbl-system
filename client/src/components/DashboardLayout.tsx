@@ -45,7 +45,7 @@ const baseMenuItems = [
   { icon: UserCheck, label: "Professores", path: "/professors" },
 ];
 
-// Tutorial evaluation: only for prof and coordinator (NOT admin)
+// Tutorial evaluation: for prof, coordinator, and admin
 const tutorialEvalItem = { icon: ClipboardCheck, label: "Avaliar Tutorial", path: "/tutorial-eval" };
 
 // Audit log: moved to Configurações (admin only)
@@ -69,7 +69,11 @@ const configGroupItem = { icon: Settings, label: "Configurações", path: "__con
 
 function getMenuItemsForRole(role: string) {
   if (role === "admin") {
-    return [...baseMenuItems, notificationsItem, contactItem, configGroupItem];
+    const items = [...baseMenuItems];
+    const sessionsIdx = items.findIndex(i => i.path === "/sessions");
+    items.splice(sessionsIdx + 1, 0, tutorialEvalItem);
+    items.push(notificationsItem, contactItem, configGroupItem);
+    return items;
   }
   // coordinator and prof: include tutorial eval
   const items = [...baseMenuItems];
