@@ -25,6 +25,7 @@ import {
   brainstormBoards, InsertBrainstormBoard, BrainstormBoard,
   brainstormItems, InsertBrainstormItem, BrainstormItem,
   brainstormItemAttachments, BrainstormItemAttachment,
+  brainstormBoardSendHistory,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -3148,4 +3149,37 @@ export async function getStudentsByComponentFromSession(sessionId: number) {
     .where(inArray(classStudents.classId, classIds));
 
   return rows;
+}
+
+// ─── Brainstorm Board Send History ───
+
+export async function addBoardSendHistory(data: {
+  sessionId: number;
+  sentByName: string;
+  sentByRole: string;
+  recipientCount: number;
+  failCount: number;
+}) {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.insert(brainstormBoardSendHistory).values(data).$returningId();
+  return row;
+}
+
+export async function getBoardSendHistory(sessionId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(brainstormBoardSendHistory)
+    .where(eq(brainstormBoardSendHistory.sessionId, sessionId))
+    .orderBy(desc(brainstormBoardSendHistory.sentAt));
+}
+
+export async function getLastBoardSend(sessionId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.select().from(brainstormBoardSendHistory)
+    .where(eq(brainstormBoardSendHistory.sessionId, sessionId))
+    .orderBy(desc(brainstormBoardSendHistory.sentAt))
+    .limit(1);
+  return row || null;
 }

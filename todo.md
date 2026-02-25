@@ -512,3 +512,13 @@
 - [x] Backend: template de e-mail com conteúdo completo do quadro (4 seções + comentários do tutor)
 - [x] Frontend: campo "Comentários do Tutor" no rodapé do quadro (editável pelo professor/admin)
 - [x] Frontend: botão "Enviar Quadro" para o aluno Mesa enviar por e-mail
+- [x] Schema: tabela brainstormBoardSendHistory para registrar envios do quadro
+- [x] Backend: rota para listar histórico de envios do quadro
+- [x] Backend: proteção contra envios duplicados (intervalo mínimo entre envios)
+- [x] Backend: exportação PDF do quadro implementada no frontend via jsPDF
+- [x] Frontend: exibir histórico de envios no quadro (quem enviou, quando, quantos destinatários)
+- [x] Frontend: diálogo de confirmação antes de enviar quadro
+- [x] Frontend: botão Exportar PDF do quadro
+- [x] Frontend: diálogo de confirmação antes de enviar quadro mostrando quantos alunos receberão
+- [x] Backend: rota getStudentCount para contar alunos com e-mail no componente
+- [x] Testes: 40 testes do brainstorm board (rotas, templates de e-mail, configuração, cooldown) - 766 testes passando

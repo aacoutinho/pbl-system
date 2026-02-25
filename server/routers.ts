@@ -54,6 +54,7 @@ import {
   shareBrainstormBoard, getComponentSessionsForSharing,
   addBrainstormAttachment, removeBrainstormAttachment, getAttachmentsByItemId, updateBrainstormAttachmentTitle,
   updateTutorComments, getStudentsByComponentFromSession,
+  addBoardSendHistory, getBoardSendHistory, getLastBoardSend,
 } from "./db";
 import { storagePut } from "./storage";
 import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml, buildContactTicketEmailHtml, buildSessionOpenedEmailHtml, buildStudentGradeReportHtml, buildBrainstormNotificationEmailHtml, buildBrainstormBoardEmailHtml } from "./email";
@@ -2483,7 +2484,19 @@ export const appRouter = router({
     sendBoardEmail: publicProcedure.input(z.object({
       sessionId: z.number(),
       origin: z.string(),
+      senderName: z.string().optional(),
+      senderRole: z.string().optional(),
     })).mutation(async ({ input }) => {
+      // Check for duplicate sends (minimum 2 minutes between sends)
+      const lastSend = await getLastBoardSend(input.sessionId);
+      if (lastSend) {
+        const timeSinceLastSend = Date.now() - new Date(lastSend.sentAt).getTime();
+        if (timeSinceLastSend < 2 * 60 * 1000) {
+          const remainingSeconds = Math.ceil((2 * 60 * 1000 - timeSinceLastSend) / 1000);
+          throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: `Aguarde ${remainingSeconds}s antes de enviar novamente. \u00daltimo envio por ${lastSend.sentByName}.` });
+        }
+      }
+
       const board = await getBrainstormBoardWithItems(input.sessionId);
       if (!board || board.noBoard) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Quadro n\u00e3o encontrado" });
@@ -2530,7 +2543,30 @@ export const appRouter = router({
         }
       }
 
+      // Record send history
+      await addBoardSendHistory({
+        sessionId: input.sessionId,
+        sentByName: input.senderName || "Desconhecido",
+        sentByRole: input.senderRole || "student",
+        recipientCount: sentCount,
+        failCount,
+      });
+
       return { sentCount, failCount, totalStudents: studentsWithEmail.length };
+    }),
+
+    getBoardSendHistory: publicProcedure.input(z.object({
+      sessionId: z.number(),
+    })).query(async ({ input }) => {
+      return getBoardSendHistory(input.sessionId);
+    }),
+
+    getStudentCount: publicProcedure.input(z.object({
+      sessionId: z.number(),
+    })).query(async ({ input }) => {
+      const students = await getStudentsByComponentFromSession(input.sessionId);
+      const withEmail = students.filter(s => s.email);
+      return { total: students.length, withEmail: withEmail.length };
     }),
   }),
 });

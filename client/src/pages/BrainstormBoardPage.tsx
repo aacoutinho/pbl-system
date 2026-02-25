@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,8 +8,13 @@ import { toast } from "sonner";
 import {
   Plus, Trash2, ArrowLeft, Lightbulb, BookOpen, HelpCircle, Target,
   ArrowRightLeft, Link2, ImageIcon, Video, Camera, X, ExternalLink,
-  ChevronDown, ChevronUp, Info, FileText, Upload, Play, Paperclip, Pencil, Check
+  ChevronDown, ChevronUp, Info, FileText, Upload, Play, Paperclip, Pencil, Check,
+  Send, Download, Clock, History
 } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle
+} from "@/components/ui/dialog";
+import jsPDF from "jspdf";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
@@ -193,6 +198,9 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
   const [tutorComments, setTutorComments] = useState("");
   const [tutorCommentsLoaded, setTutorCommentsLoaded] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [showSendConfirm, setShowSendConfirm] = useState(false);
+  const [showSendHistory, setShowSendHistory] = useState(false);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
   const tutorCommentsSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const updateTutorCommentsMutation = trpc.brainstorm.updateTutorComments.useMutation({
@@ -202,6 +210,8 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
   const sendBoardEmailMutation = trpc.brainstorm.sendBoardEmail.useMutation({
     onSuccess: (data) => {
       setSendingEmail(false);
+      setShowSendConfirm(false);
+      utils.brainstorm.getBoardSendHistory.invalidate({ sessionId });
       toast.success(`Quadro enviado para ${data.sentCount} aluno(s)!${data.failCount > 0 ? ` (${data.failCount} falha(s))` : ""}`);
     },
     onError: (err) => {
@@ -209,6 +219,12 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
       toast.error(err.message);
     },
   });
+
+  // Query: send history
+  const { data: sendHistory } = trpc.brainstorm.getBoardSendHistory.useQuery(
+    { sessionId },
+    { enabled: showSendHistory }
+  );
 
   // Load tutor comments from board data
   useEffect(() => {
@@ -227,9 +243,156 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
   };
 
   const handleSendBoardEmail = () => {
+    setShowSendConfirm(true);
+  };
+
+  const confirmSendBoardEmail = () => {
     if (sendingEmail) return;
     setSendingEmail(true);
     sendBoardEmailMutation.mutate({ sessionId, origin: window.location.origin });
+  };
+
+  // Query student count when dialog opens
+  const { data: studentCountData, refetch: refetchStudentCount } = trpc.brainstorm.getStudentCount.useQuery(
+    { sessionId },
+    { enabled: showSendConfirm }
+  );
+
+  // Export board as PDF
+  const handleExportPdf = () => {
+    if (!boardData || generatingPdf) return;
+    setGeneratingPdf(true);
+    try {
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 15;
+      const contentWidth = pageWidth - margin * 2;
+      let y = 20;
+
+      const checkNewPage = (needed: number) => {
+        if (y + needed > doc.internal.pageSize.getHeight() - 15) {
+          doc.addPage();
+          y = 20;
+        }
+      };
+
+      // Title
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.text("Quadro de Brainstorming", margin, y);
+      y += 8;
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      doc.text(displayLabel, margin, y);
+      y += 4;
+      doc.setFontSize(9);
+      doc.setTextColor(120, 120, 120);
+      doc.text(`Exportado em ${new Date().toLocaleString("pt-BR")}`, margin, y);
+      doc.setTextColor(0, 0, 0);
+      y += 10;
+
+      // Sections
+      const sectionLabels: Record<Section, string> = { ideias: "Ideias", fatos: "Fatos", questoes: "Quest\u00f5es", metas: "Metas" };
+      const sectionColors: Record<Section, [number, number, number]> = {
+        ideias: [245, 158, 11], fatos: [59, 130, 246], questoes: [139, 92, 246], metas: [34, 197, 94]
+      };
+
+      for (const section of SECTIONS_ORDER) {
+        const sectionItems = items.filter(i => i.section === section);
+        checkNewPage(20);
+
+        // Section header
+        const [r, g, b] = sectionColors[section];
+        doc.setFillColor(r, g, b);
+        doc.roundedRect(margin, y, contentWidth, 8, 1, 1, "F");
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(255, 255, 255);
+        doc.text(`${sectionLabels[section]} (${sectionItems.length})`, margin + 3, y + 5.5);
+        doc.setTextColor(0, 0, 0);
+        y += 12;
+
+        if (sectionItems.length === 0) {
+          doc.setFontSize(9);
+          doc.setFont("helvetica", "italic");
+          doc.setTextColor(150, 150, 150);
+          doc.text("Nenhum item", margin + 3, y);
+          doc.setTextColor(0, 0, 0);
+          y += 8;
+        } else {
+          for (const item of sectionItems) {
+            const statusLabel = SECTION_CONFIG[section].statuses.find(s => s.value === item.status)?.label || item.status;
+            checkNewPage(12);
+
+            // Item content
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            const lines = doc.splitTextToSize(item.content, contentWidth - 40);
+            for (const line of lines) {
+              checkNewPage(5);
+              doc.text(`\u2022 ${line}`, margin + 3, y);
+              y += 4.5;
+            }
+
+            // Status badge
+            doc.setFontSize(8);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(r, g, b);
+            doc.text(`[${statusLabel}]`, margin + 5, y);
+            doc.setTextColor(0, 0, 0);
+            y += 3;
+
+            // Attachments
+            const itemAttachments = getItemAttachments(item);
+            if (itemAttachments.length > 0) {
+              for (const att of itemAttachments) {
+                checkNewPage(5);
+                doc.setFontSize(8);
+                doc.setFont("helvetica", "normal");
+                doc.setTextColor(80, 80, 200);
+                const attLabel = att.title || att.url;
+                const truncated = attLabel.length > 80 ? attLabel.substring(0, 77) + "..." : attLabel;
+                doc.text(`  \u{1F4CE} ${truncated}`, margin + 5, y);
+                doc.setTextColor(0, 0, 0);
+                y += 4;
+              }
+            }
+            y += 3;
+          }
+        }
+        y += 4;
+      }
+
+      // Tutor Comments
+      if (tutorComments.trim()) {
+        checkNewPage(20);
+        doc.setFillColor(250, 204, 21);
+        doc.roundedRect(margin, y, contentWidth, 8, 1, 1, "F");
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(100, 70, 0);
+        doc.text("Coment\u00e1rios do Tutor", margin + 3, y + 5.5);
+        doc.setTextColor(0, 0, 0);
+        y += 12;
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        const commentLines = doc.splitTextToSize(tutorComments, contentWidth - 6);
+        for (const line of commentLines) {
+          checkNewPage(5);
+          doc.text(line, margin + 3, y);
+          y += 4.5;
+        }
+      }
+
+      doc.save(`quadro-brainstorming-sessao-${sessionId}.pdf`);
+      toast.success("PDF exportado com sucesso!");
+    } catch (err) {
+      console.error("PDF export error:", err);
+      toast.error("Erro ao gerar PDF");
+    } finally {
+      setGeneratingPdf(false);
+    }
   };
 
   const handleAddItem = (section: Section) => {
@@ -952,20 +1115,134 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
         </Card>
       </div>
 
-      {/* Send Board Email Button */}
-      <div className="max-w-[1600px] mx-auto mt-4 mb-6 flex justify-center">
+      {/* Action Buttons */}
+      <div className="max-w-[1600px] mx-auto mt-4 mb-6 flex flex-wrap justify-center gap-3">
         <Button
           onClick={handleSendBoardEmail}
-          disabled={sendingEmail || !hasBoard}
+          disabled={!hasBoard}
           className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
         >
-          {sendingEmail ? (
-            <><span className="animate-spin">⏳</span> Enviando...</>
-          ) : (
-            <><ExternalLink className="h-4 w-4" /> Enviar Quadro por E-mail</>
-          )}
+          <Send className="h-4 w-4" /> Enviar Quadro por E-mail
+        </Button>
+        <Button
+          onClick={handleExportPdf}
+          disabled={!hasBoard || generatingPdf}
+          variant="outline"
+          className="gap-2"
+        >
+          <Download className="h-4 w-4" />
+          {generatingPdf ? "Gerando..." : "Exportar PDF"}
+        </Button>
+        <Button
+          onClick={() => setShowSendHistory(true)}
+          disabled={!hasBoard}
+          variant="outline"
+          className="gap-2"
+        >
+          <History className="h-4 w-4" /> Histórico de Envios
         </Button>
       </div>
+
+      {/* Send Confirmation Dialog */}
+      <Dialog open={showSendConfirm} onOpenChange={setShowSendConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5 text-emerald-600" />
+              Confirmar Envio do Quadro
+            </DialogTitle>
+            <DialogDescription>
+              O quadro de brainstorming será enviado por e-mail para todos os alunos do componente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-3">
+            {studentCountData ? (
+              <div className="bg-slate-50 rounded-lg p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Total de alunos no componente:</span>
+                  <Badge variant="secondary">{studentCountData.total}</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Alunos com e-mail cadastrado:</span>
+                  <Badge className="bg-emerald-100 text-emerald-800">{studentCountData.withEmail}</Badge>
+                </div>
+                {studentCountData.total > studentCountData.withEmail && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    {studentCountData.total - studentCountData.withEmail} aluno(s) sem e-mail não receberão o quadro.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="bg-slate-50 rounded-lg p-4 text-center">
+                <p className="text-sm text-muted-foreground">Carregando informações...</p>
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Intervalo mínimo entre envios: <strong>2 minutos</strong>.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSendConfirm(false)} disabled={sendingEmail}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={confirmSendBoardEmail}
+              disabled={sendingEmail || !studentCountData || studentCountData.withEmail === 0}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
+            >
+              {sendingEmail ? (
+                <><span className="animate-spin">⏳</span> Enviando...</>
+              ) : (
+                <><Send className="h-4 w-4" /> Confirmar Envio</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send History Dialog */}
+      <Dialog open={showSendHistory} onOpenChange={setShowSendHistory}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-5 w-5 text-blue-600" />
+              Histórico de Envios
+            </DialogTitle>
+            <DialogDescription>
+              Registro de todos os envios do quadro por e-mail.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2 max-h-[400px] overflow-y-auto">
+            {!sendHistory || sendHistory.length === 0 ? (
+              <div className="text-center py-8">
+                <Clock className="h-10 w-10 text-muted-foreground mx-auto mb-2 opacity-40" />
+                <p className="text-sm text-muted-foreground">Nenhum envio registrado.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {sendHistory.map((entry: any) => (
+                  <div key={entry.id} className="bg-slate-50 rounded-lg p-3 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">{entry.sentByName}</span>
+                      <Badge variant="outline" className="text-[10px]">{entry.sentByRole === "admin" ? "Admin" : entry.sentByRole === "professor" ? "Professor" : "Aluno"}</Badge>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Clock className="h-3 w-3" />
+                      {new Date(entry.sentAt).toLocaleString("pt-BR")}
+                    </div>
+                    <div className="flex items-center gap-3 text-xs">
+                      <span className="text-emerald-600">{entry.recipientCount} enviado(s)</span>
+                      {entry.failCount > 0 && (
+                        <span className="text-red-500">{entry.failCount} falha(s)</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Upload indicator */}
       {uploadingPhoto && (

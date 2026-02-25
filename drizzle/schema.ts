@@ -359,3 +359,17 @@ export const brainstormItemAttachments = mysqlTable("brainstorm_item_attachments
 
 export type BrainstormItemAttachment = typeof brainstormItemAttachments.$inferSelect;
 export type InsertBrainstormItemAttachment = typeof brainstormItemAttachments.$inferInsert;
+
+// ─── Brainstorm Board Send History (tracks when board was emailed) ───
+export const brainstormBoardSendHistory = mysqlTable("brainstorm_board_send_history", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull(),
+  sentByName: varchar("sentByName", { length: 255 }).notNull(), // Name of who sent
+  sentByRole: varchar("sentByRole", { length: 64 }).notNull(), // 'student', 'prof', 'admin'
+  recipientCount: int("recipientCount").notNull().default(0),
+  failCount: int("failCount").notNull().default(0),
+  sentAt: timestamp("sentAt").defaultNow().notNull(),
+});
+
+export type BrainstormBoardSendHistory = typeof brainstormBoardSendHistory.$inferSelect;
+export type InsertBrainstormBoardSendHistory = typeof brainstormBoardSendHistory.$inferInsert;
