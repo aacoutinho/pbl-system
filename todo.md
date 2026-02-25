@@ -459,3 +459,4 @@
 - [x] Simplificar quadro de anotações: substituir 10 botões por 1 campo texto positivo e 1 campo texto negativo
 - [x] Remover campo de anotações privadas do quadro de cada aluno
 - [x] Colocar nome do aluno ao lado da foto no quadro de anotações
+- [x] Bug: foto do aluno não aparece no quadro de anotações da avaliação tutorial - corrigido: campos eram studentPhotoUrl e studentName (não photoUrl e name)

@@ -678,18 +678,18 @@ function TutorialEvalContent() {
                         <div key={student.studentId} className="p-4 rounded-lg border bg-card">
                           {/* Student header with photo and name side by side */}
                           <div className="flex items-center gap-3 mb-3">
-                            {student.photoUrl ? (
+                            {student.studentPhotoUrl ? (
                               <img
-                                src={student.photoUrl}
-                                alt={student.name}
+                                src={student.studentPhotoUrl}
+                                alt={student.studentName}
                                 className="w-10 h-10 rounded-full object-cover border-2 border-muted"
                               />
                             ) : (
                               <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-sm font-semibold text-muted-foreground border-2 border-muted">
-                                {student.name?.charAt(0)?.toUpperCase() ?? "?"}
+                                {student.studentName?.charAt(0)?.toUpperCase() ?? "?"}
                               </div>
                             )}
-                            <p className="font-medium text-sm">{student.name}</p>
+                            <p className="font-medium text-sm">{student.studentName}</p>
                           </div>
 
                           {/* Positive and Negative text fields side by side */}
