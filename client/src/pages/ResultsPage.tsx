@@ -419,7 +419,9 @@ function ResultsContent() {
                     <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}</div>
                   ) : !finalResults || finalResults.length === 0 ? (
                     <p className="text-center py-8 text-muted-foreground">Nenhuma avaliação encontrada para esta sessão.</p>
-                  ) : (
+                  ) : (() => {
+                    const maxFinalGrade = Math.max(...finalResults.filter(r => !r.absent && r.finalGrade > 0).map(r => r.finalGrade), 1);
+                    return (
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
@@ -461,13 +463,16 @@ function ResultsContent() {
                                   </span>
                                 </td>
                               )}
-                              {tutorialEval && (
+                              {tutorialEval && (() => {
+                                const normalized = r.absent || r.finalGrade === 0 ? 0 : Math.round((r.finalGrade / maxFinalGrade) * 10 * 10) / 10;
+                                return (
                                 <td className="py-3 pr-4 text-center">
-                                  <span className={`font-bold text-base ${r.absent ? "text-muted-foreground" : Math.min(r.finalGrade, 10) >= 8 ? "text-emerald-600" : Math.min(r.finalGrade, 10) >= 5 ? "text-amber-600" : "text-red-600"}`}>
-                                    {Math.min(r.finalGrade, 10).toFixed(1)}
+                                  <span className={`font-bold text-base ${r.absent ? "text-muted-foreground" : normalized >= 8 ? "text-emerald-600" : normalized >= 5 ? "text-amber-600" : "text-red-600"}`}>
+                                    {normalized.toFixed(1)}
                                   </span>
                                 </td>
-                              )}
+                                );
+                              })()}
                               <td className="py-3 text-center">
                                 {r.absent ? (
                                   <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200">
@@ -484,7 +489,8 @@ function ResultsContent() {
                         </tbody>
                       </table>
                     </div>
-                  )}
+                    );
+                  })()}
                 </CardContent>
               </Card>
 

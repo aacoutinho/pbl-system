@@ -451,3 +451,4 @@
 - [x] Alterar sublabel do Desempenho no Papel de "Penalidade (até -1)" para "Penalidade: até -1" em todos os formulários e prévia
 - [x] Ajustar quadro de avaliação do tutor nos resultados por sessão com colunas: Critério, Nota, Peso, Pontuação
 - [x] Adicionar coluna de nota normalizada (máximo 10) na tabela de resultados dos alunos por sessão
+- [x] Alterar Nota Normalizada para escalonamento proporcional (maior nota = 10, demais proporcionais)
