@@ -556,3 +556,4 @@
 - [x] Auditar textos de ajuda, tooltips, placeholders e mensagens informativas na interface para garantir consistência com funcionalidades atuais
 - [x] Verificar compatibilidade das funcionalidades Backup e Restauração com o esquema atual do banco de dados: adicionadas tabelas brainstormItemAttachments e brainstormBoardSendHistory ao BACKUP_TABLES e TABLE_LABELS
 - [x] Criar teste vitest completo do ciclo backup/restauração validando exportação e importação das 25 tabelas (37 testes)
+- [x] Preservar sessionStudents de sessões encerradas/fechadas durante transferência e remoção de alunos, garantindo resultados históricos visíveis

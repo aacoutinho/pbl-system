@@ -688,27 +688,31 @@ export async function isStudentInComponentClass(studentId: number, componentId: 
 export async function removeStudentFromClass(studentId: number, classId: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  // Remove student from future session participation lists (sessionStudents),
-  // but preserve all evaluations and evaluation items for historical records.
-  const classSessions = await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.classId, classId));
-  if (classSessions.length > 0) {
-    const sessionIds = classSessions.map(s => s.id);
+  // Remove student from session participation lists (sessionStudents),
+  // but PRESERVE sessionStudents for closed/finished sessions to keep historical results visible.
+  // Only remove from sessions that are still "created" or "open".
+  const nonFinishedSessions = await db.select({ id: sessions.id }).from(sessions)
+    .where(and(eq(sessions.classId, classId), inArray(sessions.status, ["initiated", "open"])));
+  if (nonFinishedSessions.length > 0) {
+    const sessionIds = nonFinishedSessions.map(s => s.id);
     await db.delete(sessionStudents).where(
       and(eq(sessionStudents.studentId, studentId), inArray(sessionStudents.sessionId, sessionIds))
     );
   }
   // Remove class-student link
   await db.delete(classStudents).where(and(eq(classStudents.studentId, studentId), eq(classStudents.classId, classId)));
-  // Note: student record and all evaluations are preserved regardless of remaining class memberships.
+  // Note: student record, evaluations, and sessionStudents for closed/finished sessions are preserved.
 }
 
 export async function transferStudentBetweenClasses(studentId: number, fromClassId: number, toClassId: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  // Remove student from source class sessions
-  const fromSessions = await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.classId, fromClassId));
-  if (fromSessions.length > 0) {
-    const sessionIds = fromSessions.map(s => s.id);
+  // Remove student from source class sessions that are NOT yet closed/finished.
+  // PRESERVE sessionStudents for closed/finished sessions to keep historical results visible in the source class.
+  const nonFinishedSessions = await db.select({ id: sessions.id }).from(sessions)
+    .where(and(eq(sessions.classId, fromClassId), inArray(sessions.status, ["initiated", "open"])));
+  if (nonFinishedSessions.length > 0) {
+    const sessionIds = nonFinishedSessions.map(s => s.id);
     await db.delete(sessionStudents).where(
       and(eq(sessionStudents.studentId, studentId), inArray(sessionStudents.sessionId, sessionIds))
     );
@@ -1388,7 +1392,7 @@ export async function getStudentConsolidatedReport(classId: number) {
 
   if (classSessions.length === 0) return [];
 
-  // Get all students in the class
+  // Get all students currently in the class
   const classStudentRows = await db.select({
     studentId: classStudents.studentId,
     studentName: students.name,
@@ -1398,6 +1402,28 @@ export async function getStudentConsolidatedReport(classId: number) {
     .innerJoin(students, eq(classStudents.studentId, students.id))
     .where(eq(classStudents.classId, classId))
     .orderBy(students.name);
+
+  // Also include students who participated in sessions but were transferred out
+  // (they still have sessionStudents records for closed/finished sessions)
+  const sessionIds = classSessions.map(s => s.id);
+  const currentStudentIds = new Set(classStudentRows.map(s => s.studentId));
+  if (sessionIds.length > 0) {
+    const sessionParticipants = await db.selectDistinct({
+      studentId: sessionStudents.studentId,
+      studentName: students.name,
+      studentEmail: students.email,
+      studentEnrollment: students.enrollment,
+    }).from(sessionStudents)
+      .innerJoin(students, eq(sessionStudents.studentId, students.id))
+      .where(inArray(sessionStudents.sessionId, sessionIds));
+    for (const p of sessionParticipants) {
+      if (!currentStudentIds.has(p.studentId)) {
+        classStudentRows.push(p);
+        currentStudentIds.add(p.studentId);
+      }
+    }
+    classStudentRows.sort((a, b) => a.studentName.localeCompare(b.studentName));
+  }
 
   // Calculate final grades for each session
   const sessionResults: Record<number, { label: string; problemNumber: number; sessionNumber: number; status: string; grades: Record<number, { peerScore: number; finalGrade: number; role: string; absent: boolean }> }> = {};
