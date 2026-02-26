@@ -1391,11 +1391,14 @@ export const appRouter = router({
       if (session.status !== "open") throw new TRPCError({ code: "BAD_REQUEST", message: "Esta sessão não está aberta para avaliações" });
       const alreadySubmitted = await hasStudentSubmitted(session.id, input.evaluatorStudentId);
       if (alreadySubmitted) throw new TRPCError({ code: "BAD_REQUEST", message: "Você já realizou a avaliação desta sessão. Solicite ao professor a liberação para reavaliar." });
-      const selfEval = input.items.find(i => i.evaluatedStudentId === input.evaluatorStudentId);
-      if (selfEval) throw new TRPCError({ code: "BAD_REQUEST", message: "Autoavaliação não é permitida" });
       // Fetch role/absent from sessionStudents (defined by professor)
       const sessionStudentsList = await getSessionStudents(input.sessionId);
       const studentMap = new Map(sessionStudentsList.map(s => [s.studentId, s]));
+      // Block evaluation from absent students
+      const evaluatorEntry = studentMap.get(input.evaluatorStudentId);
+      if (evaluatorEntry?.absent) throw new TRPCError({ code: "FORBIDDEN", message: "Alunos marcados como ausentes não podem avaliar" });
+      const selfEval = input.items.find(i => i.evaluatedStudentId === input.evaluatorStudentId);
+      if (selfEval) throw new TRPCError({ code: "BAD_REQUEST", message: "Autoavaliação não é permitida" });
       const itemsWithRoles = input.items.map(item => {
         const ss = studentMap.get(item.evaluatedStudentId);
         const role = ss?.role ?? "PARTICIPANTE";
@@ -1430,6 +1433,9 @@ export const appRouter = router({
       // Fetch role/absent from sessionStudents (defined by professor)
       const sessionStudentsList = await getSessionStudents(input.sessionId);
       const studentMap = new Map(sessionStudentsList.map(s => [s.studentId, s]));
+      // Block evaluation from absent students
+      const evaluatorEntry = studentMap.get(input.evaluatorStudentId);
+      if (evaluatorEntry?.absent) throw new TRPCError({ code: "FORBIDDEN", message: "Alunos marcados como ausentes não podem avaliar" });
       const itemsWithRoles = input.items.map(item => {
         const ss = studentMap.get(item.evaluatedStudentId);
         const role = ss?.role ?? "PARTICIPANTE";

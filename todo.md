@@ -552,3 +552,4 @@
 - [x] Trocar ícone "Iniciar Avaliação" de Send para ClipboardCheck (avaliação/formulário)
 - [x] Trocar ícone "Quadro de Brainstorming" de Lightbulb para Presentation (quadro de ensino)
 - [x] Proteger dados históricos: cleanupOrphanStudents preserva alunos com avaliações, deleteUser bloqueia professores com turmas/avaliações, deleteClass bloqueia turmas com sessões encerradas
+- [x] Filtrar avaliações de alunos ausentes no cálculo de notas de pares: calculateSessionResults, getPeerGradesMatrix e rotas submitEvaluation agora excluem avaliações de avaliadores marcados como ausentes

@@ -1054,8 +1054,20 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
   const evalToEvaluator = new Map<number, number>();
   for (const e of evals) evalToEvaluator.set(e.id, e.evaluatorStudentId);
 
+  // Build set of absent student IDs (marked absent by professor in sessionStudents)
+  const absentStudentIds = new Set(
+    sessionStudentsList.filter(s => s.absent).map(s => s.studentId)
+  );
+
+  // Filter out evaluations FROM absent evaluators
+  // If a student was marked absent but had already submitted an evaluation, exclude it
+  const validEvals = new Set(
+    evals.filter(e => !absentStudentIds.has(e.evaluatorStudentId)).map(e => e.id)
+  );
+  const filteredItems = allItems.filter(i => validEvals.has(i.evaluationId));
+
   const roleCounts: Record<number, Record<string, number>> = {};
-  for (const item of allItems) {
+  for (const item of filteredItems) {
     const evaluatorId = evalToEvaluator.get(item.evaluationId);
     if (evaluatorId === item.evaluatedStudentId) continue;
     if (!roleCounts[item.evaluatedStudentId]) roleCounts[item.evaluatedStudentId] = {};
@@ -1085,7 +1097,7 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
 
   const results: SessionResult[] = [];
   for (const s of sessionStudentsList) {
-    const itemsForStudent = allItems.filter(i => {
+    const itemsForStudent = filteredItems.filter(i => {
       const evaluatorId = evalToEvaluator.get(i.evaluationId);
       return i.evaluatedStudentId === s.studentId && evaluatorId !== s.studentId;
     });
@@ -2133,12 +2145,23 @@ export async function getPeerGradesMatrix(sessionId: number): Promise<{
   const evalToEvaluator = new Map<number, number>();
   for (const e of evals) evalToEvaluator.set(e.id, e.evaluatorStudentId);
 
+  // Build set of absent student IDs (marked absent by professor in sessionStudents)
+  const absentStudentIdsSet = new Set(
+    sessionStudentsList.filter(s => s.absent).map(s => s.studentId)
+  );
+
+  // Filter out evaluations FROM absent evaluators
+  const validEvalIds = new Set(
+    evals.filter(e => !absentStudentIdsSet.has(e.evaluatorStudentId)).map(e => e.id)
+  );
+  const filteredItems = allItems.filter(i => validEvalIds.has(i.evaluationId));
+
   // Assign serial numbers to all students in the session (alphabetical order by name)
   const serialMap = new Map<number, number>();
   sessionStudentsList.forEach((s, i) => serialMap.set(s.studentId, i + 1));
 
-  // Build evaluator list (only students who actually submitted evaluations)
-  const evaluatorIds = new Set(evals.map(e => e.evaluatorStudentId));
+  // Build evaluator list (only present students who actually submitted evaluations)
+  const evaluatorIds = new Set(evals.filter(e => !absentStudentIdsSet.has(e.evaluatorStudentId)).map(e => e.evaluatorStudentId));
   const evaluators = sessionStudentsList
     .filter(s => evaluatorIds.has(s.studentId))
     .map(s => ({
@@ -2152,7 +2175,7 @@ export async function getPeerGradesMatrix(sessionId: number): Promise<{
   // Determine absent students
   const absentStudents = new Set<number>();
   for (const s of sessionStudentsList) {
-    const itemsForStudent = allItems.filter(i => {
+    const itemsForStudent = filteredItems.filter(i => {
       const evaluatorId = evalToEvaluator.get(i.evaluationId);
       return i.evaluatedStudentId === s.studentId && evaluatorId !== s.studentId;
     });
@@ -2174,7 +2197,7 @@ export async function getPeerGradesMatrix(sessionId: number): Promise<{
       // Find the evaluation item from this evaluator for this student
       const eval_ = evals.find(e => e.evaluatorStudentId === evaluator.studentId);
       if (!eval_) continue;
-      const item = allItems.find(
+      const item = filteredItems.find(
         i => i.evaluationId === eval_.id && i.evaluatedStudentId === s.studentId
       );
       if (item) {
