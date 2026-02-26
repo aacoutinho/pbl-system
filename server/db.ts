@@ -2502,6 +2502,8 @@ const BACKUP_TABLES = [
   { name: "sessionAccessTokens", table: sessionAccessTokens },
   { name: "brainstormBoards", table: brainstormBoards },
   { name: "brainstormItems", table: brainstormItems },
+  { name: "brainstormItemAttachments", table: brainstormItemAttachments },
+  { name: "brainstormBoardSendHistory", table: brainstormBoardSendHistory },
 ] as const;
 
 // Tables to clear in reverse order (children first, parents last) to avoid FK issues
