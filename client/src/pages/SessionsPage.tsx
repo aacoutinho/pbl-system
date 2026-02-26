@@ -105,7 +105,7 @@ function SessionsContent() {
   const [assignments, setAssignments] = useState<Record<number, StudentAssignment>>({});
 
   // Initialize assignments when studentsList loads
-  useMemo(() => {
+  useEffect(() => {
     if (studentsList && Object.keys(assignments).length === 0) {
       const init: Record<number, StudentAssignment> = {};
       studentsList.forEach(s => {
@@ -133,6 +133,14 @@ function SessionsContent() {
     if (pn === nextInfo.lastProblemNumber + 1) return 1;
     return 1;
   }, [nextInfo, problemNum]);
+
+  // Preview label
+  const previewLabel = useMemo(() => {
+    const pn = parseInt(problemNum);
+    if (isNaN(pn)) return "";
+    const titlePart = problemTitle.trim() ? ` - ${problemTitle.trim()}` : "";
+    return `Problema ${pn}${titlePart} - Sessão ${autoSessionNumber}`;
+  }, [problemNum, problemTitle, autoSessionNumber]);
 
   if (!selectedClassId) {
     return (
@@ -170,14 +178,6 @@ function SessionsContent() {
       origin: window.location.origin,
     });
   };
-
-  // Preview label
-  const previewLabel = useMemo(() => {
-    const pn = parseInt(problemNum);
-    if (isNaN(pn)) return "";
-    const titlePart = problemTitle.trim() ? ` - ${problemTitle.trim()}` : "";
-    return `Problema ${pn}${titlePart} - Sessão ${autoSessionNumber}`;
-  }, [problemNum, problemTitle, autoSessionNumber]);
 
   const toggleStudent = (id: number) => {
     setAssignments(prev => ({ ...prev, [id]: { ...prev[id], selected: !prev[id]?.selected } }));
@@ -238,11 +238,11 @@ function SessionsContent() {
             <DialogTrigger asChild>
               <Button size="sm"><Plus className="h-4 w-4 mr-2" />Nova Sessão</Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
+            <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
+              <DialogHeader className="shrink-0">
                 <DialogTitle>Criar Nova Sessão</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4">
+              <div className="space-y-4 overflow-y-auto flex-1 pr-1">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Problema</Label>
@@ -364,7 +364,7 @@ function SessionsContent() {
                   </div>
                 </div>
               </div>
-              <DialogFooter>
+              <DialogFooter className="shrink-0 pt-4 border-t">
                 <Button onClick={handleCreate} disabled={createMutation.isPending}>
                   {createMutation.isPending ? "Criando..." : "Criar Sessão"}
                 </Button>

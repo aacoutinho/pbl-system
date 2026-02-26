@@ -561,3 +561,4 @@
 - [x] Bug: e-mails de alunos excluídos persistem nos novos alunos inseridos na mesma turma: adicionado cleanupOrphanStudents após removeStudentFromClass + limpar email/foto quando nome muda na reimportação
 - [x] Validação de matrícula existente no cadastro manual: alertar professor que matrícula já existe em outro componente, mostrar dados do banco e permitir importar
 - [x] Validação de matrícula na importação CSV: conferir nome do aluno (exceto e-mail) e alertar professor sobre divergências
+- [x] Bug: formulário de criar sessão com campos maiores que a janela ou saindo da janela - corrigido com max-h-[90vh], flex col, overflow-y-auto e correção de erro de hooks (useMemo → useEffect, previewLabel movido antes do retorno condicional)
