@@ -557,3 +557,5 @@
 - [x] Verificar compatibilidade das funcionalidades Backup e Restauração com o esquema atual do banco de dados: adicionadas tabelas brainstormItemAttachments e brainstormBoardSendHistory ao BACKUP_TABLES e TABLE_LABELS
 - [x] Criar teste vitest completo do ciclo backup/restauração validando exportação e importação das 25 tabelas (37 testes)
 - [x] Preservar sessionStudents de sessões encerradas/fechadas durante transferência e remoção de alunos, garantindo resultados históricos visíveis
+- [x] Ordenar alunos por nome crescente (alfabético) em todas as listagens da interface, incluindo resultados (em vez de por nota)
+- [x] Bug: e-mails de alunos excluídos persistem nos novos alunos inseridos na mesma turma: adicionado cleanupOrphanStudents após removeStudentFromClass + limpar email/foto quando nome muda na reimportação

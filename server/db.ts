@@ -701,7 +701,8 @@ export async function removeStudentFromClass(studentId: number, classId: number)
   }
   // Remove class-student link
   await db.delete(classStudents).where(and(eq(classStudents.studentId, studentId), eq(classStudents.classId, classId)));
-  // Note: student record, evaluations, and sessionStudents for closed/finished sessions are preserved.
+  // Cleanup orphan students (those no longer in any class and without historical data)
+  await cleanupOrphanStudents();
 }
 
 export async function transferStudentBetweenClasses(studentId: number, fromClassId: number, toClassId: number) {
@@ -769,7 +770,8 @@ export async function bulkImportStudents(data: { name: string; enrollment: strin
       
       if (link.length > 0) {
         if (existing.name !== s.name) {
-          await db.update(students).set({ name: s.name }).where(eq(students.id, existing.id));
+          // Name changed: update name and clear email/photo (likely a different student reusing the enrollment)
+          await db.update(students).set({ name: s.name, email: null, photoUrl: null }).where(eq(students.id, existing.id));
         }
         results.push({ name: s.name, enrollment: s.enrollment, status: "already_in_class" });
         continue;
@@ -783,7 +785,8 @@ export async function bulkImportStudents(data: { name: string; enrollment: strin
       
       await addStudentToClass(existing.id, s.classId);
       if (existing.name !== s.name) {
-        await db.update(students).set({ name: s.name }).where(eq(students.id, existing.id));
+        // Name changed: update name and clear email/photo (likely a different student reusing the enrollment)
+        await db.update(students).set({ name: s.name, email: null, photoUrl: null }).where(eq(students.id, existing.id));
       }
       results.push({ name: s.name, enrollment: s.enrollment, status: "linked" });
     } else {
@@ -1158,7 +1161,7 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
     });
   }
 
-  return results.sort((a, b) => b.totalScore - a.totalScore);
+  return results.sort((a, b) => a.studentName.localeCompare(b.studentName));
 }
 
 export async function calculateProblemResults(classId: number, problemNumber: number) {
@@ -1191,7 +1194,7 @@ export async function calculateProblemResults(classId: number, problemNumber: nu
       roles: data.roles,
       average: Math.round(avg * 100) / 100,
     };
-  }).sort((a, b) => b.average - a.average);
+  }).sort((a, b) => a.studentName.localeCompare(b.studentName));
 }
 
 // ─── Tutorial Evaluation helpers ───
@@ -1377,7 +1380,7 @@ export async function calculateFinalGrades(sessionId: number): Promise<FinalGrad
       absent: r.absent,
       validEvaluations: r.validEvaluations,
     };
-  }).sort((a, b) => b.finalGrade - a.finalGrade);
+  }).sort((a, b) => a.studentName.localeCompare(b.studentName));
 }
 
 // ─── Student Consolidated Report ───
@@ -1526,7 +1529,7 @@ export async function calculateProblemFinalGrades(classId: number, problemNumber
       peerAverage: Math.round(peerAvg * 10) / 10,
       finalAverage: Math.round(finalAvg * 10) / 10,
     };
-  }).sort((a, b) => b.finalAverage - a.finalAverage);
+  }).sort((a, b) => a.studentName.localeCompare(b.studentName));
 }
 
 // ─── Export helpers ───

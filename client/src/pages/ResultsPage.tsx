@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, Download, Trophy, UserX, BookOpen, Info, Eye, FileSpreadsheet, Table2, Mail, Loader2, Lightbulb, HelpCircle, Target, ExternalLink, Link2, ImageIcon, Users, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { BarChart3, Download, UserX, BookOpen, Info, Eye, FileSpreadsheet, Table2, Mail, Loader2, Lightbulb, HelpCircle, Target, ExternalLink, Link2, ImageIcon, Users, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
@@ -474,11 +474,7 @@ function ResultsContent() {
                           {finalResults.map((r, i) => (
                             <tr key={r.studentId} className={`border-b last:border-0 transition-colors ${r.absent ? "bg-red-50/60 hover:bg-red-50" : "hover:bg-accent/20"}`}>
                               <td className="py-3 pr-4">
-                                {i < 3 && !r.absent ? (
-                                  <Trophy className={`h-4 w-4 ${i === 0 ? "text-amber-500" : i === 1 ? "text-gray-400" : "text-amber-700"}`} />
-                                ) : (
-                                  <span className="text-muted-foreground">{i + 1}</span>
-                                )}
+                                <span className="text-muted-foreground">{i + 1}</span>
                               </td>
                               <td className="py-3 pr-4">
                                 <p className={`font-medium ${r.absent ? "text-red-400 line-through" : ""}`}>{r.studentName}</p>
@@ -707,11 +703,7 @@ function ResultsContent() {
                         {problemFinalResults.map((r, i) => (
                           <tr key={r.studentId} className={`border-b last:border-0 transition-colors ${r.finalAverage === 0 && r.peerAverage === 0 ? "bg-red-50/60 hover:bg-red-50" : "hover:bg-accent/20"}`}>
                             <td className="py-3 pr-4">
-                              {i < 3 ? (
-                                <Trophy className={`h-4 w-4 ${i === 0 ? "text-amber-500" : i === 1 ? "text-gray-400" : "text-amber-700"}`} />
-                              ) : (
-                                <span className="text-muted-foreground">{i + 1}</span>
-                              )}
+                              <span className="text-muted-foreground">{i + 1}</span>
                             </td>
                             <td className="py-3 pr-4">
                               <p className="font-medium">{r.studentName}</p>
