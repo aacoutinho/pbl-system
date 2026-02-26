@@ -78,6 +78,10 @@ function SessionsContent() {
   const deleteMutation = trpc.sessions.delete.useMutation({
     onSuccess: () => { utils.sessions.list.invalidate(); utils.sessions.getNextInfo.invalidate(); utils.results.dashboard.invalidate(); toast.success("Sessão removida"); },
   });
+  const finishMutation = trpc.sessions.finish.useMutation({
+    onSuccess: () => { utils.sessions.list.invalidate(); utils.results.dashboard.invalidate(); toast.success("Sessão encerrada"); },
+    onError: (e) => toast.error(e.message),
+  });
 
   const [showCreate, setShowCreate] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -393,7 +397,7 @@ function SessionsContent() {
                   }`}
                   onClick={() => setStatusFilter(st)}
                 >
-                  {st === "all" ? "Todas" : st === "initiated" ? "Iniciadas" : st === "open" ? "Em Avaliação" : st === "closed" ? "Fechadas" : "Encerradas"}
+                  {st === "all" ? "Todas" : st === "initiated" ? "Ativas" : st === "open" ? "Em Avaliação" : st === "closed" ? "Fechadas" : "Encerradas"}
                 </Button>
               ))}
             </div>
@@ -429,6 +433,7 @@ function SessionsContent() {
                   isLastSession={isLast}
                   onClose={() => closeMutation.mutate({ id: session.id })}
                   onOpen={() => openMutation.mutate({ id: session.id, origin: window.location.origin })}
+                  onFinish={() => finishMutation.mutate({ id: session.id })}
                   onDelete={() => { if (confirm(`Excluir "${session.label}"? Todas as avaliações serão perdidas.`)) deleteMutation.mutate({ id: session.id }); }}
                   onViewResults={() => setLocation(`/results?session=${session.id}`)}
                 />);
@@ -522,12 +527,13 @@ function SessionsContent() {
 
 type RoleTypeRow = "COORDENADOR" | "MESA" | "QUADRO" | "PARTICIPANTE";
 
-function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onDelete, onViewResults }: {
+function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onFinish, onDelete, onViewResults }: {
   session: { id: number; label: string; problemNumber: number; sessionNumber: number; status: string; accessCode?: string | null };
   canManage: boolean;
   isLastSession: boolean;
   onClose: () => void;
   onOpen: () => void;
+  onFinish: () => void;
   onDelete: () => void;
   onViewResults: () => void;
 }) {
@@ -541,6 +547,7 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onDele
   const [showReevalDialog, setShowReevalDialog] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [showOpenConfirm, setShowOpenConfirm] = useState(false);
+  const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [showEditAssignments, setShowEditAssignments] = useState(false);
   const [editAssignments, setEditAssignments] = useState<Record<number, { studentId: number; role: RoleTypeRow; absent: boolean }>>({});
 
@@ -647,7 +654,7 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onDele
             session.status === "closed" ? "bg-amber-100 text-amber-700 border-amber-200" :
             session.status === "finished" ? "bg-gray-100 text-gray-600 border-gray-200" : ""
           }>
-            {session.status === "initiated" ? "Iniciada" :
+            {session.status === "initiated" ? "Ativa" :
              session.status === "open" ? "Em Avaliação" :
              session.status === "closed" ? "Fechada" :
              session.status === "finished" ? "Encerrada" : session.status}
@@ -882,7 +889,44 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onDele
                   </DialogContent>
                 </Dialog>
               </>
-            ) : session.status === "closed" || session.status === "finished" ? (
+            ) : session.status === "closed" ? (
+              <>
+                <Button variant="ghost" size="icon" onClick={() => setShowFinishConfirm(true)} title="Encerrar sessão">
+                  <CheckCircle2 className="h-4 w-4" />
+                </Button>
+                <Dialog open={showFinishConfirm} onOpenChange={setShowFinishConfirm}>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Encerrar Sessão</DialogTitle>
+                      <DialogDescription>
+                        Confirme o encerramento da sessão <strong>{session.label}</strong>.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                      <div className="p-3 rounded-lg bg-accent/30 border">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Avaliações recebidas:</span>
+                          <span className="font-semibold">{submitted}/{total}</span>
+                        </div>
+                        {pending > 0 && (
+                          <div className="flex items-center gap-1.5 mt-2 text-sm text-amber-700 bg-amber-50 rounded-md p-2 border border-amber-200">
+                            <AlertTriangle className="h-4 w-4 shrink-0" />
+                            <span><strong>{pending} aluno(s)</strong> ainda não avaliaram.</span>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Ao encerrar, a sessão será marcada como finalizada. Os resultados poderão ser consultados na página de Resultados.
+                      </p>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setShowFinishConfirm(false)}>Cancelar</Button>
+                      <Button onClick={() => { onFinish(); setShowFinishConfirm(false); }}>Encerrar Sessão</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </>
+            ) : session.status === "finished" ? (
               <>
                 <Button variant="ghost" size="icon" onClick={() => setShowOpenConfirm(true)} title="Reabrir sessão">
                   <Unlock className="h-4 w-4" />
@@ -901,12 +945,10 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onDele
                           <span className="text-muted-foreground">Avaliações recebidas:</span>
                           <span className="font-semibold">{submitted}/{total}</span>
                         </div>
-                        {session.status === "finished" && (
-                          <div className="flex items-center gap-1.5 mt-2 text-sm text-amber-700 bg-amber-50 rounded-md p-2 border border-amber-200">
-                            <AlertTriangle className="h-4 w-4 shrink-0" />
-                            <span>A avaliação do tutor já foi submetida. Reabrir mudará o status para <strong>Em Avaliação</strong>.</span>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-1.5 mt-2 text-sm text-amber-700 bg-amber-50 rounded-md p-2 border border-amber-200">
+                          <AlertTriangle className="h-4 w-4 shrink-0" />
+                          <span>A avaliação do tutor já foi submetida. Reabrir mudará o status para <strong>Em Avaliação</strong>.</span>
+                        </div>
                       </div>
                       <p className="text-sm text-muted-foreground">
                         Ao reabrir, os alunos poderão enviar (ou reenviar) avaliações novamente.

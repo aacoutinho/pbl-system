@@ -101,7 +101,7 @@ type StudentNote = {
 
 function StatusBadge({ status }: { status: string }) {
   const config: Record<string, { label: string; className: string }> = {
-    initiated: { label: "Iniciada", className: "bg-gray-100 text-gray-700 border-gray-300" },
+    initiated: { label: "Ativa", className: "bg-gray-100 text-gray-700 border-gray-300" },
     open: { label: "Em Avaliação", className: "bg-blue-50 text-blue-700 border-blue-200" },
     closed: { label: "Fechada", className: "bg-amber-50 text-amber-700 border-amber-200" },
     finished: { label: "Encerrada", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
@@ -608,7 +608,7 @@ function TutorialEvalContent() {
             <div className="mt-4 flex items-start gap-2 p-3 rounded-lg bg-gray-50 border border-gray-200 text-sm text-gray-700">
               <Info className="h-4 w-4 mt-0.5 shrink-0" />
               <p>
-                Esta sessão está no estado <strong>Iniciada</strong>. Você pode começar a avaliar e salvar como rascunho. Ao <strong>finalizar</strong>, a sessão será encerrada automaticamente.
+                Esta sessão está no estado <strong>Ativa</strong>. Você pode começar a avaliar e salvar como rascunho. Ao <strong>finalizar</strong>, a sessão será encerrada automaticamente.
               </p>
             </div>
           )}

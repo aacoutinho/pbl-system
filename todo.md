@@ -540,3 +540,5 @@
 - [x] Separar campo de semestre em dois campos lado a lado: Ano e Semestre (1 ou 2) na criação/edição de turma
 - [x] Auditoria completa de concorrência: 11 operações críticas envolvidas em transações DB para eliminar race conditions
 - [x] Renomear estado da sessão "Aberta" para "Em Avaliação" em todo o sistema (frontend, backend, testes, emails)
+- [x] Renomear estado da sessão "Iniciada" para "Ativa" em todo o sistema (frontend, testes, emails)
+- [x] Adicionar botão de encerrar sessão manualmente (separado da avaliação do tutor)

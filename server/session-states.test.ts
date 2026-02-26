@@ -61,14 +61,14 @@ describe("Session States", () => {
 
   describe("State labels (Portuguese)", () => {
     const stateLabels: Record<string, string> = {
-      initiated: "Iniciada",
+      initiated: "Ativa",
       open: "Em Avaliação",
       closed: "Fechada",
       finished: "Encerrada",
     };
 
-    it("should map 'initiated' to 'Iniciada'", () => {
-      expect(stateLabels["initiated"]).toBe("Iniciada");
+    it("should map 'initiated' to 'Ativa'", () => {
+      expect(stateLabels["initiated"]).toBe("Ativa");
     });
 
     it("should map 'open' to 'Em Avaliação'", () => {

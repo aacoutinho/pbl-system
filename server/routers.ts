@@ -893,6 +893,18 @@ export const appRouter = router({
       await closeSession(input.id);
       return { success: true };
     }),
+    finish: approvedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+      const session = await getSessionById(input.id);
+      if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
+      const cls = await getClassById(session.classId);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertClassManager(ctx.user.id, ctx.user.role, cls);
+      if (session.status !== "open" && session.status !== "closed") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Apenas sessões com status 'Em Avaliação' ou 'Fechada' podem ser encerradas." });
+      }
+      await finishSession(input.id);
+      return { success: true };
+    }),
     open: approvedProcedure.input(z.object({ id: z.number(), origin: z.string().optional() })).mutation(async ({ ctx, input }) => {
       const session = await getSessionById(input.id);
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });

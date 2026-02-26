@@ -231,7 +231,7 @@ export default function AdminDashboard() {
                     <div key={s.id} className="flex items-center justify-between p-3 rounded-lg bg-accent/30 hover:bg-accent/50 transition-colors cursor-pointer"
                       onClick={() => setLocation("/sessions")}>
                       <span className="text-sm font-medium">{s.label}</span>
-                      <Badge variant="outline" className="border-blue-300 text-blue-700 text-xs">Iniciada</Badge>
+                      <Badge variant="outline" className="border-blue-300 text-blue-700 text-xs">Ativa</Badge>
                     </div>
                   ))}
                   {openSessions.map(s => (
