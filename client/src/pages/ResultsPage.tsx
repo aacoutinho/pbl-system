@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, Download, Trophy, UserX, BookOpen, Info, Eye, FileSpreadsheet, Table2, Mail, Loader2, Lightbulb, HelpCircle, Target, ExternalLink, Link2, ImageIcon } from "lucide-react";
+import { BarChart3, Download, Trophy, UserX, BookOpen, Info, Eye, FileSpreadsheet, Table2, Mail, Loader2, Lightbulb, HelpCircle, Target, ExternalLink, Link2, ImageIcon, Users, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
@@ -292,6 +292,7 @@ function ResultsContent() {
         <TabsList>
           <TabsTrigger value="session">Por Sessão</TabsTrigger>
           <TabsTrigger value="problem">Por Problema</TabsTrigger>
+          <TabsTrigger value="consolidated">Consolidado por Aluno</TabsTrigger>
         </TabsList>
 
         {/* ─── Session Results ─── */}
@@ -471,7 +472,7 @@ function ResultsContent() {
                         </thead>
                         <tbody>
                           {finalResults.map((r, i) => (
-                            <tr key={r.studentId} className="border-b last:border-0 hover:bg-accent/20 transition-colors">
+                            <tr key={r.studentId} className={`border-b last:border-0 transition-colors ${r.absent ? "bg-red-50/60 hover:bg-red-50" : "hover:bg-accent/20"}`}>
                               <td className="py-3 pr-4">
                                 {i < 3 && !r.absent ? (
                                   <Trophy className={`h-4 w-4 ${i === 0 ? "text-amber-500" : i === 1 ? "text-gray-400" : "text-amber-700"}`} />
@@ -480,7 +481,7 @@ function ResultsContent() {
                                 )}
                               </td>
                               <td className="py-3 pr-4">
-                                <p className="font-medium">{r.studentName}</p>
+                                <p className={`font-medium ${r.absent ? "text-red-400 line-through" : ""}`}>{r.studentName}</p>
                               </td>
                               <td className="py-3 pr-4">
                                 <RoleBadge role={r.role} />
@@ -573,7 +574,7 @@ function ResultsContent() {
                           </thead>
                           <tbody>
                             {peerMatrix.rows.map((row) => (
-                              <tr key={row.studentId} className="border-b last:border-0 hover:bg-accent/20 transition-colors">
+                              <tr key={row.studentId} className={`border-b last:border-0 transition-colors ${row.absent ? "bg-red-50/60 hover:bg-red-50" : "hover:bg-accent/20"}`}>
                                 <td className="py-2.5 pr-3 text-center text-muted-foreground font-medium">{row.serial}</td>
                                 <td className="py-2.5 pr-3 font-mono text-xs">{row.studentEnrollment}</td>
                                 <td className="py-2.5 pr-3">
@@ -704,7 +705,7 @@ function ResultsContent() {
                       </thead>
                       <tbody>
                         {problemFinalResults.map((r, i) => (
-                          <tr key={r.studentId} className="border-b last:border-0 hover:bg-accent/20 transition-colors">
+                          <tr key={r.studentId} className={`border-b last:border-0 transition-colors ${r.finalAverage === 0 && r.peerAverage === 0 ? "bg-red-50/60 hover:bg-red-50" : "hover:bg-accent/20"}`}>
                             <td className="py-3 pr-4">
                               {i < 3 ? (
                                 <Trophy className={`h-4 w-4 ${i === 0 ? "text-amber-500" : i === 1 ? "text-gray-400" : "text-amber-700"}`} />
@@ -757,6 +758,11 @@ function ResultsContent() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        {/* ─── Consolidated Student Report ─── */}
+        <TabsContent value="consolidated" className="space-y-4">
+          <ConsolidatedStudentReport classId={activeClassId!} />
         </TabsContent>
       </Tabs>
 
@@ -977,5 +983,188 @@ function BrainstormResultsCard({ items }: { items: BrainstormItemResult[] }) {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function ConsolidatedStudentReport({ classId }: { classId: number }) {
+  const { data: report, isLoading } = trpc.results.studentConsolidated.useQuery(
+    { classId },
+    { enabled: !!classId }
+  );
+
+  const downloadCSV = (content: string, filename: string) => {
+    const blob = new Blob(["\uFEFF" + content], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const escapeCSV = (val: unknown): string => {
+    const s = String(val ?? "");
+    if (s.includes(",") || s.includes('"') || s.includes("\n")) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+  };
+
+  const exportConsolidated = () => {
+    if (!report || report.length === 0) return;
+    const sessions = report[0].sessions;
+    const header = ["Matrícula", "Aluno", ...sessions.map(s => `${s.label} (Papel)`), ...sessions.map(s => `${s.label} (Nota)`), "Presenças", "Faltas", "Média Pares", "Média Final"];
+    const rows = report.map(r => [
+      escapeCSV(r.studentEnrollment),
+      escapeCSV(r.studentName),
+      ...r.sessions.map(s => escapeCSV(s.role)),
+      ...r.sessions.map(s => s.finalGrade.toFixed(1)),
+      r.presentCount,
+      r.absentCount,
+      r.avgPeerScore.toFixed(1),
+      r.avgFinalGrade.toFixed(1),
+    ]);
+    const csv = [header.join(","), ...rows.map(r => r.join(","))].join("\n");
+    downloadCSV(csv, `relatorio_consolidado_turma_${classId}.csv`);
+  };
+
+  if (isLoading) {
+    return <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}</div>;
+  }
+
+  if (!report || report.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <Users className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+          <p className="text-muted-foreground">Nenhum dado disponível. Crie sessões e realize avaliações para ver o relatório consolidado.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const sessions = report[0].sessions;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Relatório Consolidado por Aluno
+          </h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            Visão geral de todas as sessões do semestre, com notas e presenças acumuladas.
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={exportConsolidated}>
+          <FileSpreadsheet className="h-4 w-4 mr-2" />Exportar CSV
+        </Button>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/30 text-left">
+                  <th className="py-3 px-3 font-semibold sticky left-0 bg-muted/30 z-10">#</th>
+                  <th className="py-3 px-3 font-semibold sticky left-8 bg-muted/30 z-10 min-w-[180px]">Aluno</th>
+                  <th className="py-3 px-2 font-semibold text-center min-w-[60px]">Matrícula</th>
+                  {sessions.map((s, i) => (
+                    <th key={i} className="py-3 px-2 font-semibold text-center min-w-[90px]">
+                      <div className="text-xs">{s.label}</div>
+                    </th>
+                  ))}
+                  <th className="py-3 px-2 font-semibold text-center bg-emerald-50/50">
+                    <div className="flex items-center justify-center gap-1">
+                      <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                      <span className="text-xs">Presenças</span>
+                    </div>
+                  </th>
+                  <th className="py-3 px-2 font-semibold text-center bg-red-50/50">
+                    <div className="flex items-center justify-center gap-1">
+                      <AlertTriangle className="h-3 w-3 text-red-500" />
+                      <span className="text-xs">Faltas</span>
+                    </div>
+                  </th>
+                  <th className="py-3 px-2 font-semibold text-center bg-blue-50/50">
+                    <span className="text-xs">Média Pares</span>
+                  </th>
+                  <th className="py-3 px-2 font-semibold text-center bg-amber-50/50">
+                    <span className="text-xs font-bold">Média Final</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {report.map((student, idx) => (
+                  <tr
+                    key={student.studentId}
+                    className={`border-b last:border-0 transition-colors ${
+                      student.absentCount === student.totalSessions
+                        ? "bg-red-50/60 hover:bg-red-50"
+                        : student.absentCount > 0
+                        ? "hover:bg-amber-50/30"
+                        : "hover:bg-accent/20"
+                    }`}
+                  >
+                    <td className="py-2.5 px-3 text-muted-foreground sticky left-0 bg-background z-10">{idx + 1}</td>
+                    <td className="py-2.5 px-3 sticky left-8 bg-background z-10">
+                      <p className={`font-medium text-sm ${
+                        student.absentCount === student.totalSessions ? "text-red-400 line-through" : ""
+                      }`}>
+                        {student.studentName}
+                      </p>
+                    </td>
+                    <td className="py-2.5 px-2 text-center text-xs font-mono text-muted-foreground">
+                      {student.studentEnrollment}
+                    </td>
+                    {student.sessions.map((s, i) => (
+                      <td key={i} className="py-2.5 px-2 text-center">
+                        {s.absent ? (
+                          <div className="flex flex-col items-center">
+                            <Badge variant="outline" className="text-[9px] bg-red-50 text-red-500 border-red-200 px-1">
+                              <UserX className="h-2.5 w-2.5 mr-0.5" />F
+                            </Badge>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center gap-0.5">
+                            <span className={`text-xs font-medium ${
+                              s.finalGrade >= 8 ? "text-emerald-600" : s.finalGrade >= 5 ? "text-amber-600" : s.finalGrade > 0 ? "text-red-600" : "text-muted-foreground"
+                            }`}>
+                              {s.finalGrade > 0 ? s.finalGrade.toFixed(1) : "—"}
+                            </span>
+                            <span className="text-[9px] text-muted-foreground">{s.role.substring(0, 4)}</span>
+                          </div>
+                        )}
+                      </td>
+                    ))}
+                    <td className="py-2.5 px-2 text-center bg-emerald-50/30">
+                      <span className="font-medium text-emerald-700">{student.presentCount}</span>
+                      <span className="text-muted-foreground text-xs">/{student.totalSessions}</span>
+                    </td>
+                    <td className="py-2.5 px-2 text-center bg-red-50/30">
+                      <span className={`font-medium ${student.absentCount > 0 ? "text-red-600" : "text-muted-foreground"}`}>
+                        {student.absentCount}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-2 text-center bg-blue-50/30">
+                      <span className={`font-medium ${
+                        student.avgPeerScore >= 8 ? "text-emerald-600" : student.avgPeerScore >= 5 ? "text-amber-600" : student.avgPeerScore > 0 ? "text-red-600" : "text-muted-foreground"
+                      }`}>
+                        {student.avgPeerScore > 0 ? student.avgPeerScore.toFixed(1) : "—"}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-2 text-center bg-amber-50/30">
+                      <span className={`font-bold ${
+                        student.avgFinalGrade >= 8 ? "text-emerald-600" : student.avgFinalGrade >= 5 ? "text-amber-600" : student.avgFinalGrade > 0 ? "text-red-600" : "text-muted-foreground"
+                      }`}>
+                        {student.avgFinalGrade > 0 ? student.avgFinalGrade.toFixed(1) : "—"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

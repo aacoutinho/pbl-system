@@ -1307,6 +1307,92 @@ export async function calculateFinalGrades(sessionId: number): Promise<FinalGrad
   }).sort((a, b) => b.finalGrade - a.finalGrade);
 }
 
+// ─── Student Consolidated Report ───
+export async function getStudentConsolidatedReport(classId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  // Get all sessions for this class
+  const classSessions = await db.select().from(sessions)
+    .where(eq(sessions.classId, classId))
+    .orderBy(sessions.problemNumber, sessions.sessionNumber);
+
+  if (classSessions.length === 0) return [];
+
+  // Get all students in the class
+  const classStudentRows = await db.select({
+    studentId: classStudents.studentId,
+    studentName: students.name,
+    studentEmail: students.email,
+    studentEnrollment: students.enrollment,
+  }).from(classStudents)
+    .innerJoin(students, eq(classStudents.studentId, students.id))
+    .where(eq(classStudents.classId, classId))
+    .orderBy(students.name);
+
+  // Calculate final grades for each session
+  const sessionResults: Record<number, { label: string; problemNumber: number; sessionNumber: number; status: string; grades: Record<number, { peerScore: number; finalGrade: number; role: string; absent: boolean }> }> = {};
+
+  for (const sess of classSessions) {
+    const finalGrades = await calculateFinalGrades(sess.id);
+    sessionResults[sess.id] = {
+      label: sess.label,
+      problemNumber: sess.problemNumber,
+      sessionNumber: sess.sessionNumber,
+      status: sess.status,
+      grades: {},
+    };
+    for (const g of finalGrades) {
+      sessionResults[sess.id].grades[g.studentId] = {
+        peerScore: g.peerScore,
+        finalGrade: g.finalGrade,
+        role: g.role,
+        absent: g.absent,
+      };
+    }
+  }
+
+  // Build consolidated report per student
+  return classStudentRows.map(student => {
+    const sessionData = classSessions.map(sess => {
+      const grade = sessionResults[sess.id]?.grades[student.studentId];
+      return {
+        sessionId: sess.id,
+        label: sess.label,
+        problemNumber: sess.problemNumber,
+        sessionNumber: sess.sessionNumber,
+        status: sess.status,
+        peerScore: grade?.peerScore ?? 0,
+        finalGrade: grade?.finalGrade ?? 0,
+        role: grade?.role ?? "FALTOU",
+        absent: grade?.absent ?? true,
+      };
+    });
+
+    const presentSessions = sessionData.filter(s => !s.absent);
+    const absentSessions = sessionData.filter(s => s.absent);
+    const avgPeer = presentSessions.length > 0
+      ? Math.round(presentSessions.reduce((sum, s) => sum + s.peerScore, 0) / presentSessions.length * 10) / 10
+      : 0;
+    const avgFinal = presentSessions.length > 0
+      ? Math.round(presentSessions.reduce((sum, s) => sum + s.finalGrade, 0) / presentSessions.length * 10) / 10
+      : 0;
+
+    return {
+      studentId: student.studentId,
+      studentName: student.studentName,
+      studentEmail: student.studentEmail,
+      studentEnrollment: student.studentEnrollment,
+      sessions: sessionData,
+      totalSessions: sessionData.length,
+      presentCount: presentSessions.length,
+      absentCount: absentSessions.length,
+      avgPeerScore: avgPeer,
+      avgFinalGrade: avgFinal,
+    };
+  });
+}
+
 export async function calculateProblemFinalGrades(classId: number, problemNumber: number) {
   const db = await getDb();
   if (!db) return [];

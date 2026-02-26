@@ -545,3 +545,7 @@
 - [x] (1) Bloquear edição de papéis/presença quando sessão não estiver no estado Ativa (backend + frontend)
 - [x] (2) Bloquear todas as alterações em sessões Encerradas (backend: close, allowReevaluation, tutorialEval, saveDraft, saveStudentNotes, brainstorm mutations)
 - [x] (3) Alunos faltantes (não alocados na sessão) recebem zero nos resultados (calculateSessionResults inclui todos da turma)
+- [x] (1) Indicador visual de faltantes nos resultados (fundo vermelho, nome riscado, badge FALTOU)
+- [x] (2) Relatório consolidado por aluno (nova aba Consolidado na página de Resultados)
+- [x] (3) Filtro de turmas por semestre no sidebar (auto-detecta semestre da turma selecionada)
+- [x] (4) Revisar ícones e tooltips dos botões de sessão (tooltips descritivos, reabrir disponível em Fechada e Encerrada)

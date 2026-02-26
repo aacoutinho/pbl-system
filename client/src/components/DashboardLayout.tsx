@@ -645,7 +645,20 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
     };
   }, [isResizing, setSidebarWidth]);
 
-  const classOptions = (classesList ?? []).map(c => ({ id: c.id, label: `${c.componentCode} - ${c.classCode} (${c.semester})` }));
+  const allClassOptions = (classesList ?? []).map(c => ({ id: c.id, label: `${c.componentCode} - ${c.classCode} (${c.semester})`, semester: c.semester }));
+  const semesters = Array.from(new Set(allClassOptions.map(c => c.semester))).sort().reverse();
+  const [semesterFilter, setSemesterFilter] = useState<string>("all");
+  const classOptions = semesterFilter === "all" ? allClassOptions : allClassOptions.filter(c => c.semester === semesterFilter);
+
+  // Auto-set semester filter to current class's semester
+  useEffect(() => {
+    if (selectedClassId && allClassOptions.length > 0) {
+      const current = allClassOptions.find(c => c.id === selectedClassId);
+      if (current && semesterFilter === "all" && semesters.length > 1) {
+        setSemesterFilter(current.semester);
+      }
+    }
+  }, [selectedClassId, allClassOptions.length]);
 
   return (
     <>
@@ -671,9 +684,22 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
             </div>
           </SidebarHeader>
 
-          {/* Class selector */}
-          {!isCollapsed && classOptions.length > 0 && (
-            <div className="px-3 pb-2">
+          {/* Class selector with semester filter */}
+          {!isCollapsed && allClassOptions.length > 0 && (
+            <div className="px-3 pb-2 space-y-1.5">
+              {semesters.length > 1 && (
+                <Select value={semesterFilter} onValueChange={(v) => setSemesterFilter(v)}>
+                  <SelectTrigger className="h-7 text-[10px] bg-muted/50">
+                    <SelectValue placeholder="Semestre" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all" className="text-xs">Todos os semestres</SelectItem>
+                    {semesters.map(s => (
+                      <SelectItem key={s} value={s} className="text-xs">Semestre {s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               <Select
                 value={selectedClassId ? String(selectedClassId) : ""}
                 onValueChange={(v) => setSelectedClassId(parseInt(v))}

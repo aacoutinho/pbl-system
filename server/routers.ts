@@ -16,7 +16,7 @@ import {
   calculateSessionResults, calculateProblemResults, getDashboardStats, getDashboardStatsByComponents,
   submitTutorialEvaluation, getTutorialEvaluation, calculateTutorialGrade,
   saveTutorialEvalDraft, getTutorialEvalDraft, deleteTutorialEvalDraft,
-  calculateFinalGrades, calculateProblemFinalGrades,
+  calculateFinalGrades, calculateProblemFinalGrades, getStudentConsolidatedReport,
   generateAccessCode, getSessionByAccessCode, findStudentByEnrollmentInClass,
   approveUser, rejectUser, listPendingProfessors, listApprovedProfessors, deleteUser,
   addProfessorComponent, removeProfessorComponent, listProfessorComponents, listAllProfessorComponents,
@@ -2104,6 +2104,12 @@ export const appRouter = router({
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);
       return listSessionsByClass(input.classId);
+    }),
+    studentConsolidated: approvedProcedure.input(z.object({ classId: z.number() })).query(async ({ ctx, input }) => {
+      const cls = await getClassById(input.classId);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);
+      return getStudentConsolidatedReport(input.classId);
     }),
     // Send grade report emails to all students of a session
     sendGradeEmails: approvedProcedure.input(z.object({ sessionId: z.number() })).mutation(async ({ ctx, input }) => {

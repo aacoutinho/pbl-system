@@ -687,7 +687,7 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onFini
             size="icon"
             onClick={() => openAndNotifyMutation.mutate({ sessionId: session.id, origin: window.location.origin })}
             disabled={openAndNotifyMutation.isPending}
-            title="Abrir sessão e enviar links aos alunos"
+            title="Iniciar Avaliação — gerar código de acesso e enviar links aos alunos"
           >
             <Send className="h-4 w-4" />
           </Button>
@@ -698,7 +698,7 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onFini
             size="icon"
             onClick={() => resendEmailsMutation.mutate({ sessionId: session.id, origin: window.location.origin })}
             disabled={resendEmailsMutation.isPending}
-            title="Reenviar e-mails aos alunos"
+            title="Reenviar links de avaliação por e-mail"
           >
             <Mail className="h-4 w-4" />
           </Button>
@@ -708,7 +708,7 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onFini
             variant="ghost"
             size="icon"
             onClick={() => navigate(`/brainstorm/${session.id}`)}
-            title="Ver Quadro de Brainstorming"
+            title="Quadro de Brainstorming da sessão"
           >
             <Lightbulb className="h-4 w-4" />
           </Button>
@@ -718,7 +718,7 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onFini
         {canManage && (
           <Dialog open={showReevalDialog} onOpenChange={setShowReevalDialog}>
             <DialogTrigger asChild>
-              <Button variant="ghost" size="icon" title="Gerenciar avaliações / Liberar reavaliação" disabled={submitted === 0}>
+              <Button variant="ghost" size="icon" title="Gerenciar avaliações — ver status e liberar reavaliação" disabled={submitted === 0}>
                 <RotateCcw className="h-4 w-4" />
               </Button>
             </DialogTrigger>
@@ -773,7 +773,7 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onFini
         {canManage && session.status === "initiated" && (
           <Dialog open={showEditAssignments} onOpenChange={setShowEditAssignments}>
             <DialogTrigger asChild>
-              <Button variant="ghost" size="icon" title="Editar papéis e presença">
+              <Button variant="ghost" size="icon" title={session.status === "initiated" ? "Editar papéis e presença dos alunos" : "Papéis bloqueados — só editável no estado Ativa"}>
                 <Pencil className="h-4 w-4" />
               </Button>
             </DialogTrigger>
@@ -841,14 +841,14 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onFini
           </Dialog>
         )}
 
-        <Button variant="ghost" size="icon" onClick={onViewResults} title="Ver resultados">
+        <Button variant="ghost" size="icon" onClick={onViewResults} title="Ver resultados da sessão">
           <Eye className="h-4 w-4" />
         </Button>
         {canManage && (
           <>
             {session.status === "open" ? (
               <>
-                <Button variant="ghost" size="icon" onClick={() => setShowCloseConfirm(true)} title="Fechar sessão">
+                <Button variant="ghost" size="icon" onClick={() => setShowCloseConfirm(true)} title="Fechar sessão — impedir novas avaliações">
                   <Lock className="h-4 w-4" />
                 </Button>
                 <Dialog open={showCloseConfirm} onOpenChange={setShowCloseConfirm}>
@@ -891,8 +891,8 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onFini
               </>
             ) : session.status === "closed" ? (
               <>
-                <Button variant="ghost" size="icon" onClick={() => setShowFinishConfirm(true)} title="Encerrar sessão">
-                  <CheckCircle2 className="h-4 w-4" />
+                <Button variant="ghost" size="icon" onClick={() => setShowFinishConfirm(true)} title="Encerrar sessão — finalizar e bloquear alterações">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                 </Button>
                 <Dialog open={showFinishConfirm} onOpenChange={setShowFinishConfirm}>
                   <DialogContent className="max-w-md">
@@ -916,7 +916,7 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onFini
                         )}
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        Ao encerrar, a sessão será marcada como finalizada. Os resultados poderão ser consultados na página de Resultados.
+                        Ao encerrar, a sessão será marcada como finalizada e nenhum dado poderá ser alterado. Os resultados poderão ser consultados na página de Resultados.
                       </p>
                     </div>
                     <DialogFooter>
@@ -925,10 +925,38 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onFini
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
+                <Button variant="ghost" size="icon" onClick={() => setShowOpenConfirm(true)} title="Reabrir sessão — voltar para Em Avaliação">
+                  <Unlock className="h-4 w-4" />
+                </Button>
+                <Dialog open={showOpenConfirm} onOpenChange={setShowOpenConfirm}>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Reabrir Sessão</DialogTitle>
+                      <DialogDescription>
+                        Confirme a reabertura da sessão <strong>{session.label}</strong>.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                      <div className="p-3 rounded-lg bg-accent/30 border">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Avaliações recebidas:</span>
+                          <span className="font-semibold">{submitted}/{total}</span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Ao reabrir, a sessão voltará para o estado <strong>Em Avaliação</strong> e os alunos poderão enviar (ou reenviar) avaliações.
+                      </p>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setShowOpenConfirm(false)}>Cancelar</Button>
+                      <Button onClick={() => { onOpen(); setShowOpenConfirm(false); }}>Reabrir Sessão</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </>
             ) : session.status === "finished" ? (
               <>
-                <Button variant="ghost" size="icon" onClick={() => setShowOpenConfirm(true)} title="Reabrir sessão">
+                <Button variant="ghost" size="icon" onClick={() => setShowOpenConfirm(true)} title="Reabrir sessão — voltar para Em Avaliação">
                   <Unlock className="h-4 w-4" />
                 </Button>
                 <Dialog open={showOpenConfirm} onOpenChange={setShowOpenConfirm}>
@@ -947,7 +975,7 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onFini
                         </div>
                         <div className="flex items-center gap-1.5 mt-2 text-sm text-amber-700 bg-amber-50 rounded-md p-2 border border-amber-200">
                           <AlertTriangle className="h-4 w-4 shrink-0" />
-                          <span>A avaliação do tutor já foi submetida. Reabrir mudará o status para <strong>Em Avaliação</strong>.</span>
+                          <span>A sessão está encerrada. Reabrir mudará o status para <strong>Em Avaliação</strong> e permitirá alterações novamente.</span>
                         </div>
                       </div>
                       <p className="text-sm text-muted-foreground">
