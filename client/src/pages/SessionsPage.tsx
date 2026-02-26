@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Lock, Unlock, Trash2, ClipboardList, Users, Eye, BookOpen, RotateCcw, CheckCircle2, Clock, FileSearch, AlertTriangle, Mail, Send, Pencil, Lightbulb } from "lucide-react";
+import { Plus, Lock, Unlock, Trash2, ClipboardList, Users, Eye, BookOpen, RotateCcw, CheckCircle2, Clock, FileSearch, AlertTriangle, Mail, ClipboardCheck, Pencil, Presentation } from "lucide-react";
 import { EvaluationPreviewDialog } from "@/components/EvaluationPreview";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -689,7 +689,7 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onFini
             disabled={openAndNotifyMutation.isPending}
             title="Iniciar Avaliação — gerar código de acesso e enviar links aos alunos"
           >
-            <Send className="h-4 w-4" />
+            <ClipboardCheck className="h-4 w-4" />
           </Button>
         )}
         {canManage && session.status === "open" && (
@@ -710,7 +710,7 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onFini
             onClick={() => navigate(`/brainstorm/${session.id}`)}
             title="Quadro de Brainstorming da sessão"
           >
-            <Lightbulb className="h-4 w-4" />
+            <Presentation className="h-4 w-4" />
           </Button>
         )}
 

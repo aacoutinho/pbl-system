@@ -549,3 +549,5 @@
 - [x] (2) Relatório consolidado por aluno (nova aba Consolidado na página de Resultados)
 - [x] (3) Filtro de turmas por semestre no sidebar (auto-detecta semestre da turma selecionada)
 - [x] (4) Revisar ícones e tooltips dos botões de sessão (tooltips descritivos, reabrir disponível em Fechada e Encerrada)
+- [x] Trocar ícone "Iniciar Avaliação" de Send para ClipboardCheck (avaliação/formulário)
+- [x] Trocar ícone "Quadro de Brainstorming" de Lightbulb para Presentation (quadro de ensino)
