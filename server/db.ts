@@ -184,12 +184,40 @@ export async function rejectUser(userId: number) {
 export async function deleteUser(userId: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
+  
+  // Check if professor has classes (as owner)
+  const userClasses = await db.select({ id: classes.id }).from(classes).where(eq(classes.professorUserId, userId)).limit(1);
+  if (userClasses.length > 0) {
+    throw new Error("Não é possível excluir este professor pois ele possui turmas cadastradas. Remova as turmas primeiro.");
+  }
+  
+  // Check if professor has tutorial evaluations (historical data)
+  const tutorialEvals = await db.select({ id: tutorialEvaluations.id }).from(tutorialEvaluations).where(eq(tutorialEvaluations.professorUserId, userId)).limit(1);
+  if (tutorialEvals.length > 0) {
+    throw new Error("Não é possível excluir este professor pois ele possui avaliações tutoriais registradas.");
+  }
+  
+  // Check if professor has student notes (historical data)
+  const profNotes = await db.select({ id: professorStudentNotes.id }).from(professorStudentNotes).where(eq(professorStudentNotes.professorUserId, userId)).limit(1);
+  if (profNotes.length > 0) {
+    throw new Error("Não é possível excluir este professor pois ele possui notas de alunos registradas.");
+  }
+  
+  // Safe to delete — no historical data
   // Remove all professor component memberships
   await db.delete(professorComponents).where(eq(professorComponents.userId, userId));
+  // Remove eval permissions
+  await db.delete(classEvalPermissions).where(eq(classEvalPermissions.authorizedUserId, userId));
   // Remove SMTP config if any
   await db.delete(smtpConfig).where(eq(smtpConfig.userId, userId));
   // Remove password reset codes
   await db.delete(passwordResetCodes).where(eq(passwordResetCodes.userId, userId));
+  // Remove notifications
+  await db.delete(notifications).where(eq(notifications.userId, userId));
+  // Remove contact tickets
+  await db.delete(contactTickets).where(eq(contactTickets.userId, userId));
+  // Remove audit logs where user is actor
+  await db.delete(auditLogs).where(eq(auditLogs.actorUserId, userId));
   // Delete user
   await db.delete(users).where(eq(users.id, userId));
 }
@@ -531,16 +559,38 @@ export async function updateClass(id: number, data: { classCode?: string; compon
 export async function deleteClass(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const classSessions = await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.classId, id));
+  const classSessions = await db.select({ id: sessions.id, status: sessions.status }).from(sessions).where(eq(sessions.classId, id));
+  
   if (classSessions.length > 0) {
+    // Check if any session has evaluations (historical data that must be preserved)
+    const finishedSessions = classSessions.filter(s => s.status === "finished");
+    if (finishedSessions.length > 0) {
+      throw new Error("Não é possível excluir esta turma pois possui sessões encerradas com dados históricos. Considere arquivar a turma.");
+    }
+    
     const sessionIds = classSessions.map(s => s.id);
     const evals = await db.select({ id: evaluations.id }).from(evaluations).where(inArray(evaluations.sessionId, sessionIds));
     if (evals.length > 0) {
-      const evalIds = evals.map(e => e.id);
-      await db.delete(evaluationItems).where(inArray(evaluationItems.evaluationId, evalIds));
-      await db.delete(evaluations).where(inArray(evaluations.sessionId, sessionIds));
+      throw new Error("Não é possível excluir esta turma pois possui avaliações registradas. Encerre ou exclua as sessões primeiro.");
     }
-    await db.delete(tutorialEvaluations).where(inArray(tutorialEvaluations.sessionId, sessionIds));
+    
+    // Safe to delete sessions without evaluations
+    await db.delete(tutorialEvalDrafts).where(inArray(tutorialEvalDrafts.sessionId, sessionIds));
+    await db.delete(sessionAccessTokens).where(inArray(sessionAccessTokens.sessionId, sessionIds));
+    await db.delete(professorStudentNotes).where(inArray(professorStudentNotes.sessionId, sessionIds));
+    // Clean brainstorm data
+    for (const sessId of sessionIds) {
+      const boards = await db.select({ id: brainstormBoards.id }).from(brainstormBoards).where(eq(brainstormBoards.sessionId, sessId));
+      for (const board of boards) {
+        const items = await db.select({ id: brainstormItems.id }).from(brainstormItems).where(eq(brainstormItems.boardId, board.id));
+        if (items.length > 0) {
+          await db.delete(brainstormItemAttachments).where(inArray(brainstormItemAttachments.itemId, items.map(i => i.id)));
+          await db.delete(brainstormItems).where(eq(brainstormItems.boardId, board.id));
+        }
+        await db.delete(brainstormBoards).where(eq(brainstormBoards.id, board.id));
+      }
+      await db.delete(brainstormBoardSendHistory).where(eq(brainstormBoardSendHistory.sessionId, sessId));
+    }
     await db.delete(sessionStudents).where(inArray(sessionStudents.sessionId, sessionIds));
     await db.delete(sessions).where(eq(sessions.classId, id));
   }
@@ -676,14 +726,21 @@ async function cleanupOrphanStudents() {
   for (const s of allStudents) {
     const links = await db.select({ id: classStudents.id }).from(classStudents).where(eq(classStudents.studentId, s.id));
     if (links.length === 0) {
-      const evals = await db.select({ id: evaluations.id }).from(evaluations).where(eq(evaluations.evaluatorStudentId, s.id));
-      if (evals.length > 0) {
-        const evalIds = evals.map(e => e.id);
-        await db.delete(evaluationItems).where(inArray(evaluationItems.evaluationId, evalIds));
-        await db.delete(evaluations).where(eq(evaluations.evaluatorStudentId, s.id));
+      // Check if student has any evaluations (as evaluator or evaluated) — preserve historical data
+      const evalsAsEvaluator = await db.select({ id: evaluations.id }).from(evaluations).where(eq(evaluations.evaluatorStudentId, s.id)).limit(1);
+      const evalsAsEvaluated = await db.select({ id: evaluationItems.id }).from(evaluationItems).where(eq(evaluationItems.evaluatedStudentId, s.id)).limit(1);
+      // Check if student is in any session (sessionStudents)
+      const sessionLinks = await db.select({ id: sessionStudents.id }).from(sessionStudents).where(eq(sessionStudents.studentId, s.id)).limit(1);
+      // Check if student has professor notes
+      const profNotes = await db.select({ id: professorStudentNotes.id }).from(professorStudentNotes).where(eq(professorStudentNotes.studentId, s.id)).limit(1);
+      
+      const hasHistoricalData = evalsAsEvaluator.length > 0 || evalsAsEvaluated.length > 0 || sessionLinks.length > 0 || profNotes.length > 0;
+      
+      if (!hasHistoricalData) {
+        // Safe to delete — no historical data exists
+        await db.delete(students).where(eq(students.id, s.id));
       }
-      await db.delete(evaluationItems).where(eq(evaluationItems.evaluatedStudentId, s.id));
-      await db.delete(students).where(eq(students.id, s.id));
+      // If student has historical data, keep the record for result integrity
     }
   }
 }

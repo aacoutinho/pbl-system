@@ -551,3 +551,4 @@
 - [x] (4) Revisar ícones e tooltips dos botões de sessão (tooltips descritivos, reabrir disponível em Fechada e Encerrada)
 - [x] Trocar ícone "Iniciar Avaliação" de Send para ClipboardCheck (avaliação/formulário)
 - [x] Trocar ícone "Quadro de Brainstorming" de Lightbulb para Presentation (quadro de ensino)
+- [x] Proteger dados históricos: cleanupOrphanStudents preserva alunos com avaliações, deleteUser bloqueia professores com turmas/avaliações, deleteClass bloqueia turmas com sessões encerradas

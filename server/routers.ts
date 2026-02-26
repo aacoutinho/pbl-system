@@ -522,8 +522,12 @@ export const appRouter = router({
       const cls = await getClassById(input.id);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       await assertClassManager(ctx.user.id, ctx.user.role, cls);
-      await deleteClass(input.id);
-      return { success: true };
+      try {
+        await deleteClass(input.id);
+        return { success: true };
+      } catch (err: any) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: err.message || "Erro ao excluir turma" });
+      }
     }),
     // All classes (for admin or cross-class results)
     listAll: approvedProcedure.query(async ({ ctx }) => {
@@ -1721,8 +1725,12 @@ export const appRouter = router({
     }),
     // Delete user from system (admin only)
     deleteUser: adminProcedure.input(z.object({ userId: z.number() })).mutation(async ({ input }) => {
-      await deleteUser(input.userId);
-      return { success: true };
+      try {
+        await deleteUser(input.userId);
+        return { success: true };
+      } catch (err: any) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: err.message || "Erro ao excluir usuário" });
+      }
     }),
     // Get my component memberships
     myComponents: approvedProcedure.query(async ({ ctx }) => {
