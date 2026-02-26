@@ -770,7 +770,7 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onFini
         )}
 
         {/* Edit assignments button */}
-        {canManage && (
+        {canManage && session.status === "initiated" && (
           <Dialog open={showEditAssignments} onOpenChange={setShowEditAssignments}>
             <DialogTrigger asChild>
               <Button variant="ghost" size="icon" title="Editar papéis e presença">

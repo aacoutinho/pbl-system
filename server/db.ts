@@ -941,18 +941,45 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
   if (!db) return [];
 
   const sessionStudentsList = await getSessionStudents(sessionId);
+  
+  // Get session to find classId, then get ALL students in the class
+  const session = await getSessionById(sessionId);
+  const allClassStudents = session ? await listStudentsByClass(session.classId) : [];
+  
+  // Build set of students in the session
+  const sessionStudentIds = new Set(sessionStudentsList.map(s => s.studentId));
+  
+  // Absent students = class students NOT in the session
+  const absentStudents = allClassStudents.filter(s => !sessionStudentIds.has(s.id));
+  
   const evals = await db.select().from(evaluations).where(eq(evaluations.sessionId, sessionId));
 
-  if (evals.length === 0) return sessionStudentsList.map(s => ({
-    studentId: s.studentId,
-    studentName: s.studentName,
-    studentEmail: s.studentEmail,
-    studentEnrollment: s.studentEnrollment,
-    role: "PARTICIPANTE",
-    totalScore: 0,
-    validEvaluations: 0,
-    absent: false,
-  }));
+  if (evals.length === 0) {
+    const results = sessionStudentsList.map(s => ({
+      studentId: s.studentId,
+      studentName: s.studentName,
+      studentEmail: s.studentEmail,
+      studentEnrollment: s.studentEnrollment,
+      role: "PARTICIPANTE",
+      totalScore: 0,
+      validEvaluations: 0,
+      absent: false,
+    }));
+    // Add absent students (not in session) with zero
+    for (const s of absentStudents) {
+      results.push({
+        studentId: s.id,
+        studentName: s.name,
+        studentEmail: s.email,
+        studentEnrollment: s.enrollment,
+        role: "FALTOU",
+        totalScore: 0,
+        validEvaluations: 0,
+        absent: true,
+      });
+    }
+    return results;
+  }
 
   const evalIds = evals.map(e => e.id);
   const allItems = await db.select({
@@ -1041,6 +1068,20 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
       totalScore: Math.round(avg * 100) / 100,
       validEvaluations: validItems.length,
       absent: false,
+    });
+  }
+
+  // Add absent students (class students not in session) with zero
+  for (const s of absentStudents) {
+    results.push({
+      studentId: s.id,
+      studentName: s.name,
+      studentEmail: s.email,
+      studentEnrollment: s.enrollment,
+      role: "FALTOU",
+      totalScore: 0,
+      validEvaluations: 0,
+      absent: true,
     });
   }
 

@@ -542,3 +542,6 @@
 - [x] Renomear estado da sessão "Aberta" para "Em Avaliação" em todo o sistema (frontend, backend, testes, emails)
 - [x] Renomear estado da sessão "Iniciada" para "Ativa" em todo o sistema (frontend, testes, emails)
 - [x] Adicionar botão de encerrar sessão manualmente (separado da avaliação do tutor)
+- [x] (1) Bloquear edição de papéis/presença quando sessão não estiver no estado Ativa (backend + frontend)
+- [x] (2) Bloquear todas as alterações em sessões Encerradas (backend: close, allowReevaluation, tutorialEval, saveDraft, saveStudentNotes, brainstorm mutations)
+- [x] (3) Alunos faltantes (não alocados na sessão) recebem zero nos resultados (calculateSessionResults inclui todos da turma)

@@ -887,6 +887,7 @@ export const appRouter = router({
     close: approvedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
       const session = await getSessionById(input.id);
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
+      if (session.status === "finished") throw new TRPCError({ code: "FORBIDDEN", message: "Sessão encerrada. Nenhuma alteração é permitida." });
       const cls = await getClassById(session.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       await assertClassManager(ctx.user.id, ctx.user.role, cls);
@@ -986,6 +987,7 @@ export const appRouter = router({
     })).mutation(async ({ ctx, input }) => {
       const session = await getSessionById(input.sessionId);
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
+      if (session.status !== "initiated") throw new TRPCError({ code: "FORBIDDEN", message: "Papéis e presença só podem ser editados quando a sessão está no estado Ativa." });
       const cls = await getClassById(session.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       await assertClassManager(ctx.user.id, ctx.user.role, cls);
@@ -1446,6 +1448,7 @@ export const appRouter = router({
     })).mutation(async ({ ctx, input }) => {
       const session = await getSessionById(input.sessionId);
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
+      if (session.status === "finished") throw new TRPCError({ code: "FORBIDDEN", message: "Sessão encerrada. Nenhuma alteração é permitida." });
       const cls = await getClassById(session.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       await assertClassManager(ctx.user.id, ctx.user.role, cls);
@@ -1474,8 +1477,9 @@ export const appRouter = router({
     })).mutation(async ({ ctx, input }) => {
       const session = await getSessionById(input.sessionId);
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
-      // Professor pode avaliar a qualquer momento (sessão aberta, fechada ou iniciada)
-      // Não há bloqueio por status - o professor avalia durante ou após o tutorial
+      if (session.status === "finished") throw new TRPCError({ code: "FORBIDDEN", message: "Sessão encerrada. Nenhuma alteração é permitida." });
+      // Professor pode avaliar a qualquer momento (sessão ativa, em avaliação ou fechada)
+      // Não há bloqueio por status exceto encerrada
       const cls = await getClassById(session.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);
@@ -1539,6 +1543,7 @@ export const appRouter = router({
       }
       const session = await getSessionById(input.sessionId);
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
+      if (session.status === "finished") throw new TRPCError({ code: "FORBIDDEN", message: "Sessão encerrada. Nenhuma alteração é permitida." });
       const cls = await getClassById(session.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);
@@ -1570,6 +1575,7 @@ export const appRouter = router({
       }
       const session = await getSessionById(input.sessionId);
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
+      if (session.status === "finished") throw new TRPCError({ code: "FORBIDDEN", message: "Sessão encerrada. Nenhuma alteração é permitida." });
       const cls = await getClassById(session.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);
@@ -2418,12 +2424,17 @@ export const appRouter = router({
     // Add item to a section
     addItem: publicProcedure.input(z.object({
       boardId: z.number(),
+      sessionId: z.number().optional(),
       section: z.enum(["ideias", "fatos", "questoes", "metas"]),
       content: z.string().min(1),
       status: z.string().optional(),
       attachmentUrl: z.string().nullable().optional(),
       attachmentType: z.enum(["link", "image", "video", "photo", "document"]).nullable().optional(),
     })).mutation(async ({ input }) => {
+      if (input.sessionId) {
+        const session = await getSessionById(input.sessionId);
+        if (session?.status === "finished") throw new TRPCError({ code: "FORBIDDEN", message: "Sessão encerrada. Nenhuma alteração é permitida." });
+      }
       // Set default status based on section
       const defaultStatuses: Record<string, string> = {
         ideias: "analise",
@@ -2522,6 +2533,8 @@ export const appRouter = router({
       sessionId: z.number(),
       targetSessionIds: z.array(z.number()).optional(),
     })).mutation(async ({ input }) => {
+      const sessionCheck = await getSessionById(input.sessionId);
+      if (sessionCheck?.status === "finished") throw new TRPCError({ code: "FORBIDDEN", message: "Sessão encerrada. Nenhuma alteração é permitida." });
       try {
         return await shareBrainstormBoard(input.sessionId, input.targetSessionIds);
       } catch (e: any) {
@@ -2541,6 +2554,8 @@ export const appRouter = router({
       sessionId: z.number(),
       comments: z.string(),
     })).mutation(async ({ input }) => {
+      const session = await getSessionById(input.sessionId);
+      if (session?.status === "finished") throw new TRPCError({ code: "FORBIDDEN", message: "Sessão encerrada. Nenhuma alteração é permitida." });
       return updateTutorComments(input.sessionId, input.comments);
     }),
 
@@ -2551,6 +2566,8 @@ export const appRouter = router({
       senderName: z.string().optional(),
       senderRole: z.string().optional(),
     })).mutation(async ({ input }) => {
+      const sessionCheck = await getSessionById(input.sessionId);
+      if (sessionCheck?.status === "finished") throw new TRPCError({ code: "FORBIDDEN", message: "Sessão encerrada. Nenhuma alteração é permitida." });
       // Check for duplicate sends (minimum 2 minutes between sends)
       const lastSend = await getLastBoardSend(input.sessionId);
       if (lastSend) {
