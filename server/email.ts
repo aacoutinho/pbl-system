@@ -343,7 +343,7 @@ export function buildSessionOpenedEmailHtml(data: {
   return `
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb;">
       <div style="text-align: center; margin-bottom: 24px;">
-        <h2 style="color: #1f2937; margin: 0 0 8px;">Sessão de Avaliação Aberta</h2>
+        <h2 style="color: #1f2937; margin: 0 0 8px;">Sessão Em Avaliação</h2>
         <p style="color: #6b7280; margin: 0; font-size: 14px;">Sessão Tutorial</p>
       </div>
       <p style="color: #374151; font-size: 15px; line-height: 1.6;">

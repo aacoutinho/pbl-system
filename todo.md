@@ -539,3 +539,4 @@
 - [x] Verificar e garantir que múltiplos usuários simultâneos não causem conflitos de concorrência
 - [x] Separar campo de semestre em dois campos lado a lado: Ano e Semestre (1 ou 2) na criação/edição de turma
 - [x] Auditoria completa de concorrência: 11 operações críticas envolvidas em transações DB para eliminar race conditions
+- [x] Renomear estado da sessão "Aberta" para "Em Avaliação" em todo o sistema (frontend, backend, testes, emails)

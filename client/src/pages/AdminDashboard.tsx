@@ -219,12 +219,12 @@ export default function AdminDashboard() {
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <Clock className="h-4 w-4 text-amber-500" />
-                Sessões Abertas
+                Sessões Em Avaliação
               </CardTitle>
             </CardHeader>
             <CardContent>
               {[...initiatedSessions, ...openSessions].length === 0 ? (
-                <p className="text-sm text-muted-foreground py-4 text-center">Nenhuma sessão aberta nesta turma.</p>
+                <p className="text-sm text-muted-foreground py-4 text-center">Nenhuma sessão em avaliação nesta turma.</p>
               ) : (
                 <div className="space-y-2">
                   {initiatedSessions.map(s => (
@@ -238,7 +238,7 @@ export default function AdminDashboard() {
                     <div key={s.id} className="flex items-center justify-between p-3 rounded-lg bg-accent/30 hover:bg-accent/50 transition-colors cursor-pointer"
                       onClick={() => setLocation("/sessions")}>
                       <span className="text-sm font-medium">{s.label}</span>
-                      <Badge variant="outline" className="border-emerald-300 text-emerald-700 text-xs">Aberta</Badge>
+                      <Badge variant="outline" className="border-emerald-300 text-emerald-700 text-xs">Em Avaliação</Badge>
                     </div>
                   ))}
                 </div>

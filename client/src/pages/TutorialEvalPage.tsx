@@ -102,7 +102,7 @@ type StudentNote = {
 function StatusBadge({ status }: { status: string }) {
   const config: Record<string, { label: string; className: string }> = {
     initiated: { label: "Iniciada", className: "bg-gray-100 text-gray-700 border-gray-300" },
-    open: { label: "Aberta", className: "bg-blue-50 text-blue-700 border-blue-200" },
+    open: { label: "Em Avaliação", className: "bg-blue-50 text-blue-700 border-blue-200" },
     closed: { label: "Fechada", className: "bg-amber-50 text-amber-700 border-amber-200" },
     finished: { label: "Encerrada", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   };

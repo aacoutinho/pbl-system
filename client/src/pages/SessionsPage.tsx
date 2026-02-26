@@ -393,7 +393,7 @@ function SessionsContent() {
                   }`}
                   onClick={() => setStatusFilter(st)}
                 >
-                  {st === "all" ? "Todas" : st === "initiated" ? "Iniciadas" : st === "open" ? "Abertas" : st === "closed" ? "Fechadas" : "Encerradas"}
+                  {st === "all" ? "Todas" : st === "initiated" ? "Iniciadas" : st === "open" ? "Em Avaliação" : st === "closed" ? "Fechadas" : "Encerradas"}
                 </Button>
               ))}
             </div>
@@ -648,7 +648,7 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onDele
             session.status === "finished" ? "bg-gray-100 text-gray-600 border-gray-200" : ""
           }>
             {session.status === "initiated" ? "Iniciada" :
-             session.status === "open" ? "Aberta" :
+             session.status === "open" ? "Em Avaliação" :
              session.status === "closed" ? "Fechada" :
              session.status === "finished" ? "Encerrada" : session.status}
           </Badge>
@@ -904,7 +904,7 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onDele
                         {session.status === "finished" && (
                           <div className="flex items-center gap-1.5 mt-2 text-sm text-amber-700 bg-amber-50 rounded-md p-2 border border-amber-200">
                             <AlertTriangle className="h-4 w-4 shrink-0" />
-                            <span>A avaliação do tutor já foi submetida. Reabrir mudará o status para <strong>Aberta</strong>.</span>
+                            <span>A avaliação do tutor já foi submetida. Reabrir mudará o status para <strong>Em Avaliação</strong>.</span>
                           </div>
                         )}
                       </div>

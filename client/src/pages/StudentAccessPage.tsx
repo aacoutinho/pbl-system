@@ -1085,7 +1085,7 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
                       <div className="flex items-center gap-2">
                         <p className="font-semibold text-sm">{ev.sessionLabel}</p>
                         <Badge variant={ev.sessionStatus === 'finished' ? 'secondary' : 'outline'} className="text-[10px] px-1.5 py-0">
-                          {ev.sessionStatus === 'finished' ? 'Encerrada' : ev.sessionStatus === 'closed' ? 'Fechada' : ev.sessionStatus === 'open' ? 'Aberta' : 'Iniciada'}
+                          {ev.sessionStatus === 'finished' ? 'Encerrada' : ev.sessionStatus === 'closed' ? 'Fechada' : ev.sessionStatus === 'open' ? 'Em Avaliação' : 'Iniciada'}
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
