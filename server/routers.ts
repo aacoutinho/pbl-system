@@ -550,11 +550,32 @@ export const appRouter = router({
       return listStudentsByClass(input.classId);
     }),
     // Create: admin, coordinator of component, or prof who created the class
+    // Check if enrollment exists in another component (used before create to alert professor)
+    checkEnrollment: approvedProcedure.input(z.object({
+      classId: z.number(),
+      enrollment: z.string().min(1),
+    })).query(async ({ ctx, input }) => {
+      const cls = await getClassById(input.classId);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);
+      const existing = await getStudentByEnrollment(input.enrollment);
+      if (!existing) return { exists: false as const };
+      const classStudentsList = await listStudentsByClass(input.classId);
+      if (classStudentsList.some(s => s.id === existing.id)) {
+        return { exists: true as const, sameClass: true as const, student: { id: existing.id, name: existing.name, email: existing.email, enrollment: existing.enrollment } };
+      }
+      const inComponent = await isStudentInComponentClass(existing.id, cls.componentId, input.classId);
+      if (inComponent) {
+        return { exists: true as const, sameComponent: true as const, student: { id: existing.id, name: existing.name, email: existing.email, enrollment: existing.enrollment } };
+      }
+      return { exists: true as const, otherComponent: true as const, student: { id: existing.id, name: existing.name, email: existing.email, enrollment: existing.enrollment } };
+    }),
     create: approvedProcedure.input(z.object({
       classId: z.number(),
       name: z.string().min(1),
       enrollment: z.string().min(1),
       email: z.string().optional(),
+      useExisting: z.boolean().optional(), // If true, import from bank using existing data
     })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
@@ -568,6 +589,20 @@ export const appRouter = router({
         const inComponent = await isStudentInComponentClass(student.id, cls.componentId, input.classId);
         if (inComponent) {
           throw new TRPCError({ code: "CONFLICT", message: "Aluno já está em outra turma deste componente" });
+        }
+        // If useExisting is true, just link without changing data
+        // If useExisting is false/undefined and names differ, throw error to alert professor
+        if (!input.useExisting && student.name !== input.name) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: JSON.stringify({
+              type: "enrollment_exists_different_data",
+              existingName: student.name,
+              existingEmail: student.email,
+              inputName: input.name,
+              inputEmail: input.email || null,
+            }),
+          });
         }
         await addStudentToClass(student.id, input.classId);
       } else {
@@ -657,6 +692,7 @@ export const appRouter = router({
       const linked = results.filter(r => r.status === "linked").length;
       const alreadyInClass = results.filter(r => r.status === "already_in_class").length;
       const conflicts = results.filter(r => r.status === "conflict");
+      const nameMismatches = results.filter(r => r.status === "name_mismatch");
 
       return {
         success: true,
@@ -665,8 +701,34 @@ export const appRouter = router({
         linked,
         alreadyInClass,
         conflicts: conflicts.map(c => ({ name: c.name, enrollment: c.enrollment })),
+        nameMismatches: nameMismatches.map(c => ({
+          csvName: c.name,
+          enrollment: c.enrollment,
+          existingName: c.existingName!,
+          existingEmail: c.existingEmail ?? null,
+        })),
         students: parsedStudents,
       };
+    }),
+    // Resolve name mismatch conflicts from CSV import
+    resolveImportConflict: approvedProcedure.input(z.object({
+      classId: z.number(),
+      enrollment: z.string(),
+      action: z.enum(["use_existing", "update_name"]),
+      csvName: z.string().optional(), // needed when action is update_name
+    })).mutation(async ({ ctx, input }) => {
+      const cls = await getClassById(input.classId);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma n\u00e3o encontrada" });
+      await assertClassManager(ctx.user.id, ctx.user.role, cls);
+      const existing = await getStudentByEnrollment(input.enrollment);
+      if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Aluno n\u00e3o encontrado no banco" });
+      
+      if (input.action === "update_name" && input.csvName) {
+        await updateStudent(existing.id, { name: input.csvName });
+      }
+      // Link student to class
+      await addStudentToClass(existing.id, input.classId);
+      return { success: true };
     }),
     exportGoogleWorkspace: adminProcedure.input(z.object({
       classIds: z.array(z.number()).min(1),

@@ -559,3 +559,5 @@
 - [x] Preservar sessionStudents de sessões encerradas/fechadas durante transferência e remoção de alunos, garantindo resultados históricos visíveis
 - [x] Ordenar alunos por nome crescente (alfabético) em todas as listagens da interface, incluindo resultados (em vez de por nota)
 - [x] Bug: e-mails de alunos excluídos persistem nos novos alunos inseridos na mesma turma: adicionado cleanupOrphanStudents após removeStudentFromClass + limpar email/foto quando nome muda na reimportação
+- [x] Validação de matrícula existente no cadastro manual: alertar professor que matrícula já existe em outro componente, mostrar dados do banco e permitir importar
+- [x] Validação de matrícula na importação CSV: conferir nome do aluno (exceto e-mail) e alertar professor sobre divergências

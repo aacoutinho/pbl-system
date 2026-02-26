@@ -758,7 +758,7 @@ export async function bulkImportStudents(data: { name: string; enrollment: strin
   const cls = await getClassById(data[0].classId);
   if (!cls) throw new Error("Class not found");
   
-  const results: { name: string; enrollment: string; status: "created" | "linked" | "already_in_class" | "conflict" }[] = [];
+  const results: { name: string; enrollment: string; status: "created" | "linked" | "already_in_class" | "conflict" | "name_mismatch"; existingName?: string; existingEmail?: string | null }[] = [];
   
   for (const s of data) {
     const existing = await getStudentByEnrollment(s.enrollment);
@@ -769,10 +769,6 @@ export async function bulkImportStudents(data: { name: string; enrollment: strin
         .limit(1);
       
       if (link.length > 0) {
-        if (existing.name !== s.name) {
-          // Name changed: update name and clear email/photo (likely a different student reusing the enrollment)
-          await db.update(students).set({ name: s.name, email: null, photoUrl: null }).where(eq(students.id, existing.id));
-        }
         results.push({ name: s.name, enrollment: s.enrollment, status: "already_in_class" });
         continue;
       }
@@ -783,11 +779,19 @@ export async function bulkImportStudents(data: { name: string; enrollment: strin
         continue;
       }
       
-      await addStudentToClass(existing.id, s.classId);
+      // Check if name differs from existing record (possible different student with same enrollment)
       if (existing.name !== s.name) {
-        // Name changed: update name and clear email/photo (likely a different student reusing the enrollment)
-        await db.update(students).set({ name: s.name, email: null, photoUrl: null }).where(eq(students.id, existing.id));
+        results.push({
+          name: s.name,
+          enrollment: s.enrollment,
+          status: "name_mismatch",
+          existingName: existing.name,
+          existingEmail: existing.email,
+        });
+        continue;
       }
+      
+      await addStudentToClass(existing.id, s.classId);
       results.push({ name: s.name, enrollment: s.enrollment, status: "linked" });
     } else {
       const newStudent = await createStudent({ name: s.name, enrollment: s.enrollment });

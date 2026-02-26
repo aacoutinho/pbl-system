@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Trash2, Upload, Users, BookOpen, FileSpreadsheet, Check, Pencil, ArrowRightLeft, Camera } from "lucide-react";
+import { Plus, Trash2, Upload, Users, BookOpen, FileSpreadsheet, Check, Pencil, ArrowRightLeft, Camera, AlertTriangle } from "lucide-react";
 import { useState, useRef, useMemo } from "react";
 import { resizeImageToSquare, base64SizeKB } from "@/lib/resizeImage";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -61,23 +61,43 @@ function StudentsContent() {
     { enabled: !!selectedClassId }
   );
   const createMutation = trpc.students.create.useMutation({
-    onSuccess: () => { utils.students.list.invalidate(); toast.success("Aluno cadastrado com sucesso"); setShowAdd(false); },
-    onError: (e: any) => toast.error(e.message),
+    onSuccess: () => { utils.students.list.invalidate(); toast.success("Aluno cadastrado com sucesso"); setShowAdd(false); setEnrollmentConflict(null); },
+    onError: (e: any) => {
+      try {
+        const parsed = JSON.parse(e.message);
+        if (parsed.type === "enrollment_exists_different_data") {
+          setEnrollmentConflict(parsed);
+          return;
+        }
+      } catch {}
+      toast.error(e.message);
+    },
   });
   const updateMutation = trpc.students.update.useMutation({
     onSuccess: () => { utils.students.list.invalidate(); toast.success("Aluno atualizado"); setEditingStudent(null); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const resolveConflictMutation = trpc.students.resolveImportConflict.useMutation({
+    onSuccess: () => {
+      utils.students.list.invalidate();
+    },
     onError: (e: any) => toast.error(e.message),
   });
   const importCSVMutation = trpc.students.importCSV.useMutation({
     onSuccess: (data) => {
       utils.students.list.invalidate();
       let msg = `${data.count} alunos processados: ${data.created} novos, ${data.linked} vinculados`;
-      if (data.alreadyInClass > 0) msg += `, ${data.alreadyInClass} já na turma`;
-      if (data.conflicts.length > 0) msg += `. ${data.conflicts.length} conflitos (já em outra turma do componente)`;
-      toast.success(msg);
-      setShowCSVImport(false);
-      setCsvPreview(null);
-      setCsvContent("");
+      if (data.alreadyInClass > 0) msg += `, ${data.alreadyInClass} j\u00e1 na turma`;
+      if (data.conflicts.length > 0) msg += `. ${data.conflicts.length} conflitos (j\u00e1 em outra turma do componente)`;
+      if (data.nameMismatches && data.nameMismatches.length > 0) {
+        setImportNameMismatches(data.nameMismatches);
+        toast.warning(`${data.nameMismatches.length} aluno(s) com diverg\u00eancia de nome. Resolva os conflitos abaixo.`);
+      } else {
+        toast.success(msg);
+        setShowCSVImport(false);
+        setCsvPreview(null);
+        setCsvContent("");
+      }
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -99,6 +119,8 @@ function StudentsContent() {
   const [newEnrollment, setNewEnrollment] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [showAdd, setShowAdd] = useState(false);
+  const [enrollmentConflict, setEnrollmentConflict] = useState<{ existingName: string; existingEmail: string | null; inputName: string; inputEmail: string | null } | null>(null);
+  const [importNameMismatches, setImportNameMismatches] = useState<{ csvName: string; enrollment: string; existingName: string; existingEmail: string | null }[]>([]);
   const [showCSVImport, setShowCSVImport] = useState(false);
   const [csvContent, setCsvContent] = useState("");
   const [csvPreview, setCsvPreview] = useState<{ name: string; enrollment: string }[] | null>(null);
@@ -125,15 +147,18 @@ function StudentsContent() {
     );
   }
 
-  const handleAdd = () => {
-    if (!newName.trim() || !newEnrollment.trim()) { toast.error("Preencha nome e matrícula"); return; }
+  const handleAdd = (useExisting?: boolean) => {
+    if (!newName.trim() || !newEnrollment.trim()) { toast.error("Preencha nome e matr\u00edcula"); return; }
     createMutation.mutate({
       classId: selectedClassId,
       name: newName.trim(),
       enrollment: newEnrollment.trim(),
       email: newEmail.trim() || undefined,
+      useExisting: useExisting || undefined,
     });
-    setNewName(""); setNewEnrollment(""); setNewEmail("");
+    if (!useExisting) {
+      setNewName(""); setNewEnrollment(""); setNewEmail("");
+    }
   };
 
   const uploadPhotoMutation = trpc.studentAccess.uploadPhoto.useMutation({
@@ -343,11 +368,62 @@ function StudentsContent() {
                     </div>
                   </div>
                 )}
+                {/* Name mismatch conflicts from import */}
+                {importNameMismatches.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-2 p-3 rounded-lg border border-amber-300 bg-amber-50">
+                      <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-sm font-semibold text-amber-800">Diverg\u00eancias de nome detectadas</p>
+                        <p className="text-xs text-amber-700 mt-1">
+                          Os alunos abaixo j\u00e1 existem no sistema com nomes diferentes. Escolha como resolver cada caso.
+                        </p>
+                      </div>
+                    </div>
+                    {importNameMismatches.map((m, i) => (
+                      <div key={i} className="p-3 rounded-lg border border-amber-200 bg-white space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="font-mono text-xs">{m.enrollment}</Badge>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div className="p-2 rounded bg-muted/50 border">
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Nome no banco</p>
+                            <p className="font-medium">{m.existingName}</p>
+                            {m.existingEmail && <p className="text-xs text-muted-foreground">{m.existingEmail}</p>}
+                          </div>
+                          <div className="p-2 rounded bg-muted/50 border">
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Nome no CSV</p>
+                            <p className="font-medium">{m.csvName}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" onClick={async () => {
+                            await resolveConflictMutation.mutateAsync({ classId: selectedClassId, enrollment: m.enrollment, action: "use_existing" });
+                            setImportNameMismatches(prev => prev.filter((_, idx) => idx !== i));
+                            toast.success(`${m.existingName} vinculado \u00e0 turma (dados do banco mantidos)`);
+                          }} disabled={resolveConflictMutation.isPending}>
+                            Usar dados do banco
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={async () => {
+                            await resolveConflictMutation.mutateAsync({ classId: selectedClassId, enrollment: m.enrollment, action: "update_name", csvName: m.csvName });
+                            setImportNameMismatches(prev => prev.filter((_, idx) => idx !== i));
+                            toast.success(`Nome atualizado para ${m.csvName} e vinculado \u00e0 turma`);
+                          }} disabled={resolveConflictMutation.isPending}>
+                            Usar nome do CSV
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    {importNameMismatches.length === 0 && (
+                      <p className="text-sm text-emerald-600 font-medium">Todos os conflitos foram resolvidos.</p>
+                    )}
+                  </div>
+                )}
               </div>
               <DialogFooter>
                 <Button
                   onClick={handleCSVImport}
-                  disabled={importCSVMutation.isPending || !csvPreview || csvPreview.length === 0}
+                  disabled={importCSVMutation.isPending || !csvPreview || csvPreview.length === 0 || importNameMismatches.length > 0}
                 >
                   {importCSVMutation.isPending ? "Importando..." : `Importar ${csvPreview?.length ?? 0} Alunos`}
                 </Button>
@@ -380,9 +456,42 @@ function StudentsContent() {
                   <Input value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="aluno@ecomp.uefs.br" type="email" className="mt-1" />
                   <p className="text-xs text-muted-foreground mt-1">O aluno poderá informar o e-mail ao acessar a avaliação.</p>
                 </div>
+
+                {/* Enrollment conflict alert */}
+                {enrollmentConflict && (
+                  <div className="p-4 rounded-lg border border-amber-300 bg-amber-50 space-y-3">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-sm font-semibold text-amber-800">Matrícula já cadastrada em outro componente</p>
+                        <p className="text-xs text-amber-700 mt-1">Esta matrícula já existe no sistema com dados diferentes. Verifique se é o mesmo aluno.</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="p-2 rounded bg-white border">
+                        <p className="text-xs font-medium text-muted-foreground mb-1">Dados no banco</p>
+                        <p className="font-medium">{enrollmentConflict.existingName}</p>
+                        {enrollmentConflict.existingEmail && <p className="text-xs text-muted-foreground">{enrollmentConflict.existingEmail}</p>}
+                      </div>
+                      <div className="p-2 rounded bg-white border">
+                        <p className="text-xs font-medium text-muted-foreground mb-1">Dados informados</p>
+                        <p className="font-medium">{enrollmentConflict.inputName}</p>
+                        {enrollmentConflict.inputEmail && <p className="text-xs text-muted-foreground">{enrollmentConflict.inputEmail}</p>}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => { handleAdd(true); setEnrollmentConflict(null); }}>
+                        Importar do banco
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEnrollmentConflict(null)}>
+                        Cancelar
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
               <DialogFooter>
-                <Button onClick={handleAdd} disabled={createMutation.isPending}>
+                <Button onClick={() => handleAdd()} disabled={createMutation.isPending}>
                   {createMutation.isPending ? "Salvando..." : "Salvar"}
                 </Button>
               </DialogFooter>
