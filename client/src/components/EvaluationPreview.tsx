@@ -252,7 +252,7 @@ export function EvaluationPreviewDialog({ open, onOpenChange }: { open: boolean;
                         <PreviewCriteriaSlider
                           label="Desempenho no Papel"
                           sublabel="Penalidade: até -1"
-                          tooltip={`Esta nota tem peso negativo porque trata de comportamentos já esperados durante o tutorial. | Excelente: Cumpriu todas as funções da forma esperada. | Bom: Executou a maior parte das funções, mas falhou em pontos isolados. | Razoável: Tentou executar a função, mas deixou de realizar metade das tarefas. | Fraco: Realizou apenas tarefas mínimas ou superficiais. | Nenhum: Não cumpriu as funções essenciais de sua responsabilidade.`}
+                          tooltip={`Esta nota é subtraída da pontuação total (penalidade de até -1 ponto) e avalia o cumprimento das funções do papel atribuído. | Excelente: Cumpriu todas as funções da forma esperada. | Bom: Executou a maior parte das funções, mas falhou em pontos isolados. | Razoável: Tentou executar a função, mas deixou de realizar metade das tarefas. | Fraco: Realizou apenas tarefas mínimas ou superficiais. | Nenhum: Não cumpriu as funções essenciais de sua responsabilidade.`}
                           value={0}
                           penalty
                         />

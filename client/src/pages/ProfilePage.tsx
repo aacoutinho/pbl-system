@@ -223,8 +223,7 @@ function ProfileContent() {
               Definir Senha
             </CardTitle>
             <CardDescription>
-              Você entrou via OAuth e ainda não tem uma senha definida. Defina uma senha para poder fazer login também por e-mail e senha, 
-              garantindo acesso ao sistema mesmo fora da plataforma Manus.
+              Você entrou via OAuth e ainda não tem uma senha definida. Defina uma senha para ter um método de login alternativo por e-mail e senha.
             </CardDescription>
           </CardHeader>
           <CardContent>

@@ -144,7 +144,7 @@ export default function BackupPage() {
             <div className="flex items-start gap-2 mb-4 p-3 rounded-lg bg-blue-50 border border-blue-200">
               <Info className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
               <p className="text-xs text-blue-700">
-                O backup inclui todas as 20 tabelas do sistema: usuários, componentes, turmas, alunos, sessões, avaliações (incluindo rascunhos e notas do professor), permissões, códigos de verificação, notificações e configurações.
+                O backup inclui todas as 23 tabelas do sistema: usuários, componentes, turmas, alunos, sessões, avaliações (incluindo rascunhos e notas do professor), permissões, códigos de verificação, notificações, configurações, quadros de brainstorming e tickets de contato.
               </p>
             </div>
             <Button

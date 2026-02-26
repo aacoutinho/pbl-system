@@ -599,7 +599,7 @@ function TutorialEvalContent() {
             <div className="mt-4 flex items-start gap-2 p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800">
               <Info className="h-4 w-4 mt-0.5 shrink-0" />
               <p>
-                Esta sessão está <strong>aberta</strong> para avaliações dos alunos. Você pode começar a avaliar e salvar como rascunho. Ao <strong>finalizar</strong>, a sessão será encerrada automaticamente.
+                Esta sessão está <strong>Em Avaliação</strong> pelos alunos. Você pode começar a avaliar e salvar como rascunho. Ao <strong>finalizar</strong>, a sessão será encerrada automaticamente.
               </p>
             </div>
           )}

@@ -78,7 +78,7 @@ function GmailHelpSection() {
           <div className="bg-blue-100/60 rounded-lg p-3">
             <p className="font-semibold text-blue-800 mb-1">E-mail institucional (Google Workspace)</p>
             <p className="text-blue-800/80">
-              Se você usa um e-mail institucional via Google Workspace (ex: @uefs.br), o processo é o mesmo.
+              Se você usa um e-mail institucional via Google Workspace (ex: @suainstituicao.edu.br), o processo é o mesmo.
               Caso não consiga criar a senha de app, o administrador do domínio pode precisar habilitar
               essa opção nas configurações do Workspace.
             </p>
@@ -191,18 +191,18 @@ function SmtpConfigContent() {
     <div className="space-y-6 max-w-2xl">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Configuração de E-mail</h1>
-        <p className="text-muted-foreground">Configure o servidor SMTP para envio de e-mails de recuperação de senha.</p>
+        <p className="text-muted-foreground">Configure o servidor SMTP para envio de e-mails do sistema (recuperação de senha, relatórios de notas, notificações).</p>
       </div>
 
       {existingConfig?.configured ? (
         <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
           <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />
-          <p className="text-sm text-green-800">SMTP configurado e ativo. E-mails de recuperação de senha estão habilitados.</p>
+          <p className="text-sm text-green-800">SMTP configurado e ativo. O envio de e-mails do sistema está habilitado.</p>
         </div>
       ) : (
         <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
           <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
-          <p className="text-sm text-amber-800">SMTP não configurado. A recuperação de senha por e-mail está desabilitada.</p>
+          <p className="text-sm text-amber-800">SMTP não configurado. O envio de e-mails do sistema está desabilitado (recuperação de senha, relatórios de notas, notificações).</p>
         </div>
       )}
 

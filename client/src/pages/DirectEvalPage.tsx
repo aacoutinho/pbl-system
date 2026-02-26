@@ -61,9 +61,9 @@ export default function DirectEvalPage() {
         <Card className="max-w-md w-full">
           <CardContent className="pt-8 pb-8 text-center">
             <ShieldAlert className="h-12 w-12 text-red-400 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Link Inválido</h2>
+            <h2 className="text-xl font-semibold mb-2">Acesso Inválido</h2>
             <p className="text-muted-foreground">
-              Este link não contém um token de acesso válido. Verifique o link recebido por e-mail.
+              Este link não contém um token de acesso válido. Verifique o link recebido por e-mail ou acesse pela página inicial usando sua matrícula.
             </p>
           </CardContent>
         </Card>
@@ -78,7 +78,7 @@ export default function DirectEvalPage() {
           <CardContent className="pt-8 pb-8 text-center">
             <Loader2 className="h-10 w-10 animate-spin text-blue-500 mx-auto mb-4" />
             <h2 className="text-lg font-semibold mb-1">Carregando...</h2>
-            <p className="text-sm text-muted-foreground">Verificando seu link de acesso</p>
+            <p className="text-sm text-muted-foreground">Verificando seu acesso</p>
           </CardContent>
         </Card>
       </div>
@@ -364,7 +364,7 @@ function EvaluationForm({ studentInfo, sessionInfo, onDone }: {
                           </TooltipTrigger>
                           <TooltipContent className="max-w-sm text-xs">
                             <div className="space-y-1">
-                              <p><em>Esta nota tem peso negativo porque trata de comportamentos já esperados durante o tutorial.</em></p>
+                              <p><em>Esta nota é subtraída da pontuação total (penalidade de até -1 ponto) e avalia o cumprimento das funções do papel atribuído.</em></p>
                               <p><strong>Excelente:</strong> Cumpriu todas as funções da forma esperada.</p>
                               <p><strong>Bom:</strong> Executou a maior parte das funções, mas falhou em pontos isolados.</p>
                               <p><strong>Razoável:</strong> Tentou executar a função, mas deixou de realizar metade das tarefas.</p>
@@ -425,7 +425,7 @@ function EvaluationForm({ studentInfo, sessionInfo, onDone }: {
       <div className="text-center pb-6">
         <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
           <LinkIcon className="h-3 w-3" />
-          Este link é pessoal e intransferível
+          Esta avaliação é pessoal e intransferível
         </p>
       </div>
     </div>

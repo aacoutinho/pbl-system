@@ -754,7 +754,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                                 key={sub.path}
                                 isActive={isSubActive}
                                 onClick={() => setLocation(sub.path)}
-                                tooltip={showSmtpWarning ? `${sub.label} (n\u00e3o configurado)` : sub.label}
+                                tooltip={showSmtpWarning ? `${sub.label} (configura\u00e7\u00e3o pendente)` : sub.label}
                                 className="h-9 transition-all font-normal text-sm"
                               >
                                 <div className="relative">
@@ -768,7 +768,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                                 </div>
                                 <span className="flex-1">{sub.label}</span>
                                 {showSmtpWarning && (
-                                  <span className="flex h-2 w-2 rounded-full bg-red-500 shrink-0" title="SMTP n\u00e3o configurado"></span>
+                                  <span className="flex h-2 w-2 rounded-full bg-red-500 shrink-0" title="Configura\u00e7\u00e3o de e-mail pendente"></span>
                                 )}
                               </SidebarMenuButton>
                             );

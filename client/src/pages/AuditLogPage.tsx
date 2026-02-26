@@ -225,7 +225,7 @@ function AuditLogContent() {
             Histórico de Ações
           </h1>
           <p className="text-muted-foreground mt-1">
-            Registro de aprovações, rejeições, promoções, alterações de permissão e transferências para rastreabilidade administrativa.
+            Registro de aprovações, rejeições, promoções, remoções, alterações de permissão e transferências para rastreabilidade administrativa.
           </p>
         </div>
 
