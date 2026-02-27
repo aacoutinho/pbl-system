@@ -24,12 +24,13 @@ const SCORE_LABELS_MASC: Record<string, string> = {
   "1.00": "Excelente",
 };
 
+// Penalidade: 0 = sem penalidade (Excelente), 1 = penalidade máxima (Nenhum)
 const PENALTY_LABELS: Record<string, string> = {
-  "0.00": "Nenhum",
-  "0.25": "Fraco",
+  "0.00": "Excelente",
+  "0.25": "Bom",
   "0.50": "Razoável",
-  "0.75": "Bom",
-  "1.00": "Excelente",
+  "0.75": "Fraco",
+  "1.00": "Nenhum",
 };
 
 function getScoreLabel(value: number, gender: "fem" | "masc" = "fem", penalty?: boolean): string {
@@ -102,11 +103,11 @@ function PreviewCriteriaSlider({ label, sublabel, tooltip, value, penalty, gende
       <div className="flex justify-between text-xs font-medium">
         {penalty ? (
           <>
-            <span className="text-emerald-600">Nenhum</span>
-            <span className="text-lime-600">Fraco</span>
+            <span className="text-emerald-600">Excelente</span>
+            <span className="text-lime-600">Bom</span>
             <span className="text-amber-500">Razoável</span>
-            <span className="text-orange-600">Bom</span>
-            <span className="text-red-600">Excelente</span>
+            <span className="text-orange-600">Fraco</span>
+            <span className="text-red-600">Nenhum</span>
           </>
         ) : gender === "masc" ? (
           <>

@@ -1329,14 +1329,25 @@ const SCORE_LABELS_MASC: Record<string, string> = {
   "1.00": "Excelente",
 };
 
-function getScoreLabel(value: number, gender: "fem" | "masc" = "fem"): string {
+// Penalidade: 0 = sem penalidade (Excelente), 1 = penalidade máxima (Nenhum)
+const PENALTY_LABELS: Record<string, string> = {
+  "0.00": "Excelente",
+  "0.25": "Bom",
+  "0.50": "Razoável",
+  "0.75": "Fraco",
+  "1.00": "Nenhum",
+};
+
+function getScoreLabel(value: number, gender: "fem" | "masc" = "fem", penalty?: boolean): string {
+  if (penalty) return PENALTY_LABELS[value.toFixed(2)] ?? value.toFixed(2);
   const labels = gender === "masc" ? SCORE_LABELS_MASC : SCORE_LABELS_FEM;
   return labels[value.toFixed(2)] ?? value.toFixed(2);
 }
 
 function CriteriaSlider({ label, sublabel, tooltip, value, onChange, penalty, gender = "masc" }: { label: string; sublabel?: string; tooltip?: string; value: number; onChange: (v: number) => void; penalty?: boolean; gender?: "fem" | "masc" }) {
+  // Para penalidade: 0=Excelente (verde), 1=Nenhum (vermelho) — cor inversa
   const color = penalty
-    ? (value >= 0.75 ? "text-red-600" : value >= 0.5 ? "text-amber-600" : "text-emerald-600")
+    ? (value >= 0.75 ? "text-red-600" : value >= 0.5 ? "text-amber-600" : value >= 0.25 ? "text-lime-600" : "text-emerald-600")
     : (value >= 0.75 ? "text-emerald-600" : value >= 0.5 ? "text-amber-600" : "text-red-600");
   return (
     <div className="space-y-2">
@@ -1364,7 +1375,7 @@ function CriteriaSlider({ label, sublabel, tooltip, value, onChange, penalty, ge
           )}
           {sublabel && <span className="text-xs text-muted-foreground ml-1">({sublabel})</span>}
         </div>
-        <span className={`text-sm font-bold ${color}`}>{getScoreLabel(value, penalty ? "masc" : gender)}</span>
+        <span className={`text-sm font-bold ${color}`}>{getScoreLabel(value, gender, penalty)}</span>
       </div>
       <Slider
         min={0}
@@ -1377,11 +1388,11 @@ function CriteriaSlider({ label, sublabel, tooltip, value, onChange, penalty, ge
       <div className="flex justify-between text-xs font-medium">
         {penalty ? (
           <>
-            <span className="text-emerald-600">Nenhum</span>
-            <span className="text-lime-600">Fraco</span>
+            <span className="text-emerald-600">Excelente</span>
+            <span className="text-lime-600">Bom</span>
             <span className="text-amber-500">Razoável</span>
-            <span className="text-orange-600">Bom</span>
-            <span className="text-red-600">Excelente</span>
+            <span className="text-orange-600">Fraco</span>
+            <span className="text-red-600">Nenhum</span>
           </>
         ) : gender === "masc" ? (
           <>

@@ -34,13 +34,14 @@ const gradeLabels: Record<string, Record<number, string>> = {
 };
 
 const penaltyLabels: Record<number, string> = {
-  0: "Nenhum",
-  0.25: "Fraco",
+  0: "Excelente",
+  0.25: "Bom",
   0.5: "Razoável",
-  0.75: "Bom",
-  1: "Excelente",
+  0.75: "Fraco",
+  1: "Nenhum",
 };
 
+// gradeOptions: slider da esquerda (Excelente=0) para direita (Nenhum=1)
 const gradeOptions = [0, 0.25, 0.5, 0.75, 1];
 
 export default function DirectEvalPage() {
@@ -375,8 +376,8 @@ function EvaluationForm({ studentInfo, sessionInfo, onDone }: {
                         </Tooltip>
                       </TooltipProvider>
                     </div>
-                    <Badge variant="outline" className={`text-xs font-medium ${ev.desempenhoPapel > 0 ? "border-red-300 text-red-700" : ""}`}>
-                      {penaltyLabels[ev.desempenhoPapel] ?? `-${ev.desempenhoPapel}`}
+                    <Badge variant="outline" className={`text-xs font-medium ${ev.desempenhoPapel > 0 ? "border-red-300 text-red-700" : "border-emerald-300 text-emerald-700"}`}>
+                      {penaltyLabels[ev.desempenhoPapel] ?? `${ev.desempenhoPapel}`}
                     </Badge>
                   </div>
                   <Slider
