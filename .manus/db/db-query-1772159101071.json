@@ -1,0 +1,21 @@
+{
+  "query": "SELECT s.id as student_id, s.name, s.enrollment, ss.id as session_student_id, ss.sessionId, ss.absent, ses.status, ses.problemNumber, ses.sessionNumber\nFROM students s \nLEFT JOIN session_students ss ON s.id = ss.studentId\nLEFT JOIN sessions ses ON ss.sessionId = ses.id\nWHERE s.enrollment = '23211323';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute SELECT s.id as student_id, s.name, s.enrollment, ss.id as session_student_id, ss.sessionId, ss.absent, ses.status, ses.problemNumber, ses.sessionNumber\nFROM students s \nLEFT JOIN session_students ss ON s.id = ss.studentId\nLEFT JOIN sessions ses ON ss.sessionId = ses.id\nWHERE s.enrollment = '23211323';",
+  "rows": [
+    {
+      "student_id": "180011",
+      "name": "WALACE DE JESUS VENAS",
+      "enrollment": "23211323",
+      "session_student_id": "330011",
+      "sessionId": "330001",
+      "absent": "0",
+      "status": "closed",
+      "problemNumber": "1",
+      "sessionNumber": "1"
+    }
+  ],
+  "messages": [],
+  "stdout": "student_id\tname\tenrollment\tsession_student_id\tsessionId\tabsent\tstatus\tproblemNumber\tsessionNumber\n180011\tWALACE DE JESUS VENAS\t23211323\t330011\t330001\t0\tclosed\t1\t1\n",
+  "stderr": "",
+  "execution_time_ms": 60
+}

@@ -1,0 +1,22 @@
+{
+  "query": "SELECT s.id as student_id, s.name, ss.id as ss_id, ss.sessionId, ss.absent, ses.status, ses.problemNumber, ses.sessionNumber,\n(SELECT COUNT(*) FROM evaluations e WHERE e.sessionId = ss.sessionId) as total_evaluations,\n(SELECT COUNT(*) FROM evaluation_items ei JOIN evaluations e ON ei.evaluationId = e.id WHERE e.sessionId = ss.sessionId AND ei.evaluatedStudentId = ss.id) as evals_received\nFROM students s \nJOIN session_students ss ON s.id = ss.studentId\nJOIN sessions ses ON ss.sessionId = ses.id\nWHERE s.enrollment = '23211323';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute SELECT s.id as student_id, s.name, ss.id as ss_id, ss.sessionId, ss.absent, ses.status, ses.problemNumber, ses.sessionNumber,\n(SELECT COUNT(*) FROM evaluations e WHERE e.sessionId = ss.sessionId) as total_evaluations,\n(SELECT COUNT(*) FROM evaluation_items ei JOIN evaluations e ON ei.evaluationId = e.id WHERE e.sessionId = ss.sessionId AND ei.evaluatedStudentId = ss.id) as evals_received\nFROM students s \nJOIN session_students ss ON s.id = ss.studentId\nJOIN sessions ses ON ss.sessionId = ses.id\nWHERE s.enrollment = '23211323';",
+  "rows": [
+    {
+      "student_id": "180011",
+      "name": "WALACE DE JESUS VENAS",
+      "ss_id": "330011",
+      "sessionId": "330001",
+      "absent": "0",
+      "status": "closed",
+      "problemNumber": "1",
+      "sessionNumber": "1",
+      "total_evaluations": "3",
+      "evals_received": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "student_id\tname\tss_id\tsessionId\tabsent\tstatus\tproblemNumber\tsessionNumber\ttotal_evaluations\tevals_received\n180011\tWALACE DE JESUS VENAS\t330011\t330001\t0\tclosed\t1\t1\t3\t0\n",
+  "stderr": "",
+  "execution_time_ms": 59
+}

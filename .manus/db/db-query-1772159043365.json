@@ -1,0 +1,19 @@
+{
+  "query": "SELECT ss.id as session_student_id, ss.sessionId, ss.absent, ses.problemNumber, ses.sessionNumber, ses.status, ses.classId FROM session_students ss JOIN sessions ses ON ss.sessionId = ses.id WHERE ss.studentId = (SELECT id FROM students WHERE enrollment = '23211323');",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute SELECT ss.id as session_student_id, ss.sessionId, ss.absent, ses.problemNumber, ses.sessionNumber, ses.status, ses.classId FROM session_students ss JOIN sessions ses ON ss.sessionId = ses.id WHERE ss.studentId = (SELECT id FROM students WHERE enrollment = '23211323');",
+  "rows": [
+    {
+      "session_student_id": "330011",
+      "sessionId": "330001",
+      "absent": "0",
+      "problemNumber": "1",
+      "sessionNumber": "1",
+      "status": "closed",
+      "classId": "60001"
+    }
+  ],
+  "messages": [],
+  "stdout": "session_student_id\tsessionId\tabsent\tproblemNumber\tsessionNumber\tstatus\tclassId\n330011\t330001\t0\t1\t1\tclosed\t60001\n",
+  "stderr": "",
+  "execution_time_ms": 61
+}

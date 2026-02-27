@@ -562,3 +562,4 @@
 - [x] Validação de matrícula existente no cadastro manual: alertar professor que matrícula já existe em outro componente, mostrar dados do banco e permitir importar
 - [x] Validação de matrícula na importação CSV: conferir nome do aluno (exceto e-mail) e alertar professor sobre divergências
 - [x] Bug: formulário de criar sessão com campos maiores que a janela ou saindo da janela - corrigido com max-h-[90vh], flex col, overflow-y-auto e correção de erro de hooks (useMemo → useEffect, previewLabel movido antes do retorno condicional)
+- [x] Bug: perfil do aluno mostra média das notas DADAS (como avaliador) em vez da nota final RECEBIDA (que o professor vê nos resultados). Reescrita getStudentEvaluationHistory para usar calculateFinalGrades e retornar nota final, papel, status de ausência.

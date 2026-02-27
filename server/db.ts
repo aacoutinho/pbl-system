@@ -2841,67 +2841,72 @@ export async function getStudentEvaluationHistory(studentId: number) {
   const db = await getDb();
   if (!db) return [];
 
-  // Get all evaluations submitted by this student
-  const evals = await db.select({
-    evaluationId: evaluations.id,
-    sessionId: evaluations.sessionId,
-    submittedAt: evaluations.submittedAt,
+  // Get all sessions where this student participated (via session_students)
+  const studentSessions = await db.select({
+    sessionStudentId: sessionStudents.id,
+    sessionId: sessionStudents.sessionId,
+    absent: sessionStudents.absent,
     sessionLabel: sessions.label,
     sessionStatus: sessions.status,
     problemNumber: sessions.problemNumber,
     sessionNumber: sessions.sessionNumber,
+    classId: sessions.classId,
     classCode: classes.classCode,
     componentCode: components.code,
     componentName: components.name,
     semester: classes.semester,
   })
-    .from(evaluations)
-    .innerJoin(sessions, eq(evaluations.sessionId, sessions.id))
+    .from(sessionStudents)
+    .innerJoin(sessions, eq(sessionStudents.sessionId, sessions.id))
     .innerJoin(classes, eq(sessions.classId, classes.id))
     .innerJoin(components, eq(classes.componentId, components.id))
-    .where(eq(evaluations.evaluatorStudentId, studentId))
-    .orderBy(evaluations.submittedAt);
+    .where(eq(sessionStudents.studentId, studentId))
+    .orderBy(sessions.problemNumber, sessions.sessionNumber);
 
-  // For each evaluation, compute the total grade given by this student (sum of 5 criteria per evaluated peer)
-  const history = await Promise.all(evals.map(async (ev) => {
-    const items = await db.select({
-      evaluatedStudentId: evaluationItems.evaluatedStudentId,
-      absent: evaluationItems.absent,
-      pontualidade: evaluationItems.pontualidade,
-      pesquisaMetas: evaluationItems.pesquisaMetas,
-      dominio: evaluationItems.dominio,
-      participacao: evaluationItems.participacao,
-      desempenhoPapel: evaluationItems.desempenhoPapel,
-    }).from(evaluationItems)
-      .where(eq(evaluationItems.evaluationId, ev.evaluationId));
+  // For each session, get the student's final grade (same as professor sees)
+  const history = await Promise.all(studentSessions.map(async (ss) => {
+    // Check if student submitted an evaluation in this session
+    const [evalRecord] = await db.select({ id: evaluations.id, submittedAt: evaluations.submittedAt })
+      .from(evaluations)
+      .where(and(
+        eq(evaluations.sessionId, ss.sessionId),
+        eq(evaluations.evaluatorStudentId, ss.sessionStudentId)
+      ));
+    const hasSubmitted = !!evalRecord;
 
-    // Count peers evaluated (excluding absences)
-    const peersEvaluated = items.filter(i => !i.absent).length;
-    const totalPeers = items.length;
+    // Get the final grade for this student in this session (same calculation as professor results)
+    let finalGrade = 0;
+    let peerScore = 0;
+    let role = "PARTICIPANTE";
+    let isAbsent = !!ss.absent;
 
-    // Compute average grade given (average of sum of 5 criteria across all evaluated peers)
-    let avgGradeGiven = 0;
-    if (peersEvaluated > 0) {
-      const totalSum = items.filter(i => !i.absent).reduce((sum, i) => {
-        return sum + Number(i.pontualidade) + Number(i.pesquisaMetas) + Number(i.dominio) + Number(i.participacao) + Number(i.desempenhoPapel);
-      }, 0);
-      avgGradeGiven = totalSum / peersEvaluated;
+    if (ss.sessionStatus === "finished" || ss.sessionStatus === "closed") {
+      const finalGrades = await calculateFinalGrades(ss.sessionId);
+      const studentGrade = finalGrades.find(g => g.studentId === studentId);
+      if (studentGrade) {
+        finalGrade = studentGrade.finalGrade;
+        peerScore = studentGrade.peerScore;
+        role = studentGrade.role;
+        isAbsent = studentGrade.absent;
+      }
     }
 
     return {
-      sessionId: ev.sessionId,
-      sessionLabel: ev.sessionLabel,
-      sessionStatus: ev.sessionStatus,
-      problemNumber: ev.problemNumber,
-      sessionNumber: ev.sessionNumber,
-      classCode: ev.classCode,
-      componentCode: ev.componentCode,
-      componentName: ev.componentName,
-      semester: ev.semester,
-      submittedAt: ev.submittedAt,
-      peersEvaluated,
-      totalPeers,
-      avgGradeGiven: Math.round(avgGradeGiven * 100) / 100,
+      sessionId: ss.sessionId,
+      sessionLabel: ss.sessionLabel,
+      sessionStatus: ss.sessionStatus,
+      problemNumber: ss.problemNumber,
+      sessionNumber: ss.sessionNumber,
+      classCode: ss.classCode,
+      componentCode: ss.componentCode,
+      componentName: ss.componentName,
+      semester: ss.semester,
+      submittedAt: evalRecord?.submittedAt ?? null,
+      hasSubmitted,
+      role,
+      peerScore: Math.round(peerScore * 10) / 10,
+      finalGrade: Math.round(finalGrade * 10) / 10,
+      absent: isAbsent,
     };
   }));
 

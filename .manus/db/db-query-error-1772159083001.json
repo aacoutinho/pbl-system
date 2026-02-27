@@ -1,0 +1,8 @@
+{
+  "query": "SELECT \n  ei.evaluationId,\n  ei.evaluatedStudentId,\n  ei.pontualidade, \n  ei.pesquisa_metas, \n  ei.dominio, \n  ei.participacao, \n  ei.desempenho_papel,\n  ei.absent,\n  e.sessionStudentId as evaluator_ss_id,\n  ss_eval.absent as evaluator_absent\nFROM evaluation_items ei\nJOIN evaluations e ON ei.evaluationId = e.id\nJOIN session_students ss_eval ON e.sessionStudentId = ss_eval.id\nWHERE ei.evaluatedStudentId IN (\n  SELECT ss.id FROM session_students ss WHERE ss.studentId = (SELECT id FROM students WHERE enrollment = '23211323')\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute SELECT \n  ei.evaluationId,\n  ei.evaluatedStudentId,\n  ei.pontualidade, \n  ei.pesquisa_metas, \n  ei.dominio, \n  ei.participacao, \n  ei.desempenho_papel,\n  ei.absent,\n  e.sessionStudentId as evaluator_ss_id,\n  ss_eval.absent as evaluator_absent\nFROM evaluation_items ei\nJOIN evaluations e ON ei.evaluationId = e.id\nJOIN session_students ss_eval ON e.sessionStudentId = ss_eval.id\nWHERE ei.evaluatedStudentId IN (\n  SELECT ss.id FROM session_students ss WHERE ss.studentId = (SELECT id FROM students WHERE enrollment = '23211323')\n);",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'e.sessionstudentid' in 'on clause'"
+  ]
+}

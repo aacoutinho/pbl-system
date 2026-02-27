@@ -1,0 +1,16 @@
+{
+  "query": "SELECT s.id, s.name, s.enrollment, s.email FROM students s WHERE s.enrollment = '23211323';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute SELECT s.id, s.name, s.enrollment, s.email FROM students s WHERE s.enrollment = '23211323';",
+  "rows": [
+    {
+      "id": "180011",
+      "name": "WALACE DE JESUS VENAS",
+      "enrollment": "23211323",
+      "email": "aatrcoutinho@gmail.com"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tenrollment\temail\n180011\tWALACE DE JESUS VENAS\t23211323\taatrcoutinho@gmail.com\n",
+  "stderr": "",
+  "execution_time_ms": 109
+}

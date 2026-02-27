@@ -1071,8 +1071,8 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
           <Card>
             <CardContent className="py-6 text-center text-muted-foreground">
               <History className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
-              <p className="font-medium text-sm">Nenhuma avaliação realizada ainda</p>
-              <p className="text-xs mt-1">Seu histórico de avaliações aparecerá aqui após participar de sessões tutoriais.</p>
+              <p className="font-medium text-sm">Nenhuma sessão registrada ainda</p>
+              <p className="text-xs mt-1">Seu histórico de sessões e notas aparecerá aqui após participar de sessões tutoriais.</p>
             </CardContent>
           </Card>
         ) : (
@@ -1096,16 +1096,26 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
                       </p>
                     </div>
                     <div className="text-right shrink-0 ml-3">
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                        <Users className="h-3 w-3" />
-                        {ev.peersEvaluated}/{ev.totalPeers} pares
-                      </div>
-                      <div className="text-sm font-semibold text-blue-700">
-                        Média: {ev.avgGradeGiven.toFixed(1)}
-                      </div>
-                      <div className="text-[10px] text-muted-foreground">
-                        {new Date(ev.submittedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                      </div>
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 mb-1">
+                        {ev.role === 'FALTOU' ? 'Ausente' : ev.role === 'COORDENADOR' ? 'Coordenador' : ev.role === 'MESA' ? 'Mesa' : ev.role === 'QUADRO' ? 'Quadro' : 'Participante'}
+                      </Badge>
+                      {ev.absent ? (
+                        <div className="text-sm font-semibold text-red-500">Ausente</div>
+                      ) : ev.sessionStatus === 'finished' ? (
+                        <div className="text-sm font-semibold text-blue-700">
+                          Nota: {ev.finalGrade.toFixed(1)}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-muted-foreground">Aguardando encerramento</div>
+                      )}
+                      {ev.hasSubmitted && ev.submittedAt && (
+                        <div className="text-[10px] text-muted-foreground">
+                          Avaliou em {new Date(ev.submittedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      )}
+                      {!ev.hasSubmitted && !ev.absent && (
+                        <div className="text-[10px] text-orange-500">Não avaliou</div>
+                      )}
                     </div>
                   </div>
                 </CardContent>

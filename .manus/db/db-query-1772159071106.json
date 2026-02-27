@@ -1,0 +1,22 @@
+{
+  "query": "SELECT * FROM evaluation_items LIMIT 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute SELECT * FROM evaluation_items LIMIT 1;",
+  "rows": [
+    {
+      "id": "630061",
+      "evaluationId": "630031",
+      "evaluatedStudentId": "20",
+      "role": "PARTICIPANTE",
+      "absent": "0",
+      "desempenho_papel": "0.00",
+      "pontualidade": "0.00",
+      "dominio": "0.00",
+      "participacao": "0.00",
+      "pesquisa_metas": "0.00"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tevaluationId\tevaluatedStudentId\trole\tabsent\tdesempenho_papel\tpontualidade\tdominio\tparticipacao\tpesquisa_metas\n630061\t630031\t20\tPARTICIPANTE\t0\t0.00\t0.00\t0.00\t0.00\t0.00\n",
+  "stderr": "",
+  "execution_time_ms": 52
+}
