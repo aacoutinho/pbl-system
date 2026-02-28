@@ -42,7 +42,12 @@ const penaltyLabels: Record<number, string> = {
 };
 
 // gradeOptions: slider da esquerda (Excelente=0) para direita (Nenhum=1)
+// gradeOptions para slider normal (0=Nenhum à esquerda, 1=Excelente à direita)
+// Para penalidade invertida: 0=Excelente (sem penalidade), 1=Nenhum (penalidade máxima)
+// O slider exibe invertido: índice 0 = Nenhum (penalidade 1.0), índice 4 = Excelente (penalidade 0.0)
 const gradeOptions = [0, 0.25, 0.5, 0.75, 1];
+// gradeOptions invertidos para o slider de penalidade (esquerda=Nenhum, direita=Excelente)
+const penaltySliderOptions = [1, 0.75, 0.5, 0.25, 0];
 
 export default function DirectEvalPage() {
   // Get token from URL
@@ -381,15 +386,15 @@ function EvaluationForm({ studentInfo, sessionInfo, onDone }: {
                     </Badge>
                   </div>
                   <Slider
-                    value={[gradeOptions.indexOf(ev.desempenhoPapel)]}
+                    value={[penaltySliderOptions.indexOf(ev.desempenhoPapel)]}
                     min={0}
                     max={4}
                     step={1}
-                    onValueChange={([idx]) => updateEval(peer.studentId, "desempenhoPapel", gradeOptions[idx])}
+                    onValueChange={([idx]) => updateEval(peer.studentId, "desempenhoPapel", penaltySliderOptions[idx])}
                     className="w-full"
                   />
                   <div className="flex justify-between text-[10px] text-muted-foreground px-1">
-                    {gradeOptions.map(g => <span key={g}>{penaltyLabels[g]}</span>)}
+                    {penaltySliderOptions.map(g => <span key={g}>{penaltyLabels[g]}</span>)}
                   </div>
                 </div>
               )}

@@ -564,3 +564,4 @@
 - [x] Bug: formulário de criar sessão com campos maiores que a janela ou saindo da janela - corrigido com max-h-[90vh], flex col, overflow-y-auto e correção de erro de hooks (useMemo → useEffect, previewLabel movido antes do retorno condicional)
 - [x] Bug: perfil do aluno mostra média das notas DADAS (como avaliador) em vez da nota final RECEBIDA (que o professor vê nos resultados). Reescrita getStudentEvaluationHistory para usar calculateFinalGrades e retornar nota final, papel, status de ausência.
 - [x] Corrigir critério "Desempenho no Papel": default Excelente (0.0), escala Excelente→Bom→Razoável→Fraco→Nenhum em StudentAccessPage, DirectEvalPage e EvaluationPreview
+- [x] Inverter slider Desempenho no Papel: Excelente à direita, Nenhum à esquerda (igual outros sliders) em StudentAccessPage, DirectEvalPage e EvaluationPreview

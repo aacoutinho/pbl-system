@@ -61,8 +61,11 @@ function PreviewCriteriaSlider({ label, sublabel, tooltip, value, penalty, gende
   penalty?: boolean;
   gender?: "fem" | "masc";
 }) {
+  // Para penalidade: 0=Excelente (sem penalidade), 1=Nenhum (penalidade máxima)
+  // Slider exibido invertido: Nenhum à esquerda, Excelente à direita
+  const sliderValue = penalty ? 1 - value : value;
   const color = penalty
-    ? (value >= 0.75 ? "text-red-600" : value >= 0.5 ? "text-amber-600" : "text-emerald-600")
+    ? (value === 0 ? "text-emerald-600" : value <= 0.25 ? "text-lime-600" : value <= 0.5 ? "text-amber-500" : value <= 0.75 ? "text-orange-600" : "text-red-600")
     : (value >= 0.75 ? "text-emerald-600" : value >= 0.5 ? "text-amber-600" : "text-red-600");
   return (
     <div className="space-y-2">
@@ -96,18 +99,18 @@ function PreviewCriteriaSlider({ label, sublabel, tooltip, value, penalty, gende
         min={0}
         max={1}
         step={0.25}
-        value={[value]}
+        value={[sliderValue]}
         disabled
         className="w-full opacity-70"
       />
       <div className="flex justify-between text-xs font-medium">
         {penalty ? (
           <>
-            <span className="text-emerald-600">Excelente</span>
-            <span className="text-lime-600">Bom</span>
-            <span className="text-amber-500">Razoável</span>
-            <span className="text-orange-600">Fraco</span>
             <span className="text-red-600">Nenhum</span>
+            <span className="text-orange-600">Fraco</span>
+            <span className="text-amber-500">Razoável</span>
+            <span className="text-lime-600">Bom</span>
+            <span className="text-emerald-600">Excelente</span>
           </>
         ) : gender === "masc" ? (
           <>
