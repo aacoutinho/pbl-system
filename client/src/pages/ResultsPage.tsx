@@ -178,12 +178,10 @@ function ResultsContent() {
 
     // Results table
     lines.push("RESULTADOS DOS ALUNOS");
-    const maxFinalGradeCSV = Math.max(...finalResults.filter(r => !r.absent && r.finalGrade > 0).map(r => r.finalGrade), 1);
-    lines.push("Aluno,Papel,Média Pares,Nota Final,Nota Normalizada,Status");
+    lines.push("Aluno,Papel,Média Pares,Nota Final,Status");
     for (const r of finalResults) {
       const status = r.absent ? "Faltou" : "Presente";
-      const normalized = r.absent || r.finalGrade === 0 ? 0 : Math.round((r.finalGrade / maxFinalGradeCSV) * 10 * 10) / 10;
-      lines.push(`${escapeCSV(r.studentName)},${r.role},${r.peerScore.toFixed(1)},${r.finalGrade.toFixed(1)},${normalized.toFixed(1)},${status}`);
+      lines.push(`${escapeCSV(r.studentName)},${r.role},${r.peerScore.toFixed(1)},${r.finalGrade.toFixed(1)},${status}`);
     }
 
     // Brainstorm board section
@@ -226,11 +224,8 @@ function ResultsContent() {
       headers.push(`S${s.sessionNumber} Média Pares`);
       headers.push(`S${s.sessionNumber} Nota Final`);
     }
-    headers.push("Média Pares", "Média Final", "Média Normalizada");
+    headers.push("Média Pares", "Média Final");
     lines.push(headers.join(","));
-
-    // Calculate max final average for normalization
-    const maxFinalAvgCSV = Math.max(...problemFinalResults.filter(r => r.finalAverage > 0).map(r => r.finalAverage), 1);
 
     // Data rows
     for (const r of problemFinalResults) {
@@ -241,8 +236,6 @@ function ResultsContent() {
       }
       row.push(r.peerAverage.toFixed(1));
       row.push(r.finalAverage.toFixed(1));
-      const normalizedAvg = r.finalAverage > 0 ? Math.round((r.finalAverage / maxFinalAvgCSV) * 10 * 10) / 10 : 0;
-      row.push(normalizedAvg.toFixed(1));
       lines.push(row.join(","));
     }
 
@@ -455,7 +448,6 @@ function ResultsContent() {
                   ) : !finalResults || finalResults.length === 0 ? (
                     <p className="text-center py-8 text-muted-foreground">Nenhuma avaliação encontrada para esta sessão.</p>
                   ) : (() => {
-                    const maxFinalGrade = Math.max(...finalResults.filter(r => !r.absent && r.finalGrade > 0).map(r => r.finalGrade), 1);
                     return (
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
@@ -466,7 +458,7 @@ function ResultsContent() {
                             <th className="pb-3 pr-4 font-semibold">Papel</th>
                             <th className="pb-3 pr-4 font-semibold text-center">Média Pares</th>
                             {tutorialEval && <th className="pb-3 pr-4 font-semibold text-center">Nota Final</th>}
-                            {tutorialEval && <th className="pb-3 pr-4 font-semibold text-center">Nota Normalizada</th>}
+
                             <th className="pb-3 font-semibold text-center">Status</th>
                           </tr>
                         </thead>
@@ -494,16 +486,7 @@ function ResultsContent() {
                                   </span>
                                 </td>
                               )}
-                              {tutorialEval && (() => {
-                                const normalized = r.absent || r.finalGrade === 0 ? 0 : Math.round((r.finalGrade / maxFinalGrade) * 10 * 10) / 10;
-                                return (
-                                <td className="py-3 pr-4 text-center">
-                                  <span className={`font-bold text-base ${r.absent ? "text-muted-foreground" : normalized >= 8 ? "text-emerald-600" : normalized >= 5 ? "text-amber-600" : "text-red-600"}`}>
-                                    {normalized.toFixed(1)}
-                                  </span>
-                                </td>
-                                );
-                              })()}
+
                               <td className="py-3 text-center">
                                 {r.absent ? (
                                   <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200">
@@ -696,7 +679,6 @@ function ResultsContent() {
                           ))}
                           <th className="pb-3 pr-2 font-semibold text-center">Média Pares</th>
                           <th className="pb-3 pr-2 font-semibold text-center">Média Final</th>
-                          <th className="pb-3 font-semibold text-center">Média Normalizada</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -730,17 +712,7 @@ function ResultsContent() {
                                 {r.finalAverage.toFixed(1)}
                               </span>
                             </td>
-                            <td className="py-3 text-center">
-                              {(() => {
-                                const maxAvg = Math.max(...(problemFinalResults?.filter(x => x.finalAverage > 0).map(x => x.finalAverage) ?? [1]));
-                                const norm = r.finalAverage > 0 ? Math.round((r.finalAverage / maxAvg) * 10 * 10) / 10 : 0;
-                                return (
-                                  <span className={`font-bold ${norm >= 8 ? "text-emerald-600" : norm >= 5 ? "text-amber-600" : "text-red-600"}`}>
-                                    {norm.toFixed(1)}
-                                  </span>
-                                );
-                              })()}
-                            </td>
+
                           </tr>
                         ))}
                       </tbody>

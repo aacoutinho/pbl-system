@@ -485,7 +485,6 @@ export function buildStudentGradeReportHtml(data: {
   };
   peerAverage: number | null;
   finalGrade: number | null;
-  normalizedGrade: number | null;
   problemAverage: number | null;
 }): string {
   const gradeColor = (v: number) => v >= 7 ? "#059669" : v >= 5 ? "#d97706" : "#dc2626";
@@ -508,7 +507,6 @@ export function buildStudentGradeReportHtml(data: {
   const tutorialGrade = data.tutorialCriteria.tutorialGrade;
   const peerText = data.peerAverage !== null ? data.peerAverage.toFixed(1) : "Pendente";
   const finalText = data.finalGrade !== null ? data.finalGrade.toFixed(1) : "Pendente";
-  const normalizedText = data.normalizedGrade !== null ? data.normalizedGrade.toFixed(1) : "Pendente";
   const problemText = data.problemAverage !== null ? data.problemAverage.toFixed(1) : "Pendente";
 
   return `
@@ -553,10 +551,7 @@ export function buildStudentGradeReportHtml(data: {
               <td style="padding: 6px 0; font-size: 14px; color: #374151;">Nota Final</td>
               <td style="padding: 6px 0; font-size: 18px; font-weight: 700; text-align: right; color: ${data.finalGrade !== null ? gradeColor(data.finalGrade) : '#6b7280'};">${finalText}</td>
             </tr>
-            <tr style="border-top: 2px solid #86efac;">
-              <td style="padding: 10px 0 6px; font-size: 15px; font-weight: 600; color: #1f2937;">Nota Normalizada</td>
-              <td style="padding: 10px 0 6px; font-size: 22px; font-weight: 700; text-align: right; color: ${data.normalizedGrade !== null ? gradeColor(data.normalizedGrade) : '#6b7280'};">${normalizedText}${data.normalizedGrade !== null ? ' / 10' : ''}</td>
-            </tr>
+
           </table>
         </div>
 
