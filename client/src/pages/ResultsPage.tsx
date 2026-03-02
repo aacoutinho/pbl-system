@@ -1093,7 +1093,9 @@ function ConsolidatedStudentReport({ classId }: { classId: number }) {
                   <tr
                     key={student.studentId}
                     className={`border-b last:border-0 transition-colors ${
-                      student.absentCount === student.totalSessions
+                      (student as any).allExcluded
+                        ? "bg-orange-50/40 hover:bg-orange-50/60"
+                        : student.absentCount === student.totalSessions - ((student as any).excludedCount ?? 0)
                         ? "bg-red-50/60 hover:bg-red-50"
                         : student.absentCount > 0
                         ? "hover:bg-amber-50/30"
@@ -1103,7 +1105,8 @@ function ConsolidatedStudentReport({ classId }: { classId: number }) {
                     <td className="py-2.5 px-3 text-muted-foreground sticky left-0 bg-background z-10">{idx + 1}</td>
                     <td className="py-2.5 px-3 sticky left-8 bg-background z-10">
                       <p className={`font-medium text-sm ${
-                        student.absentCount === student.totalSessions ? "text-red-400 line-through" : ""
+                        (student as any).allExcluded ? "text-orange-400 line-through" :
+                        student.absentCount === student.totalSessions - ((student as any).excludedCount ?? 0) ? "text-red-400 line-through" : ""
                       }`}>
                         {student.studentName}
                       </p>
@@ -1138,13 +1141,23 @@ function ConsolidatedStudentReport({ classId }: { classId: number }) {
                       </td>
                     ))}
                     <td className="py-2.5 px-2 text-center bg-emerald-50/30">
-                      <span className="font-medium text-emerald-700">{student.presentCount}</span>
-                      <span className="text-muted-foreground text-xs">/{student.totalSessions}</span>
+                      {(student as any).allExcluded ? (
+                        <span className="font-medium text-orange-400">—</span>
+                      ) : (
+                        <>
+                          <span className="font-medium text-emerald-700">{student.presentCount}</span>
+                          <span className="text-muted-foreground text-xs">/{student.totalSessions - ((student as any).excludedCount ?? 0)}</span>
+                        </>
+                      )}
                     </td>
                     <td className="py-2.5 px-2 text-center bg-red-50/30">
-                      <span className={`font-medium ${student.absentCount > 0 ? "text-red-600" : "text-muted-foreground"}`}>
-                        {student.absentCount}
-                      </span>
+                      {(student as any).allExcluded ? (
+                        <span className="font-medium text-orange-400">—</span>
+                      ) : (
+                        <span className={`font-medium ${student.absentCount > 0 ? "text-red-600" : "text-muted-foreground"}`}>
+                          {student.absentCount}
+                        </span>
+                      )}
                     </td>
                     <td className="py-2.5 px-2 text-center bg-blue-50/30">
                       {(student as any).allExcluded ? (

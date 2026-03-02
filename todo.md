@@ -569,3 +569,4 @@
 - [x] Preenchimento automático de avaliações ao encerrar sessão: alunos presentes que não submeteram notas recebem avaliações default (10.0 por critério) para não prejudicar os colegas no cálculo da média dos pares
 - [x] Tabela de Notas Individuais dos Pares: exibir todos os alunos da turma (presentes e faltosos), com "F" nas células dos faltosos; faltosos não entram no cálculo da média
 - [x] Resultados consolidados: exibir "E" (Excluído) nas notas de pares e nota final de sessões onde o aluno não participou por ter sido excluído do componente antes da sessão; média final consolidada por aluno também deve exibir "E" nesses casos
+- [x] Auditoria e correção dos resultados consolidados com excluídos: separar currentClassStudentIds de allStudentIds em getStudentConsolidatedReport; corrigir destaque de linha, contadores Presenças/Faltas e denominador para excluídos no frontend

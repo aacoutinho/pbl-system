@@ -1525,8 +1525,8 @@ export async function getStudentConsolidatedReport(classId: number) {
 
   if (classSessions.length === 0) return [];
 
-  // Get all students currently in the class
-  const classStudentRows = await db.select({
+  // Get students CURRENTLY in the class (used to detect exclusions)
+  const currentClassStudentRows = await db.select({
     studentId: classStudents.studentId,
     studentName: students.name,
     studentEmail: students.email,
@@ -1536,10 +1536,13 @@ export async function getStudentConsolidatedReport(classId: number) {
     .where(eq(classStudents.classId, classId))
     .orderBy(students.name);
 
-  // Also include students who participated in sessions but were transferred out
-  // (they still have sessionStudents records for closed/finished sessions)
+  // IDs of students CURRENTLY in the class (for exclusion detection)
+  const currentClassStudentIds = new Set(currentClassStudentRows.map(s => s.studentId));
+
+  // Build full list: current students + historical participants (removed/transferred)
+  const classStudentRows = [...currentClassStudentRows];
   const sessionIds = classSessions.map(s => s.id);
-  const currentStudentIds = new Set(classStudentRows.map(s => s.studentId));
+  const allStudentIds = new Set(classStudentRows.map(s => s.studentId));
   if (sessionIds.length > 0) {
     const sessionParticipants = await db.selectDistinct({
       studentId: sessionStudents.studentId,
@@ -1550,16 +1553,13 @@ export async function getStudentConsolidatedReport(classId: number) {
       .innerJoin(students, eq(sessionStudents.studentId, students.id))
       .where(inArray(sessionStudents.sessionId, sessionIds));
     for (const p of sessionParticipants) {
-      if (!currentStudentIds.has(p.studentId)) {
+      if (!allStudentIds.has(p.studentId)) {
         classStudentRows.push(p);
-        currentStudentIds.add(p.studentId);
+        allStudentIds.add(p.studentId);
       }
     }
     classStudentRows.sort((a, b) => a.studentName.localeCompare(b.studentName));
   }
-
-  // Get all students currently in the class
-  const currentClassStudentIds = new Set(classStudentRows.map(s => s.studentId));
 
   // Calculate final grades for each session
   const sessionResults: Record<number, { label: string; problemNumber: number; sessionNumber: number; status: string; grades: Record<number, { peerScore: number; finalGrade: number; role: string; absent: boolean; excluded: boolean }> }> = {};
