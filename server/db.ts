@@ -870,9 +870,74 @@ export async function openSession(id: number) {
   await db.update(sessions).set({ status: "open", closedAt: null }).where(eq(sessions.id, id));
 }
 
+/**
+ * Preenche automaticamente as avaliações de alunos presentes que não submeteram notas.
+ * Cada aluno presente sem avaliação recebe uma avaliação automática com notas máximas (Excelente)
+ * para todos os colegas presentes, garantindo que não prejudique a média dos pares.
+ * Retorna o número de avaliações automáticas criadas.
+ */
+export async function autoFillMissingEvaluations(sessionId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+
+  // Buscar todos os alunos da sessão
+  const sessionStudentsList = await getSessionStudents(sessionId);
+
+  // Alunos presentes (não marcados como ausentes pelo professor)
+  const presentStudents = sessionStudentsList.filter(s => !s.absent);
+  if (presentStudents.length === 0) return 0;
+
+  // Buscar avaliações já submetidas na sessão
+  const existingEvals = await db.select({ evaluatorStudentId: evaluations.evaluatorStudentId })
+    .from(evaluations)
+    .where(eq(evaluations.sessionId, sessionId));
+
+  const studentsWhoSubmitted = new Set(existingEvals.map(e => e.evaluatorStudentId));
+
+  // Alunos presentes que NÃO submeteram avaliação
+  const missingEvaluators = presentStudents.filter(s => !studentsWhoSubmitted.has(s.studentId));
+  if (missingEvaluators.length === 0) return 0;
+
+  let created = 0;
+  await db.transaction(async (tx) => {
+    for (const evaluator of missingEvaluators) {
+      // Inserir registro de avaliação
+      const [result] = await tx.insert(evaluations).values({
+        sessionId,
+        evaluatorStudentId: evaluator.studentId,
+      }).$returningId();
+      const evaluationId = result.id;
+
+      // Criar itens de avaliação para cada colega presente (exceto o próprio avaliador)
+      const peers = presentStudents.filter(s => s.studentId !== evaluator.studentId);
+      if (peers.length > 0) {
+        await tx.insert(evaluationItems).values(
+          peers.map(peer => ({
+            evaluationId,
+            evaluatedStudentId: peer.studentId,
+            role: peer.role as "COORDENADOR" | "MESA" | "QUADRO" | "PARTICIPANTE",
+            absent: false,
+            // Valores máximos (Excelente) = nota 10.0 no cálculo: 1*1 + 1*3 + 1*3 + 1*3 - 0*1 = 10
+            pontualidade: "1.00",
+            pesquisaMetas: "1.00",
+            dominio: "1.00",
+            participacao: "1.00",
+            desempenhoPapel: "0.00",
+          }))
+        );
+      }
+      created++;
+    }
+  });
+
+  return created;
+}
+
 export async function finishSession(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
+  // Preencher automaticamente avaliações faltantes antes de encerrar
+  await autoFillMissingEvaluations(id);
   await db.update(sessions).set({ status: "finished" }).where(eq(sessions.id, id));
 }
 
