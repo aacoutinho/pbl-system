@@ -1306,9 +1306,9 @@ export async function calculateProblemResults(classId: number, problemNumber: nu
       }
     }
 
-    // Average only non-excluded, non-null scores
+    // Average: sum of non-excluded scores divided by TOTAL sessions (excluded sessions count as 0)
     const validScores = sessionScores.filter((s): s is number => s !== null);
-    const avg = validScores.length > 0 ? validScores.reduce((a, b) => a + b, 0) / validScores.length : 0;
+    const avg = problemSessions.length > 0 ? validScores.reduce((a, b) => a + b, 0) / problemSessions.length : 0;
 
     return {
       studentId,
@@ -1637,17 +1637,19 @@ export async function getStudentConsolidatedReport(classId: number) {
       };
     });
 
-    // Count only non-excluded sessions for averages
+    // Count sessions by status
     const presentSessions = sessionData.filter(s => !s.absent && !s.excluded);
     const absentSessions = sessionData.filter(s => s.absent && !s.excluded);
     const excludedSessions = sessionData.filter(s => s.excluded);
     const allExcluded = excludedSessions.length === sessionData.length;
 
-    const avgPeer = presentSessions.length > 0
-      ? Math.round(presentSessions.reduce((sum, s) => sum + s.peerScore, 0) / presentSessions.length * 10) / 10
+    // Averages: sum of present-session scores divided by TOTAL sessions (excluded sessions count as 0)
+    const totalSessionCount = sessionData.length;
+    const avgPeer = totalSessionCount > 0
+      ? Math.round(presentSessions.reduce((sum, s) => sum + s.peerScore, 0) / totalSessionCount * 10) / 10
       : 0;
-    const avgFinal = presentSessions.length > 0
-      ? Math.round(presentSessions.reduce((sum, s) => sum + s.finalGrade, 0) / presentSessions.length * 10) / 10
+    const avgFinal = totalSessionCount > 0
+      ? Math.round(presentSessions.reduce((sum, s) => sum + s.finalGrade, 0) / totalSessionCount * 10) / 10
       : 0;
 
     return {
@@ -1735,11 +1737,12 @@ export async function calculateProblemFinalGrades(classId: number, problemNumber
       }
     }
 
-    // Averages only over non-excluded sessions
+    // Averages: sum of non-excluded scores divided by TOTAL sessions (excluded sessions count as 0)
+    const totalSessions = problemSessions.length;
     const validPeer = peerScores.filter((s): s is number => s !== null);
     const validFinal = finalGrades.filter((g): g is number => g !== null);
-    const peerAvg = validPeer.length > 0 ? validPeer.reduce((a, b) => a + b, 0) / validPeer.length : 0;
-    const finalAvg = validFinal.length > 0 ? validFinal.reduce((a, b) => a + b, 0) / validFinal.length : 0;
+    const peerAvg = totalSessions > 0 ? validPeer.reduce((a, b) => a + b, 0) / totalSessions : 0;
+    const finalAvg = totalSessions > 0 ? validFinal.reduce((a, b) => a + b, 0) / totalSessions : 0;
 
     return {
       studentId,
