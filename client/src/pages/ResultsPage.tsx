@@ -522,7 +522,7 @@ function ResultsContent() {
                 <CardContent>
                   {peerMatrixLoading ? (
                     <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}</div>
-                  ) : !peerMatrix || peerMatrix.rows.length === 0 || peerMatrix.evaluators.length === 0 ? (
+                  ) : !peerMatrix || peerMatrix.rows.length === 0 ? (
                     <p className="text-center py-8 text-muted-foreground">Nenhuma avaliação entre pares encontrada para esta sessão.</p>
                   ) : (
                     <TooltipProvider>
@@ -565,6 +565,15 @@ function ResultsContent() {
                                   )}
                                 </td>
                                 {peerMatrix.evaluators.map(ev => {
+                                  // Se o aluno da linha é faltoso absoluto (absent=true e sem peerGrades),
+                                  // exibir F em todas as colunas de avaliadores
+                                  if (row.absent && row.peerGrades.length === 0) {
+                                    return (
+                                      <td key={ev.studentId} className="py-2.5 px-1 text-center">
+                                        <span className="text-red-400 italic font-medium">F</span>
+                                      </td>
+                                    );
+                                  }
                                   // Skip self-evaluation column
                                   if (ev.studentId === row.studentId) {
                                     return (
@@ -595,14 +604,17 @@ function ResultsContent() {
                                   );
                                 })}
                                 <td className="py-2.5 pl-2 text-center">
-                                  <span className={`font-bold ${
-                                    row.absent ? "text-muted-foreground" :
-                                    row.peerAverage >= 8 ? "text-emerald-600" :
-                                    row.peerAverage >= 5 ? "text-amber-600" :
-                                    "text-red-600"
-                                  }`}>
-                                    {row.peerAverage.toFixed(1)}
-                                  </span>
+                                  {row.absent ? (
+                                    <span className="text-red-400 italic font-medium">F</span>
+                                  ) : (
+                                    <span className={`font-bold ${
+                                      row.peerAverage >= 8 ? "text-emerald-600" :
+                                      row.peerAverage >= 5 ? "text-amber-600" :
+                                      "text-red-600"
+                                    }`}>
+                                      {row.peerAverage.toFixed(1)}
+                                    </span>
+                                  )}
                                 </td>
                               </tr>
                             ))}

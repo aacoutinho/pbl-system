@@ -2211,20 +2211,44 @@ export async function getPeerGradesMatrix(sessionId: number): Promise<{
   if (!db) return { evaluators: [], rows: [] };
 
   const sessionStudentsList = await getSessionStudents(sessionId);
+
+  // Get ALL students in the class so faltosos absolutos also appear in the matrix
+  const session = await getSessionById(sessionId);
+  const allClassStudents = session ? await listStudentsByClass(session.classId) : [];
+
+  // Students in the session (present or absent-marked)
+  const sessionStudentIdSet = new Set(sessionStudentsList.map(s => s.studentId));
+
+  // Students in the class but NOT in the session at all (absolute absentees)
+  const absoluteAbsentees = allClassStudents.filter(s => !sessionStudentIdSet.has(s.id));
+
   const evals = await db.select().from(evaluations).where(eq(evaluations.sessionId, sessionId));
 
   if (evals.length === 0) {
+    // Build rows for session students
+    const sessionRows = sessionStudentsList.map((s, i) => ({
+      serial: i + 1,
+      studentId: s.studentId,
+      studentName: s.studentName,
+      studentEnrollment: s.studentEnrollment,
+      peerGrades: [] as PeerGradeDetail[],
+      peerAverage: 0,
+      absent: s.absent,
+    }));
+    // Add absolute absentees at the end
+    const offset = sessionStudentsList.length;
+    const absentRows = absoluteAbsentees.map((s, i) => ({
+      serial: offset + i + 1,
+      studentId: s.id,
+      studentName: s.name,
+      studentEnrollment: s.enrollment,
+      peerGrades: [] as PeerGradeDetail[],
+      peerAverage: 0,
+      absent: true,
+    }));
     return {
       evaluators: [],
-      rows: sessionStudentsList.map((s, i) => ({
-        serial: i + 1,
-        studentId: s.studentId,
-        studentName: s.studentName,
-        studentEnrollment: s.studentEnrollment,
-        peerGrades: [],
-        peerAverage: 0,
-        absent: false,
-      })),
+      rows: [...sessionRows, ...absentRows].sort((a, b) => a.studentName.localeCompare(b.studentName)),
     };
   }
 
@@ -2254,9 +2278,34 @@ export async function getPeerGradesMatrix(sessionId: number): Promise<{
   );
   const filteredItems = allItems.filter(i => validEvalIds.has(i.evaluationId));
 
-  // Assign serial numbers to all students in the session (alphabetical order by name)
+  // Build combined list: session students first, then absolute absentees
+  // Sort all by name for consistent serial assignment
+  const allStudentsForMatrix: Array<{
+    studentId: number;
+    studentName: string;
+    studentEnrollment: string;
+    inSession: boolean;
+    markedAbsentByProfessor: boolean;
+  }> = [
+    ...sessionStudentsList.map(s => ({
+      studentId: s.studentId,
+      studentName: s.studentName,
+      studentEnrollment: s.studentEnrollment,
+      inSession: true,
+      markedAbsentByProfessor: s.absent,
+    })),
+    ...absoluteAbsentees.map(s => ({
+      studentId: s.id,
+      studentName: s.name,
+      studentEnrollment: s.enrollment,
+      inSession: false,
+      markedAbsentByProfessor: true,
+    })),
+  ].sort((a, b) => a.studentName.localeCompare(b.studentName));
+
+  // Assign serial numbers to all students (alphabetical)
   const serialMap = new Map<number, number>();
-  sessionStudentsList.forEach((s, i) => serialMap.set(s.studentId, i + 1));
+  allStudentsForMatrix.forEach((s, i) => serialMap.set(s.studentId, i + 1));
 
   // Build evaluator list (only present students who actually submitted evaluations)
   const evaluatorIds = new Set(evals.filter(e => !absentStudentIdsSet.has(e.evaluatorStudentId)).map(e => e.evaluatorStudentId));
@@ -2270,7 +2319,7 @@ export async function getPeerGradesMatrix(sessionId: number): Promise<{
     }))
     .sort((a, b) => a.serial - b.serial);
 
-  // Determine absent students
+  // Determine absent students (by peer vote majority)
   const absentStudents = new Set<number>();
   for (const s of sessionStudentsList) {
     const itemsForStudent = filteredItems.filter(i => {
@@ -2284,15 +2333,27 @@ export async function getPeerGradesMatrix(sessionId: number): Promise<{
     }
   }
 
-  // Build rows
-  const rows: PeerGradesMatrixRow[] = sessionStudentsList.map(s => {
-    const isAbsent = absentStudents.has(s.studentId);
+  // Build rows for ALL students (session + absolute absentees)
+  const rows: PeerGradesMatrixRow[] = allStudentsForMatrix.map(s => {
+    // Absolute absentees (not in session) get F in all cells
+    if (!s.inSession) {
+      return {
+        serial: serialMap.get(s.studentId) || 0,
+        studentId: s.studentId,
+        studentName: s.studentName,
+        studentEnrollment: s.studentEnrollment,
+        peerGrades: [],
+        peerAverage: 0,
+        absent: true,
+      };
+    }
+
+    const isAbsent = absentStudents.has(s.studentId) || s.markedAbsentByProfessor;
 
     // Get individual grades from each evaluator (excluding self-evaluation)
     const peerGrades: PeerGradeDetail[] = [];
     for (const evaluator of evaluators) {
       if (evaluator.studentId === s.studentId) continue; // skip self
-      // Find the evaluation item from this evaluator for this student
       const eval_ = evals.find(e => e.evaluatorStudentId === evaluator.studentId);
       if (!eval_) continue;
       const item = filteredItems.find(
