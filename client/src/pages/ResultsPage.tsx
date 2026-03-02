@@ -702,27 +702,47 @@ function ResultsContent() {
                             <td className="py-3 pr-4">
                               <p className="font-medium">{r.studentName}</p>
                             </td>
-                            {r.peerScores.map((score, idx) => (
-                              <React.Fragment key={idx}>
-                                <td className="py-3 pr-1 text-center">
-                                  <span className={score === 0 ? "text-muted-foreground" : "text-sm"}>{score.toFixed(1)}</span>
-                                </td>
-                                <td className="py-3 pr-2 text-center">
-                                  <span className={r.finalGrades[idx] === 0 ? "text-muted-foreground" : "text-sm font-medium"}>
-                                    {r.finalGrades[idx]?.toFixed(1) ?? "0.0"}
-                                  </span>
-                                </td>
-                              </React.Fragment>
-                            ))}
+                            {r.peerScores.map((score, idx) => {
+                              const isExcluded = (r as any).excludedFlags?.[idx] === true;
+                              const finalGrade = r.finalGrades[idx];
+                              return (
+                                <React.Fragment key={idx}>
+                                  <td className="py-3 pr-1 text-center">
+                                    {isExcluded ? (
+                                      <span className="text-orange-500 font-semibold italic">E</span>
+                                    ) : (
+                                      <span className={score === 0 ? "text-muted-foreground" : "text-sm"}>{(score as number).toFixed(1)}</span>
+                                    )}
+                                  </td>
+                                  <td className="py-3 pr-2 text-center">
+                                    {isExcluded ? (
+                                      <span className="text-orange-500 font-semibold italic">E</span>
+                                    ) : (
+                                      <span className={finalGrade === 0 ? "text-muted-foreground" : "text-sm font-medium"}>
+                                        {(finalGrade as number)?.toFixed(1) ?? "0.0"}
+                                      </span>
+                                    )}
+                                  </td>
+                                </React.Fragment>
+                              );
+                            })}
                             <td className="py-3 pr-2 text-center">
-                              <span className={r.peerAverage === 0 ? "text-muted-foreground" : ""}>
-                                {r.peerAverage.toFixed(1)}
-                              </span>
+                              {(r as any).excludedFlags?.every(Boolean) ? (
+                                <span className="text-orange-500 font-semibold italic">E</span>
+                              ) : (
+                                <span className={r.peerAverage === 0 ? "text-muted-foreground" : ""}>
+                                  {r.peerAverage.toFixed(1)}
+                                </span>
+                              )}
                             </td>
                             <td className="py-3 pr-2 text-center">
-                              <span className={`font-bold ${r.finalAverage >= 8 ? "text-emerald-600" : r.finalAverage >= 5 ? "text-amber-600" : "text-red-600"}`}>
-                                {r.finalAverage.toFixed(1)}
-                              </span>
+                              {(r as any).excludedFlags?.every(Boolean) ? (
+                                <span className="text-orange-500 font-semibold italic">E</span>
+                              ) : (
+                                <span className={`font-bold ${r.finalAverage >= 8 ? "text-emerald-600" : r.finalAverage >= 5 ? "text-amber-600" : "text-red-600"}`}>
+                                  {r.finalAverage.toFixed(1)}
+                                </span>
+                              )}
                             </td>
 
                           </tr>
@@ -1093,7 +1113,13 @@ function ConsolidatedStudentReport({ classId }: { classId: number }) {
                     </td>
                     {student.sessions.map((s, i) => (
                       <td key={i} className="py-2.5 px-2 text-center">
-                        {s.absent ? (
+                        {(s as any).excluded ? (
+                          <div className="flex flex-col items-center">
+                            <Badge variant="outline" className="text-[9px] bg-orange-50 text-orange-500 border-orange-200 px-1">
+                              E
+                            </Badge>
+                          </div>
+                        ) : s.absent ? (
                           <div className="flex flex-col items-center">
                             <Badge variant="outline" className="text-[9px] bg-red-50 text-red-500 border-red-200 px-1">
                               <UserX className="h-2.5 w-2.5 mr-0.5" />F
@@ -1121,18 +1147,26 @@ function ConsolidatedStudentReport({ classId }: { classId: number }) {
                       </span>
                     </td>
                     <td className="py-2.5 px-2 text-center bg-blue-50/30">
-                      <span className={`font-medium ${
-                        student.avgPeerScore >= 8 ? "text-emerald-600" : student.avgPeerScore >= 5 ? "text-amber-600" : student.avgPeerScore > 0 ? "text-red-600" : "text-muted-foreground"
-                      }`}>
-                        {student.avgPeerScore > 0 ? student.avgPeerScore.toFixed(1) : "—"}
-                      </span>
+                      {(student as any).allExcluded ? (
+                        <span className="font-medium text-orange-500 italic">E</span>
+                      ) : (
+                        <span className={`font-medium ${
+                          student.avgPeerScore >= 8 ? "text-emerald-600" : student.avgPeerScore >= 5 ? "text-amber-600" : student.avgPeerScore > 0 ? "text-red-600" : "text-muted-foreground"
+                        }`}>
+                          {student.avgPeerScore > 0 ? student.avgPeerScore.toFixed(1) : "—"}
+                        </span>
+                      )}
                     </td>
                     <td className="py-2.5 px-2 text-center bg-amber-50/30">
-                      <span className={`font-bold ${
-                        student.avgFinalGrade >= 8 ? "text-emerald-600" : student.avgFinalGrade >= 5 ? "text-amber-600" : student.avgFinalGrade > 0 ? "text-red-600" : "text-muted-foreground"
-                      }`}>
-                        {student.avgFinalGrade > 0 ? student.avgFinalGrade.toFixed(1) : "—"}
-                      </span>
+                      {(student as any).allExcluded ? (
+                        <span className="font-bold text-orange-500 italic">E</span>
+                      ) : (
+                        <span className={`font-bold ${
+                          student.avgFinalGrade >= 8 ? "text-emerald-600" : student.avgFinalGrade >= 5 ? "text-amber-600" : student.avgFinalGrade > 0 ? "text-red-600" : "text-muted-foreground"
+                        }`}>
+                          {student.avgFinalGrade > 0 ? student.avgFinalGrade.toFixed(1) : "—"}
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}

@@ -1067,6 +1067,7 @@ export interface SessionResult {
   totalScore: number;
   validEvaluations: number;
   absent: boolean;
+  excluded: boolean; // true when student was removed from class before this session
 }
 
 export async function calculateSessionResults(sessionId: number): Promise<SessionResult[]> {
@@ -1082,7 +1083,7 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
   // Build set of students in the session
   const sessionStudentIds = new Set(sessionStudentsList.map(s => s.studentId));
   
-  // Absent students = class students NOT in the session
+  // Absent students = class students NOT in the session (still in class = truly absent)
   const absentStudents = allClassStudents.filter(s => !sessionStudentIds.has(s.id));
   
   const evals = await db.select().from(evaluations).where(eq(evaluations.sessionId, sessionId));
@@ -1097,6 +1098,7 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
       totalScore: 0,
       validEvaluations: 0,
       absent: false,
+      excluded: false,
     }));
     // Add absent students (not in session) with zero
     for (const s of absentStudents) {
@@ -1109,6 +1111,7 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
         totalScore: 0,
         validEvaluations: 0,
         absent: true,
+        excluded: false,
       });
     }
     return results;
@@ -1192,6 +1195,7 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
         totalScore: 0,
         validEvaluations: 0,
         absent: isAbsent,
+        excluded: false,
       });
       continue;
     }
@@ -1213,6 +1217,7 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
       totalScore: Math.round(avg * 100) / 100,
       validEvaluations: validItems.length,
       absent: false,
+      excluded: false,
     });
   }
 
@@ -1227,6 +1232,7 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
       totalScore: 0,
       validEvaluations: 0,
       absent: true,
+      excluded: false,
     });
   }
 
@@ -1237,30 +1243,81 @@ export async function calculateProblemResults(classId: number, problemNumber: nu
   const db = await getDb();
   if (!db) return [];
   const problemSessions = await db.select().from(sessions)
-    .where(and(eq(sessions.classId, classId), eq(sessions.problemNumber, problemNumber)));
+    .where(and(eq(sessions.classId, classId), eq(sessions.problemNumber, problemNumber)))
+    .orderBy(sessions.sessionNumber);
   if (problemSessions.length === 0) return [];
 
-  const allResults: Record<number, { name: string; email: string | null; enrollment: string; scores: number[]; roles: string[] }> = {};
+  // Get all students currently in the class
+  const currentClassStudents = await listStudentsByClass(classId);
+  const currentClassStudentIds = new Set(currentClassStudents.map(s => s.id));
+
+  // Collect all students who ever participated in any session of this problem
+  const allStudentMap: Record<number, { name: string; email: string | null; enrollment: string }> = {};
+  for (const s of currentClassStudents) {
+    allStudentMap[s.id] = { name: s.name, email: s.email, enrollment: s.enrollment };
+  }
+
+  // Per-session results: map sessionId -> map studentId -> SessionResult
+  const sessionResultsMap: Record<number, Record<number, SessionResult>> = {};
   for (const sess of problemSessions) {
     const results = await calculateSessionResults(sess.id);
+    sessionResultsMap[sess.id] = {};
     for (const r of results) {
-      if (!allResults[r.studentId]) {
-        allResults[r.studentId] = { name: r.studentName, email: r.studentEmail, enrollment: r.studentEnrollment, scores: [], roles: [] };
+      sessionResultsMap[sess.id][r.studentId] = r;
+      // Track all students who appeared in any session
+      if (!allStudentMap[r.studentId]) {
+        allStudentMap[r.studentId] = { name: r.studentName, email: r.studentEmail, enrollment: r.studentEnrollment };
       }
-      allResults[r.studentId].scores.push(r.totalScore);
-      allResults[r.studentId].roles.push(r.role);
     }
   }
 
-  return Object.entries(allResults).map(([id, data]) => {
-    const avg = data.scores.length > 0 ? data.scores.reduce((a, b) => a + b, 0) / data.scores.length : 0;
+  // Build per-student results across all sessions
+  return Object.entries(allStudentMap).map(([idStr, data]) => {
+    const studentId = parseInt(idStr);
+    const isCurrentlyInClass = currentClassStudentIds.has(studentId);
+
+    const sessionScores: (number | null)[] = [];
+    const roles: string[] = [];
+    const excludedFlags: boolean[] = [];
+
+    for (const sess of problemSessions) {
+      const r = sessionResultsMap[sess.id]?.[studentId];
+      if (!r) {
+        // Student not in session results at all
+        if (!isCurrentlyInClass) {
+          // Not in class anymore and not in session → excluded
+          sessionScores.push(null); // null = excluded
+          roles.push("EXCLUÍDO");
+          excludedFlags.push(true);
+        } else {
+          // Still in class but no result (edge case) → treat as absent
+          sessionScores.push(0);
+          roles.push("FALTOU");
+          excludedFlags.push(false);
+        }
+      } else if (r.excluded) {
+        sessionScores.push(null);
+        roles.push("EXCLUÍDO");
+        excludedFlags.push(true);
+      } else {
+        sessionScores.push(r.totalScore);
+        roles.push(r.role);
+        excludedFlags.push(false);
+      }
+    }
+
+    // Average only non-excluded, non-null scores
+    const validScores = sessionScores.filter((s): s is number => s !== null);
+    const avg = validScores.length > 0 ? validScores.reduce((a, b) => a + b, 0) / validScores.length : 0;
+
     return {
-      studentId: parseInt(id),
+      studentId,
       studentName: data.name,
       studentEmail: data.email,
       studentEnrollment: data.enrollment,
-      sessionScores: data.scores,
-      roles: data.roles,
+      sessionScores, // null = excluded, number = score (0 = absent)
+      roles,
+      excludedFlags,
       average: Math.round(avg * 100) / 100,
     };
   }).sort((a, b) => a.studentName.localeCompare(b.studentName));
@@ -1393,6 +1450,7 @@ export interface FinalGradeResult {
   peerScore: number;
   finalGrade: number;
   absent: boolean;
+  excluded: boolean; // true when student was removed from class before this session
   validEvaluations: number;
 }
 
@@ -1410,6 +1468,7 @@ export async function calculateFinalGrades(sessionId: number): Promise<FinalGrad
       peerScore: Math.round(r.totalScore * 10) / 10,
       finalGrade: 0,
       absent: r.absent,
+      excluded: r.excluded,
       validEvaluations: r.validEvaluations,
     }));
   }
@@ -1431,6 +1490,7 @@ export async function calculateFinalGrades(sessionId: number): Promise<FinalGrad
         peerScore: 0,
         finalGrade: 0,
         absent: r.absent,
+        excluded: r.excluded,
         validEvaluations: r.validEvaluations,
       };
     }
@@ -1447,6 +1507,7 @@ export async function calculateFinalGrades(sessionId: number): Promise<FinalGrad
       peerScore: Math.round(r.totalScore * 10) / 10,
       finalGrade,
       absent: r.absent,
+      excluded: r.excluded,
       validEvaluations: r.validEvaluations,
     };
   }).sort((a, b) => a.studentName.localeCompare(b.studentName));
@@ -1497,8 +1558,11 @@ export async function getStudentConsolidatedReport(classId: number) {
     classStudentRows.sort((a, b) => a.studentName.localeCompare(b.studentName));
   }
 
+  // Get all students currently in the class
+  const currentClassStudentIds = new Set(classStudentRows.map(s => s.studentId));
+
   // Calculate final grades for each session
-  const sessionResults: Record<number, { label: string; problemNumber: number; sessionNumber: number; status: string; grades: Record<number, { peerScore: number; finalGrade: number; role: string; absent: boolean }> }> = {};
+  const sessionResults: Record<number, { label: string; problemNumber: number; sessionNumber: number; status: string; grades: Record<number, { peerScore: number; finalGrade: number; role: string; absent: boolean; excluded: boolean }> }> = {};
 
   for (const sess of classSessions) {
     const finalGrades = await calculateFinalGrades(sess.id);
@@ -1515,29 +1579,70 @@ export async function getStudentConsolidatedReport(classId: number) {
         finalGrade: g.finalGrade,
         role: g.role,
         absent: g.absent,
+        excluded: g.excluded ?? false,
       };
     }
   }
 
   // Build consolidated report per student
   return classStudentRows.map(student => {
+    const isCurrentlyInClass = currentClassStudentIds.has(student.studentId);
+
     const sessionData = classSessions.map(sess => {
       const grade = sessionResults[sess.id]?.grades[student.studentId];
+
+      if (!grade) {
+        // Student has no record in this session
+        if (!isCurrentlyInClass) {
+          // Excluded from class → show E
+          return {
+            sessionId: sess.id,
+            label: sess.label,
+            problemNumber: sess.problemNumber,
+            sessionNumber: sess.sessionNumber,
+            status: sess.status,
+            peerScore: 0,
+            finalGrade: 0,
+            role: "EXCLUÍDO",
+            absent: false,
+            excluded: true,
+          };
+        }
+        // Still in class but no record → treat as absent
+        return {
+          sessionId: sess.id,
+          label: sess.label,
+          problemNumber: sess.problemNumber,
+          sessionNumber: sess.sessionNumber,
+          status: sess.status,
+          peerScore: 0,
+          finalGrade: 0,
+          role: "FALTOU",
+          absent: true,
+          excluded: false,
+        };
+      }
+
       return {
         sessionId: sess.id,
         label: sess.label,
         problemNumber: sess.problemNumber,
         sessionNumber: sess.sessionNumber,
         status: sess.status,
-        peerScore: grade?.peerScore ?? 0,
-        finalGrade: grade?.finalGrade ?? 0,
-        role: grade?.role ?? "FALTOU",
-        absent: grade?.absent ?? true,
+        peerScore: grade.peerScore,
+        finalGrade: grade.finalGrade,
+        role: grade.role,
+        absent: grade.absent,
+        excluded: grade.excluded,
       };
     });
 
-    const presentSessions = sessionData.filter(s => !s.absent);
-    const absentSessions = sessionData.filter(s => s.absent);
+    // Count only non-excluded sessions for averages
+    const presentSessions = sessionData.filter(s => !s.absent && !s.excluded);
+    const absentSessions = sessionData.filter(s => s.absent && !s.excluded);
+    const excludedSessions = sessionData.filter(s => s.excluded);
+    const allExcluded = excludedSessions.length === sessionData.length;
+
     const avgPeer = presentSessions.length > 0
       ? Math.round(presentSessions.reduce((sum, s) => sum + s.peerScore, 0) / presentSessions.length * 10) / 10
       : 0;
@@ -1554,6 +1659,8 @@ export async function getStudentConsolidatedReport(classId: number) {
       totalSessions: sessionData.length,
       presentCount: presentSessions.length,
       absentCount: absentSessions.length,
+      excludedCount: excludedSessions.length,
+      allExcluded,
       avgPeerScore: avgPeer,
       avgFinalGrade: avgFinal,
     };
@@ -1564,37 +1671,85 @@ export async function calculateProblemFinalGrades(classId: number, problemNumber
   const db = await getDb();
   if (!db) return [];
   const problemSessions = await db.select().from(sessions)
-    .where(and(eq(sessions.classId, classId), eq(sessions.problemNumber, problemNumber)));
+    .where(and(eq(sessions.classId, classId), eq(sessions.problemNumber, problemNumber)))
+    .orderBy(sessions.sessionNumber);
   if (problemSessions.length === 0) return [];
 
-  const allResults: Record<number, {
-    name: string; email: string | null; enrollment: string;
-    peerScores: number[]; finalGrades: number[]; roles: string[];
-  }> = {};
+  // Get all students currently in the class
+  const currentClassStudents = await listStudentsByClass(classId);
+  const currentClassStudentIds = new Set(currentClassStudents.map(s => s.id));
 
+  // Collect all students who ever participated in any session of this problem
+  const allStudentMap: Record<number, { name: string; email: string | null; enrollment: string }> = {};
+  for (const s of currentClassStudents) {
+    allStudentMap[s.id] = { name: s.name, email: s.email, enrollment: s.enrollment };
+  }
+
+  // Per-session final grades: map sessionId -> map studentId -> FinalGradeResult
+  const sessionFinalMap: Record<number, Record<number, FinalGradeResult>> = {};
   for (const sess of problemSessions) {
     const results = await calculateFinalGrades(sess.id);
+    sessionFinalMap[sess.id] = {};
     for (const r of results) {
-      if (!allResults[r.studentId]) {
-        allResults[r.studentId] = { name: r.studentName, email: r.studentEmail, enrollment: r.studentEnrollment, peerScores: [], finalGrades: [], roles: [] };
+      sessionFinalMap[sess.id][r.studentId] = r;
+      if (!allStudentMap[r.studentId]) {
+        allStudentMap[r.studentId] = { name: r.studentName, email: r.studentEmail, enrollment: r.studentEnrollment };
       }
-      allResults[r.studentId].peerScores.push(r.peerScore);
-      allResults[r.studentId].finalGrades.push(r.finalGrade);
-      allResults[r.studentId].roles.push(r.role);
     }
   }
 
-  return Object.entries(allResults).map(([id, data]) => {
-    const peerAvg = data.peerScores.length > 0 ? data.peerScores.reduce((a, b) => a + b, 0) / data.peerScores.length : 0;
-    const finalAvg = data.finalGrades.length > 0 ? data.finalGrades.reduce((a, b) => a + b, 0) / data.finalGrades.length : 0;
+  return Object.entries(allStudentMap).map(([idStr, data]) => {
+    const studentId = parseInt(idStr);
+    const isCurrentlyInClass = currentClassStudentIds.has(studentId);
+
+    const peerScores: (number | null)[] = [];
+    const finalGrades: (number | null)[] = [];
+    const roles: string[] = [];
+    const excludedFlags: boolean[] = [];
+
+    for (const sess of problemSessions) {
+      const r = sessionFinalMap[sess.id]?.[studentId];
+      if (!r) {
+        if (!isCurrentlyInClass) {
+          // Excluded from class and not in session
+          peerScores.push(null);
+          finalGrades.push(null);
+          roles.push("EXCLUÍDO");
+          excludedFlags.push(true);
+        } else {
+          peerScores.push(0);
+          finalGrades.push(0);
+          roles.push("FALTOU");
+          excludedFlags.push(false);
+        }
+      } else if (r.excluded) {
+        peerScores.push(null);
+        finalGrades.push(null);
+        roles.push("EXCLUÍDO");
+        excludedFlags.push(true);
+      } else {
+        peerScores.push(r.peerScore);
+        finalGrades.push(r.finalGrade);
+        roles.push(r.role);
+        excludedFlags.push(false);
+      }
+    }
+
+    // Averages only over non-excluded sessions
+    const validPeer = peerScores.filter((s): s is number => s !== null);
+    const validFinal = finalGrades.filter((g): g is number => g !== null);
+    const peerAvg = validPeer.length > 0 ? validPeer.reduce((a, b) => a + b, 0) / validPeer.length : 0;
+    const finalAvg = validFinal.length > 0 ? validFinal.reduce((a, b) => a + b, 0) / validFinal.length : 0;
+
     return {
-      studentId: parseInt(id),
+      studentId,
       studentName: data.name,
       studentEmail: data.email,
       studentEnrollment: data.enrollment,
-      peerScores: data.peerScores,
-      finalGrades: data.finalGrades,
-      roles: data.roles,
+      peerScores,   // null = excluded
+      finalGrades,  // null = excluded
+      roles,
+      excludedFlags,
       peerAverage: Math.round(peerAvg * 10) / 10,
       finalAverage: Math.round(finalAvg * 10) / 10,
     };
