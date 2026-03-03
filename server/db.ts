@@ -933,11 +933,46 @@ export async function autoFillMissingEvaluations(sessionId: number): Promise<num
   return created;
 }
 
-export async function finishSession(id: number) {
+export async function finishSession(id: number, professorUserId?: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   // Preencher automaticamente avaliações faltantes antes de encerrar
   await autoFillMissingEvaluations(id);
+  // Auto-fill avaliação tutorial se não foi submetida
+  if (professorUserId) {
+    const existing = await db.select({ id: tutorialEvaluations.id })
+      .from(tutorialEvaluations)
+      .where(eq(tutorialEvaluations.sessionId, id))
+      .limit(1);
+    if (existing.length === 0) {
+      // Verificar se há rascunho salvo
+      const draft = await db.select().from(tutorialEvalDrafts)
+        .where(eq(tutorialEvalDrafts.sessionId, id))
+        .limit(1);
+      const scores = draft.length > 0 ? {
+        organizacao: Number(draft[0].organizacao),
+        cooperacao: Number(draft[0].cooperacao),
+        conteudo: Number(draft[0].conteudo),
+        objetivo: Number(draft[0].objetivo),
+        metas: Number(draft[0].metas),
+      } : {
+        organizacao: 1.0,
+        cooperacao: 1.0,
+        conteudo: 1.0,
+        objetivo: 1.0,
+        metas: 1.0,
+      };
+      await db.insert(tutorialEvaluations).values({
+        sessionId: id,
+        professorUserId,
+        organizacao: String(scores.organizacao),
+        cooperacao: String(scores.cooperacao),
+        conteudo: String(scores.conteudo),
+        objetivo: String(scores.objetivo),
+        metas: String(scores.metas),
+      });
+    }
+  }
   await db.update(sessions).set({ status: "finished" }).where(eq(sessions.id, id));
 }
 

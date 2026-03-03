@@ -969,7 +969,7 @@ export const appRouter = router({
       if (session.status !== "open" && session.status !== "closed") {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Apenas sessões com status 'Em Avaliação' ou 'Fechada' podem ser encerradas." });
       }
-      await finishSession(input.id);
+      await finishSession(input.id, ctx.user.id);
       return { success: true };
     }),
     open: approvedProcedure.input(z.object({ id: z.number(), origin: z.string().optional() })).mutation(async ({ ctx, input }) => {

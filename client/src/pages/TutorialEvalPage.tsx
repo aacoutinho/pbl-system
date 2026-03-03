@@ -81,11 +81,11 @@ const CRITERIA = [
 type CriteriaKey = typeof CRITERIA[number]["key"];
 
 const DEFAULT_SCORES: Record<CriteriaKey, number> = {
-  organizacao: 0.5,
-  cooperacao: 0.5,
-  conteudo: 0.5,
-  objetivo: 0.5,
-  metas: 0.5,
+  organizacao: 1.0,
+  cooperacao: 1.0,
+  conteudo: 1.0,
+  objetivo: 1.0,
+  metas: 1.0,
 };
 
 type EvalPermission = "owner" | "coordinator" | "authorized" | "no_permission" | "admin";
