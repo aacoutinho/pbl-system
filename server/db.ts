@@ -1537,26 +1537,72 @@ export interface FinalGradeResult {
   excluded: boolean; // true when student was removed from class before this session
   validEvaluations: number;
   capped: boolean; // true when finalGrade was capped at 10.0
+  provisional?: boolean; // true when finalGrade is estimated (no tutorial eval yet)
 }
 
-export async function calculateFinalGrades(sessionId: number): Promise<FinalGradeResult[]> {
+export async function calculateFinalGrades(sessionId: number, provisional = false): Promise<FinalGradeResult[]> {
   const peerResults = await calculateSessionResults(sessionId);
   const tutorialEval = await getTutorialEvaluation(sessionId);
 
   if (!tutorialEval) {
-    return peerResults.map(r => ({
-      studentId: r.studentId,
-      studentName: r.studentName,
-      studentEmail: r.studentEmail,
-      studentEnrollment: r.studentEnrollment,
-      role: r.role,
-      peerScore: Math.round(r.totalScore * 10) / 10,
-      finalGrade: 0,
-      absent: r.absent,
-      excluded: r.excluded,
-      validEvaluations: r.validEvaluations,
-      capped: false,
-    }));
+    if (!provisional) {
+      // Sem avaliação tutorial e sem modo provisório: retorna peerScore mas finalGrade=0
+      return peerResults.map(r => ({
+        studentId: r.studentId,
+        studentName: r.studentName,
+        studentEmail: r.studentEmail,
+        studentEnrollment: r.studentEnrollment,
+        role: r.role,
+        peerScore: Math.round(r.totalScore * 10) / 10,
+        finalGrade: 0,
+        absent: r.absent,
+        excluded: r.excluded,
+        validEvaluations: r.validEvaluations,
+        capped: false,
+        provisional: false,
+      }));
+    }
+    // Modo provisório: estimar finalGrade usando tutorialGrade = 1.0 (máximo)
+    // para que a distribuição proporcional seja visível antes da avaliação do tutor
+    const presentStudents = peerResults.filter(r => !r.absent && r.totalScore > 0);
+    const numPresent = presentStudents.length;
+    const provisionalTutorialGrade = 10.0; // máximo possível
+    const totalPoints = provisionalTutorialGrade * numPresent;
+    const sumPeerScores = presentStudents.reduce((sum, r) => sum + r.totalScore, 0);
+    return peerResults.map(r => {
+      if (r.absent || r.totalScore === 0) {
+        return {
+          studentId: r.studentId,
+          studentName: r.studentName,
+          studentEmail: r.studentEmail,
+          studentEnrollment: r.studentEnrollment,
+          role: r.role,
+          peerScore: 0,
+          finalGrade: 0,
+          absent: r.absent,
+          excluded: r.excluded,
+          validEvaluations: r.validEvaluations,
+          capped: false,
+          provisional: true,
+        };
+      }
+      const proportion = r.totalScore / sumPeerScores;
+      const finalGrade = sumPeerScores > 0 ? Math.round(proportion * totalPoints * 10) / 10 : 0;
+      return {
+        studentId: r.studentId,
+        studentName: r.studentName,
+        studentEmail: r.studentEmail,
+        studentEnrollment: r.studentEnrollment,
+        role: r.role,
+        peerScore: Math.round(r.totalScore * 10) / 10,
+        finalGrade,
+        absent: r.absent,
+        excluded: r.excluded,
+        validEvaluations: r.validEvaluations,
+        capped: false,
+        provisional: true,
+      };
+    }).sort((a, b) => a.studentName.localeCompare(b.studentName));
   }
 
   const tutorialGrade = calculateTutorialGrade(tutorialEval);
@@ -1579,6 +1625,7 @@ export async function calculateFinalGrades(sessionId: number): Promise<FinalGrad
         excluded: r.excluded,
         validEvaluations: r.validEvaluations,
         capped: false,
+        provisional: false,
       };
     }
 
@@ -1597,6 +1644,7 @@ export async function calculateFinalGrades(sessionId: number): Promise<FinalGrad
       excluded: r.excluded,
       validEvaluations: r.validEvaluations,
       capped: false, // capping only applies at problem level
+      provisional: false,
     };
   }).sort((a, b) => a.studentName.localeCompare(b.studentName));
 }

@@ -65,9 +65,14 @@ function ResultsContent() {
     { enabled: !!selectedSessionId }
   );
 
+  // Detect if selected session is closed (not yet finished)
+  const selectedSession = activeSessions?.find(s => s.id === parseInt(selectedSessionId));
+  const isSessionClosed = selectedSession?.status === "closed";
+
   // Final grades (with tutorial evaluation)
+  // Use provisional=true for closed sessions (no tutorial eval yet) to show estimated grades
   const { data: finalResults, isLoading: finalLoading } = trpc.results.sessionFinal.useQuery(
-    { sessionId: parseInt(selectedSessionId) },
+    { sessionId: parseInt(selectedSessionId), provisional: isSessionClosed },
     { enabled: !!selectedSessionId }
   );
 
@@ -600,7 +605,9 @@ function ResultsContent() {
                   <CardDescription>
                     {tutorialEval
                       ? "Notas finais calculadas com distribuição proporcional baseada na avaliação do tutorial."
-                      : "Mostrando apenas notas da avaliação pelos pares. Avalie o tutorial para ver as notas finais."}
+                      : isSessionClosed
+                        ? "Sessão fechada — notas provisórias baseadas na avaliação dos pares (assumindo tutorial máximo). Avalie o tutorial para calcular as notas finais."
+                        : "Mostrando apenas notas da avaliação pelos pares. Avalie o tutorial para ver as notas finais."}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -618,7 +625,7 @@ function ResultsContent() {
                             <th className="pb-3 pr-4 font-semibold">Aluno</th>
                             <th className="pb-3 pr-4 font-semibold">Papel</th>
                             <th className="pb-3 pr-4 font-semibold text-center">Média Pares</th>
-                            {tutorialEval && <th className="pb-3 pr-4 font-semibold text-center">Nota Final</th>}
+                            {(tutorialEval || isSessionClosed) && <th className="pb-3 pr-4 font-semibold text-center">{isSessionClosed && !tutorialEval ? "Nota Provisória" : "Nota Final"}</th>}
                             <th className="pb-3 font-semibold text-center">Status</th>
                           </tr>
                         </thead>
@@ -639,10 +646,22 @@ function ResultsContent() {
                                   {r.peerScore.toFixed(1)}
                                 </span>
                               </td>
-                              {tutorialEval && (
+                              {(tutorialEval || isSessionClosed) && (
                                 <td className="py-3 pr-4 text-center">
                                   <span className={`font-medium inline-flex items-center gap-1 ${r.absent ? "text-muted-foreground" : r.finalGrade >= 8 ? "text-emerald-600" : r.finalGrade >= 5 ? "text-amber-600" : "text-red-600"}`}>
                                     {r.finalGrade.toFixed(1)}
+                                    {(r as { provisional?: boolean }).provisional && (
+                                      <TooltipProvider>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Info className="h-3.5 w-3.5 text-blue-400 cursor-help" />
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            <p>Nota provisória — calculada assumindo avaliação tutorial máxima. Sujeita a alteração após avaliação do tutor.</p>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+                                    )}
                                     {(r as { capped?: boolean }).capped && (
                                       <TooltipProvider>
                                         <Tooltip>

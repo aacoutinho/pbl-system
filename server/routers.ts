@@ -2217,8 +2217,8 @@ export const appRouter = router({
     peerGradesMatrix: protectedProcedure.input(z.object({ sessionId: z.number() })).query(async ({ input }) => {
       return getPeerGradesMatrix(input.sessionId);
     }),
-    sessionFinal: protectedProcedure.input(z.object({ sessionId: z.number() })).query(async ({ input }) => {
-      return calculateFinalGrades(input.sessionId);
+    sessionFinal: protectedProcedure.input(z.object({ sessionId: z.number(), provisional: z.boolean().optional() })).query(async ({ input }) => {
+      return calculateFinalGrades(input.sessionId, input.provisional ?? false);
     }),
     problem: approvedProcedure.input(z.object({ classId: z.number(), problemNumber: z.number() })).query(async ({ ctx, input }) => {
       const cls = await getClassById(input.classId);
