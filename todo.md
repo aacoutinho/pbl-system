@@ -576,3 +576,4 @@
 - [x] Interface Resultados: reordenar seções (Notas Individuais dos Pares antes do Ranking); colapsar Critérios de Avaliação e Quadro de Brainstorming; indicar avaliações auto-preenchidas na matriz de pares; reordenar botões de sessão (Encerrar após Reabrir)
 - [x] Nome do problema propagado para sessões anteriores e como default nas posteriores; formato de label "Problema X - Sessão Y - Nome do Problema" em todas as listagens; renomear "Ranking da Sessão" para "Notas Finais da Sessão"
 - [x] Resultados Por Problema e Por Aluno: nome do aluno excluído com fonte tachada e badge "Excluído" ao lado
+- [x] Perfil do Aluno: organizar por componente; exibir nota final por sessão e média por problema de cada componente

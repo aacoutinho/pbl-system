@@ -3264,7 +3264,68 @@ export async function getStudentEvaluationHistory(studentId: number) {
     };
   }));
 
-  return history;
+  // Group by component+class and calculate problem averages
+  const componentMap = new Map<string, {
+    componentCode: string;
+    componentName: string;
+    classCode: string;
+    semester: string;
+    sessions: typeof history;
+    problemAverages: { problemNumber: number; problemTitle: string; average: number; sessionCount: number }[];
+  }>();
+
+  for (const h of history) {
+    const key = `${h.componentCode}|${h.classCode}|${h.semester}`;
+    if (!componentMap.has(key)) {
+      componentMap.set(key, {
+        componentCode: h.componentCode,
+        componentName: h.componentName,
+        classCode: h.classCode,
+        semester: h.semester,
+        sessions: [],
+        problemAverages: [],
+      });
+    }
+    componentMap.get(key)!.sessions.push(h);
+  }
+
+  // Calculate problem averages per component
+  for (const comp of Array.from(componentMap.values())) {
+    const problemMap = new Map<number, { grades: number[]; sessionCount: number; title: string }>();
+    for (const s of comp.sessions) {
+      if (!problemMap.has(s.problemNumber)) {
+        // Extract problem title from sessionLabel (format: "Problema X - Sessão Y - Title")
+        const parts = s.sessionLabel.split(' - ');
+        const title = parts.length >= 3 ? parts.slice(2).join(' - ') : '';
+        problemMap.set(s.problemNumber, { grades: [], sessionCount: 0, title });
+      }
+      const entry = problemMap.get(s.problemNumber)!;
+      entry.sessionCount++;
+      if (!s.absent && (s.sessionStatus === 'finished' || s.sessionStatus === 'closed')) {
+        entry.grades.push(s.finalGrade);
+      }
+    }
+    comp.problemAverages = Array.from(problemMap.entries())
+      .sort(([a], [b]) => a - b)
+      .map(([problemNumber, { grades, sessionCount, title }]) => ({
+        problemNumber,
+        problemTitle: title,
+        sessionCount,
+        average: grades.length > 0 ? Math.round((grades.reduce((a, b) => a + b, 0) / sessionCount) * 10) / 10 : 0,
+      }));
+  }
+
+  return {
+    flat: history,
+    byComponent: Array.from(componentMap.values()) as Array<{
+      componentCode: string;
+      componentName: string;
+      classCode: string;
+      semester: string;
+      sessions: typeof history;
+      problemAverages: { problemNumber: number; problemTitle: string; average: number; sessionCount: number }[];
+    }>,
+  };
 }
 
 // ─── Session Access Tokens (individual per student per session) ───

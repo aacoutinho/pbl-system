@@ -1055,11 +1055,11 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
         </div>
       )}
 
-      {/* Evaluation History */}
+      {/* History by Component */}
       <div>
         <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
           <History className="h-5 w-5 text-blue-600" />
-          Histórico de Avaliações
+          Histórico por Componente
         </h3>
         {historyLoading ? (
           <Card>
@@ -1067,7 +1067,7 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
               Carregando histórico...
             </CardContent>
           </Card>
-        ) : !evalHistory || evalHistory.length === 0 ? (
+        ) : !evalHistory || !('byComponent' in evalHistory) || evalHistory.byComponent.length === 0 ? (
           <Card>
             <CardContent className="py-6 text-center text-muted-foreground">
               <History className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
@@ -1076,48 +1076,104 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-2">
-            {evalHistory.map((ev, idx) => (
-              <Card key={`${ev.sessionId}-${idx}`} className="border-blue-100">
-                <CardContent className="py-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-sm">{ev.sessionLabel}</p>
-                        <Badge variant={ev.sessionStatus === 'finished' ? 'secondary' : 'outline'} className="text-[10px] px-1.5 py-0">
-                          {ev.sessionStatus === 'finished' ? 'Encerrada' : ev.sessionStatus === 'closed' ? 'Fechada' : ev.sessionStatus === 'open' ? 'Em Avaliação' : 'Ativa'}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {ev.componentCode} - {ev.classCode} ({ev.semester})
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Problema {ev.problemNumber} &middot; Sessão {ev.sessionNumber}
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0 ml-3">
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 mb-1">
-                        {ev.role === 'FALTOU' ? 'Ausente' : ev.role === 'COORDENADOR' ? 'Coordenador' : ev.role === 'MESA' ? 'Mesa' : ev.role === 'QUADRO' ? 'Quadro' : 'Participante'}
-                      </Badge>
-                      {ev.absent ? (
-                        <div className="text-sm font-semibold text-red-500">Ausente</div>
-                      ) : ev.sessionStatus === 'finished' ? (
-                        <div className="text-sm font-semibold text-blue-700">
-                          Nota: {ev.finalGrade.toFixed(1)}
-                        </div>
-                      ) : (
-                        <div className="text-xs text-muted-foreground">Aguardando encerramento</div>
-                      )}
-                      {ev.hasSubmitted && ev.submittedAt && (
-                        <div className="text-[10px] text-muted-foreground">
-                          Avaliou em {new Date(ev.submittedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                      )}
-                      {!ev.hasSubmitted && !ev.absent && (
-                        <div className="text-[10px] text-orange-500">Não avaliou</div>
-                      )}
-                    </div>
+          <div className="space-y-4">
+            {(evalHistory.byComponent as Array<{
+              componentCode: string;
+              componentName: string;
+              classCode: string;
+              semester: string;
+              sessions: Array<{
+                sessionId: number;
+                sessionLabel: string;
+                sessionStatus: string;
+                problemNumber: number;
+                sessionNumber: number;
+                role: string;
+                peerScore: number;
+                finalGrade: number;
+                absent: boolean;
+                hasSubmitted: boolean;
+                submittedAt: Date | null;
+              }>;
+              problemAverages: Array<{ problemNumber: number; problemTitle: string; average: number; sessionCount: number }>;
+            }>).map((comp) => (
+              <Card key={`${comp.componentCode}|${comp.classCode}|${comp.semester}`} className="border-blue-100">
+                <CardHeader className="pb-2 pt-4 px-4">
+                  <div>
+                    <CardTitle className="text-base font-semibold">{comp.componentCode}</CardTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">{comp.componentName}</p>
+                    <p className="text-xs text-muted-foreground">{comp.classCode} &bull; {comp.semester}</p>
                   </div>
+                </CardHeader>
+                <CardContent className="px-4 pb-4 space-y-3">
+                  {/* Sessions table */}
+                  <div className="rounded-md border overflow-hidden">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-muted/50 border-b">
+                          <th className="text-left py-2 px-3 font-medium text-muted-foreground">Sessão</th>
+                          <th className="text-center py-2 px-2 font-medium text-muted-foreground">Papel</th>
+                          <th className="text-center py-2 px-2 font-medium text-muted-foreground">Nota Final</th>
+                          <th className="text-center py-2 px-2 font-medium text-muted-foreground">Avaliou</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {comp.sessions.map((ev, idx) => (
+                          <tr key={`${ev.sessionId}-${idx}`} className={`border-b last:border-0 ${
+                            ev.absent ? 'bg-red-50/40' : ''
+                          }`}>
+                            <td className="py-2 px-3">
+                              <p className="font-medium">{ev.sessionLabel}</p>
+                              <Badge variant={ev.sessionStatus === 'finished' ? 'secondary' : 'outline'} className="text-[9px] px-1 py-0 mt-0.5">
+                                {ev.sessionStatus === 'finished' ? 'Encerrada' : ev.sessionStatus === 'closed' ? 'Fechada' : ev.sessionStatus === 'open' ? 'Em Avaliação' : 'Ativa'}
+                              </Badge>
+                            </td>
+                            <td className="py-2 px-2 text-center">
+                              <span className="text-muted-foreground">
+                                {ev.role === 'FALTOU' ? '—' : ev.role === 'COORDENADOR' ? 'Coord.' : ev.role === 'MESA' ? 'Mesa' : ev.role === 'QUADRO' ? 'Quadro' : 'Part.'}
+                              </span>
+                            </td>
+                            <td className="py-2 px-2 text-center">
+                              {ev.absent ? (
+                                <span className="text-red-500 font-semibold">F</span>
+                              ) : ev.sessionStatus === 'finished' || ev.sessionStatus === 'closed' ? (
+                                <span className="font-semibold text-blue-700">{ev.finalGrade.toFixed(1)}</span>
+                              ) : (
+                                <span className="text-muted-foreground text-[10px]">Pendente</span>
+                              )}
+                            </td>
+                            <td className="py-2 px-2 text-center">
+                              {ev.absent ? (
+                                <span className="text-muted-foreground">—</span>
+                              ) : ev.hasSubmitted ? (
+                                <span className="text-emerald-600">✓</span>
+                              ) : (
+                                <span className="text-orange-500">✗</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Problem averages */}
+                  {comp.problemAverages.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Média por Problema</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {comp.problemAverages.map((p) => (
+                          <div key={p.problemNumber} className="rounded-md bg-blue-50/60 border border-blue-100 px-3 py-2">
+                            <p className="text-[10px] text-muted-foreground font-medium">Problema {p.problemNumber}{p.problemTitle ? ` — ${p.problemTitle}` : ''}</p>
+                            <p className="text-lg font-bold text-blue-700 leading-tight">
+                              {p.average.toFixed(1)}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">{p.sessionCount} sess{p.sessionCount === 1 ? 'ão' : 'ões'}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}
