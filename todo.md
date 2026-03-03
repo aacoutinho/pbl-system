@@ -575,3 +575,4 @@
 - [x] Avaliação tutorial do professor: valor default de cada item = Excelente; ao encerrar sessão sem avaliação submetida, preencher automaticamente com Excelente em todos os itens
 - [x] Interface Resultados: reordenar seções (Notas Individuais dos Pares antes do Ranking); colapsar Critérios de Avaliação e Quadro de Brainstorming; indicar avaliações auto-preenchidas na matriz de pares; reordenar botões de sessão (Encerrar após Reabrir)
 - [x] Nome do problema propagado para sessões anteriores e como default nas posteriores; formato de label "Problema X - Sessão Y - Nome do Problema" em todas as listagens; renomear "Ranking da Sessão" para "Notas Finais da Sessão"
+- [x] Resultados Por Problema e Por Aluno: nome do aluno excluído com fonte tachada e badge "Excluído" ao lado

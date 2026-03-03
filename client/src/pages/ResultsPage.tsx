@@ -729,18 +729,18 @@ function ResultsContent() {
                       <tbody>
                         {problemFinalResults.map((r, i) => (
                           <tr key={r.studentId} className={`border-b last:border-0 transition-colors ${
-                            (r as any).excludedFlags?.every(Boolean) ? "bg-orange-50/30 hover:bg-orange-50/50" :
+                            (r as any).excludedFlags?.some(Boolean) ? "bg-orange-50/30 hover:bg-orange-50/50" :
                             r.finalAverage === 0 && r.peerAverage === 0 ? "bg-red-50/60 hover:bg-red-50" : "hover:bg-accent/20"
                           }`}>
                             <td className="py-3 pr-4">
                               <span className="text-muted-foreground">{i + 1}</span>
                             </td>
                             <td className="py-3 pr-4">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <p className={`font-medium ${
-                                  (r as any).excludedFlags?.every(Boolean) ? "text-orange-400 line-through" : ""
+                                  (r as any).excludedFlags?.some(Boolean) ? "text-orange-400 line-through" : ""
                                 }`}>{r.studentName}</p>
-                                {(r as any).excludedFlags?.every(Boolean) && (
+                                {(r as any).excludedFlags?.some(Boolean) && (
                                   <Badge variant="outline" className="text-[9px] bg-orange-50 text-orange-500 border-orange-200 px-1 py-0">Excluído</Badge>
                                 )}
                               </div>
@@ -1147,12 +1147,17 @@ function ConsolidatedStudentReport({ classId }: { classId: number }) {
                   >
                     <td className="py-2.5 px-3 text-muted-foreground sticky left-0 bg-background z-10">{idx + 1}</td>
                     <td className="py-2.5 px-3 sticky left-8 bg-background z-10">
-                      <p className={`font-medium text-sm ${
-                        (student as any).allExcluded ? "text-orange-400 line-through" :
-                        student.absentCount === student.totalSessions - ((student as any).excludedCount ?? 0) ? "text-red-400 line-through" : ""
-                      }`}>
-                        {student.studentName}
-                      </p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className={`font-medium text-sm ${
+                          ((student as any).excludedCount ?? 0) > 0 ? "text-orange-400 line-through" :
+                          student.absentCount === student.totalSessions - ((student as any).excludedCount ?? 0) ? "text-red-400 line-through" : ""
+                        }`}>
+                          {student.studentName}
+                        </p>
+                        {((student as any).excludedCount ?? 0) > 0 && (
+                          <Badge variant="outline" className="text-[9px] bg-orange-50 text-orange-500 border-orange-200 px-1 py-0">Excluído</Badge>
+                        )}
+                      </div>
                     </td>
                     <td className="py-2.5 px-2 text-center text-xs font-mono text-muted-foreground">
                       {student.studentEnrollment}
