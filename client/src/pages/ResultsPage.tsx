@@ -469,7 +469,7 @@ function ResultsContent() {
                                 <span className="text-muted-foreground">{i + 1}</span>
                               </td>
                               <td className="py-3 pr-4">
-                                <p className={`font-medium ${r.absent ? "text-red-400 line-through" : ""}`}>{r.studentName}</p>
+                                <p className={`font-medium ${r.absent ? "text-red-400" : ""}`}>{r.studentName}</p>
                               </td>
                               <td className="py-3 pr-4">
                                 <RoleBadge role={r.role} />
@@ -695,12 +695,22 @@ function ResultsContent() {
                       </thead>
                       <tbody>
                         {problemFinalResults.map((r, i) => (
-                          <tr key={r.studentId} className={`border-b last:border-0 transition-colors ${r.finalAverage === 0 && r.peerAverage === 0 ? "bg-red-50/60 hover:bg-red-50" : "hover:bg-accent/20"}`}>
+                          <tr key={r.studentId} className={`border-b last:border-0 transition-colors ${
+                            (r as any).excludedFlags?.every(Boolean) ? "bg-orange-50/30 hover:bg-orange-50/50" :
+                            r.finalAverage === 0 && r.peerAverage === 0 ? "bg-red-50/60 hover:bg-red-50" : "hover:bg-accent/20"
+                          }`}>
                             <td className="py-3 pr-4">
                               <span className="text-muted-foreground">{i + 1}</span>
                             </td>
                             <td className="py-3 pr-4">
-                              <p className="font-medium">{r.studentName}</p>
+                              <div className="flex items-center gap-2">
+                                <p className={`font-medium ${
+                                  (r as any).excludedFlags?.every(Boolean) ? "text-orange-400 line-through" : ""
+                                }`}>{r.studentName}</p>
+                                {(r as any).excludedFlags?.every(Boolean) && (
+                                  <Badge variant="outline" className="text-[9px] bg-orange-50 text-orange-500 border-orange-200 px-1 py-0">Excluído</Badge>
+                                )}
+                              </div>
                             </td>
                             {r.peerScores.map((score, idx) => {
                               const isExcluded = (r as any).excludedFlags?.[idx] === true;
@@ -709,14 +719,14 @@ function ResultsContent() {
                                 <React.Fragment key={idx}>
                                   <td className="py-3 pr-1 text-center">
                                     {isExcluded ? (
-                                      <span className="text-orange-500 font-semibold italic">E</span>
+                                      <span className="text-muted-foreground/40">—</span>
                                     ) : (
                                       <span className={score === 0 ? "text-muted-foreground" : "text-sm"}>{(score as number).toFixed(1)}</span>
                                     )}
                                   </td>
                                   <td className="py-3 pr-2 text-center">
                                     {isExcluded ? (
-                                      <span className="text-orange-500 font-semibold italic">E</span>
+                                      <span className="text-muted-foreground/40">—</span>
                                     ) : (
                                       <span className={finalGrade === 0 ? "text-muted-foreground" : "text-sm font-medium"}>
                                         {(finalGrade as number)?.toFixed(1) ?? "0.0"}
@@ -728,7 +738,7 @@ function ResultsContent() {
                             })}
                             <td className="py-3 pr-2 text-center">
                               {(r as any).excludedFlags?.every(Boolean) ? (
-                                <span className="text-orange-500 font-semibold italic">E</span>
+                                <span className="text-muted-foreground/40">—</span>
                               ) : (
                                 <span className={r.peerAverage === 0 ? "text-muted-foreground" : ""}>
                                   {r.peerAverage.toFixed(1)}
@@ -737,7 +747,7 @@ function ResultsContent() {
                             </td>
                             <td className="py-3 pr-2 text-center">
                               {(r as any).excludedFlags?.every(Boolean) ? (
-                                <span className="text-orange-500 font-semibold italic">E</span>
+                                <span className="text-muted-foreground/40">—</span>
                               ) : (
                                 <span className={`font-bold ${r.finalAverage >= 8 ? "text-emerald-600" : r.finalAverage >= 5 ? "text-amber-600" : "text-red-600"}`}>
                                   {r.finalAverage.toFixed(1)}
@@ -1119,7 +1129,7 @@ function ConsolidatedStudentReport({ classId }: { classId: number }) {
                         {(s as any).excluded ? (
                           <div className="flex flex-col items-center">
                             <Badge variant="outline" className="text-[9px] bg-orange-50 text-orange-500 border-orange-200 px-1">
-                              E
+                              <UserX className="h-2.5 w-2.5 mr-0.5" />E
                             </Badge>
                           </div>
                         ) : s.absent ? (

@@ -571,3 +571,4 @@
 - [x] Resultados consolidados: exibir "E" (Excluído) nas notas de pares e nota final de sessões onde o aluno não participou por ter sido excluído do componente antes da sessão; média final consolidada por aluno também deve exibir "E" nesses casos
 - [x] Auditoria e correção dos resultados consolidados com excluídos: separar currentClassStudentIds de allStudentIds em getStudentConsolidatedReport; corrigir destaque de linha, contadores Presenças/Faltas e denominador para excluídos no frontend
 - [x] Corrigir médias de pares e nota final para alunos excluídos: usar total de sessões do componente como denominador (não apenas sessões participadas), com 0 para sessões excluídas
+- [x] Visual: remover line-through do nome de faltosos no ranking da sessão; exibir "-" em vez de "E" nas células de excluídos na aba Por Problema (com nome riscado e label "Excluído"); igualar ícone do excluído ao do faltoso no relatório Por Aluno mantendo cores
