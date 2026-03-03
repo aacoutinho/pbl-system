@@ -450,6 +450,26 @@ export async function listAllProfessorComponents() {
     .orderBy(components.code, users.name);
 }
 
+// List approved professors for a specific component
+export async function listApprovedProfessorsByComponent(componentId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    id: users.id,
+    name: users.name,
+    email: users.email,
+    role: users.role,
+    componentRole: professorComponents.componentRole,
+  })
+    .from(professorComponents)
+    .innerJoin(users, eq(professorComponents.userId, users.id))
+    .where(and(
+      eq(professorComponents.componentId, componentId),
+      eq(professorComponents.status, "approved"),
+    ))
+    .orderBy(users.name);
+}
+
 // Get component IDs where user is coordinator
 export async function getCoordinatorComponentIds(userId: number): Promise<number[]> {
   const db = await getDb();
@@ -543,13 +563,14 @@ export async function listAllClasses() {
   return rows;
 }
 
-export async function updateClass(id: number, data: { classCode?: string; componentId?: number; semester?: string }) {
+export async function updateClass(id: number, data: { classCode?: string; componentId?: number; semester?: string; professorUserId?: number | null }) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   const updateSet: Record<string, unknown> = {};
   if (data.classCode !== undefined) updateSet.classCode = data.classCode;
   if (data.componentId !== undefined) updateSet.componentId = data.componentId;
   if (data.semester !== undefined) updateSet.semester = data.semester;
+  if (data.professorUserId !== undefined) updateSet.professorUserId = data.professorUserId;
   if (Object.keys(updateSet).length > 0) {
     await db.update(classes).set(updateSet).where(eq(classes.id, id));
   }
@@ -1057,6 +1078,33 @@ export async function submitEvaluation(data: {
   });
 }
 
+// ─── Update desempenhoPapel only (for closed sessions) ───
+export async function updateDesempenhoPapel(data: {
+  sessionId: number;
+  evaluatorStudentId: number;
+  items: Array<{ evaluatedStudentId: number; desempenhoPapel: number }>;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+
+  // Find the existing evaluation
+  const [existing] = await db.select().from(evaluations)
+    .where(and(eq(evaluations.sessionId, data.sessionId), eq(evaluations.evaluatorStudentId, data.evaluatorStudentId)))
+    .limit(1);
+  if (!existing) throw new Error("Avaliação não encontrada");
+
+  // Update only desempenhoPapel for each item
+  for (const item of data.items) {
+    await db.update(evaluationItems)
+      .set({ desempenhoPapel: String(item.desempenhoPapel) })
+      .where(and(
+        eq(evaluationItems.evaluationId, existing.id),
+        eq(evaluationItems.evaluatedStudentId, item.evaluatedStudentId)
+      ));
+  }
+  return true;
+}
+
 export async function getSessionEvaluations(sessionId: number) {
   const db = await getDb();
   if (!db) return [];
@@ -1488,6 +1536,7 @@ export interface FinalGradeResult {
   absent: boolean;
   excluded: boolean; // true when student was removed from class before this session
   validEvaluations: number;
+  capped: boolean; // true when finalGrade was capped at 10.0
 }
 
 export async function calculateFinalGrades(sessionId: number): Promise<FinalGradeResult[]> {
@@ -1506,6 +1555,7 @@ export async function calculateFinalGrades(sessionId: number): Promise<FinalGrad
       absent: r.absent,
       excluded: r.excluded,
       validEvaluations: r.validEvaluations,
+      capped: false,
     }));
   }
 
@@ -1528,6 +1578,7 @@ export async function calculateFinalGrades(sessionId: number): Promise<FinalGrad
         absent: r.absent,
         excluded: r.excluded,
         validEvaluations: r.validEvaluations,
+        capped: false,
       };
     }
 
@@ -1545,6 +1596,7 @@ export async function calculateFinalGrades(sessionId: number): Promise<FinalGrad
       absent: r.absent,
       excluded: r.excluded,
       validEvaluations: r.validEvaluations,
+      capped: false, // capping only applies at problem level
     };
   }).sort((a, b) => a.studentName.localeCompare(b.studentName));
 }
@@ -1598,7 +1650,7 @@ export async function getStudentConsolidatedReport(classId: number) {
   }
 
   // Calculate final grades for each session
-  const sessionResults: Record<number, { label: string; problemNumber: number; sessionNumber: number; status: string; grades: Record<number, { peerScore: number; finalGrade: number; role: string; absent: boolean; excluded: boolean }> }> = {};
+  const sessionResults: Record<number, { label: string; problemNumber: number; sessionNumber: number; status: string; grades: Record<number, { peerScore: number; finalGrade: number; role: string; absent: boolean; excluded: boolean; capped: boolean }> }> = {};
 
   for (const sess of classSessions) {
     const finalGrades = await calculateFinalGrades(sess.id);
@@ -1616,6 +1668,7 @@ export async function getStudentConsolidatedReport(classId: number) {
         role: g.role,
         absent: g.absent,
         excluded: g.excluded ?? false,
+        capped: g.capped ?? false,
       };
     }
   }
@@ -1631,18 +1684,19 @@ export async function getStudentConsolidatedReport(classId: number) {
         // Student has no record in this session
         if (!isCurrentlyInClass) {
           // Excluded from class → show E
-          return {
-            sessionId: sess.id,
-            label: sess.label,
-            problemNumber: sess.problemNumber,
-            sessionNumber: sess.sessionNumber,
-            status: sess.status,
-            peerScore: 0,
-            finalGrade: 0,
-            role: "EXCLUÍDO",
-            absent: false,
-            excluded: true,
-          };
+      return {
+        sessionId: sess.id,
+        label: sess.label,
+        problemNumber: sess.problemNumber,
+        sessionNumber: sess.sessionNumber,
+        status: sess.status,
+        peerScore: 0,
+        finalGrade: 0,
+        role: "EXCLUÍDO",
+        absent: false,
+        excluded: true,
+        capped: false,
+      };
         }
         // Still in class but no record → treat as absent
         return {
@@ -1656,6 +1710,7 @@ export async function getStudentConsolidatedReport(classId: number) {
           role: "FALTOU",
           absent: true,
           excluded: false,
+          capped: false,
         };
       }
 
@@ -1670,6 +1725,7 @@ export async function getStudentConsolidatedReport(classId: number) {
         role: grade.role,
         absent: grade.absent,
         excluded: grade.excluded,
+        capped: grade.capped ?? false,
       };
     });
 
@@ -1684,9 +1740,11 @@ export async function getStudentConsolidatedReport(classId: number) {
     const avgPeer = totalSessionCount > 0
       ? Math.round(presentSessions.reduce((sum, s) => sum + s.peerScore, 0) / totalSessionCount * 10) / 10
       : 0;
-    const avgFinal = totalSessionCount > 0
+    const rawAvgFinal = totalSessionCount > 0
       ? Math.round(presentSessions.reduce((sum, s) => sum + s.finalGrade, 0) / totalSessionCount * 10) / 10
       : 0;
+    const avgFinalCapped = rawAvgFinal > 10.0;
+    const avgFinal = avgFinalCapped ? 10.0 : rawAvgFinal;
 
     return {
       studentId: student.studentId,
@@ -1701,6 +1759,7 @@ export async function getStudentConsolidatedReport(classId: number) {
       allExcluded,
       avgPeerScore: avgPeer,
       avgFinalGrade: avgFinal,
+      avgFinalCapped,
     };
   });
 }
@@ -1778,7 +1837,10 @@ export async function calculateProblemFinalGrades(classId: number, problemNumber
     const validPeer = peerScores.filter((s): s is number => s !== null);
     const validFinal = finalGrades.filter((g): g is number => g !== null);
     const peerAvg = totalSessions > 0 ? validPeer.reduce((a, b) => a + b, 0) / totalSessions : 0;
-    const finalAvg = totalSessions > 0 ? validFinal.reduce((a, b) => a + b, 0) / totalSessions : 0;
+    const rawFinalAvg = totalSessions > 0 ? validFinal.reduce((a, b) => a + b, 0) / totalSessions : 0;
+    const finalAvgRounded = Math.round(rawFinalAvg * 10) / 10;
+    const finalAverageCapped = finalAvgRounded > 10.0;
+    const finalAverage = finalAverageCapped ? 10.0 : finalAvgRounded;
 
     return {
       studentId,
@@ -1790,7 +1852,8 @@ export async function calculateProblemFinalGrades(classId: number, problemNumber
       roles,
       excludedFlags,
       peerAverage: Math.round(peerAvg * 10) / 10,
-      finalAverage: Math.round(finalAvg * 10) / 10,
+      finalAverage,
+      finalAverageCapped,
     };
   }).sort((a, b) => a.studentName.localeCompare(b.studentName));
 }
@@ -3307,12 +3370,13 @@ export async function getStudentEvaluationHistory(studentId: number) {
     }
     comp.problemAverages = Array.from(problemMap.entries())
       .sort(([a], [b]) => a - b)
-      .map(([problemNumber, { grades, sessionCount, title }]) => ({
-        problemNumber,
-        problemTitle: title,
-        sessionCount,
-        average: grades.length > 0 ? Math.round((grades.reduce((a, b) => a + b, 0) / sessionCount) * 10) / 10 : 0,
-      }));
+      .map(([problemNumber, { grades, sessionCount, title }]) => {
+        const rawAvg = grades.length > 0 ? (grades.reduce((a, b) => a + b, 0) / sessionCount) : 0;
+        const cappedAvg = Math.min(rawAvg, 10);
+        const average = Math.round(cappedAvg * 10) / 10;
+        const capped = rawAvg > 10;
+        return { problemNumber, problemTitle: title, sessionCount, average, capped };
+      });
   }
 
   return {
@@ -3323,7 +3387,7 @@ export async function getStudentEvaluationHistory(studentId: number) {
       classCode: string;
       semester: string;
       sessions: typeof history;
-      problemAverages: { problemNumber: number; problemTitle: string; average: number; sessionCount: number }[];
+      problemAverages: { problemNumber: number; problemTitle: string; average: number; sessionCount: number; capped: boolean }[];
     }>,
   };
 }

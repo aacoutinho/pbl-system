@@ -11,7 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BookOpen, Plus, Pencil, Trash2, ShieldCheck, UserPlus, X, User } from "lucide-react";
+import { BookOpen, Plus, Pencil, Trash2, ShieldCheck, UserPlus, X, User, UserCog } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -52,14 +52,17 @@ function ClassesContent() {
   const [newComponentId, setNewComponentId] = useState<number | null>(null);
   const [newSemYear, setNewSemYear] = useState(() => String(new Date().getFullYear()));
   const [newSemNum, setNewSemNum] = useState<"1" | "2">("1");
+  const [newProfessorUserId, setNewProfessorUserId] = useState<number | null>(null);
   const [editId, setEditId] = useState<number | null>(null);
   const [editClassNumber, setEditClassNumber] = useState("");
   const [editComponentId, setEditComponentId] = useState<number | null>(null);
   const [editSemYear, setEditSemYear] = useState("");
   const [editSemNum, setEditSemNum] = useState<"1" | "2">("1");
+  const [editProfessorUserId, setEditProfessorUserId] = useState<number | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [permDialogClassId, setPermDialogClassId] = useState<number | null>(null);
+  const [changeProfDialogClassId, setChangeProfDialogClassId] = useState<number | null>(null);
 
   // Build a map from componentId to component info for display
   const componentMap = new Map<number, { code: string; name: string; type: string }>();
@@ -90,9 +93,10 @@ function ClassesContent() {
     createMutation.mutate({ 
       classNumber: num, 
       componentId: newComponentId, 
-      semester 
+      semester,
+      professorUserId: newProfessorUserId ?? undefined,
     });
-    setNewClassNumber(""); setNewComponentId(null); setNewSemYear(String(new Date().getFullYear())); setNewSemNum("1"); setCreateOpen(false);
+    setNewClassNumber(""); setNewComponentId(null); setNewSemYear(String(new Date().getFullYear())); setNewSemNum("1"); setNewProfessorUserId(null); setCreateOpen(false);
   };
 
   const handleEdit = () => {
@@ -104,7 +108,8 @@ function ClassesContent() {
       id: editId, 
       classNumber: num, 
       componentId: editComponentId, 
-      semester 
+      semester,
+      professorUserId: editProfessorUserId ?? undefined,
     });
     setEditOpen(false);
   };
@@ -141,7 +146,7 @@ function ClassesContent() {
                 {(!componentsList || componentsList.length === 0) ? (
                   <p className="text-sm text-muted-foreground">Nenhum componente cadastrado. Cadastre componentes primeiro.</p>
                 ) : (
-                  <Select value={newComponentId ? String(newComponentId) : ""} onValueChange={(v) => setNewComponentId(Number(v))}>
+                  <Select value={newComponentId ? String(newComponentId) : ""} onValueChange={(v) => { setNewComponentId(Number(v)); setNewProfessorUserId(null); }}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o componente" />
                     </SelectTrigger>
@@ -153,6 +158,15 @@ function ClassesContent() {
                   </Select>
                 )}
               </div>
+              {newComponentId && (
+                <ProfessorSelectorField
+                  componentId={newComponentId}
+                  value={newProfessorUserId}
+                  onChange={setNewProfessorUserId}
+                  label="Professor Responsável"
+                  placeholder="Padrão: você mesmo"
+                />
+              )}
               <div className="space-y-2">
                 <Label>Número da Turma</Label>
                 <div className="flex items-center gap-2">
@@ -268,6 +282,11 @@ function ClassesContent() {
                       </Button>
                     )}
                     {canManage && (
+                      <Button variant="outline" size="sm" onClick={() => setChangeProfDialogClassId(cls.id)}>
+                        <UserCog className="h-3 w-3 mr-1" />Professor
+                      </Button>
+                    )}
+                    {canManage && (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
@@ -305,23 +324,32 @@ function ClassesContent() {
             <DialogTitle>Editar Turma</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>Componente</Label>
-              {(!componentsList || componentsList.length === 0) ? (
-                <p className="text-sm text-muted-foreground">Nenhum componente cadastrado.</p>
-              ) : (
-                <Select value={editComponentId ? String(editComponentId) : ""} onValueChange={(v) => setEditComponentId(Number(v))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o componente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {componentsList.map(c => (
-                      <SelectItem key={c.id} value={String(c.id)} title={c.name}>{c.code}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="space-y-2">
+                <Label>Componente</Label>
+                {(!componentsList || componentsList.length === 0) ? (
+                  <p className="text-sm text-muted-foreground">Nenhum componente cadastrado.</p>
+                ) : (
+                  <Select value={editComponentId ? String(editComponentId) : ""} onValueChange={(v) => { setEditComponentId(Number(v)); setEditProfessorUserId(null); }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o componente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {componentsList.map(c => (
+                        <SelectItem key={c.id} value={String(c.id)} title={c.name}>{c.code}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              {editComponentId && (
+                <ProfessorSelectorField
+                  componentId={editComponentId}
+                  value={editProfessorUserId}
+                  onChange={setEditProfessorUserId}
+                  label="Professor Responsável"
+                  placeholder="Manter atual"
+                />
               )}
-            </div>
             <div className="space-y-2">
               <Label>Número da Turma</Label>
               <div className="flex items-center gap-2">
@@ -386,7 +414,114 @@ function ClassesContent() {
           onClose={() => setPermDialogClassId(null)} 
         />
       )}
+
+      {/* Change Professor Dialog */}
+      {changeProfDialogClassId && (
+        <ChangeProfessorDialog
+          classId={changeProfDialogClassId}
+          onClose={() => setChangeProfDialogClassId(null)}
+        />
+      )}
     </div>
+  );
+}
+
+// ─── Professor Selector Field ───
+function ProfessorSelectorField({
+  componentId,
+  value,
+  onChange,
+  label,
+  placeholder,
+}: {
+  componentId: number;
+  value: number | null;
+  onChange: (v: number | null) => void;
+  label: string;
+  placeholder: string;
+}) {
+  const { data: professors, isLoading } = trpc.classes.listProfessorsForComponent.useQuery({ componentId });
+  if (isLoading) return <Skeleton className="h-10 w-full" />;
+  if (!professors || professors.length === 0) return null;
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <Select
+        value={value ? String(value) : ""}
+        onValueChange={(v) => onChange(v ? Number(v) : null)}
+      >
+        <SelectTrigger>
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent>
+          {professors.map(p => (
+            <SelectItem key={p.id} value={String(p.id)}>
+              {p.name}
+              {p.componentRole === "coordinator" && " (Coord.)"}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+// ─── Change Professor Dialog ───
+function ChangeProfessorDialog({ classId, onClose }: { classId: number; onClose: () => void }) {
+  const utils = trpc.useUtils();
+  const { data: cls } = trpc.classes.list.useQuery();
+  const classData = cls?.find(c => c.id === classId);
+  const componentId = classData?.componentId;
+  const [selectedProfId, setSelectedProfId] = useState<number | null>(null);
+
+  const updateProfMutation = trpc.classes.updateProfessor.useMutation({
+    onSuccess: () => {
+      utils.classes.list.invalidate();
+      toast.success("Professor responsável atualizado!");
+      onClose();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  return (
+    <Dialog open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <UserCog className="h-5 w-5" />
+            Alterar Professor Responsável
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          {classData && (
+            <p className="text-sm text-muted-foreground">
+              Professor atual: <strong>{(classData as any).professorName ?? "Desconhecido"}</strong>
+            </p>
+          )}
+          {componentId && (
+            <ProfessorSelectorField
+              componentId={componentId}
+              value={selectedProfId}
+              onChange={setSelectedProfId}
+              label="Novo Professor Responsável"
+              placeholder="Selecione um professor"
+            />
+          )}
+        </div>
+        <DialogFooter>
+          <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
+          <Button
+            onClick={() => {
+              if (!selectedProfId) { toast.error("Selecione um professor"); return; }
+              updateProfMutation.mutate({ id: classId, professorUserId: selectedProfId });
+            }}
+            disabled={updateProfMutation.isPending || !selectedProfId}
+          >
+            {updateProfMutation.isPending ? "Salvando..." : "Salvar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

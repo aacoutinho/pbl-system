@@ -55,7 +55,9 @@ import {
   shareBrainstormBoard, getComponentSessionsForSharing,
   addBrainstormAttachment, removeBrainstormAttachment, getAttachmentsByItemId, updateBrainstormAttachmentTitle,
   updateTutorComments, getStudentsByComponentFromSession,
+  updateDesempenhoPapel,
   addBoardSendHistory, getBoardSendHistory, getLastBoardSend,
+  listApprovedProfessorsByComponent,
 } from "./db";
 import { storagePut } from "./storage";
 import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml, buildContactTicketEmailHtml, buildSessionOpenedEmailHtml, buildStudentGradeReportHtml, buildBrainstormNotificationEmailHtml, buildBrainstormBoardEmailHtml } from "./email";
@@ -487,6 +489,7 @@ export const appRouter = router({
       classNumber: z.number().min(1).max(99),
       componentId: z.number(),
       semester: z.string().min(1),
+      professorUserId: z.number().optional(), // defaults to current user
     })).mutation(async ({ ctx, input }) => {
       // Any approved professor who is member of the component can create a class
       await assertComponentAccess(ctx.user.id, ctx.user.role, input.componentId);
@@ -497,7 +500,8 @@ export const appRouter = router({
       if (!comp) throw new TRPCError({ code: "NOT_FOUND", message: "Componente não encontrado" });
       const prefix = comp.type || "TP";
       const classCode = `${prefix}${String(input.classNumber).padStart(2, "0")}`;
-      return createClass({ classCode, componentId: input.componentId, semester, professorUserId: ctx.user.id });
+      const professorUserId = input.professorUserId ?? ctx.user.id;
+      return createClass({ classCode, componentId: input.componentId, semester, professorUserId });
     }),
     // Update: admin can update any, coordinator can update classes of their components
     update: approvedProcedure.input(z.object({
@@ -505,6 +509,7 @@ export const appRouter = router({
       classNumber: z.number().min(1).max(99),
       componentId: z.number(),
       semester: z.string().min(1),
+      professorUserId: z.number().optional(),
     })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.id);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
@@ -516,7 +521,23 @@ export const appRouter = router({
       if (!comp) throw new TRPCError({ code: "NOT_FOUND", message: "Componente não encontrado" });
       const prefix = comp.type || "TP";
       const classCode = `${prefix}${String(input.classNumber).padStart(2, "0")}`;
-      return updateClass(input.id, { classCode, componentId: input.componentId, semester });
+      const professorUserId = input.professorUserId ?? cls.professorUserId;
+      return updateClass(input.id, { classCode, componentId: input.componentId, semester, professorUserId });
+    }),
+    // Update only the professor of a class
+    updateProfessor: approvedProcedure.input(z.object({
+      id: z.number(),
+      professorUserId: z.number(),
+    })).mutation(async ({ ctx, input }) => {
+      const cls = await getClassById(input.id);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertClassManager(ctx.user.id, ctx.user.role, cls);
+      return updateClass(input.id, { professorUserId: input.professorUserId });
+    }),
+    // List approved professors for a component (for professor selector)
+    listProfessorsForComponent: approvedProcedure.input(z.object({ componentId: z.number() })).query(async ({ ctx, input }) => {
+      await assertComponentAccess(ctx.user.id, ctx.user.role, input.componentId);
+      return listApprovedProfessorsByComponent(input.componentId);
     }),
     // Delete: admin can delete any, coordinator can delete classes of their components
     delete: approvedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
@@ -1448,6 +1469,26 @@ export const appRouter = router({
       sessionId: z.number(),
     })).query(async ({ input }) => {
       return getSessionStudents(input.sessionId);
+    }),
+    updateDesempenho: publicProcedure.input(z.object({
+      sessionId: z.number(),
+      evaluatorStudentId: z.number(),
+      items: z.array(z.object({
+        evaluatedStudentId: z.number(),
+        desempenhoPapel: z.number().min(0).max(1),
+      })),
+    })).mutation(async ({ input }) => {
+      const session = await getSessionById(input.sessionId);
+      if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
+      if (session.status !== "closed") throw new TRPCError({ code: "BAD_REQUEST", message: "Esta sessão não está fechada. O desempenho no papel só pode ser atualizado em sessões fechadas." });
+      const alreadySubmitted = await hasStudentSubmitted(session.id, input.evaluatorStudentId);
+      if (!alreadySubmitted) throw new TRPCError({ code: "BAD_REQUEST", message: "Você não submeteu avaliação para esta sessão" });
+      await updateDesempenhoPapel({
+        sessionId: input.sessionId,
+        evaluatorStudentId: input.evaluatorStudentId,
+        items: input.items,
+      });
+      return { success: true };
     }),
     submitEvaluation: publicProcedure.input(z.object({
       sessionId: z.number(),

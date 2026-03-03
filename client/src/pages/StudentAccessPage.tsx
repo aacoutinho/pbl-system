@@ -1095,7 +1095,7 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
                 hasSubmitted: boolean;
                 submittedAt: Date | null;
               }>;
-              problemAverages: Array<{ problemNumber: number; problemTitle: string; average: number; sessionCount: number }>;
+              problemAverages: Array<{ problemNumber: number; problemTitle: string; average: number; sessionCount: number; capped?: boolean }>;
             }>).map((comp) => (
               <Card key={`${comp.componentCode}|${comp.classCode}|${comp.semester}`} className="border-blue-100">
                 <CardHeader className="pb-2 pt-4 px-4">
@@ -1165,8 +1165,11 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
                         {comp.problemAverages.map((p) => (
                           <div key={p.problemNumber} className="rounded-md bg-blue-50/60 border border-blue-100 px-3 py-2">
                             <p className="text-[10px] text-muted-foreground font-medium">Problema {p.problemNumber}{p.problemTitle ? ` — ${p.problemTitle}` : ''}</p>
-                            <p className="text-lg font-bold text-blue-700 leading-tight">
+                            <p className="text-lg font-bold text-blue-700 leading-tight flex items-center gap-1">
                               {p.average.toFixed(1)}
+                              {p.capped && (
+                                <span title="Nota máxima: 10.0 (média bruta excedeu o limite)" className="text-amber-500 cursor-help" style={{fontSize: '0.75rem'}}>★</span>
+                              )}
                             </p>
                             <p className="text-[10px] text-muted-foreground">{p.sessionCount} sess{p.sessionCount === 1 ? 'ão' : 'ões'}</p>
                           </div>

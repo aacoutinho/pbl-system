@@ -619,8 +619,20 @@ function ResultsContent() {
                               </td>
                               {tutorialEval && (
                                 <td className="py-3 pr-4 text-center">
-                                  <span className={`font-medium ${r.absent ? "text-muted-foreground" : r.finalGrade >= 8 ? "text-emerald-600" : r.finalGrade >= 5 ? "text-amber-600" : "text-red-600"}`}>
+                                  <span className={`font-medium inline-flex items-center gap-1 ${r.absent ? "text-muted-foreground" : r.finalGrade >= 8 ? "text-emerald-600" : r.finalGrade >= 5 ? "text-amber-600" : "text-red-600"}`}>
                                     {r.finalGrade.toFixed(1)}
+                                    {(r as { capped?: boolean }).capped && (
+                                      <TooltipProvider>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <AlertTriangle className="h-3.5 w-3.5 text-amber-500 cursor-help" />
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            <p>Nota arredondada para 10.0 (nota calculada era superior)</p>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+                                    )}
                                   </span>
                                 </td>
                               )}
@@ -782,8 +794,13 @@ function ResultsContent() {
                               {(r as any).excludedFlags?.every(Boolean) ? (
                                 <span className="text-muted-foreground/40">—</span>
                               ) : (
-                                <span className={`font-bold ${r.finalAverage >= 8 ? "text-emerald-600" : r.finalAverage >= 5 ? "text-amber-600" : "text-red-600"}`}>
-                                  {r.finalAverage.toFixed(1)}
+                                <span className="inline-flex items-center gap-1">
+                                  <span className={`font-bold ${r.finalAverage >= 8 ? "text-emerald-600" : r.finalAverage >= 5 ? "text-amber-600" : "text-red-600"}`}>
+                                    {r.finalAverage.toFixed(1)}
+                                  </span>
+                                  {(r as any).finalAverageCapped && (
+                                    <span title="Nota arredondada para 10.0" className="text-amber-500 cursor-help" style={{fontSize: '0.75rem'}}>★</span>
+                                  )}
                                 </span>
                               )}
                             </td>
@@ -1222,10 +1239,15 @@ function ConsolidatedStudentReport({ classId }: { classId: number }) {
                       {(student as any).allExcluded ? (
                         <span className="font-bold text-orange-500 italic">E</span>
                       ) : (
-                        <span className={`font-bold ${
-                          student.avgFinalGrade >= 8 ? "text-emerald-600" : student.avgFinalGrade >= 5 ? "text-amber-600" : student.avgFinalGrade > 0 ? "text-red-600" : "text-muted-foreground"
-                        }`}>
-                          {student.avgFinalGrade > 0 ? student.avgFinalGrade.toFixed(1) : "—"}
+                        <span className="inline-flex items-center justify-center gap-1">
+                          <span className={`font-bold ${
+                            student.avgFinalGrade >= 8 ? "text-emerald-600" : student.avgFinalGrade >= 5 ? "text-amber-600" : student.avgFinalGrade > 0 ? "text-red-600" : "text-muted-foreground"
+                          }`}>
+                            {student.avgFinalGrade > 0 ? student.avgFinalGrade.toFixed(1) : "—"}
+                          </span>
+                          {(student as any).avgFinalCapped && (
+                            <span title="Nota arredondada para 10.0" className="text-amber-500 cursor-help" style={{fontSize: '0.75rem'}}>★</span>
+                          )}
                         </span>
                       )}
                     </td>
