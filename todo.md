@@ -585,3 +585,4 @@
 - [x] Bug: médias aparecem 0.0 após fechar sessão; corrigido com modo provisório (nota estimada com tutorial máximo) para sessões fechadas; ao encerrar, finishSession já preenche tutorial automaticamente e recalcula com desempenho atualizado
 - [x] Bug: sessão fechada sem nenhuma avaliação submetida exibe notas 0.0; corrigido: modo provisório atribui 10.0 a todos os presentes quando sumPeerScores=0
 - [x] Sessão fechada: calcular médias dos pares com avaliações enviadas + default Excelente para não enviadas (calculateSessionResultsWithDefaults); nota final usa tutorialGrade=10.0 enquanto professor não avaliou; após avaliação do professor, usar notas reais
+- [x] Sessão encerrada sem avaliação do professor: finishSession já persiste avaliações Excelente para alunos sem avaliação (autoFillMissingEvaluations) e insere tutorial com todos os itens=1.0 (Excelente); calculateFinalGrades usa dados reais do banco após encerramento

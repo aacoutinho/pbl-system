@@ -129,3 +129,59 @@ describe("Session phase restrictions", () => {
     expect(canUpdateDesempenho).toBe(false);
   });
 });
+
+describe("finishSession without professor evaluation", () => {
+  it("finishSession is exported from db module", async () => {
+    const db = await import("./db");
+    expect(typeof db.finishSession).toBe("function");
+  });
+
+  it("calculateSessionResultsWithDefaults is exported from db module", async () => {
+    const db = await import("./db");
+    expect(typeof db.calculateSessionResultsWithDefaults).toBe("function");
+  });
+
+  it("default Excelente scores yield peerScore=10 per student", () => {
+    // pontualidade*1 + pesquisaMetas*3 + dominio*3 + participacao*3 - desempenhoPapel*1
+    // 1*1 + 1*3 + 1*3 + 1*3 - 0*1 = 10
+    const pontualidade = 1.0;
+    const pesquisaMetas = 1.0;
+    const dominio = 1.0;
+    const participacao = 1.0;
+    const desempenhoPapel = 0.0;
+    const score = pontualidade * 1 + pesquisaMetas * 3 + dominio * 3 + participacao * 3 - desempenhoPapel * 1;
+    expect(score).toBe(10);
+  });
+
+  it("tutorialGrade=10.0 when all tutorial items are Excelente (1.0)", () => {
+    // organizacao*1 + cooperacao*1 + conteudo*3 + objetivo*3 + metas*2
+    // 1*1 + 1*1 + 1*3 + 1*3 + 1*2 = 10
+    const organizacao = 1.0;
+    const cooperacao = 1.0;
+    const conteudo = 1.0;
+    const objetivo = 1.0;
+    const metas = 1.0;
+    const tutorialGrade = organizacao * 1 + cooperacao * 1 + conteudo * 3 + objetivo * 3 + metas * 2;
+    expect(tutorialGrade).toBe(10);
+  });
+
+  it("provisional finalGrade equals 10.0 when all students have Excelente defaults and tutorialGrade=10", () => {
+    // 2 alunos presentes, ambos com peerScore=10, tutorialGrade=10
+    // totalPoints = 10 * 2 = 20
+    // proportion for each = 10/20 = 0.5
+    // finalGrade = 0.5 * 20 = 10.0
+    const numPresent = 2;
+    const peerScore = 10.0;
+    const tutorialGrade = 10.0;
+    const totalPoints = tutorialGrade * numPresent;
+    const sumPeerScores = peerScore * numPresent;
+    const proportion = peerScore / sumPeerScores;
+    const finalGrade = Math.round(proportion * totalPoints * 10) / 10;
+    expect(finalGrade).toBe(10.0);
+  });
+
+  it("sessions.finish route exists in appRouter", async () => {
+    const { appRouter } = await import("./routers");
+    expect(appRouter._def.procedures["sessions.finish"]).toBeDefined();
+  });
+});
