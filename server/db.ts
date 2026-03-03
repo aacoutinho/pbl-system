@@ -3047,17 +3047,24 @@ export async function bulkUpsertProfessorStudentNotes(notes: Array<{
 // ─── Get next session number for a class ───
 export async function getNextSessionInfo(classId: number) {
   const db = await getDb();
-  if (!db) return { nextProblemNumber: 1, nextSessionNumber: 1, lastProblemNumber: 0 };
+  if (!db) return { nextProblemNumber: 1, nextSessionNumber: 1, lastProblemNumber: 0, problemTitles: {} as Record<number, string> };
 
   const existingSessions = await db.select({
     problemNumber: sessions.problemNumber,
     sessionNumber: sessions.sessionNumber,
+    problemTitle: sessions.problemTitle,
   }).from(sessions)
     .where(eq(sessions.classId, classId))
     .orderBy(sessions.problemNumber, sessions.sessionNumber);
 
   if (existingSessions.length === 0) {
-    return { nextProblemNumber: 1, nextSessionNumber: 1, lastProblemNumber: 0 };
+    return { nextProblemNumber: 1, nextSessionNumber: 1, lastProblemNumber: 0, problemTitles: {} as Record<number, string> };
+  }
+
+  // Build map of problemNumber -> most recent non-null title
+  const problemTitles: Record<number, string> = {};
+  for (const s of existingSessions) {
+    if (s.problemTitle) problemTitles[s.problemNumber] = s.problemTitle;
   }
 
   const lastSession = existingSessions[existingSessions.length - 1];
@@ -3065,7 +3072,31 @@ export async function getNextSessionInfo(classId: number) {
     nextProblemNumber: lastSession.problemNumber,
     nextSessionNumber: lastSession.sessionNumber + 1,
     lastProblemNumber: lastSession.problemNumber,
+    problemTitles,
   };
+}
+
+// ─── Update problemTitle for all sessions of a problem in a class ───
+export async function updateProblemTitleForClass(classId: number, problemNumber: number, problemTitle: string | null) {
+  const db = await getDb();
+  if (!db) return;
+
+  // Get all sessions for this problem in this class
+  const problemSessions = await db.select({ id: sessions.id, sessionNumber: sessions.sessionNumber })
+    .from(sessions)
+    .where(and(eq(sessions.classId, classId), eq(sessions.problemNumber, problemNumber)))
+    .orderBy(sessions.sessionNumber);
+
+  if (problemSessions.length === 0) return;
+
+  // Update each session: set problemTitle and regenerate label
+  for (const s of problemSessions) {
+    const titlePart = problemTitle ? ` - ${problemTitle}` : "";
+    const newLabel = `Problema ${problemNumber} - Sessão ${s.sessionNumber}${titlePart}`;
+    await db.update(sessions)
+      .set({ problemTitle: problemTitle ?? null, label: newLabel })
+      .where(eq(sessions.id, s.id));
+  }
 }
 
 // ─── Student login by enrollment (global, not per class) ───

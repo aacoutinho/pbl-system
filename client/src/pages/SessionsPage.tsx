@@ -65,8 +65,15 @@ function SessionsContent() {
   );
   const [showRoleSummary, setShowRoleSummary] = useState(false);
 
+  const updateProblemTitleMutation = trpc.sessions.updateProblemTitle.useMutation();
   const createMutation = trpc.sessions.create.useMutation({
-    onSuccess: () => { utils.sessions.list.invalidate(); utils.sessions.getNextInfo.invalidate(); utils.results.dashboard.invalidate(); toast.success("Sessão criada com sucesso"); setShowCreate(false); },
+    onSuccess: async (_, vars) => {
+      // Propagate title to all sessions of the same problem (including newly created)
+      if (vars.problemTitle && selectedClassId) {
+        await updateProblemTitleMutation.mutateAsync({ classId: selectedClassId, problemNumber: vars.problemNumber, problemTitle: vars.problemTitle });
+      }
+      utils.sessions.list.invalidate(); utils.sessions.getNextInfo.invalidate(); utils.results.dashboard.invalidate(); toast.success("Sessão criada com sucesso"); setShowCreate(false);
+    },
     onError: (e) => toast.error(e.message),
   });
   const closeMutation = trpc.sessions.close.useMutation({
@@ -117,10 +124,14 @@ function SessionsContent() {
 
   const selectedStudents = useMemo(() => Object.values(assignments).filter(a => a.selected), [assignments]);
 
-  // Auto-set problem number when nextInfo loads
+  // Auto-set problem number and pre-fill title when nextInfo loads
   useEffect(() => {
     if (nextInfo) {
-      setProblemNum(String(nextInfo.nextProblemNumber));
+      const pn = nextInfo.nextProblemNumber;
+      setProblemNum(String(pn));
+      // Pre-fill title from existing sessions of the same problem
+      const existingTitle = nextInfo.problemTitles?.[pn] ?? "";
+      setProblemTitle(existingTitle);
     }
   }, [nextInfo]);
 
@@ -134,12 +145,23 @@ function SessionsContent() {
     return 1;
   }, [nextInfo, problemNum]);
 
-  // Preview label
+  // Update pre-filled title when problem number changes
+  useEffect(() => {
+    if (nextInfo) {
+      const pn = parseInt(problemNum);
+      if (!isNaN(pn)) {
+        const existingTitle = nextInfo.problemTitles?.[pn] ?? "";
+        setProblemTitle(existingTitle);
+      }
+    }
+  }, [problemNum]);
+
+  // Preview label: format "Problema X - Sessão Y - Nome"
   const previewLabel = useMemo(() => {
     const pn = parseInt(problemNum);
     if (isNaN(pn)) return "";
     const titlePart = problemTitle.trim() ? ` - ${problemTitle.trim()}` : "";
-    return `Problema ${pn}${titlePart} - Sessão ${autoSessionNumber}`;
+    return `Problema ${pn} - Sessão ${autoSessionNumber}${titlePart}`;
   }, [problemNum, problemTitle, autoSessionNumber]);
 
   if (!selectedClassId) {

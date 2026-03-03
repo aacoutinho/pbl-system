@@ -47,6 +47,7 @@ import {
   getStudentEvaluationHistory,
   generateSessionTokenForStudent, getSessionByStudentToken, deleteSessionTokens, getTokensForSession,
   updateSessionAssignments,
+  updateProblemTitleForClass,
   getRoleSummaryByClass,
   getOrCreateBrainstormBoard, getBrainstormBoard, getBrainstormItems,
   addBrainstormItem, updateBrainstormItem, deleteBrainstormItem,
@@ -900,7 +901,7 @@ export const appRouter = router({
         throw new TRPCError({ code: "BAD_REQUEST", message: `O número do problema deve ser ${info.lastProblemNumber} (continuar) ou ${info.lastProblemNumber + 1} (novo problema).` });
       }
       const titlePart = input.problemTitle ? ` - ${input.problemTitle}` : "";
-      const label = `Problema ${input.problemNumber}${titlePart} - Sessão ${sessionNumber}`;
+      const label = `Problema ${input.problemNumber} - Sessão ${sessionNumber}${titlePart}`;
       const newSession = await createSession({
         classId: input.classId,
         problemNumber: input.problemNumber,
@@ -1064,6 +1065,18 @@ export const appRouter = router({
       if (!roles.includes("QUADRO")) throw new TRPCError({ code: "BAD_REQUEST", message: "É necessário atribuir o papel de Quadro a um aluno presente." });
       await updateSessionAssignments(input.sessionId, input.studentAssignments);
       await createAuditLog({ action: "session.updateAssignments", actorUserId: ctx.user.id, details: `Papéis atualizados na sessão ${session.label}` });
+      return { success: true };
+    }),
+    updateProblemTitle: approvedProcedure.input(z.object({
+      classId: z.number(),
+      problemNumber: z.number().min(1).max(10),
+      problemTitle: z.string().max(255).optional(),
+    })).mutation(async ({ ctx, input }) => {
+      const cls = await getClassById(input.classId);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertClassManager(ctx.user.id, ctx.user.role, cls);
+      await updateProblemTitleForClass(input.classId, input.problemNumber, input.problemTitle ?? null);
+      await createAuditLog({ action: "session.updateProblemTitle", actorUserId: ctx.user.id, details: `Título do Problema ${input.problemNumber} atualizado para "${input.problemTitle ?? '(sem título)'}" na turma ${cls.classCode}` });
       return { success: true };
     }),
     roleSummary: approvedProcedure.input(z.object({ classId: z.number() })).query(async ({ ctx, input }) => {

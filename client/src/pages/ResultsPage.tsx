@@ -568,12 +568,12 @@ function ResultsContent() {
                 </CardContent>
               </Card>
 
-              {/* ─── Ranking da Sessão ─── */}
+              {/* ─── Notas Finais da Sessão ─── */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
                     <BarChart3 className="h-5 w-5" />
-                    Ranking da Sessão
+                    Notas Finais da Sessão
                   </CardTitle>
                   <CardDescription>
                     {tutorialEval
