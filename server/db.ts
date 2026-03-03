@@ -1562,15 +1562,15 @@ export async function calculateFinalGrades(sessionId: number, provisional = fals
         provisional: false,
       }));
     }
-    // Modo provisório: estimar finalGrade usando tutorialGrade = 1.0 (máximo)
-    // para que a distribuição proporcional seja visível antes da avaliação do tutor
-    const presentStudents = peerResults.filter(r => !r.absent && r.totalScore > 0);
-    const numPresent = presentStudents.length;
+    // Modo provisório: estimar finalGrade usando tutorialGrade máximo (10.0)
+    // Se não há avaliações submetidas (sumPeerScores=0), todos os presentes recebem 10.0
+    const allPresentStudents = peerResults.filter(r => !r.absent && !r.excluded);
+    const studentsWithScores = peerResults.filter(r => !r.absent && r.totalScore > 0);
+    const sumPeerScores = studentsWithScores.reduce((sum, r) => sum + r.totalScore, 0);
+    const noEvaluationsSubmitted = sumPeerScores === 0;
     const provisionalTutorialGrade = 10.0; // máximo possível
-    const totalPoints = provisionalTutorialGrade * numPresent;
-    const sumPeerScores = presentStudents.reduce((sum, r) => sum + r.totalScore, 0);
     return peerResults.map(r => {
-      if (r.absent || r.totalScore === 0) {
+      if (r.absent || r.excluded) {
         return {
           studentId: r.studentId,
           studentName: r.studentName,
@@ -1586,8 +1586,27 @@ export async function calculateFinalGrades(sessionId: number, provisional = fals
           provisional: true,
         };
       }
+      if (noEvaluationsSubmitted) {
+        // Nenhuma avaliação submetida: todos os presentes recebem nota máxima provisória
+        return {
+          studentId: r.studentId,
+          studentName: r.studentName,
+          studentEmail: r.studentEmail,
+          studentEnrollment: r.studentEnrollment,
+          role: r.role,
+          peerScore: provisionalTutorialGrade,
+          finalGrade: provisionalTutorialGrade,
+          absent: r.absent,
+          excluded: r.excluded,
+          validEvaluations: r.validEvaluations,
+          capped: false,
+          provisional: true,
+        };
+      }
+      const numPresent = allPresentStudents.length;
+      const totalPoints = provisionalTutorialGrade * numPresent;
       const proportion = r.totalScore / sumPeerScores;
-      const finalGrade = sumPeerScores > 0 ? Math.round(proportion * totalPoints * 10) / 10 : 0;
+      const finalGrade = Math.round(proportion * totalPoints * 10) / 10;
       return {
         studentId: r.studentId,
         studentName: r.studentName,

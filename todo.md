@@ -583,3 +583,4 @@
 - [x] Resultados (aba Por Sessão): Quadro de Brainstorming movido para antes dos Critérios de Avaliação entre Pares
 - [x] Sessão fechada: aluno pode acessar via link/código para avaliar apenas o Desempenho no Papel (formulário simplificado, sem os demais critérios); dashboard exibe sessões fechadas com badge "Desempenho" em laranja
 - [x] Bug: médias aparecem 0.0 após fechar sessão; corrigido com modo provisório (nota estimada com tutorial máximo) para sessões fechadas; ao encerrar, finishSession já preenche tutorial automaticamente e recalcula com desempenho atualizado
+- [x] Bug: sessão fechada sem nenhuma avaliação submetida exibe notas 0.0; corrigido: modo provisório atribui 10.0 a todos os presentes quando sumPeerScores=0
