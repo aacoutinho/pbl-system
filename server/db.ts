@@ -1323,6 +1323,204 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
   return results.sort((a, b) => a.studentName.localeCompare(b.studentName));
 }
 
+/**
+ * Variante de calculateSessionResults para sessões fechadas/encerradas:
+ * Alunos presentes que não submeteram avaliação recebem avaliação virtual com Excelente
+ * (pontualidade=1, pesquisaMetas=1, dominio=1, participacao=1, desempenhoPapel=0 => score=10)
+ * para que as médias sejam calculadas sem prejudicar os colegas.
+ */
+export async function calculateSessionResultsWithDefaults(sessionId: number): Promise<SessionResult[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  const sessionStudentsList = await getSessionStudents(sessionId);
+  const session = await getSessionById(sessionId);
+  const allClassStudents = session ? await listStudentsByClass(session.classId) : [];
+  const sessionStudentIds = new Set(sessionStudentsList.map(s => s.studentId));
+  const absentStudents = allClassStudents.filter(s => !sessionStudentIds.has(s.id));
+
+  // Alunos presentes na sessão (não marcados ausentes pelo professor)
+  const presentStudents = sessionStudentsList.filter(s => !s.absent);
+  const absentStudentIds = new Set(sessionStudentsList.filter(s => s.absent).map(s => s.studentId));
+
+  // Buscar avaliações reais
+  const evals = await db.select().from(evaluations).where(eq(evaluations.sessionId, sessionId));
+  const studentsWhoSubmitted = new Set(evals.map(e => e.evaluatorStudentId));
+
+  // Construir itens virtuais para alunos presentes que não submeteram
+  type VirtualItem = {
+    evaluationId: number;
+    evaluatedStudentId: number;
+    role: string;
+    absent: boolean;
+    pontualidade: string;
+    pesquisaMetas: string;
+    dominio: string;
+    participacao: string;
+    desempenhoPapel: string;
+    isVirtual: boolean;
+    virtualEvaluatorId: number;
+  };
+
+  const missingEvaluators = presentStudents.filter(s => !studentsWhoSubmitted.has(s.studentId));
+
+  // Itens reais
+  let allItems: VirtualItem[] = [];
+  if (evals.length > 0) {
+    const evalIds = evals.map(e => e.id);
+    const realItems = await db.select({
+      evaluationId: evaluationItems.evaluationId,
+      evaluatedStudentId: evaluationItems.evaluatedStudentId,
+      role: evaluationItems.role,
+      absent: evaluationItems.absent,
+      pontualidade: evaluationItems.pontualidade,
+      pesquisaMetas: evaluationItems.pesquisaMetas,
+      dominio: evaluationItems.dominio,
+      participacao: evaluationItems.participacao,
+      desempenhoPapel: evaluationItems.desempenhoPapel,
+    }).from(evaluationItems).where(inArray(evaluationItems.evaluationId, evalIds));
+    allItems = realItems.map(i => ({ ...i, isVirtual: false, virtualEvaluatorId: -1 }));
+  }
+
+  // Mapa evaluationId -> evaluatorStudentId
+  const evalToEvaluator = new Map<number, number>();
+  for (const e of evals) evalToEvaluator.set(e.id, e.evaluatorStudentId);
+
+  // Filtrar itens de avaliadores ausentes
+  const validEvalIds = new Set(evals.filter(e => !absentStudentIds.has(e.evaluatorStudentId)).map(e => e.id));
+  const filteredRealItems = allItems.filter(i => validEvalIds.has(i.evaluationId));
+
+  // Itens virtuais (Excelente) para avaliadores faltantes
+  const virtualItems: VirtualItem[] = [];
+  let virtualEvalId = -1;
+  for (const evaluator of missingEvaluators) {
+    const peers = presentStudents.filter(s => s.studentId !== evaluator.studentId);
+    for (const peer of peers) {
+      virtualItems.push({
+        evaluationId: virtualEvalId,
+        evaluatedStudentId: peer.studentId,
+        role: peer.role as string,
+        absent: false,
+        pontualidade: "1.00",
+        pesquisaMetas: "1.00",
+        dominio: "1.00",
+        participacao: "1.00",
+        desempenhoPapel: "0.00",
+        isVirtual: true,
+        virtualEvaluatorId: evaluator.studentId,
+      });
+    }
+    virtualEvalId--;
+  }
+
+  const combinedItems = [...filteredRealItems, ...virtualItems];
+
+  // Determinar papéis a partir dos itens reais (igual a calculateSessionResults)
+  const roleCounts: Record<number, Record<string, number>> = {};
+  for (const item of filteredRealItems) {
+    const evaluatorId = item.isVirtual ? item.virtualEvaluatorId : evalToEvaluator.get(item.evaluationId);
+    if (evaluatorId === item.evaluatedStudentId) continue;
+    if (!roleCounts[item.evaluatedStudentId]) roleCounts[item.evaluatedStudentId] = {};
+    const r = item.role;
+    roleCounts[item.evaluatedStudentId][r] = (roleCounts[item.evaluatedStudentId][r] || 0) + 1;
+  }
+
+  const exclusiveRoles = ["COORDENADOR", "MESA", "QUADRO"] as const;
+  const assignedRoles: Record<number, string> = {};
+  const usedRoles = new Set<string>();
+  for (const role of exclusiveRoles) {
+    let bestStudent = -1;
+    let bestCount = 0;
+    for (const [sidStr, counts] of Object.entries(roleCounts)) {
+      const sid = parseInt(sidStr);
+      if (usedRoles.has(role)) break;
+      if (assignedRoles[sid]) continue;
+      const c = counts[role] || 0;
+      if (c > bestCount) { bestCount = c; bestStudent = sid; }
+    }
+    if (bestStudent >= 0 && bestCount > 0) {
+      assignedRoles[bestStudent] = role;
+      usedRoles.add(role);
+    }
+  }
+
+  const results: SessionResult[] = [];
+  for (const s of sessionStudentsList) {
+    const itemsForStudent = combinedItems.filter(i => {
+      const evaluatorId = i.isVirtual ? i.virtualEvaluatorId : evalToEvaluator.get(i.evaluationId);
+      return i.evaluatedStudentId === s.studentId && evaluatorId !== s.studentId;
+    });
+
+    if (s.absent) {
+      results.push({
+        studentId: s.studentId,
+        studentName: s.studentName,
+        studentEmail: s.studentEmail,
+        studentEnrollment: s.studentEnrollment,
+        role: "FALTOU",
+        totalScore: 0,
+        validEvaluations: 0,
+        absent: true,
+        excluded: false,
+      });
+      continue;
+    }
+
+    if (itemsForStudent.length === 0) {
+      // Nenhum colega avaliou este aluno (turma com 1 aluno?)
+      results.push({
+        studentId: s.studentId,
+        studentName: s.studentName,
+        studentEmail: s.studentEmail,
+        studentEnrollment: s.studentEnrollment,
+        role: assignedRoles[s.studentId] || "PARTICIPANTE",
+        totalScore: 10.0, // sem avaliadores, assume máximo
+        validEvaluations: 0,
+        absent: false,
+        excluded: false,
+      });
+      continue;
+    }
+
+    const validItems = itemsForStudent.filter(i => !i.absent);
+    let sumScores = 0;
+    for (const item of validItems) {
+      const score = Number(item.pontualidade) * 1 + Number(item.pesquisaMetas) * 3 + Number(item.dominio) * 3 + Number(item.participacao) * 3 - Number(item.desempenhoPapel) * 1;
+      sumScores += score;
+    }
+    const avg = validItems.length > 0 ? sumScores / validItems.length : 0;
+
+    results.push({
+      studentId: s.studentId,
+      studentName: s.studentName,
+      studentEmail: s.studentEmail,
+      studentEnrollment: s.studentEnrollment,
+      role: assignedRoles[s.studentId] || "PARTICIPANTE",
+      totalScore: Math.round(avg * 100) / 100,
+      validEvaluations: validItems.length,
+      absent: false,
+      excluded: false,
+    });
+  }
+
+  // Adicionar alunos ausentes da turma
+  for (const s of absentStudents) {
+    results.push({
+      studentId: s.id,
+      studentName: s.name,
+      studentEmail: s.email,
+      studentEnrollment: s.enrollment,
+      role: "FALTOU",
+      totalScore: 0,
+      validEvaluations: 0,
+      absent: true,
+      excluded: false,
+    });
+  }
+
+  return results.sort((a, b) => a.studentName.localeCompare(b.studentName));
+}
+
 export async function calculateProblemResults(classId: number, problemNumber: number) {
   const db = await getDb();
   if (!db) return [];
@@ -1541,7 +1739,10 @@ export interface FinalGradeResult {
 }
 
 export async function calculateFinalGrades(sessionId: number, provisional = false): Promise<FinalGradeResult[]> {
-  const peerResults = await calculateSessionResults(sessionId);
+  // Para sessões fechadas (provisional=true), usar avaliações com defaults (Excelente) para alunos sem avaliação
+  const peerResults = provisional
+    ? await calculateSessionResultsWithDefaults(sessionId)
+    : await calculateSessionResults(sessionId);
   const tutorialEval = await getTutorialEvaluation(sessionId);
 
   if (!tutorialEval) {
@@ -1562,13 +1763,13 @@ export async function calculateFinalGrades(sessionId: number, provisional = fals
         provisional: false,
       }));
     }
-    // Modo provisório: estimar finalGrade usando tutorialGrade máximo (10.0)
-    // Se não há avaliações submetidas (sumPeerScores=0), todos os presentes recebem 10.0
-    const allPresentStudents = peerResults.filter(r => !r.absent && !r.excluded);
-    const studentsWithScores = peerResults.filter(r => !r.absent && r.totalScore > 0);
-    const sumPeerScores = studentsWithScores.reduce((sum, r) => sum + r.totalScore, 0);
-    const noEvaluationsSubmitted = sumPeerScores === 0;
-    const provisionalTutorialGrade = 10.0; // máximo possível
+    // Modo provisório: peerResults já inclui defaults (Excelente) para alunos sem avaliação.
+    // Usar tutorialGrade = 10.0 (máximo) enquanto professor não avaliou.
+    const provisionalTutorialGrade = 10.0;
+    const presentStudentsProvisional = peerResults.filter(r => !r.absent && !r.excluded);
+    const numPresentProvisional = presentStudentsProvisional.length;
+    const totalPointsProvisional = provisionalTutorialGrade * numPresentProvisional;
+    const sumPeerScoresProvisional = presentStudentsProvisional.reduce((sum, r) => sum + r.totalScore, 0);
     return peerResults.map(r => {
       if (r.absent || r.excluded) {
         return {
@@ -1586,27 +1787,8 @@ export async function calculateFinalGrades(sessionId: number, provisional = fals
           provisional: true,
         };
       }
-      if (noEvaluationsSubmitted) {
-        // Nenhuma avaliação submetida: todos os presentes recebem nota máxima provisória
-        return {
-          studentId: r.studentId,
-          studentName: r.studentName,
-          studentEmail: r.studentEmail,
-          studentEnrollment: r.studentEnrollment,
-          role: r.role,
-          peerScore: provisionalTutorialGrade,
-          finalGrade: provisionalTutorialGrade,
-          absent: r.absent,
-          excluded: r.excluded,
-          validEvaluations: r.validEvaluations,
-          capped: false,
-          provisional: true,
-        };
-      }
-      const numPresent = allPresentStudents.length;
-      const totalPoints = provisionalTutorialGrade * numPresent;
-      const proportion = r.totalScore / sumPeerScores;
-      const finalGrade = Math.round(proportion * totalPoints * 10) / 10;
+      const proportion = sumPeerScoresProvisional > 0 ? r.totalScore / sumPeerScoresProvisional : 1 / Math.max(numPresentProvisional, 1);
+      const finalGrade = Math.min(10.0, Math.round(proportion * totalPointsProvisional * 10) / 10);
       return {
         studentId: r.studentId,
         studentName: r.studentName,
