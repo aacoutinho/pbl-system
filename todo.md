@@ -586,3 +586,4 @@
 - [x] Bug: sessão fechada sem nenhuma avaliação submetida exibe notas 0.0; corrigido: modo provisório atribui 10.0 a todos os presentes quando sumPeerScores=0
 - [x] Sessão fechada: calcular médias dos pares com avaliações enviadas + default Excelente para não enviadas (calculateSessionResultsWithDefaults); nota final usa tutorialGrade=10.0 enquanto professor não avaliou; após avaliação do professor, usar notas reais
 - [x] Sessão encerrada sem avaliação do professor: finishSession já persiste avaliações Excelente para alunos sem avaliação (autoFillMissingEvaluations) e insere tutorial com todos os itens=1.0 (Excelente); calculateFinalGrades usa dados reais do banco após encerramento
+- [x] Bug: tabela de Notas Individuais dos Pares em sessão fechada sem avaliações não exibia notas default; corrigido: getPeerGradesMatrix aceita provisional=true e injeta notas virtuais Excelente (10.0) para alunos presentes; avaliadores virtuais aparecem com ícone ✨ (autoFilled)

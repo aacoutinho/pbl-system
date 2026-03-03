@@ -2710,7 +2710,7 @@ export interface PeerGradesMatrixRow {
   absent: boolean;
 }
 
-export async function getPeerGradesMatrix(sessionId: number): Promise<{
+export async function getPeerGradesMatrix(sessionId: number, provisional = false): Promise<{
   evaluators: { studentId: number; serial: number; name: string; enrollment: string }[];
   rows: PeerGradesMatrixRow[];
 }> {
@@ -2730,6 +2730,67 @@ export async function getPeerGradesMatrix(sessionId: number): Promise<{
   const absoluteAbsentees = allClassStudents.filter(s => !sessionStudentIdSet.has(s.id));
 
   const evals = await db.select().from(evaluations).where(eq(evaluations.sessionId, sessionId));
+
+  // For closed sessions in provisional mode with no evaluations, inject virtual Excelente grades
+  if (evals.length === 0 && provisional) {
+    const presentStudents = sessionStudentsList.filter(s => !s.absent);
+    // Sort all students alphabetically for consistent serial assignment
+    const allStudentsForMatrix = [
+      ...sessionStudentsList,
+      ...absoluteAbsentees.map(s => ({ studentId: s.id, studentName: s.name, studentEnrollment: s.enrollment, absent: true })),
+    ].sort((a, b) => a.studentName.localeCompare(b.studentName));
+    const serialMap = new Map<number, number>();
+    allStudentsForMatrix.forEach((s, i) => serialMap.set(s.studentId, i + 1));
+
+    // Evaluators = all present students
+    const evaluators = presentStudents
+      .map(s => ({
+        studentId: s.studentId,
+        serial: serialMap.get(s.studentId) || 0,
+        name: s.studentName,
+        enrollment: s.studentEnrollment,
+      }))
+      .sort((a, b) => a.serial - b.serial);
+
+    // Default Excelente score: 1*1 + 1*3 + 1*3 + 1*3 - 0*1 = 10
+    const defaultScore = 10;
+
+    const rows: PeerGradesMatrixRow[] = allStudentsForMatrix.map(s => {
+      const isAbsent = absoluteAbsentees.some(a => a.id === s.studentId) || s.absent;
+      if (isAbsent) {
+        return {
+          serial: serialMap.get(s.studentId) || 0,
+          studentId: s.studentId,
+          studentName: s.studentName,
+          studentEnrollment: s.studentEnrollment,
+          peerGrades: [],
+          peerAverage: 0,
+          absent: true,
+        };
+      }
+      // Present student: inject virtual grade from each other present student
+      const peerGrades: PeerGradeDetail[] = evaluators
+        .filter(ev => ev.studentId !== s.studentId)
+        .map(ev => ({
+          evaluatorStudentId: ev.studentId,
+          evaluatorSerial: ev.serial,
+          score: defaultScore,
+          absent: false,
+          autoFilled: true,
+        }));
+      const peerAverage = peerGrades.length > 0 ? defaultScore : 0;
+      return {
+        serial: serialMap.get(s.studentId) || 0,
+        studentId: s.studentId,
+        studentName: s.studentName,
+        studentEnrollment: s.studentEnrollment,
+        peerGrades,
+        peerAverage,
+        absent: false,
+      };
+    });
+    return { evaluators, rows };
+  }
 
   if (evals.length === 0) {
     // Build rows for session students

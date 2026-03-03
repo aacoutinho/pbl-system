@@ -83,8 +83,9 @@ function ResultsContent() {
   );
 
   // Peer grades matrix (individual grades from each evaluator)
+  // Use provisional=true for closed sessions to show default Excelente grades when no evaluations submitted
   const { data: peerMatrix, isLoading: peerMatrixLoading } = trpc.results.peerGradesMatrix.useQuery(
-    { sessionId: parseInt(selectedSessionId) },
+    { sessionId: parseInt(selectedSessionId), provisional: isSessionClosed },
     { enabled: !!selectedSessionId }
   );
 
