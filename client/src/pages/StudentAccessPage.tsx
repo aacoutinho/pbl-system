@@ -335,6 +335,31 @@ export default function StudentAccessPage() {
 
   // ─── Step: Evaluate ───
   if (step === "evaluate" && authData && selectedSession) {
+    const sessionStatus = (selectedSession as any).sessionStatus;
+    if (sessionStatus === "closed") {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4">
+          <DesempenhoPapelFormInline
+            studentInfo={{
+              studentId: authData.studentId,
+              studentName: authData.studentName,
+              sessionId: selectedSession.sessionId,
+              sessionLabel: selectedSession.sessionLabel,
+              classId: selectedSession.classId,
+            }}
+            sessionInfo={{
+              sessionId: selectedSession.sessionId,
+              label: selectedSession.sessionLabel,
+              classCode: selectedSession.classCode,
+              componentCode: selectedSession.componentCode,
+              componentName: selectedSession.componentName,
+            }}
+            alreadySubmitted={!!(selectedSession as any).alreadySubmitted}
+            onBack={handleBackToDashboard}
+          />
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4">
         <EvaluationForm          studentInfo={{
@@ -995,35 +1020,49 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
           </Card>
         ) : (
           <div className="space-y-2">
-            {pendingSessions.map(s => (
-              <Card key={s.sessionId} className="border-amber-200 hover:border-amber-300 transition-colors">
-                <CardContent className="py-3">
-                  <div className="flex items-center justify-between cursor-pointer" onClick={() => onSelectSession(s as any)}>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm">{s.sessionLabel}</p>
-                      <p className="text-xs text-muted-foreground">{s.componentCode} - {s.classCode} ({s.semester})</p>
+            {pendingSessions.map(s => {
+              const isClosed = (s as any).sessionStatus === "closed";
+              return (
+                <Card key={s.sessionId} className={isClosed ? "border-orange-200 hover:border-orange-300 transition-colors" : "border-amber-200 hover:border-amber-300 transition-colors"}>
+                  <CardContent className="py-3">
+                    <div className="flex items-center justify-between cursor-pointer" onClick={() => onSelectSession(s as any)}>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm">{s.sessionLabel}</p>
+                        <p className="text-xs text-muted-foreground">{s.componentCode} - {s.classCode} ({s.semester})</p>
+                        {isClosed && (
+                          <p className="text-xs text-orange-600 mt-0.5">Sessão fechada — avalie o desempenho no papel</p>
+                        )}
+                      </div>
+                      {isClosed ? (
+                        <Badge variant="outline" className="border-orange-300 text-orange-700 shrink-0">
+                          <Clock className="h-3 w-3 mr-1" /> Desempenho
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="border-amber-300 text-amber-700 shrink-0">
+                          <Clock className="h-3 w-3 mr-1" /> Pendente
+                        </Badge>
+                      )}
                     </div>
-                    <Badge variant="outline" className="border-amber-300 text-amber-700 shrink-0">
-                      <Clock className="h-3 w-3 mr-1" /> Pendente
-                    </Badge>
-                  </div>
-                  <div className="flex gap-2 mt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-xs"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenBrainstorm(s.sessionId, s.sessionLabel, (s as any).studentRole === "MESA");
-                      }}
-                    >
-                      <Lightbulb className="h-3 w-3 mr-1" />
-                      {(s as any).studentRole === "MESA" ? "Editar Brainstorming" : "Ver Brainstorming"}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    {!isClosed && (
+                      <div className="flex gap-2 mt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenBrainstorm(s.sessionId, s.sessionLabel, (s as any).studentRole === "MESA");
+                          }}
+                        >
+                          <Lightbulb className="h-3 w-3 mr-1" />
+                          {(s as any).studentRole === "MESA" ? "Editar Brainstorming" : "Ver Brainstorming"}
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>
@@ -1473,6 +1512,206 @@ function CriteriaSlider({ label, sublabel, tooltip, value, onChange, penalty, ge
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+// ─── Desempenho no Papel Form (inline, for closed sessions in dashboard flow) ───
+const penaltyLabelsInline: Record<number, string> = {
+  0: "Excelente", 0.25: "Bom", 0.5: "Razoável", 0.75: "Fraco", 1: "Nenhum",
+};
+const penaltySliderOptionsInline = [1, 0.75, 0.5, 0.25, 0];
+
+function DesempenhoPapelFormInline({ studentInfo, sessionInfo, alreadySubmitted, onBack }: {
+  studentInfo: { studentId: number; studentName: string; sessionId: number; sessionLabel: string; classId: number };
+  sessionInfo: { sessionId: number; label: string; classCode: string; componentCode: string; componentName: string };
+  alreadySubmitted: boolean;
+  onBack: () => void;
+}) {
+  const { data: sessionStudentsList } = trpc.studentAccess.getSessionStudents.useQuery(
+    { sessionId: studentInfo.sessionId },
+    { enabled: !!studentInfo.sessionId }
+  );
+
+  const updateMutation = trpc.studentAccess.updateDesempenho.useMutation({
+    onSuccess: () => {
+      toast.success("Desempenho no papel atualizado com sucesso!");
+      setDone(true);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const [done, setDone] = useState(false);
+  const [desempenhos, setDesempenhos] = useState<Record<number, number>>({});
+
+  const peersWithRole = useMemo(() => {
+    if (!sessionStudentsList) return [];
+    return sessionStudentsList.filter(
+      s => s.studentId !== studentInfo.studentId && !s.absent && ["COORDENADOR", "MESA", "QUADRO"].includes(s.role)
+    );
+  }, [sessionStudentsList, studentInfo.studentId]);
+
+  useMemo(() => {
+    if (peersWithRole.length > 0 && Object.keys(desempenhos).length === 0) {
+      const init: Record<number, number> = {};
+      peersWithRole.forEach(p => { init[p.studentId] = 0; });
+      setDesempenhos(init);
+    }
+  }, [peersWithRole]);
+
+  const handleSubmit = () => {
+    const items = Object.entries(desempenhos).map(([id, val]) => ({
+      evaluatedStudentId: Number(id),
+      desempenhoPapel: val,
+    }));
+    updateMutation.mutate({
+      sessionId: studentInfo.sessionId,
+      evaluatorStudentId: studentInfo.studentId,
+      items,
+    });
+  };
+
+  if (done) {
+    return (
+      <div className="max-w-3xl mx-auto space-y-6">
+        <Card>
+          <CardContent className="pt-8 pb-8 text-center">
+            <CheckCircle2 className="h-14 w-14 text-emerald-500 mx-auto mb-4" />
+            <h2 className="text-xl font-bold mb-2">Desempenho Atualizado!</h2>
+            <p className="text-muted-foreground mb-4">
+              Sua avaliação de desempenho no papel da sessão <strong>{studentInfo.sessionLabel}</strong> foi registrada.
+            </p>
+            <Button variant="outline" onClick={onBack}>
+              <ArrowLeft className="h-4 w-4 mr-1" /> Voltar ao Painel
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-6">
+      {/* Header */}
+      <Card className="border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50">
+        <CardContent className="pt-6">
+          <div className="flex items-start gap-4">
+            <div className="p-3 rounded-xl bg-amber-100">
+              <ClipboardList className="h-6 w-6 text-amber-600" />
+            </div>
+            <div className="flex-1">
+              <h1 className="text-xl font-bold text-amber-900">Avaliação de Desempenho no Papel</h1>
+              <p className="text-sm text-amber-700 mt-1">
+                {sessionInfo.componentCode} - {sessionInfo.classCode} &middot; {sessionInfo.label}
+              </p>
+              <p className="text-xs text-amber-600 mt-1.5">
+                A sessão foi fechada. Você ainda pode avaliar o desempenho no papel dos colegas com funções especiais.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Info */}
+      <Card className="border-blue-200 bg-blue-50/50">
+        <CardContent className="pt-4 pb-4">
+          <div className="flex items-start gap-3">
+            <HelpCircle className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+            <div className="text-sm text-blue-800 space-y-1">
+              <p className="font-semibold">Sobre este formulário</p>
+              <p>A sessão foi encerrada para novas avaliações, mas você ainda pode atualizar a nota de <strong>Desempenho no Papel</strong> dos colegas que exerceram funções especiais (Coordenador, Mesa ou Quadro).</p>
+              {!alreadySubmitted && (
+                <p className="text-amber-700 font-medium mt-1">Atenção: você não submeteu avaliação durante a sessão aberta. A atualização de desempenho só é possível para quem avaliou.</p>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {peersWithRole.length === 0 && (
+        <Card>
+          <CardContent className="pt-8 pb-8 text-center">
+            <Users className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+            <p className="text-muted-foreground">Nenhum colega com papel especial nesta sessão.</p>
+            <Button variant="outline" className="mt-4" onClick={onBack}>
+              <ArrowLeft className="h-4 w-4 mr-1" /> Voltar ao Painel
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {peersWithRole.map((peer) => {
+        const val = desempenhos[peer.studentId] ?? 0;
+        return (
+          <Card key={peer.studentId}>
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold text-sm">
+                  {peer.studentName.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <CardTitle className="text-base">{peer.studentName}</CardTitle>
+                  <div className="flex items-center gap-2 mt-1">
+                    <CardDescription className="text-xs">{peer.studentEnrollment}</CardDescription>
+                    <Badge variant="default" className="text-xs">{peer.role}</Badge>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0 space-y-3">
+              <Separator />
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm font-medium">Desempenho no Papel</Label>
+                    <span className="text-[10px] text-muted-foreground">(Penalidade: até -1)</span>
+                  </div>
+                  <Badge variant="outline" className={`text-xs font-medium ${val > 0 ? "border-red-300 text-red-700" : "border-emerald-300 text-emerald-700"}`}>
+                    {penaltyLabelsInline[val] ?? `${val}`}
+                  </Badge>
+                </div>
+                <Slider
+                  value={[penaltySliderOptionsInline.indexOf(val)]}
+                  min={0}
+                  max={4}
+                  step={1}
+                  onValueChange={([idx]) => setDesempenhos(prev => ({ ...prev, [peer.studentId]: penaltySliderOptionsInline[idx] }))}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-[10px] text-muted-foreground px-1">
+                  {penaltySliderOptionsInline.map(g => <span key={g}>{penaltyLabelsInline[g]}</span>)}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
+
+      {peersWithRole.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50/50">
+          <CardContent className="pt-6 pb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-semibold text-amber-900">Confirmar atualização?</p>
+                <p className="text-sm text-amber-700">{peersWithRole.length} colega(s) com papel especial</p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={onBack}>
+                  <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
+                </Button>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={updateMutation.isPending || !alreadySubmitted}
+                  className="bg-amber-600 hover:bg-amber-700"
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  {updateMutation.isPending ? "Salvando..." : "Salvar Desempenho"}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

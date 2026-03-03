@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Send, CheckCircle2, HelpCircle, Users, ClipboardList, Loader2, ShieldAlert, LinkIcon } from "lucide-react";
+import { Send, CheckCircle2, HelpCircle, Users, ClipboardList, Loader2, ShieldAlert, LinkIcon, Lock } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useMemo } from "react";
 
@@ -106,6 +106,31 @@ export default function DirectEvalPage() {
   }
 
   if (!data) return null;
+
+  // Sessão fechada: exibir formulário de Desempenho no Papel
+  if (data.sessionStatus === "closed") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4">
+        <DesempenhoPapelForm
+          studentInfo={{
+            studentId: data.studentId,
+            studentName: data.studentName,
+            sessionId: data.sessionId,
+            sessionLabel: data.sessionLabel,
+            classId: data.classId,
+          }}
+          sessionInfo={{
+            sessionId: data.sessionId,
+            label: data.sessionLabel,
+            classCode: data.classCode,
+            componentCode: data.componentCode,
+            componentName: data.componentName,
+          }}
+          alreadySubmitted={data.alreadySubmitted}
+        />
+      </div>
+    );
+  }
 
   if (data.alreadySubmitted && step === "form") {
     return (
@@ -428,6 +453,219 @@ function EvaluationForm({ studentInfo, sessionInfo, onDone }: {
       )}
 
       {/* Warning */}
+      <div className="text-center pb-6">
+        <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+          <LinkIcon className="h-3 w-3" />
+          Esta avaliação é pessoal e intransferível
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Desempenho no Papel Form (for closed sessions) ───
+function DesempenhoPapelForm({ studentInfo, sessionInfo, alreadySubmitted }: {
+  studentInfo: { studentId: number; studentName: string; sessionId: number; sessionLabel: string; classId: number };
+  sessionInfo: { sessionId: number; label: string; classCode: string; componentCode: string; componentName: string };
+  alreadySubmitted: boolean;
+}) {
+  const { data: sessionStudentsList } = trpc.studentAccess.getSessionStudents.useQuery(
+    { sessionId: studentInfo.sessionId },
+    { enabled: !!studentInfo.sessionId }
+  );
+
+  const updateMutation = trpc.studentAccess.updateDesempenho.useMutation({
+    onSuccess: () => {
+      toast.success("Desempenho no papel atualizado com sucesso!");
+      setStep("done");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const [step, setStep] = useState<"form" | "done">("form");
+
+  // Only peers with roles that have the penalty criterion
+  const peersWithRole = useMemo(() => {
+    if (!sessionStudentsList) return [];
+    return sessionStudentsList.filter(
+      s => s.studentId !== studentInfo.studentId && !s.absent && ["COORDENADOR", "MESA", "QUADRO"].includes(s.role)
+    );
+  }, [sessionStudentsList, studentInfo.studentId]);
+
+  const [desempenhos, setDesempenhos] = useState<Record<number, number>>({});
+
+  useMemo(() => {
+    if (peersWithRole.length > 0 && Object.keys(desempenhos).length === 0) {
+      const init: Record<number, number> = {};
+      peersWithRole.forEach(p => { init[p.studentId] = 0; });
+      setDesempenhos(init);
+    }
+  }, [peersWithRole]);
+
+  const handleSubmit = () => {
+    const items = Object.entries(desempenhos).map(([id, val]) => ({
+      evaluatedStudentId: Number(id),
+      desempenhoPapel: val,
+    }));
+    updateMutation.mutate({
+      sessionId: studentInfo.sessionId,
+      evaluatorStudentId: studentInfo.studentId,
+      items,
+    });
+  };
+
+  if (step === "done") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardContent className="pt-8 pb-8 text-center">
+            <CheckCircle2 className="h-14 w-14 text-emerald-500 mx-auto mb-4" />
+            <h2 className="text-xl font-bold mb-2">Desempenho Atualizado!</h2>
+            <p className="text-muted-foreground mb-4">
+              Sua avaliação de desempenho no papel da sessão <strong>{studentInfo.sessionLabel}</strong> foi registrada.
+            </p>
+            <p className="text-sm text-muted-foreground">Você pode fechar esta página.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-6">
+      {/* Header */}
+      <Card className="border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50">
+        <CardContent className="pt-6">
+          <div className="flex items-start gap-4">
+            <div className="p-3 rounded-xl bg-amber-100">
+              <Lock className="h-6 w-6 text-amber-600" />
+            </div>
+            <div className="flex-1">
+              <h1 className="text-xl font-bold text-amber-900">Avaliação de Desempenho no Papel</h1>
+              <p className="text-sm text-amber-700 mt-1">
+                {sessionInfo.componentCode} - {sessionInfo.classCode} &middot; {sessionInfo.label}
+              </p>
+              <p className="text-xs text-amber-600 mt-1.5">
+                A sessão foi fechada. Você ainda pode avaliar o desempenho no papel dos colegas com funções especiais.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Info */}
+      <Card className="border-blue-200 bg-blue-50/50">
+        <CardContent className="pt-4 pb-4">
+          <div className="flex items-start gap-3">
+            <HelpCircle className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+            <div className="text-sm text-blue-800 space-y-1">
+              <p className="font-semibold">Sobre este formulário</p>
+              <p>A sessão foi encerrada para novas avaliações, mas você ainda pode atualizar a nota de <strong>Desempenho no Papel</strong> dos colegas que exerceram funções especiais (Coordenador, Mesa ou Quadro). Esta nota é uma penalidade de até -1 ponto na nota final do colega.</p>
+              {!alreadySubmitted && (
+                <p className="text-amber-700 font-medium mt-1">Atenção: você não submeteu avaliação durante a sessão aberta. A atualização de desempenho só é possível para quem avaliou.</p>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* No peers with role */}
+      {peersWithRole.length === 0 && (
+        <Card>
+          <CardContent className="pt-8 pb-8 text-center">
+            <Users className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+            <p className="text-muted-foreground">Nenhum colega com papel especial (Coordenador, Mesa ou Quadro) nesta sessão.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Peers */}
+      {peersWithRole.map((peer) => {
+        const val = desempenhos[peer.studentId] ?? 0;
+        return (
+          <Card key={peer.studentId}>
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold text-sm">
+                  {peer.studentName.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <CardTitle className="text-base">{peer.studentName}</CardTitle>
+                  <div className="flex items-center gap-2 mt-1">
+                    <CardDescription className="text-xs">{peer.studentEnrollment}</CardDescription>
+                    <Badge variant="default" className="text-xs">{peer.role}</Badge>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0 space-y-3">
+              <Separator />
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm font-medium">Desempenho no Papel</Label>
+                    <span className="text-[10px] text-muted-foreground">(Penalidade: até -1)</span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-sm text-xs">
+                          <div className="space-y-1">
+                            <p><em>Esta nota é subtraída da pontuação total (penalidade de até -1 ponto) e avalia o cumprimento das funções do papel atribuído.</em></p>
+                            <p><strong>Excelente:</strong> Cumpriu todas as funções da forma esperada.</p>
+                            <p><strong>Bom:</strong> Executou a maior parte das funções, mas falhou em pontos isolados.</p>
+                            <p><strong>Razoável:</strong> Tentou executar a função, mas deixou de realizar metade das tarefas.</p>
+                            <p><strong>Fraco:</strong> Realizou apenas tarefas mínimas ou superficiais.</p>
+                            <p><strong>Nenhum:</strong> Não cumpriu as funções essenciais de sua responsabilidade.</p>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                  <Badge variant="outline" className={`text-xs font-medium ${val > 0 ? "border-red-300 text-red-700" : "border-emerald-300 text-emerald-700"}`}>
+                    {penaltyLabels[val] ?? `${val}`}
+                  </Badge>
+                </div>
+                <Slider
+                  value={[penaltySliderOptions.indexOf(val)]}
+                  min={0}
+                  max={4}
+                  step={1}
+                  onValueChange={([idx]) => setDesempenhos(prev => ({ ...prev, [peer.studentId]: penaltySliderOptions[idx] }))}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-[10px] text-muted-foreground px-1">
+                  {penaltySliderOptions.map(g => <span key={g}>{penaltyLabels[g]}</span>)}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
+
+      {/* Submit */}
+      {peersWithRole.length > 0 && alreadySubmitted && (
+        <Card className="border-amber-200 bg-amber-50/50">
+          <CardContent className="pt-6 pb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-semibold text-amber-900">Confirmar atualização?</p>
+                <p className="text-sm text-amber-700">{peersWithRole.length} colega(s) com papel especial</p>
+              </div>
+              <Button
+                onClick={handleSubmit}
+                disabled={updateMutation.isPending}
+                className="bg-amber-600 hover:bg-amber-700"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                {updateMutation.isPending ? "Salvando..." : "Salvar Desempenho"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="text-center pb-6">
         <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
           <LinkIcon className="h-3 w-3" />

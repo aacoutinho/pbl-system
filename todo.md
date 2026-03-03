@@ -581,3 +581,4 @@
 - [x] Arredondamento para 10.0 apenas na nota final do PROBLEMA (média das sessões); indicador visual no problema (★ âmbar) em ResultsPage e perfil do aluno
 - [x] Professor responsável obrigatório na criação de turma (default = professor logado); seletor de professor na criação/edição; botão "Professor" no card para alterar responsável; rota classes.updateProfessor e classes.listProfessorsForComponent
 - [x] Resultados (aba Por Sessão): Quadro de Brainstorming movido para antes dos Critérios de Avaliação entre Pares
+- [x] Sessão fechada: aluno pode acessar via link/código para avaliar apenas o Desempenho no Papel (formulário simplificado, sem os demais critérios); dashboard exibe sessões fechadas com badge "Desempenho" em laranja

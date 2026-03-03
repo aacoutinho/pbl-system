@@ -3203,7 +3203,7 @@ export async function getOpenSessionsForStudent(studentId: number) {
     .innerJoin(components, eq(classes.componentId, components.id))
     .where(and(
       eq(sessionStudents.studentId, studentId),
-      eq(sessions.status, "open"),
+      or(eq(sessions.status, "open"), eq(sessions.status, "closed")),
     ))
     .orderBy(sessions.createdAt);
   return rows;
