@@ -573,3 +573,4 @@
 - [x] Corrigir médias de pares e nota final para alunos excluídos: usar total de sessões do componente como denominador (não apenas sessões participadas), com 0 para sessões excluídas
 - [x] Visual: remover line-through do nome de faltosos no ranking da sessão; exibir "-" em vez de "E" nas células de excluídos na aba Por Problema (com nome riscado e label "Excluído"); igualar ícone do excluído ao do faltoso no relatório Por Aluno mantendo cores
 - [x] Avaliação tutorial do professor: valor default de cada item = Excelente; ao encerrar sessão sem avaliação submetida, preencher automaticamente com Excelente em todos os itens
+- [x] Interface Resultados: reordenar seções (Notas Individuais dos Pares antes do Ranking); colapsar Critérios de Avaliação e Quadro de Brainstorming; indicar avaliações auto-preenchidas na matriz de pares; reordenar botões de sessão (Encerrar após Reabrir)

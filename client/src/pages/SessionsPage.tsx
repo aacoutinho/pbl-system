@@ -891,6 +891,34 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onFini
               </>
             ) : session.status === "closed" ? (
               <>
+                <Button variant="ghost" size="icon" onClick={() => setShowOpenConfirm(true)} title="Reabrir sessão — voltar para Em Avaliação">
+                  <Unlock className="h-4 w-4" />
+                </Button>
+                <Dialog open={showOpenConfirm} onOpenChange={setShowOpenConfirm}>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Reabrir Sessão</DialogTitle>
+                      <DialogDescription>
+                        Confirme a reabertura da sessão <strong>{session.label}</strong>.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                      <div className="p-3 rounded-lg bg-accent/30 border">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Avaliações recebidas:</span>
+                          <span className="font-semibold">{submitted}/{total}</span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Ao reabrir, a sessão voltará para o estado <strong>Em Avaliação</strong> e os alunos poderão enviar (ou reenviar) avaliações.
+                      </p>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setShowOpenConfirm(false)}>Cancelar</Button>
+                      <Button onClick={() => { onOpen(); setShowOpenConfirm(false); }}>Reabrir Sessão</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
                 <Button variant="ghost" size="icon" onClick={() => setShowFinishConfirm(true)} title="Encerrar sessão — finalizar e bloquear alterações">
                   <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                 </Button>
@@ -922,34 +950,6 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onFini
                     <DialogFooter>
                       <Button variant="outline" onClick={() => setShowFinishConfirm(false)}>Cancelar</Button>
                       <Button onClick={() => { onFinish(); setShowFinishConfirm(false); }}>Encerrar Sessão</Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-                <Button variant="ghost" size="icon" onClick={() => setShowOpenConfirm(true)} title="Reabrir sessão — voltar para Em Avaliação">
-                  <Unlock className="h-4 w-4" />
-                </Button>
-                <Dialog open={showOpenConfirm} onOpenChange={setShowOpenConfirm}>
-                  <DialogContent className="max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>Reabrir Sessão</DialogTitle>
-                      <DialogDescription>
-                        Confirme a reabertura da sessão <strong>{session.label}</strong>.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-3">
-                      <div className="p-3 rounded-lg bg-accent/30 border">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Avaliações recebidas:</span>
-                          <span className="font-semibold">{submitted}/{total}</span>
-                        </div>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        Ao reabrir, a sessão voltará para o estado <strong>Em Avaliação</strong> e os alunos poderão enviar (ou reenviar) avaliações.
-                      </p>
-                    </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setShowOpenConfirm(false)}>Cancelar</Button>
-                      <Button onClick={() => { onOpen(); setShowOpenConfirm(false); }}>Reabrir Sessão</Button>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>

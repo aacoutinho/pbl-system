@@ -901,10 +901,11 @@ export async function autoFillMissingEvaluations(sessionId: number): Promise<num
   let created = 0;
   await db.transaction(async (tx) => {
     for (const evaluator of missingEvaluators) {
-      // Inserir registro de avaliação
+      // Inserir registro de avaliação (marcado como auto-preenchido)
       const [result] = await tx.insert(evaluations).values({
         sessionId,
         evaluatorStudentId: evaluator.studentId,
+        autoFilled: true,
       }).$returningId();
       const evaluationId = result.id;
 
@@ -2384,6 +2385,7 @@ export interface PeerGradeDetail {
   evaluatorSerial: number;
   score: number; // soma dos 5 critérios
   absent: boolean;
+  autoFilled: boolean; // true se foi preenchido automaticamente ao encerrar a sessão
 }
 
 export interface PeerGradesMatrixRow {
@@ -2555,11 +2557,13 @@ export async function getPeerGradesMatrix(sessionId: number): Promise<{
       if (item) {
         const score = item.absent ? 0 :
           Number(item.pontualidade) * 1 + Number(item.pesquisaMetas) * 3 + Number(item.dominio) * 3 + Number(item.participacao) * 3 - Number(item.desempenhoPapel) * 1;
+        const evalRecord = evals.find(e => e.evaluatorStudentId === evaluator.studentId);
         peerGrades.push({
           evaluatorStudentId: evaluator.studentId,
           evaluatorSerial: evaluator.serial,
           score: Math.round(score * 100) / 100,
           absent: item.absent,
+          autoFilled: evalRecord?.autoFilled ?? false,
         });
       }
     }

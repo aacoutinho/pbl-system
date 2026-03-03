@@ -1,0 +1,1 @@
+ALTER TABLE `evaluations` ADD `autoFilled` boolean DEFAULT false NOT NULL;

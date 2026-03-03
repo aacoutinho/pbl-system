@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, Download, UserX, BookOpen, Info, Eye, FileSpreadsheet, Table2, Mail, Loader2, Lightbulb, HelpCircle, Target, ExternalLink, Link2, ImageIcon, Users, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { BarChart3, Download, UserX, BookOpen, Info, Eye, FileSpreadsheet, Table2, Mail, Loader2, Lightbulb, HelpCircle, Target, ExternalLink, Link2, ImageIcon, Users, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Wand2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
@@ -54,6 +54,8 @@ function ResultsContent() {
 
   const [selectedSessionId, setSelectedSessionId] = useState<string>("");
   const [selectedProblem, setSelectedProblem] = useState<string>("");
+  const [criteriaExpanded, setCriteriaExpanded] = useState(false);
+  const [brainstormExpanded, setBrainstormExpanded] = useState(false);
 
   useEffect(() => { setSelectedSessionId(""); setSelectedProblem(""); }, [activeClassId]);
 
@@ -320,15 +322,21 @@ function ResultsContent() {
 
           {selectedSessionId && (
             <>
-              {/* Peer evaluation criteria info */}
+              {/* Peer evaluation criteria info - colapsável */}
               <Card className="bg-emerald-50/50 border-emerald-200">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-semibold text-emerald-800 flex items-center gap-2">
-                    <Info className="h-4 w-4" />
-                    Critérios da Avaliação entre Pares
+                <CardHeader
+                  className="pb-3 cursor-pointer select-none"
+                  onClick={() => setCriteriaExpanded(v => !v)}
+                >
+                  <CardTitle className="text-sm font-semibold text-emerald-800 flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-2">
+                      <Info className="h-4 w-4" />
+                      Critérios da Avaliação entre Pares
+                    </span>
+                    {criteriaExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="pt-0">
+                <CardContent className={`pt-0 ${criteriaExpanded ? "" : "hidden"}`}>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
@@ -429,85 +437,6 @@ function ResultsContent() {
                 </div>
               )}
 
-              {/* Results table */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5" />
-                    Ranking da Sessão
-                  </CardTitle>
-                  <CardDescription>
-                    {tutorialEval
-                      ? "Notas finais calculadas com distribuição proporcional baseada na avaliação do tutorial."
-                      : "Mostrando apenas notas da avaliação pelos pares. Avalie o tutorial para ver as notas finais."}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {finalLoading ? (
-                    <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}</div>
-                  ) : !finalResults || finalResults.length === 0 ? (
-                    <p className="text-center py-8 text-muted-foreground">Nenhuma avaliação encontrada para esta sessão.</p>
-                  ) : (() => {
-                    return (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b text-left">
-                            <th className="pb-3 pr-4 font-semibold w-12">#</th>
-                            <th className="pb-3 pr-4 font-semibold">Aluno</th>
-                            <th className="pb-3 pr-4 font-semibold">Papel</th>
-                            <th className="pb-3 pr-4 font-semibold text-center">Média Pares</th>
-                            {tutorialEval && <th className="pb-3 pr-4 font-semibold text-center">Nota Final</th>}
-
-                            <th className="pb-3 font-semibold text-center">Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {finalResults.map((r, i) => (
-                            <tr key={r.studentId} className={`border-b last:border-0 transition-colors ${r.absent ? "bg-red-50/60 hover:bg-red-50" : "hover:bg-accent/20"}`}>
-                              <td className="py-3 pr-4">
-                                <span className="text-muted-foreground">{i + 1}</span>
-                              </td>
-                              <td className="py-3 pr-4">
-                                <p className={`font-medium ${r.absent ? "text-red-400" : ""}`}>{r.studentName}</p>
-                              </td>
-                              <td className="py-3 pr-4">
-                                <RoleBadge role={r.role} />
-                              </td>
-                              <td className="py-3 pr-4 text-center">
-                                <span className={`font-medium ${r.absent ? "text-muted-foreground" : r.peerScore >= 8 ? "text-emerald-600" : r.peerScore >= 5 ? "text-amber-600" : "text-red-600"}`}>
-                                  {r.peerScore.toFixed(1)}
-                                </span>
-                              </td>
-                              {tutorialEval && (
-                                <td className="py-3 pr-4 text-center">
-                                  <span className={`font-medium ${r.absent ? "text-muted-foreground" : r.finalGrade >= 8 ? "text-emerald-600" : r.finalGrade >= 5 ? "text-amber-600" : "text-red-600"}`}>
-                                    {r.finalGrade.toFixed(1)}
-                                  </span>
-                                </td>
-                              )}
-
-                              <td className="py-3 text-center">
-                                {r.absent ? (
-                                  <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200">
-                                    <UserX className="h-3 w-3 mr-1" />Faltou
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200">
-                                    Presente
-                                  </Badge>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    );
-                  })()}
-                </CardContent>
-              </Card>
-
               {/* ─── Peer Grades Matrix ─── */}
               <Card>
                 <CardHeader>
@@ -565,8 +494,6 @@ function ResultsContent() {
                                   )}
                                 </td>
                                 {peerMatrix.evaluators.map(ev => {
-                                  // Se o aluno da linha é faltoso absoluto (absent=true e sem peerGrades),
-                                  // exibir F em todas as colunas de avaliadores
                                   if (row.absent && row.peerGrades.length === 0) {
                                     return (
                                       <td key={ev.studentId} className="py-2.5 px-1 text-center">
@@ -574,7 +501,6 @@ function ResultsContent() {
                                       </td>
                                     );
                                   }
-                                  // Skip self-evaluation column
                                   if (ev.studentId === row.studentId) {
                                     return (
                                       <td key={ev.studentId} className="py-2.5 px-1 text-center">
@@ -592,14 +518,27 @@ function ResultsContent() {
                                   }
                                   return (
                                     <td key={ev.studentId} className="py-2.5 px-1 text-center">
-                                      <span className={`text-sm ${
-                                        grade.absent ? "text-red-400 italic" :
-                                        grade.score >= 8 ? "text-emerald-600 font-medium" :
-                                        grade.score >= 5 ? "text-amber-600" :
-                                        "text-red-600"
-                                      }`}>
-                                        {grade.absent ? "F" : grade.score.toFixed(1)}
-                                      </span>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span className={`text-sm cursor-default ${
+                                            grade.absent ? "text-red-400 italic" :
+                                            grade.autoFilled ? "text-amber-500 font-medium" :
+                                            grade.score >= 8 ? "text-emerald-600 font-medium" :
+                                            grade.score >= 5 ? "text-amber-600" :
+                                            "text-red-600"
+                                          }`}>
+                                            {grade.absent ? "F" : grade.score.toFixed(1)}
+                                            {grade.autoFilled && !grade.absent && (
+                                              <Wand2 className="inline h-2.5 w-2.5 ml-0.5 mb-0.5 opacity-70" />
+                                            )}
+                                          </span>
+                                        </TooltipTrigger>
+                                        {grade.autoFilled && !grade.absent && (
+                                          <TooltipContent side="top">
+                                            <p className="text-xs">Preenchido automaticamente (aluno não submeteu avaliação)</p>
+                                          </TooltipContent>
+                                        )}
+                                      </Tooltip>
                                     </td>
                                   );
                                 })}
@@ -622,16 +561,110 @@ function ResultsContent() {
                         </table>
                       </div>
                       <div className="mt-4 pt-3 border-t text-xs text-muted-foreground space-y-1">
-                        <p><strong>Legenda:</strong> A1, A2, ... = Número serial do avaliador (passe o mouse para ver o nome). <strong>—</strong> = Autoavaliação (excluída). <strong>F</strong> = Marcado como faltou. <strong>-</strong> = Sem avaliação.</p>
+                        <p><strong>Legenda:</strong> A1, A2, ... = Número serial do avaliador (passe o mouse para ver o nome). <strong>—</strong> = Autoavaliação (excluída). <strong>F</strong> = Faltou. <strong>-</strong> = Sem avaliação. <Wand2 className="inline h-3 w-3 mx-0.5" /> = Preenchido automaticamente.</p>
                       </div>
                     </TooltipProvider>
                   )}
                 </CardContent>
               </Card>
 
-              {/* ─── Brainstorm Board ─── */}
+              {/* ─── Ranking da Sessão ─── */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5" />
+                    Ranking da Sessão
+                  </CardTitle>
+                  <CardDescription>
+                    {tutorialEval
+                      ? "Notas finais calculadas com distribuição proporcional baseada na avaliação do tutorial."
+                      : "Mostrando apenas notas da avaliação pelos pares. Avalie o tutorial para ver as notas finais."}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {finalLoading ? (
+                    <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}</div>
+                  ) : !finalResults || finalResults.length === 0 ? (
+                    <p className="text-center py-8 text-muted-foreground">Nenhuma avaliação encontrada para esta sessão.</p>
+                  ) : (() => {
+                    return (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b text-left">
+                            <th className="pb-3 pr-4 font-semibold w-12">#</th>
+                            <th className="pb-3 pr-4 font-semibold">Aluno</th>
+                            <th className="pb-3 pr-4 font-semibold">Papel</th>
+                            <th className="pb-3 pr-4 font-semibold text-center">Média Pares</th>
+                            {tutorialEval && <th className="pb-3 pr-4 font-semibold text-center">Nota Final</th>}
+                            <th className="pb-3 font-semibold text-center">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {finalResults.map((r, i) => (
+                            <tr key={r.studentId} className={`border-b last:border-0 transition-colors ${r.absent ? "bg-red-50/60 hover:bg-red-50" : "hover:bg-accent/20"}`}>
+                              <td className="py-3 pr-4">
+                                <span className="text-muted-foreground">{i + 1}</span>
+                              </td>
+                              <td className="py-3 pr-4">
+                                <p className={`font-medium ${r.absent ? "text-red-400" : ""}`}>{r.studentName}</p>
+                              </td>
+                              <td className="py-3 pr-4">
+                                <RoleBadge role={r.role} />
+                              </td>
+                              <td className="py-3 pr-4 text-center">
+                                <span className={`font-medium ${r.absent ? "text-muted-foreground" : r.peerScore >= 8 ? "text-emerald-600" : r.peerScore >= 5 ? "text-amber-600" : "text-red-600"}`}>
+                                  {r.peerScore.toFixed(1)}
+                                </span>
+                              </td>
+                              {tutorialEval && (
+                                <td className="py-3 pr-4 text-center">
+                                  <span className={`font-medium ${r.absent ? "text-muted-foreground" : r.finalGrade >= 8 ? "text-emerald-600" : r.finalGrade >= 5 ? "text-amber-600" : "text-red-600"}`}>
+                                    {r.finalGrade.toFixed(1)}
+                                  </span>
+                                </td>
+                              )}
+                              <td className="py-3 text-center">
+                                {r.absent ? (
+                                  <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200">
+                                    <UserX className="h-3 w-3 mr-1" />Faltou
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200">
+                                    Presente
+                                  </Badge>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+
+              {/* ─── Brainstorm Board ─── (colapsável) */}
               {brainstormBoard && !(brainstormBoard as any).noBoard && (brainstormBoard as any).items?.length > 0 && (
-                <BrainstormResultsCard items={(brainstormBoard as any).items} />
+                <div>
+                  <button
+                    type="button"
+                    className="w-full flex items-center justify-between px-4 py-3 rounded-t-lg bg-amber-50 border border-amber-200 cursor-pointer hover:bg-amber-100 transition-colors"
+                    onClick={() => setBrainstormExpanded(v => !v)}
+                  >
+                    <span className="flex items-center gap-2 font-semibold text-amber-800">
+                      <Lightbulb className="h-5 w-5" />
+                      Quadro de Brainstorming
+                    </span>
+                    {brainstormExpanded ? <ChevronUp className="h-4 w-4 text-amber-600" /> : <ChevronDown className="h-4 w-4 text-amber-600" />}
+                  </button>
+                  {brainstormExpanded && (
+                    <div className="border border-t-0 border-amber-200 rounded-b-lg overflow-hidden">
+                      <BrainstormResultsCard items={(brainstormBoard as any).items} />
+                    </div>
+                  )}
+                </div>
               )}
             </>
           )}

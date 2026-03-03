@@ -123,6 +123,7 @@ export const evaluations = mysqlTable("evaluations", {
   sessionId: int("sessionId").notNull(),
   evaluatorStudentId: int("evaluatorStudentId").notNull(),
   submittedAt: timestamp("submittedAt").defaultNow().notNull(),
+  autoFilled: boolean("autoFilled").default(false).notNull(),
 }, (table) => [
   unique("uq_eval_session_evaluator").on(table.sessionId, table.evaluatorStudentId),
 ]);
