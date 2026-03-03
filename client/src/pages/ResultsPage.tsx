@@ -322,6 +322,28 @@ function ResultsContent() {
 
           {selectedSessionId && (
             <>
+              {/* ─── Brainstorm Board ─── (colapsável) */}
+              {brainstormBoard && !(brainstormBoard as any).noBoard && (brainstormBoard as any).items?.length > 0 && (
+                <div>
+                  <button
+                    type="button"
+                    className="w-full flex items-center justify-between px-4 py-3 rounded-t-lg bg-amber-50 border border-amber-200 cursor-pointer hover:bg-amber-100 transition-colors"
+                    onClick={() => setBrainstormExpanded(v => !v)}
+                  >
+                    <span className="flex items-center gap-2 font-semibold text-amber-800">
+                      <Lightbulb className="h-5 w-5" />
+                      Quadro de Brainstorming
+                    </span>
+                    {brainstormExpanded ? <ChevronUp className="h-4 w-4 text-amber-600" /> : <ChevronDown className="h-4 w-4 text-amber-600" />}
+                  </button>
+                  {brainstormExpanded && (
+                    <div className="border border-t-0 border-amber-200 rounded-b-lg overflow-hidden">
+                      <BrainstormResultsCard items={(brainstormBoard as any).items} />
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Peer evaluation criteria info - colapsável */}
               <Card className="bg-emerald-50/50 border-emerald-200">
                 <CardHeader
@@ -657,27 +679,6 @@ function ResultsContent() {
                 </CardContent>
               </Card>
 
-              {/* ─── Brainstorm Board ─── (colapsável) */}
-              {brainstormBoard && !(brainstormBoard as any).noBoard && (brainstormBoard as any).items?.length > 0 && (
-                <div>
-                  <button
-                    type="button"
-                    className="w-full flex items-center justify-between px-4 py-3 rounded-t-lg bg-amber-50 border border-amber-200 cursor-pointer hover:bg-amber-100 transition-colors"
-                    onClick={() => setBrainstormExpanded(v => !v)}
-                  >
-                    <span className="flex items-center gap-2 font-semibold text-amber-800">
-                      <Lightbulb className="h-5 w-5" />
-                      Quadro de Brainstorming
-                    </span>
-                    {brainstormExpanded ? <ChevronUp className="h-4 w-4 text-amber-600" /> : <ChevronDown className="h-4 w-4 text-amber-600" />}
-                  </button>
-                  {brainstormExpanded && (
-                    <div className="border border-t-0 border-amber-200 rounded-b-lg overflow-hidden">
-                      <BrainstormResultsCard items={(brainstormBoard as any).items} />
-                    </div>
-                  )}
-                </div>
-              )}
             </>
           )}
         </TabsContent>
