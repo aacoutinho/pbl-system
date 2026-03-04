@@ -750,12 +750,8 @@ function ResultsContent() {
                           <th className="pb-3 pr-4 font-semibold w-12">#</th>
                           <th className="pb-3 pr-4 font-semibold">Aluno</th>
                           {activeSessions?.filter(s => s.problemNumber === parseInt(selectedProblem)).sort((a, b) => a.sessionNumber - b.sessionNumber).map(s => (
-                            <React.Fragment key={s.id}>
-                              <th className="pb-3 pr-2 font-semibold text-center text-xs">S{s.sessionNumber}<br/>Pares</th>
-                              <th className="pb-3 pr-2 font-semibold text-center text-xs">S{s.sessionNumber}<br/>Final</th>
-                            </React.Fragment>
+                            <th key={s.id} className="pb-3 pr-2 font-semibold text-center text-xs">S{s.sessionNumber}</th>
                           ))}
-                          <th className="pb-3 pr-2 font-semibold text-center">Média Pares</th>
                           <th className="pb-3 pr-2 font-semibold text-center">Média Final</th>
                         </tr>
                       </thead>
@@ -778,39 +774,20 @@ function ResultsContent() {
                                 )}
                               </div>
                             </td>
-                            {r.peerScores.map((score, idx) => {
+                            {r.finalGrades.map((finalGrade, idx) => {
                               const isExcluded = (r as any).excludedFlags?.[idx] === true;
-                              const finalGrade = r.finalGrades[idx];
                               return (
-                                <React.Fragment key={idx}>
-                                  <td className="py-3 pr-1 text-center">
-                                    {isExcluded ? (
-                                      <span className="text-muted-foreground/40">—</span>
-                                    ) : (
-                                      <span className={score === 0 ? "text-muted-foreground" : "text-sm"}>{(score as number).toFixed(1)}</span>
-                                    )}
-                                  </td>
-                                  <td className="py-3 pr-2 text-center">
-                                    {isExcluded ? (
-                                      <span className="text-muted-foreground/40">—</span>
-                                    ) : (
-                                      <span className={finalGrade === 0 ? "text-muted-foreground" : "text-sm font-medium"}>
-                                        {(finalGrade as number)?.toFixed(1) ?? "0.0"}
-                                      </span>
-                                    )}
-                                  </td>
-                                </React.Fragment>
+                                <td key={idx} className="py-3 pr-2 text-center">
+                                  {isExcluded ? (
+                                    <span className="text-muted-foreground/40">—</span>
+                                  ) : (
+                                    <span className={finalGrade === 0 ? "text-muted-foreground" : "text-sm font-medium"}>
+                                      {(finalGrade as number)?.toFixed(1) ?? "0.0"}
+                                    </span>
+                                  )}
+                                </td>
                               );
                             })}
-                            <td className="py-3 pr-2 text-center">
-                              {(r as any).excludedFlags?.every(Boolean) ? (
-                                <span className="text-muted-foreground/40">—</span>
-                              ) : (
-                                <span className={r.peerAverage === 0 ? "text-muted-foreground" : ""}>
-                                  {r.peerAverage.toFixed(1)}
-                                </span>
-                              )}
-                            </td>
                             <td className="py-3 pr-2 text-center">
                               {(r as any).excludedFlags?.every(Boolean) ? (
                                 <span className="text-muted-foreground/40">—</span>
@@ -1145,8 +1122,8 @@ function ConsolidatedStudentReport({ classId }: { classId: number }) {
                   <th className="py-3 px-3 font-semibold sticky left-8 bg-muted/30 z-10 min-w-[180px]">Aluno</th>
                   <th className="py-3 px-2 font-semibold text-center min-w-[60px]">Matrícula</th>
                   {sessions.map((s, i) => (
-                    <th key={i} className="py-3 px-2 font-semibold text-center min-w-[90px]">
-                      <div className="text-xs">{s.label}</div>
+                    <th key={i} className="py-3 px-2 font-semibold text-center min-w-[70px]">
+                      <div className="text-xs">P{s.problemNumber}S{s.sessionNumber}</div>
                     </th>
                   ))}
                   <th className="py-3 px-2 font-semibold text-center bg-emerald-50/50">
@@ -1160,9 +1137,6 @@ function ConsolidatedStudentReport({ classId }: { classId: number }) {
                       <AlertTriangle className="h-3 w-3 text-red-500" />
                       <span className="text-xs">Faltas</span>
                     </div>
-                  </th>
-                  <th className="py-3 px-2 font-semibold text-center bg-blue-50/50">
-                    <span className="text-xs">Média Pares</span>
                   </th>
                   <th className="py-3 px-2 font-semibold text-center bg-amber-50/50">
                     <span className="text-xs font-bold">Média Final</span>
@@ -1242,17 +1216,6 @@ function ConsolidatedStudentReport({ classId }: { classId: number }) {
                       ) : (
                         <span className={`font-medium ${student.absentCount > 0 ? "text-red-600" : "text-muted-foreground"}`}>
                           {student.absentCount}
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-2.5 px-2 text-center bg-blue-50/30">
-                      {(student as any).allExcluded ? (
-                        <span className="font-medium text-orange-500 italic">E</span>
-                      ) : (
-                        <span className={`font-medium ${
-                          student.avgPeerScore >= 8 ? "text-emerald-600" : student.avgPeerScore >= 5 ? "text-amber-600" : student.avgPeerScore > 0 ? "text-red-600" : "text-muted-foreground"
-                        }`}>
-                          {student.avgPeerScore > 0 ? student.avgPeerScore.toFixed(1) : "—"}
                         </span>
                       )}
                     </td>

@@ -588,3 +588,6 @@
 - [x] Sessão encerrada sem avaliação do professor: finishSession já persiste avaliações Excelente para alunos sem avaliação (autoFillMissingEvaluations) e insere tutorial com todos os itens=1.0 (Excelente); calculateFinalGrades usa dados reais do banco após encerramento
 - [x] Bug: tabela de Notas Individuais dos Pares em sessão fechada sem avaliações não exibia notas default; corrigido: getPeerGradesMatrix aceita provisional=true e injeta notas virtuais Excelente (10.0) para alunos presentes; avaliadores virtuais aparecem com ícone ✨ (autoFilled)
 - [x] Resultados consolidados por Problema e por Aluno: incluir notas provisórias de sessões fechadas; calculateProblemFinalGrades e getStudentConsolidatedReport agora passam provisional=true para sessões com status=closed
+- [x] Por Problema e Por Aluno: removidas colunas Nota dos Pares e Média dos Pares
+- [x] Por Aluno: cabeçalhos de coluna abreviados para P1S1, P1S2 etc.
+- [x] Bug: tabela de Notas Individuais dos Pares em sessão fechada com avaliações parciais corrigida; getPeerGradesMatrix agora inclui todos os presentes como avaliadores em modo provisional, injetando defaults Excelente para os que não submeteram

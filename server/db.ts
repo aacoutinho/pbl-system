@@ -2879,10 +2879,16 @@ export async function getPeerGradesMatrix(sessionId: number, provisional = false
   const serialMap = new Map<number, number>();
   allStudentsForMatrix.forEach((s, i) => serialMap.set(s.studentId, i + 1));
 
-  // Build evaluator list (only present students who actually submitted evaluations)
+  // Build evaluator list
+  // In provisional mode: all present students are evaluators (real or virtual)
+  // In normal mode: only students who actually submitted evaluations
   const evaluatorIds = new Set(evals.filter(e => !absentStudentIdsSet.has(e.evaluatorStudentId)).map(e => e.evaluatorStudentId));
+  const presentStudentIds = new Set(sessionStudentsList.filter(s => !s.absent).map(s => s.studentId));
+  const allEvaluatorIds = provisional
+    ? presentStudentIds  // all present students are evaluators in provisional mode
+    : evaluatorIds;
   const evaluators = sessionStudentsList
-    .filter(s => evaluatorIds.has(s.studentId))
+    .filter(s => allEvaluatorIds.has(s.studentId))
     .map(s => ({
       studentId: s.studentId,
       serial: serialMap.get(s.studentId) || 0,
@@ -2927,7 +2933,19 @@ export async function getPeerGradesMatrix(sessionId: number, provisional = false
     for (const evaluator of evaluators) {
       if (evaluator.studentId === s.studentId) continue; // skip self
       const eval_ = evals.find(e => e.evaluatorStudentId === evaluator.studentId);
-      if (!eval_) continue;
+      if (!eval_) {
+        // In provisional mode: evaluator didn't submit → inject virtual Excelente default
+        if (provisional) {
+          peerGrades.push({
+            evaluatorStudentId: evaluator.studentId,
+            evaluatorSerial: evaluator.serial,
+            score: 10,
+            absent: false,
+            autoFilled: true,
+          });
+        }
+        continue;
+      }
       const item = filteredItems.find(
         i => i.evaluationId === eval_.id && i.evaluatedStudentId === s.studentId
       );
@@ -2941,6 +2959,15 @@ export async function getPeerGradesMatrix(sessionId: number, provisional = false
           score: Math.round(score * 100) / 100,
           absent: item.absent,
           autoFilled: evalRecord?.autoFilled ?? false,
+        });
+      } else if (provisional) {
+        // Evaluator submitted but didn't evaluate this specific student → inject default
+        peerGrades.push({
+          evaluatorStudentId: evaluator.studentId,
+          evaluatorSerial: evaluator.serial,
+          score: 10,
+          absent: false,
+          autoFilled: true,
         });
       }
     }
