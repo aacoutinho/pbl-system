@@ -1899,10 +1899,12 @@ export async function getStudentConsolidatedReport(classId: number) {
   }
 
   // Calculate final grades for each session
+  // Use provisional=true for closed sessions (no tutorial eval yet)
   const sessionResults: Record<number, { label: string; problemNumber: number; sessionNumber: number; status: string; grades: Record<number, { peerScore: number; finalGrade: number; role: string; absent: boolean; excluded: boolean; capped: boolean }> }> = {};
 
   for (const sess of classSessions) {
-    const finalGrades = await calculateFinalGrades(sess.id);
+    const isProvisional = sess.status === "closed";
+    const finalGrades = await calculateFinalGrades(sess.id, isProvisional);
     sessionResults[sess.id] = {
       label: sess.label,
       problemNumber: sess.problemNumber,
@@ -2032,9 +2034,11 @@ export async function calculateProblemFinalGrades(classId: number, problemNumber
   }
 
   // Per-session final grades: map sessionId -> map studentId -> FinalGradeResult
+  // Use provisional=true for closed sessions (no tutorial eval yet)
   const sessionFinalMap: Record<number, Record<number, FinalGradeResult>> = {};
   for (const sess of problemSessions) {
-    const results = await calculateFinalGrades(sess.id);
+    const isProvisional = sess.status === "closed";
+    const results = await calculateFinalGrades(sess.id, isProvisional);
     sessionFinalMap[sess.id] = {};
     for (const r of results) {
       sessionFinalMap[sess.id][r.studentId] = r;
