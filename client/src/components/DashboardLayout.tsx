@@ -455,6 +455,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
 
+  // Keep sidebar open on desktop — controlled state persists across route changes
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
   const { loading, user, logout } = useAuth();
 
   useEffect(() => {
@@ -503,6 +506,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <SidebarProvider
+      open={sidebarOpen}
+      onOpenChange={setSidebarOpen}
       style={{ "--sidebar-width": `${sidebarWidth}px` } as CSSProperties}
     >
       <DashboardLayoutContent setSidebarWidth={setSidebarWidth}>

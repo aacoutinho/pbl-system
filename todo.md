@@ -610,3 +610,4 @@
 - [x] Seletor de componente no menu lateral: exibir código + nome (ex.: TEC502 - Concorrência e Conectividade), ordenado pelo código
 - [x] Seletor de componente no menu lateral: exibir apenas o código (reverter para label curto)
 - [x] Cabeçalho de cada página: exibir código + nome do componente selecionado em destaque (Painel Geral, Turmas, Alunos, Sessões, Avaliar Tutorial, Resultados)
+- [x] Menu lateral: permanecer sempre visível no desktop ao navegar entre páginas (não fechar ao clicar em itens do menu)
