@@ -418,6 +418,7 @@ function TutorialEvalContent() {
       utils.sessions.listWithPermissions.invalidate();
       utils.results.sessionFinal.invalidate();
       utils.results.problemFinal.invalidate();
+      utils.results.studentConsolidated.invalidate();
       setHasDraft(false);
       toast.success(existingEval ? "Avaliação atualizada com sucesso!" : "Avaliação do tutorial finalizada com sucesso! Sessão encerrada.");
     },

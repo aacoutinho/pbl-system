@@ -185,11 +185,13 @@ function ResultsContent() {
     lines.push("");
 
     // Results table
-    lines.push("RESULTADOS DOS ALUNOS");
-    lines.push("Aluno,Papel,Média Pares,Nota Final,Status");
+    const isProvisional = isSessionClosed && !tutorialEval;
+    lines.push("RESULTADOS DOS ALUNOS" + (isProvisional ? " (NOTAS PROVISÓRIAS)" : ""));
+    if (isProvisional) lines.push("ATENÇÃO: Notas provisórias calculadas com tutorial máximo (10.0). Avalie o tutorial para confirmar.");
+    lines.push(`Aluno,Papel,${isProvisional ? "Nota Provisória" : "Nota Final"},Status`);
     for (const r of finalResults) {
       const status = r.absent ? "Faltou" : "Presente";
-      lines.push(`${escapeCSV(r.studentName)},${r.role},${r.peerScore.toFixed(1)},${r.finalGrade.toFixed(1)},${status}`);
+      lines.push(`${escapeCSV(r.studentName)},${r.role},${r.finalGrade.toFixed(1)},${status}`);
     }
 
     // Brainstorm board section
@@ -226,23 +228,26 @@ function ResultsContent() {
     lines.push(`Resultados Consolidados - Problema ${selectedProblem}`);
     lines.push("");
 
-    // Header row
+    // Header row — sem colunas de pares; indicar sessões provisórias
+    const hasProvisional = sessionsForProblem.some(s => s.status === "closed");
+    if (hasProvisional) {
+      lines.push("ATENÇÃO: Sessões marcadas com (P) contêm notas provisórias.");
+      lines.push("");
+    }
     const headers = ["Aluno"];
     for (const s of sessionsForProblem) {
-      headers.push(`S${s.sessionNumber} Média Pares`);
-      headers.push(`S${s.sessionNumber} Nota Final`);
+      const label = s.status === "closed" ? `S${s.sessionNumber} (P)` : `S${s.sessionNumber}`;
+      headers.push(label);
     }
-    headers.push("Média Pares", "Média Final");
+    headers.push("Média Final");
     lines.push(headers.join(","));
 
     // Data rows
     for (const r of problemFinalResults) {
       const row = [escapeCSV(r.studentName)];
       for (let idx = 0; idx < sessionsForProblem.length; idx++) {
-        row.push((r.peerScores[idx] ?? 0).toFixed(1));
         row.push((r.finalGrades[idx] ?? 0).toFixed(1));
       }
-      row.push(r.peerAverage.toFixed(1));
       row.push(r.finalAverage.toFixed(1));
       lines.push(row.join(","));
     }
@@ -750,7 +755,14 @@ function ResultsContent() {
                           <th className="pb-3 pr-4 font-semibold w-12">#</th>
                           <th className="pb-3 pr-4 font-semibold">Aluno</th>
                           {activeSessions?.filter(s => s.problemNumber === parseInt(selectedProblem)).sort((a, b) => a.sessionNumber - b.sessionNumber).map(s => (
-                            <th key={s.id} className="pb-3 pr-2 font-semibold text-center text-xs">S{s.sessionNumber}</th>
+                            <th key={s.id} className="pb-3 pr-2 font-semibold text-center text-xs">
+                              <div className="flex flex-col items-center gap-0.5">
+                                <span>S{s.sessionNumber}</span>
+                                {s.status === "closed" && (
+                                  <span className="text-[9px] font-normal text-amber-600 bg-amber-50 border border-amber-200 rounded px-1 leading-tight">Prov.</span>
+                                )}
+                              </div>
+                            </th>
                           ))}
                           <th className="pb-3 pr-2 font-semibold text-center">Média Final</th>
                         </tr>
@@ -1063,18 +1075,26 @@ function ConsolidatedStudentReport({ classId }: { classId: number }) {
   const exportConsolidated = () => {
     if (!report || report.length === 0) return;
     const sessions = report[0].sessions;
-    const header = ["Matrícula", "Aluno", ...sessions.map(s => `${s.label} (Papel)`), ...sessions.map(s => `${s.label} (Nota)`), "Presenças", "Faltas", "Média Pares", "Média Final"];
+    const hasProvisionalSessions = sessions.some(s => s.status === "closed");
+    const sessionHeaders = sessions.map(s => {
+      const abbr = `P${s.problemNumber}S${s.sessionNumber}`;
+      return s.status === "closed" ? `${abbr} (P)` : abbr;
+    });
+    const header = ["Matrícula", "Aluno", ...sessionHeaders, "Presenças", "Faltas", "Média Final"];
+    const extraLines: string[] = [];
+    if (hasProvisionalSessions) {
+      extraLines.push("ATENÇÃO: Colunas marcadas com (P) contêm notas provisórias (sessão fechada aguardando avaliação do tutorial).");
+      extraLines.push("");
+    }
     const rows = report.map(r => [
       escapeCSV(r.studentEnrollment),
       escapeCSV(r.studentName),
-      ...r.sessions.map(s => escapeCSV(s.role)),
       ...r.sessions.map(s => s.finalGrade.toFixed(1)),
       r.presentCount,
       r.absentCount,
-      r.avgPeerScore.toFixed(1),
       r.avgFinalGrade.toFixed(1),
     ]);
-    const csv = [header.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const csv = [...extraLines, header.join(","), ...rows.map(r => r.join(","))].join("\n");
     downloadCSV(csv, `relatorio_consolidado_turma_${classId}.csv`);
   };
 
@@ -1123,7 +1143,12 @@ function ConsolidatedStudentReport({ classId }: { classId: number }) {
                   <th className="py-3 px-2 font-semibold text-center min-w-[60px]">Matrícula</th>
                   {sessions.map((s, i) => (
                     <th key={i} className="py-3 px-2 font-semibold text-center min-w-[70px]">
-                      <div className="text-xs">P{s.problemNumber}S{s.sessionNumber}</div>
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span className="text-xs">P{s.problemNumber}S{s.sessionNumber}</span>
+                        {s.status === "closed" && (
+                          <span className="text-[9px] font-normal text-amber-600 bg-amber-50 border border-amber-200 rounded px-1 leading-tight">Prov.</span>
+                        )}
+                      </div>
                     </th>
                   ))}
                   <th className="py-3 px-2 font-semibold text-center bg-emerald-50/50">

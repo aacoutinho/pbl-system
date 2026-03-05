@@ -87,16 +87,20 @@ function StudentsContent() {
     onSuccess: (data) => {
       utils.students.list.invalidate();
       let msg = `${data.count} alunos processados: ${data.created} novos, ${data.linked} vinculados`;
-      if (data.alreadyInClass > 0) msg += `, ${data.alreadyInClass} j\u00e1 na turma`;
-      if (data.conflicts.length > 0) msg += `. ${data.conflicts.length} conflitos (j\u00e1 em outra turma do componente)`;
+      if (data.alreadyInClass > 0) msg += `, ${data.alreadyInClass} já na turma`;
+      if (data.conflicts.length > 0) {
+        setImportConflicts(data.conflicts);
+      }
       if (data.nameMismatches && data.nameMismatches.length > 0) {
         setImportNameMismatches(data.nameMismatches);
-        toast.warning(`${data.nameMismatches.length} aluno(s) com diverg\u00eancia de nome. Resolva os conflitos abaixo.`);
-      } else {
+        toast.warning(`${data.nameMismatches.length} aluno(s) com divergência de nome. Resolva os conflitos abaixo.`);
+      } else if (data.conflicts.length === 0) {
         toast.success(msg);
         setShowCSVImport(false);
         setCsvPreview(null);
         setCsvContent("");
+      } else {
+        toast.warning(`${data.conflicts.length} aluno(s) não importado(s): já cadastrado(s) em outra turma deste componente.`);
       }
     },
     onError: (e: any) => toast.error(e.message),
@@ -121,6 +125,7 @@ function StudentsContent() {
   const [showAdd, setShowAdd] = useState(false);
   const [enrollmentConflict, setEnrollmentConflict] = useState<{ existingName: string; existingEmail: string | null; inputName: string; inputEmail: string | null } | null>(null);
   const [importNameMismatches, setImportNameMismatches] = useState<{ csvName: string; enrollment: string; existingName: string; existingEmail: string | null }[]>([]);
+  const [importConflicts, setImportConflicts] = useState<{ name: string; enrollment: string }[]>([]);
   const [showCSVImport, setShowCSVImport] = useState(false);
   const [csvContent, setCsvContent] = useState("");
   const [csvPreview, setCsvPreview] = useState<{ name: string; enrollment: string }[] | null>(null);
@@ -380,6 +385,40 @@ function StudentsContent() {
                   </div>
                 )}
                 {/* Name mismatch conflicts from import */}
+                {importConflicts.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-2 p-3 rounded-lg border border-red-300 bg-red-50">
+                      <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-sm font-semibold text-red-800">Alunos não importados — já cadastrados neste componente</p>
+                        <p className="text-xs text-red-700 mt-1">
+                          Os alunos abaixo já estão em outra turma deste mesmo componente e não podem ser adicionados novamente.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="border rounded-lg overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/50">
+                          <tr>
+                            <th className="px-3 py-2 text-left font-medium">Matrícula</th>
+                            <th className="px-3 py-2 text-left font-medium">Nome</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {importConflicts.map((c, i) => (
+                            <tr key={i} className="border-t">
+                              <td className="px-3 py-2 font-mono text-xs">{c.enrollment}</td>
+                              <td className="px-3 py-2">{c.name}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => { setImportConflicts([]); setShowCSVImport(false); setCsvPreview(null); setCsvContent(""); }}>
+                      Fechar
+                    </Button>
+                  </div>
+                )}
                 {importNameMismatches.length > 0 && (
                   <div className="space-y-3">
                     <div className="flex items-start gap-2 p-3 rounded-lg border border-amber-300 bg-amber-50">

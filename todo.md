@@ -594,3 +594,7 @@
 - [x] Bug: importação CSV não encontra alunos; corrigido com algoritmo robusto que detecta a coluna de matrícula por padrão de conteúdo (5-11 dígitos numéricos) em vez de posição fixa; funciona para todos os formatos SAGRES conhecidos
 - [x] Bug: importação CSV com delimitador vírgula não funcionava; corrigido com detecção automática do delimitador (conta vírgulas vs ponto-e-vírgulas nas primeiras 10 linhas)
 - [x] Removida geração automática de e-mail na importação CSV e no cadastro manual; e-mail é opcional no cadastro e exibe "não informado" quando vazio; aluno preenche ao acessar o sistema
+- [x] Importação CSV: painel de aviso vermelho exibe lista de alunos com matrícula duplicada em outra turma do mesmo componente; aluno não é inserido
+- [x] Por Problema e Por Aluno: badge "Prov." âmbar nas colunas de sessão fechada
+- [x] Invalidar cache das abas Por Problema (problemFinal) e Por Aluno (studentConsolidated) ao professor avaliar tutorial
+- [x] Exportações CSV atualizadas: sem colunas de pares; sessões provisórias marcadas com (P); aviso no topo do arquivo quando há notas provisórias
