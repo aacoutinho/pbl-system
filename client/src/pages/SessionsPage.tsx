@@ -25,7 +25,7 @@ export default function SessionsPage() {
 function SessionsContent() {
   const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
-  const { selectedComponentId } = useComponentContext();
+  const { selectedComponentId, selectedComponentFullLabel } = useComponentContext();
   const { user } = useAuth();
 
   // Semestre filter
@@ -266,7 +266,10 @@ function SessionsContent() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Sessões</h1>
-          <p className="text-muted-foreground mt-1">
+          {selectedComponentFullLabel && (
+            <p className="text-sm font-semibold text-primary mt-0.5">{selectedComponentFullLabel}</p>
+          )}
+          <p className="text-muted-foreground mt-1 text-sm">
             {canManage ? "Crie e gerencie sessões tutoriais." : "Visualize as sessões tutoriais."}
           </p>
         </div>

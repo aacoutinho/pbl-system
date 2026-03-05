@@ -556,7 +556,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
     || allConfigSubItems.find(item => item.path === location);
 
   // Component selector: list only user's accessible components
-  const { selectedComponentId, setSelectedComponentId } = useComponentContext();
+  const { selectedComponentId, setSelectedComponentId, setSelectedComponentMeta } = useComponentContext();
   const { data: componentsList } = trpc.components.listMine.useQuery();
 
   // Auto-select first component if none selected or invalid
@@ -564,18 +564,27 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
     if (!componentsList) return;
     if (componentsList.length === 0) {
       if (selectedComponentId !== null) setSelectedComponentId(null);
+      setSelectedComponentMeta(null, null);
       return;
     }
     // If selectedComponentId is not in the user's components, reset it
     if (selectedComponentId !== null && !componentsList.some(c => c.id === selectedComponentId)) {
-      setSelectedComponentId(componentsList[0].id);
+      const first = componentsList[0];
+      setSelectedComponentId(first.id);
+      setSelectedComponentMeta(first.code, first.name ?? null);
       return;
     }
     // Auto-select first component if none selected
     if (selectedComponentId === null) {
-      setSelectedComponentId(componentsList[0].id);
+      const first = componentsList[0];
+      setSelectedComponentId(first.id);
+      setSelectedComponentMeta(first.code, first.name ?? null);
+    } else {
+      // Sync meta for already-selected component
+      const found = componentsList.find(c => c.id === selectedComponentId);
+      if (found) setSelectedComponentMeta(found.code, found.name ?? null);
     }
-  }, [componentsList, selectedComponentId, setSelectedComponentId]);
+  }, [componentsList, selectedComponentId]);
 
   useEffect(() => {
     if (isCollapsed) setIsResizing(false);
@@ -607,6 +616,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
     .slice()
     .sort((a, b) => a.code.localeCompare(b.code))
     .map(c => ({ id: c.id, label: c.code, fullLabel: c.name ? `${c.code} - ${c.name}` : c.code }));
+  const selectedComponent = componentOptions.find(c => c.id === selectedComponentId) ?? null;
 
   return (
     <>
@@ -638,7 +648,12 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
               <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-0.5">Componente</p>
               <Select
                 value={selectedComponentId ? String(selectedComponentId) : ""}
-                onValueChange={(v) => setSelectedComponentId(parseInt(v))}
+                onValueChange={(v) => {
+                  const id = parseInt(v);
+                  setSelectedComponentId(id);
+                  const found = (componentsList ?? []).find(c => c.id === id);
+                  if (found) setSelectedComponentMeta(found.code, found.name ?? null);
+                }}
               >
                 <SelectTrigger className="h-9 text-xs font-medium">
                   <SelectValue placeholder="Selecione o componente..." />
@@ -646,7 +661,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                 <SelectContent>
                   {componentOptions.map(c => (
                     <SelectItem key={c.id} value={String(c.id)} className="text-xs">
-                      <span className="font-semibold">{c.fullLabel}</span>
+                      <span className="font-semibold">{c.label}</span>
                     </SelectItem>
                   ))}
                 </SelectContent>

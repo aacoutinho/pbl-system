@@ -191,7 +191,7 @@ export default function TutorialEvalPage() {
 }
 
 function TutorialEvalContent() {
-  const { selectedComponentId } = useComponentContext();
+  const { selectedComponentId, selectedComponentFullLabel } = useComponentContext();
   const { user } = useAuth();
   const utils = trpc.useUtils();
 
@@ -525,7 +525,10 @@ function TutorialEvalContent() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Avaliação do Tutorial</h1>
-        <p className="text-muted-foreground mt-1">
+        {selectedComponentFullLabel && (
+          <p className="text-sm font-semibold text-primary mt-0.5">{selectedComponentFullLabel}</p>
+        )}
+        <p className="text-muted-foreground mt-1 text-sm">
           Avalie a qualidade geral de cada sessão tutorial e faça anotações individuais sobre cada aluno.
         </p>
       </div>

@@ -21,7 +21,7 @@ export default function StudentsPage() {
 
 function StudentsContent() {
   const utils = trpc.useUtils();
-  const { selectedComponentId } = useComponentContext();
+  const { selectedComponentId, selectedComponentFullLabel } = useComponentContext();
   const { user } = useAuth();
 
   // Semestre filter
@@ -320,7 +320,10 @@ function StudentsContent() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Alunos</h1>
-          <p className="text-muted-foreground mt-1">
+          {selectedComponentFullLabel && (
+            <p className="text-sm font-semibold text-primary mt-0.5">{selectedComponentFullLabel}</p>
+          )}
+          <p className="text-muted-foreground mt-1 text-sm">
             {canManage ? "Gerencie os alunos da turma selecionada." : "Visualize os alunos da turma selecionada."}
           </p>
         </div>

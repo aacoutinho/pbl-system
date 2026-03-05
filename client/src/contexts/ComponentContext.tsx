@@ -1,10 +1,15 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, ReactNode } from "react";
 
 interface ComponentContextType {
   selectedComponentId: number | null;
   setSelectedComponentId: (id: number | null) => void;
   selectedSemester: string | null;
   setSelectedSemester: (semester: string | null) => void;
+  /** Short code, e.g. "TEC502" */
+  selectedComponentCode: string | null;
+  /** Full label, e.g. "TEC502 - Concorrência e Conectividade" */
+  selectedComponentFullLabel: string | null;
+  setSelectedComponentMeta: (code: string | null, name: string | null) => void;
 }
 
 const ComponentContext = createContext<ComponentContextType>({
@@ -12,6 +17,9 @@ const ComponentContext = createContext<ComponentContextType>({
   setSelectedComponentId: () => {},
   selectedSemester: null,
   setSelectedSemester: () => {},
+  selectedComponentCode: null,
+  selectedComponentFullLabel: null,
+  setSelectedComponentMeta: () => {},
 });
 
 const COMPONENT_STORAGE_KEY = "selected-component-id";
@@ -27,12 +35,21 @@ export function ComponentProvider({ children }: { children: ReactNode }) {
     return localStorage.getItem(SEMESTER_STORAGE_KEY) ?? null;
   });
 
+  const [selectedComponentCode, setSelectedComponentCode] = useState<string | null>(null);
+  const [selectedComponentName, setSelectedComponentName] = useState<string | null>(null);
+
+  const selectedComponentFullLabel = selectedComponentCode
+    ? (selectedComponentName ? `${selectedComponentCode} - ${selectedComponentName}` : selectedComponentCode)
+    : null;
+
   const setSelectedComponentId = (id: number | null) => {
     setSelectedComponentIdState(id);
     if (id !== null) {
       localStorage.setItem(COMPONENT_STORAGE_KEY, String(id));
     } else {
       localStorage.removeItem(COMPONENT_STORAGE_KEY);
+      setSelectedComponentCode(null);
+      setSelectedComponentName(null);
     }
   };
 
@@ -45,8 +62,21 @@ export function ComponentProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const setSelectedComponentMeta = (code: string | null, name: string | null) => {
+    setSelectedComponentCode(code);
+    setSelectedComponentName(name);
+  };
+
   return (
-    <ComponentContext.Provider value={{ selectedComponentId, setSelectedComponentId, selectedSemester, setSelectedSemester }}>
+    <ComponentContext.Provider value={{
+      selectedComponentId,
+      setSelectedComponentId,
+      selectedSemester,
+      setSelectedSemester,
+      selectedComponentCode,
+      selectedComponentFullLabel,
+      setSelectedComponentMeta,
+    }}>
       {children}
     </ComponentContext.Provider>
   );

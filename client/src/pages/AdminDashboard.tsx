@@ -40,7 +40,7 @@ function formatTimeAgo(date: string | Date) {
 }
 
 export default function AdminDashboard() {
-  const { selectedComponentId, selectedSemester, setSelectedSemester } = useComponentContext();
+  const { selectedComponentId, selectedSemester, setSelectedSemester, selectedComponentFullLabel } = useComponentContext();
   const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
 
@@ -132,7 +132,10 @@ export default function AdminDashboard() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Painel Geral</h1>
-          <p className="text-muted-foreground mt-1">Visão geral do componente selecionado.</p>
+          {selectedComponentFullLabel && (
+            <p className="text-sm font-semibold text-primary mt-0.5">{selectedComponentFullLabel}</p>
+          )}
+          <p className="text-muted-foreground mt-1 text-sm">Visão geral do componente selecionado.</p>
         </div>
         {semesterOptions.length > 0 && (
           <div className="flex items-center gap-2">

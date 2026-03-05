@@ -22,7 +22,7 @@ export default function ClassesPage() {
 function ClassesContent() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
-  const { selectedComponentId } = useComponentContext();
+  const { selectedComponentId, selectedComponentFullLabel } = useComponentContext();
 
   // Semestre filter
   const { data: semesters } = trpc.classes.semestersByComponent.useQuery(
@@ -155,7 +155,10 @@ function ClassesContent() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Turmas</h1>
-          <p className="text-muted-foreground mt-1">Turmas do componente selecionado.</p>
+          {selectedComponentFullLabel && (
+            <p className="text-sm font-semibold text-primary mt-0.5">{selectedComponentFullLabel}</p>
+          )}
+          <p className="text-muted-foreground mt-1 text-sm">Turmas do componente selecionado.</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2">

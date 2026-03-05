@@ -25,7 +25,7 @@ export default function ResultsPage() {
 }
 
 function ResultsContent() {
-  const { selectedComponentId } = useComponentContext();
+  const { selectedComponentId, selectedComponentFullLabel } = useComponentContext();
   const { user } = useAuth();
 
   // Semestre filter
@@ -267,7 +267,10 @@ function ResultsContent() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Resultados</h1>
-        <p className="text-muted-foreground mt-1">Visualize e exporte as notas calculadas automaticamente.</p>
+        {selectedComponentFullLabel && (
+          <p className="text-sm font-semibold text-primary mt-0.5">{selectedComponentFullLabel}</p>
+        )}
+        <p className="text-muted-foreground mt-1 text-sm">Visualize e exporte as notas calculadas automaticamente.</p>
       </div>
 
       {/* Filtros de semestre e turma */}

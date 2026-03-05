@@ -608,3 +608,5 @@
 - [x] Resultados: listar sessões do componente selecionado com filtro de semestre e turma; selecionar sessão para ver resultados
 - [x] Verificar compatibilidade de Backup e Restauração com o esquema atual do banco de dados (já verificado em tarefas anteriores - OK)
 - [x] Seletor de componente no menu lateral: exibir código + nome (ex.: TEC502 - Concorrência e Conectividade), ordenado pelo código
+- [x] Seletor de componente no menu lateral: exibir apenas o código (reverter para label curto)
+- [x] Cabeçalho de cada página: exibir código + nome do componente selecionado em destaque (Painel Geral, Turmas, Alunos, Sessões, Avaliar Tutorial, Resultados)
