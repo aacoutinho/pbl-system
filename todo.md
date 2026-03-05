@@ -593,3 +593,4 @@
 - [x] Bug: tabela de Notas Individuais dos Pares em sessão fechada com avaliações parciais corrigida; getPeerGradesMatrix agora inclui todos os presentes como avaliadores em modo provisional, injetando defaults Excelente para os que não submeteram
 - [x] Bug: importação CSV não encontra alunos; corrigido com algoritmo robusto que detecta a coluna de matrícula por padrão de conteúdo (5-11 dígitos numéricos) em vez de posição fixa; funciona para todos os formatos SAGRES conhecidos
 - [x] Bug: importação CSV com delimitador vírgula não funcionava; corrigido com detecção automática do delimitador (conta vírgulas vs ponto-e-vírgulas nas primeiras 10 linhas)
+- [x] Removida geração automática de e-mail na importação CSV e no cadastro manual; e-mail é opcional no cadastro e exibe "não informado" quando vazio; aluno preenche ao acessar o sistema

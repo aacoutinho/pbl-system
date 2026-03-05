@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 
 // Test CSV parsing logic (same as used in the importCSV route)
 // Robust SAGRES Folha de Frequência parser: detects enrollment by content pattern.
-function parseCSV(csvContent: string, emailDomain?: string) {
+// E-mail is NOT generated here — students fill it in themselves when accessing the system.
+function parseCSV(csvContent: string) {
   const ENROLLMENT_RE = /^\s*\d{5,11}\s*$/;
   const HEADER_NAME_RE = /aluno|nome/i;
   // Auto-detect delimiter
@@ -11,7 +12,7 @@ function parseCSV(csvContent: string, emailDomain?: string) {
   const semicolonCount = sampleLines.join("").split(";").length - 1;
   const commaCount = sampleLines.join("").split(",").length - 1;
   const delimiter = commaCount > semicolonCount ? "," : ";";
-  const parsed: { name: string; email: string; enrollment: string }[] = [];
+  const parsed: { name: string; enrollment: string }[] = [];
 
   for (const line of allLines) {
     const cols = line.split(delimiter);
@@ -25,30 +26,7 @@ function parseCSV(csvContent: string, emailDomain?: string) {
     if (!name || HEADER_NAME_RE.test(name)) continue;
     if (/^[_\s]+$/.test(name)) continue;
 
-    // Generate email: initials + last name (ignoring suffixes like Junior, Jr., Neto, Filho)
-    const domain = emailDomain || "ecomp.uefs.br";
-    const parts = name.toLowerCase()
-      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-      .split(/\s+/)
-      .filter(p => p.length > 0);
-    
-    // Remove common suffixes from the end
-    const suffixes = ["junior", "jr", "jr.", "neto", "filho"];
-    let filteredParts = [...parts];
-    while (filteredParts.length > 1 && suffixes.includes(filteredParts[filteredParts.length - 1].replace(/\./g, ""))) {
-      filteredParts.pop();
-    }
-    
-    let email = "";
-    if (filteredParts.length >= 2) {
-      const initials = filteredParts.slice(0, -1).map(p => p[0]).join("");
-      const lastName = filteredParts[filteredParts.length - 1];
-      email = `${initials}${lastName}@${domain}`;
-    } else {
-      email = `${filteredParts[0]}@${domain}`;
-    }
-
-    parsed.push({ name, email, enrollment });
+    parsed.push({ name, enrollment });
   }
   return parsed;
 }
@@ -115,21 +93,8 @@ describe("CSV Import - Old Format (N° in col[1])", () => {
     expect(result[10].enrollment).toBe("22111240");
   });
 
-  it("generates emails with default domain", () => {
-    const result = parseCSV(SAMPLE_CSV_OLD_FORMAT);
-    expect(result[0].email).toBe("crdcarvalho@ecomp.uefs.br");
-    expect(result[1].email).toBe("fdsferreira@ecomp.uefs.br");
-  });
-
-  it("generates emails with custom domain", () => {
-    const result = parseCSV(SAMPLE_CSV_OLD_FORMAT, "uefs.br");
-    expect(result[0].email).toBe("crdcarvalho@uefs.br");
-    expect(result[1].email).toBe("fdsferreira@uefs.br");
-    expect(result[10].email).toBe("ycdsmeira@uefs.br");
-  });
-
   it("handles CSV with DevExpress trial notice header", () => {
-    const result = parseCSV(SAMPLE_CSV_WITH_TRIAL_OLD, "uefs.br");
+    const result = parseCSV(SAMPLE_CSV_WITH_TRIAL_OLD);
     expect(result).toHaveLength(3);
     expect(result[0].name).toBe("CLEIDSON RAMOS DE CARVALHO");
     expect(result[2].name).toBe("GERSON FERREIRA DOS ANJOS NETO");
@@ -153,30 +118,14 @@ describe("CSV Import - New Format (N° in col[0])", () => {
     expect(result[10].enrollment).toBe("23211323");
   });
 
-  it("generates emails correctly from new format", () => {
-    const result = parseCSV(SAMPLE_CSV_NEW_FORMAT);
-    // CAROLINE SANTOS DE JESUS → csdjesus@ecomp.uefs.br
-    expect(result[0].email).toBe("csdjesus@ecomp.uefs.br");
-    // CLEIDSON RAMOS DE CARVALHO → crdcarvalho@ecomp.uefs.br
-    expect(result[1].email).toBe("crdcarvalho@ecomp.uefs.br");
-  });
-
-  it("generates emails with custom domain from new format", () => {
-    const result = parseCSV(SAMPLE_CSV_NEW_FORMAT, "uefs.br");
-    expect(result[0].email).toBe("csdjesus@uefs.br");
-    expect(result[1].email).toBe("crdcarvalho@uefs.br");
-  });
-
   it("trims enrollment whitespace from new format", () => {
     const result = parseCSV(SAMPLE_CSV_NEW_FORMAT);
-    // Enrollment "22211284 " should be trimmed to "22211284"
     expect(result[0].enrollment).toBe("22211284");
     expect(result[0].enrollment).not.toContain(" ");
   });
 
   it("trims name whitespace from new format", () => {
     const result = parseCSV(SAMPLE_CSV_NEW_FORMAT);
-    // Name " CAROLINE SANTOS DE JESUS" should be trimmed
     expect(result[0].name).toBe("CAROLINE SANTOS DE JESUS");
     expect(result[0].name[0]).not.toBe(" ");
   });
@@ -189,7 +138,6 @@ describe("CSV Import - New Format (N° in col[0])", () => {
   });
 
   it("skips header row in new format", () => {
-    // The header line "N°;;Matrícula; Aluno;..." should be skipped because N° is not a number
     const result = parseCSV(SAMPLE_CSV_NEW_FORMAT);
     const hasHeader = result.some(s => s.name === "Aluno");
     expect(hasHeader).toBe(false);
@@ -197,18 +145,6 @@ describe("CSV Import - New Format (N° in col[0])", () => {
 });
 
 describe("CSV Import - Common Features (both formats)", () => {
-  it("removes accents from generated emails", () => {
-    const csvWithAccents = `;1;;12345 ;JOSÉ ANTÔNIO DA CONCEIÇÃO;;;;;   _;`;
-    const result = parseCSV(csvWithAccents, "uefs.br");
-    expect(result[0].email).toBe("jadconceicao@uefs.br");
-  });
-
-  it("removes accents from new format emails", () => {
-    const csvNewAccents = `1;;12345 ;JOSÉ ANTÔNIO DA CONCEIÇÃO;;;;;   _;`;
-    const result = parseCSV(csvNewAccents, "uefs.br");
-    expect(result[0].email).toBe("jadconceicao@uefs.br");
-  });
-
   it("skips header row with Matrícula/Aluno labels", () => {
     const csvWithHeader = `;N°;;Matrícula; Aluno;
 ;1;;20111193 ;CLEIDSON RAMOS DE CARVALHO;;;;;   _;`;
@@ -222,46 +158,25 @@ describe("CSV Import - Common Features (both formats)", () => {
     expect(result).toHaveLength(0);
   });
 
-  it("handles single-name students (old format)", () => {
+  it("handles students with accented names", () => {
+    const csvWithAccents = `;1;;12345 ;JOSÉ ANTÔNIO DA CONCEIÇÃO;;;;;   _;`;
+    const result = parseCSV(csvWithAccents);
+    expect(result[0].name).toBe("JOSÉ ANTÔNIO DA CONCEIÇÃO");
+    expect(result[0].enrollment).toBe("12345");
+  });
+
+  it("handles single-name students", () => {
     const csvSingleName = `;1;;99999 ;MADONNA;;;;;   _;`;
-    const result = parseCSV(csvSingleName, "uefs.br");
-    expect(result[0].email).toBe("madonna@uefs.br");
+    const result = parseCSV(csvSingleName);
+    expect(result[0].name).toBe("MADONNA");
+    expect(result[0].enrollment).toBe("99999");
   });
 
-  it("handles single-name students (new format)", () => {
-    const csvSingleName = `1;;99999 ;MADONNA;;;;;   _;`;
-    const result = parseCSV(csvSingleName, "uefs.br");
-    expect(result[0].email).toBe("madonna@uefs.br");
-  });
-
-  it("ignores Junior suffix when generating email", () => {
-    const csvWithJunior = `;1;;12345 ;JOSÉ MACEDO DOS SANTOS JUNIOR;;;;;   _;`;
-    const result = parseCSV(csvWithJunior);
-    expect(result[0].email).toBe("jmdsantos@ecomp.uefs.br");
-  });
-
-  it("ignores Jr. suffix when generating email", () => {
-    const csvWithJr = `;1;;12346 ;PEDRO SILVA JR.;;;;;   _;`;
-    const result = parseCSV(csvWithJr);
-    expect(result[0].email).toBe("psilva@ecomp.uefs.br");
-  });
-
-  it("ignores Neto suffix when generating email", () => {
-    const csvWithNeto = `;1;;12347 ;GERSON FERREIRA DOS ANJOS NETO;;;;;   _;`;
-    const result = parseCSV(csvWithNeto);
-    expect(result[0].email).toBe("gfdanjos@ecomp.uefs.br");
-  });
-
-  it("ignores Filho suffix when generating email", () => {
-    const csvWithFilho = `;1;;12348 ;ANTONIO RIBEIRO TEIXEIRA FILHO;;;;;   _;`;
-    const result = parseCSV(csvWithFilho);
-    expect(result[0].email).toBe("arteixeira@ecomp.uefs.br");
-  });
-
-  it("ignores Neto suffix in new format", () => {
-    const csvWithNeto = `4;;22111211 ;GERSON FERREIRA DOS ANJOS NETO;;;;;   _;`;
-    const result = parseCSV(csvWithNeto);
-    expect(result[0].email).toBe("gfdanjos@ecomp.uefs.br");
+  it("handles students with suffix (Junior, Neto, Filho)", () => {
+    const csvWithSuffix = `;1;;12345 ;GERSON FERREIRA DOS ANJOS NETO;;;;;   _;`;
+    const result = parseCSV(csvWithSuffix);
+    expect(result[0].name).toBe("GERSON FERREIRA DOS ANJOS NETO");
+    expect(result[0].enrollment).toBe("12345");
   });
 
   it("trims whitespace from enrollment and name (old format)", () => {
@@ -306,19 +221,14 @@ Nº,,Matrícula, Aluno,,,,,,   Assinatura do Aluno,
     expect(result[1].name).toBe("EMANUEL LUCAS TELLES BASTOS SENA");
   });
 
-  it("generates email from comma-delimited CSV", () => {
-    const result = parseCSV(COMMA_CSV, "uefs.br");
-    expect(result[0].email).toBe("avdsalves@uefs.br");
-  });
-
-  it("ignores Neto suffix in comma-delimited CSV", () => {
+  it("handles Neto suffix in comma-delimited CSV (name preserved as-is)", () => {
     const result = parseCSV(COMMA_CSV);
-    expect(result[2].email).toBe("imdcosta@ecomp.uefs.br");
+    expect(result[2].name).toBe("ILSON MARINHO DA COSTA NETO");
+    expect(result[2].enrollment).toBe("22211297");
   });
 
   it("skips header rows in comma-delimited CSV", () => {
     const result = parseCSV(COMMA_CSV);
-    // Should not include the header row 'Nº,,Matrícula, Aluno'
     expect(result.every(r => /^\d+$/.test(r.enrollment))).toBe(true);
   });
 });
