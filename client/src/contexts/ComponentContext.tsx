@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, ReactNode } from "react";
+import { getCurrentSemester } from "@/lib/semesterUtils";
 
 interface ComponentContextType {
   selectedComponentId: number | null;
@@ -32,7 +33,7 @@ export function ComponentProvider({ children }: { children: ReactNode }) {
   });
 
   const [selectedSemester, setSelectedSemesterState] = useState<string | null>(() => {
-    return localStorage.getItem(SEMESTER_STORAGE_KEY) ?? null;
+    return localStorage.getItem(SEMESTER_STORAGE_KEY) ?? getCurrentSemester();
   });
 
   const [selectedComponentCode, setSelectedComponentCode] = useState<string | null>(null);

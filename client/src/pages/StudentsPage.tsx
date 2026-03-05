@@ -1,4 +1,5 @@
 import { trpc } from "@/lib/trpc";
+import { getCurrentSemester } from "@/lib/semesterUtils";
 import { useComponentContext } from "@/contexts/ComponentContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,11 +30,8 @@ function StudentsContent() {
     { enabled: !!selectedComponentId }
   );
   const latestSemester = semesters?.[0] ?? null;
-  const [selectedSemester, setSelectedSemester] = useState<string | null>(null);
-  useEffect(() => {
-    if (latestSemester && selectedSemester === null) setSelectedSemester(latestSemester);
-  }, [latestSemester]);
-  useEffect(() => { setSelectedSemester(null); }, [selectedComponentId]);
+  const [selectedSemester, setSelectedSemester] = useState<string | null>(() => getCurrentSemester());
+  useEffect(() => { setSelectedSemester(getCurrentSemester()); }, [selectedComponentId]);
 
   // Class filter
   const { data: classesList } = trpc.classes.listByComponent.useQuery(
@@ -331,7 +329,7 @@ function StudentsContent() {
           <div className="flex items-center gap-2">
             <Label className="text-sm whitespace-nowrap">Semestre:</Label>
             <Select
-              value={selectedSemester ?? ""}
+              value={selectedSemester ?? getCurrentSemester()}
               onValueChange={(v) => setSelectedSemester(v || null)}
             >
               <SelectTrigger className="w-32 h-8 text-xs">

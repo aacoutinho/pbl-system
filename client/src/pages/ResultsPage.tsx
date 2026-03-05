@@ -1,4 +1,5 @@
 import { trpc } from "@/lib/trpc";
+import { getCurrentSemester } from "@/lib/semesterUtils";
 import { useComponentContext } from "@/contexts/ComponentContext";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -33,12 +34,9 @@ function ResultsContent() {
     { enabled: !!selectedComponentId }
   );
   const latestSemester = semesters?.[0] ?? null;
-  const [selectedSemester, setSelectedSemester] = useState<string | null>(null);
+  const [selectedSemester, setSelectedSemester] = useState<string | null>(() => getCurrentSemester());
   // Auto-select latest semester
-  useEffect(() => {
-    if (latestSemester && selectedSemester === null) setSelectedSemester(latestSemester);
-  }, [latestSemester]);
-  useEffect(() => { setSelectedSemester(null); }, [selectedComponentId]);
+  useEffect(() => { setSelectedSemester(getCurrentSemester()); }, [selectedComponentId]);
 
   // Class filter
   const { data: classesList } = trpc.classes.listByComponent.useQuery(
@@ -280,7 +278,7 @@ function ResultsContent() {
             <div className="flex items-center gap-2">
               <Label className="text-sm whitespace-nowrap">Semestre:</Label>
               <Select
-                value={selectedSemester ?? ""}
+                value={selectedSemester ?? getCurrentSemester()}
                 onValueChange={(v) => setSelectedSemester(v || null)}
               >
                 <SelectTrigger className="w-32 h-8 text-xs">
