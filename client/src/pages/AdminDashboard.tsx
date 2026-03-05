@@ -1,5 +1,7 @@
 import { trpc } from "@/lib/trpc";
 import { useComponentContext } from "@/contexts/ComponentContext";
+import { getCurrentSemester } from "@/lib/semesterUtils";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,7 +42,8 @@ function formatTimeAgo(date: string | Date) {
 }
 
 export default function AdminDashboard() {
-  const { selectedComponentId, selectedSemester, setSelectedSemester, selectedComponentFullLabel } = useComponentContext();
+  const { selectedComponentId, selectedComponentFullLabel } = useComponentContext();
+  const [selectedSemester, setSelectedSemester] = useState<string | null>(() => getCurrentSemester());
   const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
 

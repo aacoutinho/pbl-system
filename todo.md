@@ -612,3 +612,4 @@
 - [x] Cabeçalho de cada página: exibir código + nome do componente selecionado em destaque (Painel Geral, Turmas, Alunos, Sessões, Avaliar Tutorial, Resultados)
 - [x] Menu lateral: permanecer sempre visível no desktop ao navegar entre páginas (correção definitiva: DashboardLayout movido para App.tsx como wrapper único)
 - [x] Filtros de semestre e turma: mostrar valor padrão correto (semestre atual calculado por getCurrentSemester() e turma do professor) em vez do placeholder vazio nas páginas Turmas, Alunos, Sessões, Avaliar Tutorial, Resultados e Painel Geral
+- [x] Filtros de semestre e turma: isolar em estado local de cada página (não compartilhar via contexto global)
