@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -103,9 +102,7 @@ function GmailHelpSection() {
 
 export default function SmtpConfigPage() {
   return (
-    <DashboardLayout>
       <SmtpConfigContent />
-    </DashboardLayout>
   );
 }
 

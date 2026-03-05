@@ -1,5 +1,4 @@
 import { useState, useRef } from "react";
-import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
@@ -111,7 +110,7 @@ export default function RestorePage() {
     : 0;
 
   return (
-    <DashboardLayout>
+    <>
       <div className="container max-w-4xl py-8">
         <div className="flex items-center gap-3 mb-2">
           <UploadCloud className="h-7 w-7 text-amber-600" />
@@ -421,6 +420,6 @@ export default function RestorePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </DashboardLayout>
+    </>
   );
 }

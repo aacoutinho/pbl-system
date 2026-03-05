@@ -1,4 +1,3 @@
-import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -395,8 +394,6 @@ function ProfileContent() {
 
 export default function ProfilePage() {
   return (
-    <DashboardLayout>
       <ProfileContent />
-    </DashboardLayout>
   );
 }

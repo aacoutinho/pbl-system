@@ -1,4 +1,3 @@
-import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -92,9 +91,7 @@ const DELETE_PERIOD_LABELS: Record<string, { label: string; description: string;
 
 export default function AuditLogPage() {
   return (
-    <DashboardLayout>
       <AuditLogContent />
-    </DashboardLayout>
   );
 }
 

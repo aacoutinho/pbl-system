@@ -1,4 +1,3 @@
-import DashboardLayout from "@/components/DashboardLayout";
 import BrainstormBoardPage from "./BrainstormBoardPage";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -11,9 +10,7 @@ import { toast } from "sonner";
 
 export default function BrainstormViewPage() {
   return (
-    <DashboardLayout>
       <BrainstormViewContent />
-    </DashboardLayout>
   );
 }
 

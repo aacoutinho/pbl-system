@@ -1,4 +1,3 @@
-import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,9 +9,7 @@ import { toast } from "sonner";
 
 export default function ExportStudentsPage() {
   return (
-    <DashboardLayout>
       <ExportStudentsContent />
-    </DashboardLayout>
   );
 }
 

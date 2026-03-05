@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -134,7 +133,6 @@ export default function NotificationsPage() {
   const unreadCount = unreadData?.count ?? 0;
 
   return (
-    <DashboardLayout>
     <div className="container max-w-3xl py-8">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -282,6 +280,5 @@ export default function NotificationsPage() {
         </div>
       )}
     </div>
-    </DashboardLayout>
   );
 }

@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -13,9 +12,7 @@ import { useLocation } from "wouter";
 
 export default function ProfessorsPage() {
   return (
-    <DashboardLayout>
       <ProfessorsContent />
-    </DashboardLayout>
   );
 }
 

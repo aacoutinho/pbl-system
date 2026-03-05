@@ -1,4 +1,3 @@
-import DashboardLayout from "@/components/DashboardLayout";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { useState, useMemo } from "react";
@@ -345,7 +344,6 @@ export default function ContactPage() {
   const { user } = useAuth();
 
   return (
-    <DashboardLayout>
       <div className="container max-w-4xl py-6">
         <div className="mb-6">
           <h1 className="text-2xl font-bold tracking-tight">Contato</h1>
@@ -358,6 +356,5 @@ export default function ContactPage() {
         </div>
         {user?.role === "admin" ? <AdminContactView /> : <ProfessorContactView />}
       </div>
-    </DashboardLayout>
   );
 }

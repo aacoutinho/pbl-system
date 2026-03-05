@@ -6,6 +6,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { ClassProvider } from "./contexts/ClassContext";
 import { ComponentProvider } from "./contexts/ComponentContext";
+import DashboardLayout from "./components/DashboardLayout";
 import Home from "./pages/Home";
 import ClassesPage from "./pages/ClassesPage";
 import StudentsPage from "./pages/StudentsPage";
@@ -26,30 +27,42 @@ import RestorePage from "./pages/RestorePage";
 import DirectEvalPage from "./pages/DirectEvalPage";
 import BrainstormViewPage from "./pages/BrainstormViewPage";
 
+// Routes that do NOT use the DashboardLayout (public/standalone pages)
+const PUBLIC_PATHS = ["/acesso", "/avaliacao"];
+
 function Router() {
   return (
     <Switch>
-      <Route path={"/"} component={Home} />
-      <Route path={"/acesso"} component={StudentAccessPage} />
-      <Route path={"/avaliacao"} component={DirectEvalPage} />
-      <Route path={"/components"} component={ComponentsPage} />
-      <Route path={"/classes"} component={ClassesPage} />
-      <Route path={"/students"} component={StudentsPage} />
-      <Route path={"/sessions"} component={SessionsPage} />
-      <Route path={"/tutorial-eval"} component={TutorialEvalPage} />
-      <Route path={"/results"} component={ResultsPage} />
-      <Route path={"/export-students"} component={ExportStudentsPage} />
-      <Route path={"/professors"} component={ProfessorsPage} />
-      <Route path={"/smtp-config"} component={SmtpConfigPage} />
-      <Route path={"/profile"} component={ProfilePage} />
-      <Route path={"/audit-log"} component={AuditLogPage} />
-      <Route path={"/notifications"} component={NotificationsPage} />
-      <Route path={"/contact"} component={ContactPage} />
-      <Route path={"/backup"} component={BackupPage} />
-      <Route path={"/restauracao"} component={RestorePage} />
-      <Route path={"/brainstorm/:sessionId"} component={BrainstormViewPage} />
-      <Route path={"/404"} component={NotFound} />
-      <Route component={NotFound} />
+      {/* Public routes — no DashboardLayout */}
+      <Route path="/acesso" component={StudentAccessPage} />
+      <Route path="/avaliacao" component={DirectEvalPage} />
+
+      {/* All other routes share a single DashboardLayout instance */}
+      <Route>
+        <DashboardLayout>
+          <Switch>
+            <Route path="/" component={Home} />
+            <Route path="/components" component={ComponentsPage} />
+            <Route path="/classes" component={ClassesPage} />
+            <Route path="/students" component={StudentsPage} />
+            <Route path="/sessions" component={SessionsPage} />
+            <Route path="/tutorial-eval" component={TutorialEvalPage} />
+            <Route path="/results" component={ResultsPage} />
+            <Route path="/export-students" component={ExportStudentsPage} />
+            <Route path="/professors" component={ProfessorsPage} />
+            <Route path="/smtp-config" component={SmtpConfigPage} />
+            <Route path="/profile" component={ProfilePage} />
+            <Route path="/audit-log" component={AuditLogPage} />
+            <Route path="/notifications" component={NotificationsPage} />
+            <Route path="/contact" component={ContactPage} />
+            <Route path="/backup" component={BackupPage} />
+            <Route path="/restauracao" component={RestorePage} />
+            <Route path="/brainstorm/:sessionId" component={BrainstormViewPage} />
+            <Route path="/404" component={NotFound} />
+            <Route component={NotFound} />
+          </Switch>
+        </DashboardLayout>
+      </Route>
     </Switch>
   );
 }

@@ -1,4 +1,3 @@
-import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -17,9 +16,7 @@ import { toast } from "sonner";
 
 export default function ComponentsPage() {
   return (
-    <DashboardLayout>
       <ComponentsContent />
-    </DashboardLayout>
   );
 }
 
