@@ -718,8 +718,8 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
           {/* Global Filters */}
           {!isCollapsed && (
             <div className="px-3 pb-2 space-y-2">
-              {/* Linha 1: Componente + Semestre + Turma */}
-              <div className="grid grid-cols-3 gap-1.5">
+              {/* Linha 1: Componente + Semestre */}
+              <div className="grid grid-cols-2 gap-1.5">
                 {/* Componente */}
                 <div className="space-y-0.5">
                   <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Componente</p>
@@ -770,6 +770,10 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                   </Select>
                 </div>
 
+              </div>
+
+              {/* Linha 2: Turma + Problema + Sessão */}
+              <div className="grid grid-cols-3 gap-1.5">
                 {/* Turma */}
                 <div className="space-y-0.5">
                   <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Turma</p>
@@ -795,10 +799,6 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
-
-              {/* Linha 2: Problema + Sessão */}
-              <div className="grid grid-cols-2 gap-1.5">
                 {/* Problema */}
                 <div className="space-y-0.5">
                   <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Problema</p>
