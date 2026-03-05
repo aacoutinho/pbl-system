@@ -591,3 +591,4 @@
 - [x] Por Problema e Por Aluno: removidas colunas Nota dos Pares e Média dos Pares
 - [x] Por Aluno: cabeçalhos de coluna abreviados para P1S1, P1S2 etc.
 - [x] Bug: tabela de Notas Individuais dos Pares em sessão fechada com avaliações parciais corrigida; getPeerGradesMatrix agora inclui todos os presentes como avaliadores em modo provisional, injetando defaults Excelente para os que não submeteram
+- [x] Bug: importação CSV não encontra alunos; corrigido com algoritmo robusto que detecta a coluna de matrícula por padrão de conteúdo (5-11 dígitos numéricos) em vez de posição fixa; funciona para todos os formatos SAGRES conhecidos

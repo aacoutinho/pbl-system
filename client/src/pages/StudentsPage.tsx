@@ -230,28 +230,34 @@ function StudentsContent() {
   };
 
   const parseCSVPreview = (content: string) => {
-    const lines = content.split("\n");
+    // Robust SAGRES Folha de Frequência parser.
+    // Strategy: scan every row for a cell that looks like an 8-digit enrollment number
+    // (digits only, possibly surrounded by whitespace). The cell immediately after it
+    // is the student name. This handles all known column-offset variants:
+    //   Format A (TP01-TP04): Nº;;Matrícula; Aluno  → enrollment at col[2], name at col[3]
+    //   Format B (TP01 alt):  ;Nº;;Matrícula; Aluno → enrollment at col[3], name at col[4]
+    //   Format C (DevExpress warning header): same as B but with extra leading row
+    const ENROLLMENT_RE = /^\s*\d{5,11}\s*$/; // 5-11 digits, tolerant of leading/trailing spaces
+    const HEADER_NAME_RE = /aluno|nome/i;       // skip header rows
     const parsed: { name: string; enrollment: string }[] = [];
+    const lines = content.split(/\r?\n/);
     for (const line of lines) {
       const cols = line.split(";");
-      // Try format A: N° at col[0], Matrícula at col[2], Nome at col[3]
-      // Try format B: N° at col[1], Matrícula at col[3], Nome at col[4]
-      let enrollment: string | undefined, name: string | undefined;
-      const numA = cols[0]?.trim();
-      const numB = cols[1]?.trim();
-      if (numA && !isNaN(parseInt(numA)) && parseInt(numA) > 0) {
-        enrollment = cols[2]?.trim();
-        name = cols[3]?.trim();
-      } else if (numB && !isNaN(parseInt(numB)) && parseInt(numB) > 0) {
-        enrollment = cols[3]?.trim();
-        name = cols[4]?.trim();
-      } else {
-        continue;
+      // Find the first column that looks like an enrollment number
+      let enrollmentIdx = -1;
+      for (let i = 0; i < cols.length; i++) {
+        if (ENROLLMENT_RE.test(cols[i])) {
+          enrollmentIdx = i;
+          break;
+        }
       }
-      if (!name || !enrollment) continue;
-      if (name === "Aluno" || enrollment === "Matrícula") continue;
-      enrollment = enrollment.replace(/\s+$/, "");
-      parsed.push({ name: name.trim(), enrollment });
+      if (enrollmentIdx === -1) continue;
+      const enrollment = cols[enrollmentIdx].trim();
+      const name = cols[enrollmentIdx + 1]?.trim();
+      if (!name || HEADER_NAME_RE.test(name)) continue;
+      // Reject lines where the "name" column is clearly not a name (e.g. all underscores)
+      if (/^[_\s]+$/.test(name)) continue;
+      parsed.push({ name, enrollment });
     }
     return parsed;
   };

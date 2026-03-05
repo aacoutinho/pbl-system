@@ -672,34 +672,25 @@ export const appRouter = router({
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       await assertClassManager(ctx.user.id, ctx.user.role, cls);
 
-      const lines = input.csvContent.split("\n");
+      // Robust SAGRES Folha de Frequência parser.
+      // Detects enrollment by content pattern (≥7 digits) instead of fixed column position.
+      // Handles all known formats: TP01-TP04 (col[2]), TP01-alt (col[3]), DevExpress header variant.
+      const ENROLLMENT_RE = /^\s*\d{5,11}\s*$/;
+      const HEADER_NAME_RE = /aluno|nome/i;
       const parsedStudents: { name: string; enrollment: string }[] = [];
 
-      for (const line of lines) {
+      for (const line of input.csvContent.split(/\r?\n/)) {
         const cols = line.split(";");
-        // Try format A: N° at col[0], Matrícula at col[2], Nome at col[3]
-        // Try format B: N° at col[1], Matrícula at col[3], Nome at col[4]
-        let num: string | undefined, enrollment: string | undefined, name: string | undefined;
-        const numA = cols[0]?.trim();
-        const numB = cols[1]?.trim();
-        if (numA && !isNaN(parseInt(numA)) && parseInt(numA) > 0) {
-          // Format A (new): N° in col 0
-          num = numA;
-          enrollment = cols[2]?.trim();
-          name = cols[3]?.trim();
-        } else if (numB && !isNaN(parseInt(numB)) && parseInt(numB) > 0) {
-          // Format B (old): N° in col 1
-          num = numB;
-          enrollment = cols[3]?.trim();
-          name = cols[4]?.trim();
-        } else {
-          continue;
+        let enrollmentIdx = -1;
+        for (let i = 0; i < cols.length; i++) {
+          if (ENROLLMENT_RE.test(cols[i])) { enrollmentIdx = i; break; }
         }
-        if (!name || !enrollment) continue;
-        if (name === "Aluno" || enrollment === "Matrícula") continue;
-        // Clean enrollment (remove trailing spaces)
-        enrollment = enrollment.replace(/\s+$/, "");
-        parsedStudents.push({ name: name.trim(), enrollment });
+        if (enrollmentIdx === -1) continue;
+        const enrollment = cols[enrollmentIdx].trim();
+        const name = cols[enrollmentIdx + 1]?.trim();
+        if (!name || HEADER_NAME_RE.test(name)) continue;
+        if (/^[_\s]+$/.test(name)) continue; // skip signature lines
+        parsedStudents.push({ name, enrollment });
       }
 
       if (parsedStudents.length === 0) {

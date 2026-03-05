@@ -1,35 +1,23 @@
 import { describe, expect, it } from "vitest";
 
 // Test CSV parsing logic (same as used in the importCSV route)
+// Robust SAGRES Folha de Frequência parser: detects enrollment by content pattern.
 function parseCSV(csvContent: string, emailDomain?: string) {
-  const lines = csvContent.split("\n");
+  const ENROLLMENT_RE = /^\s*\d{5,11}\s*$/;
+  const HEADER_NAME_RE = /aluno|nome/i;
   const parsed: { name: string; email: string; enrollment: string }[] = [];
 
-  for (const line of lines) {
+  for (const line of csvContent.split(/\r?\n/)) {
     const cols = line.split(";");
-    // Try format A: N° at col[0], Matrícula at col[2], Nome at col[3]
-    // Try format B: N° at col[1], Matrícula at col[3], Nome at col[4]
-    let num: string | undefined, enrollment: string | undefined, name: string | undefined;
-    const numA = cols[0]?.trim();
-    const numB = cols[1]?.trim();
-    if (numA && !isNaN(parseInt(numA)) && parseInt(numA) > 0) {
-      // Format A (new): N° in col 0
-      num = numA;
-      enrollment = cols[2]?.trim();
-      name = cols[3]?.trim();
-    } else if (numB && !isNaN(parseInt(numB)) && parseInt(numB) > 0) {
-      // Format B (old): N° in col 1
-      num = numB;
-      enrollment = cols[3]?.trim();
-      name = cols[4]?.trim();
-    } else {
-      continue;
+    let enrollmentIdx = -1;
+    for (let i = 0; i < cols.length; i++) {
+      if (ENROLLMENT_RE.test(cols[i])) { enrollmentIdx = i; break; }
     }
-    if (!name || !enrollment) continue;
-    if (name === "Aluno" || enrollment === "Matrícula") continue;
-    // Clean enrollment (remove trailing spaces)
-    enrollment = enrollment.replace(/\s+$/, "");
-    name = name.trim();
+    if (enrollmentIdx === -1) continue;
+    const enrollment = cols[enrollmentIdx].trim();
+    const name = cols[enrollmentIdx + 1]?.trim();
+    if (!name || HEADER_NAME_RE.test(name)) continue;
+    if (/^[_\s]+$/.test(name)) continue;
 
     // Generate email: initials + last name (ignoring suffixes like Junior, Jr., Neto, Filho)
     const domain = emailDomain || "ecomp.uefs.br";
