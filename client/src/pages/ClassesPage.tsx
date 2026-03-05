@@ -11,7 +11,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BookOpen, Plus, Pencil, Trash2, ShieldCheck, UserPlus, X, User, UserCog, Filter } from "lucide-react";
+import { BookOpen, Plus, Pencil, Trash2, ShieldCheck, UserPlus, X, User, UserCog, Filter, CheckCircle2 } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
@@ -22,7 +23,7 @@ export default function ClassesPage() {
 function ClassesContent() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
-  const { selectedComponentId, selectedComponentFullLabel, selectedSemester, selectedClassCode } = useComponentContext();
+  const { selectedComponentId, selectedComponentFullLabel, selectedSemester, selectedClassId, selectedClassCode, setSelectedClass } = useComponentContext();
 
   // Classes filtered by component and semester (using global filters)
   const { data: classes, isLoading } = trpc.classes.listByComponent.useQuery(
@@ -140,20 +141,17 @@ function ClassesContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            Turmas
-            {selectedComponentFullLabel && <span className="text-primary"> — {selectedComponentFullLabel}{selectedSemester ? ` — ${selectedSemester}` : ""}</span>}
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">Turmas do componente selecionado.</p>
-        </div>
-
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-2" />Nova Turma</Button>
-          </DialogTrigger>
-          <DialogContent>
+      <PageHeader
+        title="Turmas"
+        componentLabel={selectedComponentFullLabel}
+        semester={selectedSemester}
+        showClass={false}
+        actions={
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogTrigger asChild>
+              <Button><Plus className="h-4 w-4 mr-2" />Nova Turma</Button>
+            </DialogTrigger>
+            <DialogContent>
             <DialogHeader>
               <DialogTitle>Criar Nova Turma</DialogTitle>
             </DialogHeader>
@@ -240,7 +238,8 @@ function ClassesContent() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
+        }
+      />
 
       {(!classes || classes.length === 0) ? (
         <Card>
@@ -261,7 +260,11 @@ function ClassesContent() {
             ) ?? false;
             const canManage = isOwner || isAdmin || isCoordinatorOfComponent;
             return (
-              <Card key={cls.id} className="hover:shadow-md transition-all">
+              <Card
+              key={cls.id}
+              className={`hover:shadow-md transition-all cursor-pointer ${selectedClassId === cls.id ? 'ring-2 ring-primary' : ''}`}
+              onClick={() => setSelectedClass(cls.id, cls.classCode)}
+            >
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-base">{comp?.code ?? "?"} - {cls.classCode}</CardTitle>
@@ -274,7 +277,15 @@ function ClassesContent() {
                     <User className="h-3 w-3" />
                     <span>Prof. {(cls as any).professorName ?? "Desconhecido"}{isOwner ? " (você)" : ""}</span>
                   </div>
-                  <div className="flex gap-2 flex-wrap" onClick={e => e.stopPropagation()}>
+                  <div className="flex gap-2 flex-wrap items-center" onClick={e => e.stopPropagation()}>
+                    <Button
+                      variant={selectedClassId === cls.id ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedClass(cls.id, cls.classCode)}
+                    >
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                      {selectedClassId === cls.id ? "Selecionada" : "Selecionar"}
+                    </Button>
                     {canManage && (
                       <Button variant="outline" size="sm" onClick={() => {
                         setEditId(cls.id); 

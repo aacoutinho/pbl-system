@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { BookOpen, ClipboardCheck, Save, CheckCircle2, Info, ShieldCheck, ShieldAlert, Crown, UserCheck, FileEdit, SendHorizonal, ThumbsUp, ThumbsDown, MessageSquare, User, Lightbulb, ExternalLink, Filter } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 import { useLocation } from "wouter";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -497,15 +498,12 @@ function TutorialEvalContent() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          Avaliação do Tutorial
-          {selectedComponentFullLabel && <span className="text-primary"> — {selectedComponentFullLabel}{selectedClassCode ? ` — ${selectedClassCode}` : ""}{selectedSemester ? ` — ${selectedSemester}` : ""}</span>}
-        </h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Avalie a qualidade geral de cada sessão tutorial e faça anotações individuais sobre cada aluno.
-        </p>
-      </div>
+      <PageHeader
+        title="Avaliação do Tutorial"
+        componentLabel={selectedComponentFullLabel}
+        semester={selectedSemester}
+        classCode={selectedClassCode}
+      />
 
       {/* Permission legend */}
       <Card>

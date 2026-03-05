@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Plus, Lock, Unlock, Trash2, ClipboardList, Users, Eye, BookOpen, RotateCcw, CheckCircle2, Clock, FileSearch, AlertTriangle, Mail, ClipboardCheck, Pencil, Presentation, Filter } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 import { EvaluationPreviewDialog } from "@/components/EvaluationPreview";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -243,18 +244,12 @@ function SessionsContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            Sessões
-            {selectedComponentFullLabel && <span className="text-primary"> — {selectedComponentFullLabel}{selectedClassCode ? ` — ${selectedClassCode}` : ""}{selectedSemester ? ` — ${selectedSemester}` : ""}</span>}
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            {canManage ? "Crie e gerencie sessões tutoriais." : "Visualize as sessões tutoriais."}
-          </p>
-        </div>
-
-        {canManage && (
+      <PageHeader
+        title="Sessões"
+        componentLabel={selectedComponentFullLabel}
+        semester={selectedSemester}
+        classCode={selectedClassCode}
+        actions={canManage ? (
           <div className="flex items-center gap-2">
           <Button size="sm" variant="outline" onClick={() => setShowPreview(true)}>
             <FileSearch className="h-4 w-4 mr-2" />Prévia do Formulário
@@ -398,8 +393,8 @@ function SessionsContent() {
             </DialogContent>
           </Dialog>
           </div>
-        )}
-      </div>
+        ) : undefined}
+      />
 
       <Card>
         <CardHeader>

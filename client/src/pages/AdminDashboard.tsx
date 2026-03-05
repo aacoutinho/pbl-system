@@ -12,6 +12,7 @@ import {
   Bell, BellOff, ChevronRight, ShieldCheck, ShieldOff, UserPlus, UserMinus,
   XCircle, ArrowRightLeft, Info, Filter,
 } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 import { useLocation } from "wouter";
 
 const notifTypeConfig: Record<string, { icon: React.ElementType; color: string; bgColor: string }> = {
@@ -101,10 +102,7 @@ export default function AdminDashboard() {
   if (!selectedComponentId) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Painel Geral</h1>
-          <p className="text-muted-foreground mt-1">Selecione um componente para ver as estatísticas.</p>
-        </div>
+        <PageHeader title="Painel Geral" semester={selectedSemester} />
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             <BookOpen className="h-10 w-10 mx-auto mb-3 opacity-40" />
@@ -125,21 +123,12 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Painel Geral</h1>
-          {selectedComponentFullLabel && (
-            <p className="text-sm font-semibold text-primary mt-0.5">{selectedComponentFullLabel}</p>
-          )}
-          <p className="text-muted-foreground mt-1 text-sm">Visão geral do componente selecionado.</p>
-        </div>
-        {selectedSemester && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Filter className="h-4 w-4" />
-            <span>Semestre: <strong className="text-foreground">{selectedSemester}</strong></span>
-          </div>
-        )}
-      </div>
+      <PageHeader
+        title="Painel Geral"
+        componentLabel={selectedComponentFullLabel}
+        semester={selectedSemester}
+        showClass={false}
+      />
 
       {statsLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

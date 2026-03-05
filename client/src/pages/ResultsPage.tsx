@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart3, Download, UserX, BookOpen, Info, Eye, FileSpreadsheet, Table2, Mail, Loader2, Lightbulb, HelpCircle, Target, ExternalLink, Link2, ImageIcon, Users, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Wand2, Filter, ListChecks } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
@@ -264,13 +265,12 @@ function ResultsContent() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          Resultados
-          {selectedComponentFullLabel && <span className="text-primary"> — {selectedComponentFullLabel}{selectedClassCode ? ` — ${selectedClassCode}` : ""}{selectedSemester ? ` — ${selectedSemester}` : ""}</span>}
-        </h1>
-        <p className="text-muted-foreground mt-1 text-sm">Visualize e exporte as notas calculadas automaticamente.</p>
-      </div>
+      <PageHeader
+        title="Resultados"
+        componentLabel={selectedComponentFullLabel}
+        semester={selectedSemester}
+        classCode={selectedClassCode}
+      />
 
       <Tabs defaultValue="session" className="space-y-4">
         <TabsList>

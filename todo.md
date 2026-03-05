@@ -624,3 +624,10 @@
 - [x] Resultados: usar filtros globais como default para Por Sessão, Por Problema e Consolidado por Aluno
 - [x] Menu lateral: reorganizar seletores em duas linhas (linha 1: Componente+Semestre+Turma; linha 2: Problema+Sessão), sempre visíveis mesmo sem dados
 - [x] Menu lateral: linha 1 (Componente+Semestre), linha 2 (Turma+Problema+Sessão)
+
+## Cabeçalho de Páginas e Seletor de Componente
+
+- [x] Seletor de componente no menu lateral: exibir apenas o código (ex: TEC502)
+- [x] Criar componente PageHeader reutilizável com layout de 4 cantos (título+componente à esquerda, semestre+turma à direita)
+- [x] Aplicar PageHeader no Painel Geral, Turmas, Alunos, Sessões, Avaliar Tutorial e Resultados
+- [x] ClassesPage: botão "Selecionar" nos cards de turma para mudar a turma ativa no filtro global

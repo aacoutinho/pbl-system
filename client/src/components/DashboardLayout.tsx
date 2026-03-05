@@ -741,7 +741,6 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                       ) : componentOptions.map(c => (
                         <SelectItem key={c.id} value={String(c.id)} className="text-xs">
                           <span className="font-semibold">{c.label}</span>
-                          {c.fullLabel !== c.label && <span className="text-muted-foreground ml-1 text-[10px]">{c.fullLabel.replace(c.label + ' - ', '')}</span>}
                         </SelectItem>
                       ))}
                     </SelectContent>

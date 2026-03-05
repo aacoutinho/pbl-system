@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Plus, Trash2, Upload, Users, BookOpen, FileSpreadsheet, Check, Pencil, ArrowRightLeft, Camera, AlertTriangle, Filter } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 import { useState, useRef, useMemo, useEffect } from "react";
 import { resizeImageToSquare, base64SizeKB } from "@/lib/resizeImage";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -297,18 +298,12 @@ function StudentsContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            Alunos
-            {selectedComponentFullLabel && <span className="text-primary"> — {selectedComponentFullLabel}{selectedClassCode ? ` — ${selectedClassCode}` : ""}{selectedSemester ? ` — ${selectedSemester}` : ""}</span>}
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            {canManage ? "Gerencie os alunos da turma selecionada." : "Visualize os alunos da turma selecionada."}
-          </p>
-        </div>
-
-        {canManage && <div className="flex gap-2">
+      <PageHeader
+        title="Alunos"
+        componentLabel={selectedComponentFullLabel}
+        semester={selectedSemester}
+        classCode={selectedClassCode}
+        actions={canManage ? (<div className="flex gap-2">
           {/* CSV Import from SAGRES */}
           <Dialog open={showCSVImport} onOpenChange={(open) => {
             setShowCSVImport(open);
@@ -547,8 +542,8 @@ function StudentsContent() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        </div>}
-      </div>
+        </div>) : undefined}
+      />
 
       {/* Edit student dialog */}
       <Dialog open={!!editingStudent} onOpenChange={(open) => { if (!open) setEditingStudent(null); }}>
