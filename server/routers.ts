@@ -673,14 +673,20 @@ export const appRouter = router({
       await assertClassManager(ctx.user.id, ctx.user.role, cls);
 
       // Robust SAGRES Folha de Frequência parser.
-      // Detects enrollment by content pattern (≥7 digits) instead of fixed column position.
-      // Handles all known formats: TP01-TP04 (col[2]), TP01-alt (col[3]), DevExpress header variant.
+      // Detects enrollment by content pattern instead of fixed column position.
+      // Handles all known formats including comma-delimited and semicolon-delimited variants.
       const ENROLLMENT_RE = /^\s*\d{5,11}\s*$/;
       const HEADER_NAME_RE = /aluno|nome/i;
+      // Auto-detect delimiter: count semicolons vs commas in the first 10 non-empty lines
+      const csvLines = input.csvContent.split(/\r?\n/);
+      const sampleLines = csvLines.filter(l => l.trim()).slice(0, 10);
+      const semicolonCount = sampleLines.join("").split(";").length - 1;
+      const commaCount = sampleLines.join("").split(",").length - 1;
+      const delimiter = commaCount > semicolonCount ? "," : ";";
       const parsedStudents: { name: string; enrollment: string }[] = [];
 
-      for (const line of input.csvContent.split(/\r?\n/)) {
-        const cols = line.split(";");
+      for (const line of csvLines) {
+        const cols = line.split(delimiter);
         let enrollmentIdx = -1;
         for (let i = 0; i < cols.length; i++) {
           if (ENROLLMENT_RE.test(cols[i])) { enrollmentIdx = i; break; }

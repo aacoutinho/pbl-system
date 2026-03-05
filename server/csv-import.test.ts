@@ -5,10 +5,16 @@ import { describe, expect, it } from "vitest";
 function parseCSV(csvContent: string, emailDomain?: string) {
   const ENROLLMENT_RE = /^\s*\d{5,11}\s*$/;
   const HEADER_NAME_RE = /aluno|nome/i;
+  // Auto-detect delimiter
+  const allLines = csvContent.split(/\r?\n/);
+  const sampleLines = allLines.filter(l => l.trim()).slice(0, 10);
+  const semicolonCount = sampleLines.join("").split(";").length - 1;
+  const commaCount = sampleLines.join("").split(",").length - 1;
+  const delimiter = commaCount > semicolonCount ? "," : ";";
   const parsed: { name: string; email: string; enrollment: string }[] = [];
 
-  for (const line of csvContent.split(/\r?\n/)) {
-    const cols = line.split(";");
+  for (const line of allLines) {
+    const cols = line.split(delimiter);
     let enrollmentIdx = -1;
     for (let i = 0; i < cols.length; i++) {
       if (ENROLLMENT_RE.test(cols[i])) { enrollmentIdx = i; break; }
@@ -270,6 +276,50 @@ describe("CSV Import - Common Features (both formats)", () => {
     const result = parseCSV(csvWithSpaces);
     expect(result[0].enrollment).toBe("20111193");
     expect(result[0].name).toBe("CLEIDSON RAMOS DE CARVALHO");
+  });
+});
+
+describe("CSV Import - Comma-delimited format (SAGRES with comma)", () => {
+  const COMMA_CSV = `,,,,UNIVERSIDADE ESTADUAL DE FEIRA DE SANTANA,,,,,,Página 1 de 1
+,,,,SAGRES DIÁRIO 3,,,,,,
+,,,,Folha de Frequência,,,,,,
+Nº,,Matrícula, Aluno,,,,,,   Assinatura do Aluno,
+1,,24111281 ,ADSON VICTOR DE SOUZA ALVES,,,,,   _,
+2,,23111363 ,EMANUEL LUCAS TELLES BASTOS SENA,,,,,   _,
+3,,22211297 ,ILSON MARINHO DA COSTA NETO,,,,,   _,
+`;
+
+  it("detects comma delimiter automatically", () => {
+    const result = parseCSV(COMMA_CSV);
+    expect(result.length).toBe(3);
+  });
+
+  it("extracts enrollment from comma-delimited CSV", () => {
+    const result = parseCSV(COMMA_CSV);
+    expect(result[0].enrollment).toBe("24111281");
+    expect(result[1].enrollment).toBe("23111363");
+  });
+
+  it("extracts name from comma-delimited CSV", () => {
+    const result = parseCSV(COMMA_CSV);
+    expect(result[0].name).toBe("ADSON VICTOR DE SOUZA ALVES");
+    expect(result[1].name).toBe("EMANUEL LUCAS TELLES BASTOS SENA");
+  });
+
+  it("generates email from comma-delimited CSV", () => {
+    const result = parseCSV(COMMA_CSV, "uefs.br");
+    expect(result[0].email).toBe("avdsalves@uefs.br");
+  });
+
+  it("ignores Neto suffix in comma-delimited CSV", () => {
+    const result = parseCSV(COMMA_CSV);
+    expect(result[2].email).toBe("imdcosta@ecomp.uefs.br");
+  });
+
+  it("skips header rows in comma-delimited CSV", () => {
+    const result = parseCSV(COMMA_CSV);
+    // Should not include the header row 'Nº,,Matrícula, Aluno'
+    expect(result.every(r => /^\d+$/.test(r.enrollment))).toBe(true);
   });
 });
 

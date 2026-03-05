@@ -239,10 +239,15 @@ function StudentsContent() {
     //   Format C (DevExpress warning header): same as B but with extra leading row
     const ENROLLMENT_RE = /^\s*\d{5,11}\s*$/; // 5-11 digits, tolerant of leading/trailing spaces
     const HEADER_NAME_RE = /aluno|nome/i;       // skip header rows
+    // Auto-detect delimiter: count semicolons vs commas in the first 10 non-empty lines
+    const sampleLines = content.split(/\r?\n/).filter(l => l.trim()).slice(0, 10);
+    const semicolonCount = sampleLines.join("").split(";").length - 1;
+    const commaCount = sampleLines.join("").split(",").length - 1;
+    const delimiter = commaCount > semicolonCount ? "," : ";";
     const parsed: { name: string; enrollment: string }[] = [];
     const lines = content.split(/\r?\n/);
     for (const line of lines) {
-      const cols = line.split(";");
+      const cols = line.split(delimiter);
       // Find the first column that looks like an enrollment number
       let enrollmentIdx = -1;
       for (let i = 0; i < cols.length; i++) {
