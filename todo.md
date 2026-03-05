@@ -622,3 +622,4 @@
 - [x] DashboardLayout: seletores de Semestre, Turma, Problema e Sessão no topo do menu lateral (abaixo de Componente)
 - [x] Páginas: remover filtros locais e usar filtros globais do contexto; atualizar cabeçalhos com informações dos filtros selecionados
 - [x] Resultados: usar filtros globais como default para Por Sessão, Por Problema e Consolidado por Aluno
+- [x] Menu lateral: reorganizar seletores em duas linhas (linha 1: Componente+Semestre+Turma; linha 2: Problema+Sessão), sempre visíveis mesmo sem dados

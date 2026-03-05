@@ -716,46 +716,52 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
           </SidebarHeader>
 
           {/* Global Filters */}
-          {!isCollapsed && componentOptions.length > 0 && (
+          {!isCollapsed && (
             <div className="px-3 pb-2 space-y-2">
-              {/* Componente */}
-              <div className="space-y-0.5">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Componente</p>
-                <Select
-                  value={selectedComponentId ? String(selectedComponentId) : ""}
-                  onValueChange={(v) => {
-                    const id = parseInt(v);
-                    setSelectedComponentId(id);
-                    const found = (componentsList ?? []).find(c => c.id === id);
-                    if (found) setSelectedComponentMeta(found.code, found.name ?? null);
-                  }}
-                >
-                  <SelectTrigger className="h-8 text-xs font-semibold">
-                    <SelectValue placeholder="Componente..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {componentOptions.map(c => (
-                      <SelectItem key={c.id} value={String(c.id)} className="text-xs">
-                        <span className="font-semibold">{c.label}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Semestre */}
-              {semestersList && semestersList.length > 0 && (
+              {/* Linha 1: Componente + Semestre + Turma */}
+              <div className="grid grid-cols-3 gap-1.5">
+                {/* Componente */}
                 <div className="space-y-0.5">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Semestre</p>
+                  <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Componente</p>
+                  <Select
+                    value={selectedComponentId ? String(selectedComponentId) : ""}
+                    onValueChange={(v) => {
+                      const id = parseInt(v);
+                      setSelectedComponentId(id);
+                      const found = (componentsList ?? []).find(c => c.id === id);
+                      if (found) setSelectedComponentMeta(found.code, found.name ?? null);
+                    }}
+                  >
+                    <SelectTrigger className="h-7 text-[11px] font-semibold px-2">
+                      <SelectValue placeholder="—" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {componentOptions.length === 0 ? (
+                        <SelectItem value="__none" disabled className="text-xs text-muted-foreground">Nenhum</SelectItem>
+                      ) : componentOptions.map(c => (
+                        <SelectItem key={c.id} value={String(c.id)} className="text-xs">
+                          <span className="font-semibold">{c.label}</span>
+                          {c.fullLabel !== c.label && <span className="text-muted-foreground ml-1 text-[10px]">{c.fullLabel.replace(c.label + ' - ', '')}</span>}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Semestre */}
+                <div className="space-y-0.5">
+                  <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Semestre</p>
                   <Select
                     value={selectedSemester ?? ""}
                     onValueChange={(v) => setSelectedSemester(v)}
                   >
-                    <SelectTrigger className="h-8 text-xs font-semibold">
-                      <SelectValue placeholder="Semestre..." />
+                    <SelectTrigger className="h-7 text-[11px] font-semibold px-2">
+                      <SelectValue placeholder="—" />
                     </SelectTrigger>
                     <SelectContent>
-                      {semestersList.map(s => (
+                      {(!semestersList || semestersList.length === 0) ? (
+                        <SelectItem value="__none" disabled className="text-xs text-muted-foreground">Nenhum</SelectItem>
+                      ) : semestersList.map(s => (
                         <SelectItem key={s} value={s} className="text-xs">
                           <span className="font-semibold">{s}</span>
                         </SelectItem>
@@ -763,12 +769,10 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                     </SelectContent>
                   </Select>
                 </div>
-              )}
 
-              {/* Turma */}
-              {classesList && classesList.length > 0 && (
+                {/* Turma */}
                 <div className="space-y-0.5">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Turma</p>
+                  <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Turma</p>
                   <Select
                     value={selectedClassId ? String(selectedClassId) : ""}
                     onValueChange={(v) => {
@@ -777,11 +781,13 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                       setSelectedClass(id, found?.classCode ?? null);
                     }}
                   >
-                    <SelectTrigger className="h-8 text-xs font-semibold">
-                      <SelectValue placeholder="Turma..." />
+                    <SelectTrigger className="h-7 text-[11px] font-semibold px-2">
+                      <SelectValue placeholder="—" />
                     </SelectTrigger>
                     <SelectContent>
-                      {(classesList ?? []).map((c: any) => (
+                      {(!classesList || classesList.length === 0) ? (
+                        <SelectItem value="__none" disabled className="text-xs text-muted-foreground">Nenhuma</SelectItem>
+                      ) : (classesList ?? []).map((c: any) => (
                         <SelectItem key={c.id} value={String(c.id)} className="text-xs">
                           <span className="font-semibold">{c.classCode}</span>
                         </SelectItem>
@@ -789,21 +795,24 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                     </SelectContent>
                   </Select>
                 </div>
-              )}
+              </div>
 
-              {/* Problema */}
-              {problemNumbers.length > 0 && (
+              {/* Linha 2: Problema + Sessão */}
+              <div className="grid grid-cols-2 gap-1.5">
+                {/* Problema */}
                 <div className="space-y-0.5">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Problema</p>
+                  <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Problema</p>
                   <Select
                     value={selectedProblemNumber !== null ? String(selectedProblemNumber) : ""}
                     onValueChange={(v) => setSelectedProblem(parseInt(v))}
                   >
-                    <SelectTrigger className="h-8 text-xs font-semibold">
-                      <SelectValue placeholder="Problema..." />
+                    <SelectTrigger className="h-7 text-[11px] font-semibold px-2">
+                      <SelectValue placeholder="—" />
                     </SelectTrigger>
                     <SelectContent>
-                      {problemNumbers.map(p => (
+                      {problemNumbers.length === 0 ? (
+                        <SelectItem value="__none" disabled className="text-xs text-muted-foreground">Nenhum</SelectItem>
+                      ) : problemNumbers.map(p => (
                         <SelectItem key={p} value={String(p)} className="text-xs">
                           <span className="font-semibold">P{p}</span>
                         </SelectItem>
@@ -811,12 +820,10 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                     </SelectContent>
                   </Select>
                 </div>
-              )}
 
-              {/* Sessão */}
-              {sessionsForProblem.length > 0 && (
+                {/* Sessão */}
                 <div className="space-y-0.5">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Sessão</p>
+                  <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Sessão</p>
                   <Select
                     value={selectedSessionId !== null ? String(selectedSessionId) : ""}
                     onValueChange={(v) => {
@@ -825,11 +832,13 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                       setSelectedSession(id, found?.sessionNumber ?? null);
                     }}
                   >
-                    <SelectTrigger className="h-8 text-xs font-semibold">
-                      <SelectValue placeholder="Sessão..." />
+                    <SelectTrigger className="h-7 text-[11px] font-semibold px-2">
+                      <SelectValue placeholder="—" />
                     </SelectTrigger>
                     <SelectContent>
-                      {sessionsForProblem.map((s: any) => (
+                      {sessionsForProblem.length === 0 ? (
+                        <SelectItem value="__none" disabled className="text-xs text-muted-foreground">Nenhuma</SelectItem>
+                      ) : sessionsForProblem.map((s: any) => (
                         <SelectItem key={s.id} value={String(s.id)} className="text-xs">
                           <span className="font-semibold">S{s.sessionNumber}</span>
                         </SelectItem>
@@ -837,7 +846,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                     </SelectContent>
                   </Select>
                 </div>
-              )}
+              </div>
             </div>
           )}
 
