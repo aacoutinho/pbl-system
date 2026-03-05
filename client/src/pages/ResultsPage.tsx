@@ -25,33 +25,12 @@ export default function ResultsPage() {
 }
 
 function ResultsContent() {
-  const { selectedComponentId, selectedComponentFullLabel } = useComponentContext();
-  const { user } = useAuth();
-
-  // Semestre filter
-  const { data: semesters } = trpc.classes.semestersByComponent.useQuery(
-    { componentId: selectedComponentId! },
-    { enabled: !!selectedComponentId }
-  );
-  const latestSemester = semesters?.[0] ?? null;
-  const [selectedSemester, setSelectedSemester] = useState<string | null>(() => getCurrentSemester());
-  // Auto-select latest semester
-  useEffect(() => { setSelectedSemester(getCurrentSemester()); }, [selectedComponentId]);
-
-  // Class filter
-  const { data: classesList } = trpc.classes.listByComponent.useQuery(
-    { componentId: selectedComponentId!, semester: selectedSemester ?? undefined },
-    { enabled: !!selectedComponentId }
-  );
-  // Default to professor's own class
-  const professorClass = classesList?.find(c => c.professorUserId === user?.id);
-  const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
-  useEffect(() => {
-    if (classesList && selectedClassId === null) {
-      setSelectedClassId(professorClass?.id ?? classesList[0]?.id ?? null);
-    }
-  }, [classesList]);
-  useEffect(() => { setSelectedClassId(null); }, [selectedComponentId, selectedSemester]);
+  const {
+    selectedComponentId, selectedComponentFullLabel,
+    selectedClassId, selectedClassCode,
+    selectedSemester,
+    selectedProblemNumber, selectedSessionId: globalSessionId,
+  } = useComponentContext();
 
   // Sessions for selected class (only finished sessions for results)
   const { data: allSessionsForClass, isLoading: sessionsLoading } = trpc.results.sessionsForClass.useQuery(
@@ -61,27 +40,33 @@ function ResultsContent() {
   const activeSessions = allSessionsForClass?.filter(s => s.status === "finished") ?? [];
   const activeSessionsLoading = sessionsLoading;
 
-  const [selectedSessionId, setSelectedSessionId] = useState<string>("");
-  const [selectedProblem, setSelectedProblem] = useState<string>("");
+  // Use global session/problem from context; local state only for UI overrides within this page
+  const [selectedSessionId, setSelectedSessionId] = useState<string>(() => globalSessionId ? String(globalSessionId) : "");
+  const [selectedProblem, setSelectedProblem] = useState<string>(() => selectedProblemNumber ? String(selectedProblemNumber) : "");
   const [criteriaExpanded, setCriteriaExpanded] = useState(false);
   const [brainstormExpanded, setBrainstormExpanded] = useState(false);
 
-  useEffect(() => { setSelectedSessionId(""); setSelectedProblem(""); }, [selectedClassId]);
+  // Sync with global context when it changes
+  useEffect(() => {
+    if (globalSessionId) setSelectedSessionId(String(globalSessionId));
+  }, [globalSessionId]);
+  useEffect(() => {
+    if (selectedProblemNumber) setSelectedProblem(String(selectedProblemNumber));
+  }, [selectedProblemNumber]);
 
-  // Derive unique problem numbers from finished sessions (needed before auto-select effects)
+  // Auto-select last session when sessions load
+  useEffect(() => {
+    if (activeSessions && activeSessions.length > 0 && !selectedSessionId) {
+      const lastSession = activeSessions[activeSessions.length - 1];
+      setSelectedSessionId(String(lastSession.id));
+    }
+  }, [activeSessions]);
+
+  // Derive unique problem numbers from finished sessions
   const problems = useMemo(() => {
     if (!activeSessions) return [];
     const pSet = new Set(activeSessions.map(s => s.problemNumber));
     return Array.from(pSet).sort((a, b) => a - b);
-  }, [activeSessions]);
-
-  // Auto-select last session when sessions load or class changes
-  useEffect(() => {
-    if (activeSessions && activeSessions.length > 0 && !selectedSessionId) {
-      // activeSessions are ordered by sessionNumber; pick the last one
-      const lastSession = activeSessions[activeSessions.length - 1];
-      setSelectedSessionId(String(lastSession.id));
-    }
   }, [activeSessions]);
 
   // Auto-select last problem when problems list is derived
@@ -280,55 +265,12 @@ function ResultsContent() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Resultados</h1>
-        {selectedComponentFullLabel && (
-          <p className="text-sm font-semibold text-primary mt-0.5">{selectedComponentFullLabel}</p>
-        )}
+        <h1 className="text-2xl font-bold tracking-tight">
+          Resultados
+          {selectedComponentFullLabel && <span className="text-primary"> — {selectedComponentFullLabel}{selectedClassCode ? ` — ${selectedClassCode}` : ""}{selectedSemester ? ` — ${selectedSemester}` : ""}</span>}
+        </h1>
         <p className="text-muted-foreground mt-1 text-sm">Visualize e exporte as notas calculadas automaticamente.</p>
       </div>
-
-      {/* Filtros de semestre e turma */}
-      <Card className="border-dashed">
-        <CardContent className="py-3 px-4">
-          <div className="flex items-center gap-3 flex-wrap">
-            <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
-            <div className="flex items-center gap-2">
-              <Label className="text-sm whitespace-nowrap">Semestre:</Label>
-              <Select
-                value={selectedSemester ?? getCurrentSemester()}
-                onValueChange={(v) => setSelectedSemester(v || null)}
-              >
-                <SelectTrigger className="w-32 h-8 text-xs">
-                  <SelectValue placeholder="Semestre" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(semesters ?? []).map(s => (
-                    <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-2">
-              <Label className="text-sm whitespace-nowrap">Turma:</Label>
-              <Select
-                value={selectedClassId ? String(selectedClassId) : ""}
-                onValueChange={(v) => setSelectedClassId(parseInt(v))}
-              >
-                <SelectTrigger className="w-40 h-8 text-xs">
-                  <SelectValue placeholder="Turma" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(classesList ?? []).map((c: any) => (
-                    <SelectItem key={c.id} value={String(c.id)} className="text-xs">
-                      {c.classCode}{c.professorUserId === user?.id ? " (minha)" : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       <Tabs defaultValue="session" className="space-y-4">
         <TabsList>

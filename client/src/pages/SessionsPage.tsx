@@ -25,31 +25,14 @@ export default function SessionsPage() {
 function SessionsContent() {
   const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
-  const { selectedComponentId, selectedComponentFullLabel } = useComponentContext();
+  const { selectedComponentId, selectedComponentFullLabel, selectedClassId, selectedClassCode, selectedSemester } = useComponentContext();
   const { user } = useAuth();
 
-  // Semestre filter
-  const { data: semesters } = trpc.classes.semestersByComponent.useQuery(
-    { componentId: selectedComponentId! },
-    { enabled: !!selectedComponentId }
-  );
-  const latestSemester = semesters?.[0] ?? null;
-  const [selectedSemester, setSelectedSemester] = useState<string | null>(() => getCurrentSemester());
-  useEffect(() => { setSelectedSemester(getCurrentSemester()); }, [selectedComponentId]);
-
-  // Class filter
+  // Classes for same component (needed for display)
   const { data: classesList } = trpc.classes.listByComponent.useQuery(
     { componentId: selectedComponentId!, semester: selectedSemester ?? undefined },
     { enabled: !!selectedComponentId }
   );
-  const professorClass = classesList?.find((c: any) => c.professorUserId === user?.id);
-  const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
-  useEffect(() => {
-    if (classesList && selectedClassId === null) {
-      setSelectedClassId(professorClass?.id ?? classesList[0]?.id ?? null);
-    }
-  }, [classesList]);
-  useEffect(() => { setSelectedClassId(null); }, [selectedComponentId, selectedSemester]);
 
   const { data: myComponents } = trpc.professors.myComponents.useQuery();
 
@@ -262,51 +245,15 @@ function SessionsContent() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Sessões</h1>
-          {selectedComponentFullLabel && (
-            <p className="text-sm font-semibold text-primary mt-0.5">{selectedComponentFullLabel}</p>
-          )}
+          <h1 className="text-2xl font-bold tracking-tight">
+            Sessões
+            {selectedComponentFullLabel && <span className="text-primary"> — {selectedComponentFullLabel}{selectedClassCode ? ` — ${selectedClassCode}` : ""}{selectedSemester ? ` — ${selectedSemester}` : ""}</span>}
+          </h1>
           <p className="text-muted-foreground mt-1 text-sm">
             {canManage ? "Crie e gerencie sessões tutoriais." : "Visualize as sessões tutoriais."}
           </p>
         </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <Filter className="h-4 w-4 text-muted-foreground" />
-          <div className="flex items-center gap-2">
-            <Label className="text-sm whitespace-nowrap">Semestre:</Label>
-            <Select
-              value={selectedSemester ?? getCurrentSemester()}
-              onValueChange={(v) => setSelectedSemester(v || null)}
-            >
-              <SelectTrigger className="w-32 h-8 text-xs">
-                <SelectValue placeholder="Semestre" />
-              </SelectTrigger>
-              <SelectContent>
-                {(semesters ?? []).map(s => (
-                  <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-2">
-            <Label className="text-sm whitespace-nowrap">Turma:</Label>
-            <Select
-              value={selectedClassId ? String(selectedClassId) : ""}
-              onValueChange={(v) => setSelectedClassId(parseInt(v))}
-            >
-              <SelectTrigger className="w-40 h-8 text-xs">
-                <SelectValue placeholder="Turma" />
-              </SelectTrigger>
-              <SelectContent>
-                {(classesList ?? []).map((c: any) => (
-                  <SelectItem key={c.id} value={String(c.id)} className="text-xs">
-                    {c.classCode}{c.professorUserId === user?.id ? " (minha)" : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+
         {canManage && (
           <div className="flex items-center gap-2">
           <Button size="sm" variant="outline" onClick={() => setShowPreview(true)}>

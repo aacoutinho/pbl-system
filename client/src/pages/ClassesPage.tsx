@@ -22,18 +22,9 @@ export default function ClassesPage() {
 function ClassesContent() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
-  const { selectedComponentId, selectedComponentFullLabel } = useComponentContext();
+  const { selectedComponentId, selectedComponentFullLabel, selectedSemester, selectedClassCode } = useComponentContext();
 
-  // Semestre filter
-  const { data: semesters } = trpc.classes.semestersByComponent.useQuery(
-    { componentId: selectedComponentId! },
-    { enabled: !!selectedComponentId }
-  );
-  const latestSemester = semesters?.[0] ?? null;
-  const [selectedSemester, setSelectedSemester] = useState<string | null>(() => getCurrentSemester());
-  useEffect(() => { setSelectedSemester(getCurrentSemester()); }, [selectedComponentId]);
-
-  // Classes filtered by component and semester
+  // Classes filtered by component and semester (using global filters)
   const { data: classes, isLoading } = trpc.classes.listByComponent.useQuery(
     { componentId: selectedComponentId!, semester: selectedSemester ?? undefined },
     { enabled: !!selectedComponentId }
@@ -151,31 +142,13 @@ function ClassesContent() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Turmas</h1>
-          {selectedComponentFullLabel && (
-            <p className="text-sm font-semibold text-primary mt-0.5">{selectedComponentFullLabel}</p>
-          )}
+          <h1 className="text-2xl font-bold tracking-tight">
+            Turmas
+            {selectedComponentFullLabel && <span className="text-primary"> — {selectedComponentFullLabel}{selectedSemester ? ` — ${selectedSemester}` : ""}</span>}
+          </h1>
           <p className="text-muted-foreground mt-1 text-sm">Turmas do componente selecionado.</p>
         </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <Label className="text-sm whitespace-nowrap">Semestre:</Label>
-            <Select
-              value={selectedSemester ?? getCurrentSemester()}
-              onValueChange={(v) => setSelectedSemester(v || null)}
-            >
-              <SelectTrigger className="w-32 h-8 text-xs">
-                <SelectValue placeholder="Semestre" />
-              </SelectTrigger>
-              <SelectContent>
-                {(semesters ?? []).map(s => (
-                  <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" />Nova Turma</Button>

@@ -42,18 +42,12 @@ function formatTimeAgo(date: string | Date) {
 }
 
 export default function AdminDashboard() {
-  const { selectedComponentId, selectedComponentFullLabel } = useComponentContext();
-  const [selectedSemester, setSelectedSemester] = useState<string | null>(() => getCurrentSemester());
+  const { selectedComponentId, selectedComponentFullLabel, selectedSemester } = useComponentContext();
   const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
 
   const { data: stats, isLoading: statsLoading } = trpc.results.dashboardByComponent.useQuery(
     { componentId: selectedComponentId!, semester: selectedSemester ?? undefined },
-    { enabled: !!selectedComponentId }
-  );
-
-  const { data: semesters } = trpc.classes.semestersByComponent.useQuery(
-    { componentId: selectedComponentId! },
     { enabled: !!selectedComponentId }
   );
 
@@ -122,7 +116,6 @@ export default function AdminDashboard() {
     );
   }
 
-  const semesterOptions = semesters ?? [];
   const statCards = [
     { label: "Turmas", value: stats?.totalClasses ?? 0, icon: BookOpen, color: "text-violet-600 bg-violet-50" },
     { label: "Alunos", value: stats?.totalStudents ?? 0, icon: Users, color: "text-blue-600 bg-blue-50" },
@@ -140,23 +133,10 @@ export default function AdminDashboard() {
           )}
           <p className="text-muted-foreground mt-1 text-sm">Visão geral do componente selecionado.</p>
         </div>
-        {semesterOptions.length > 0 && (
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <Select
-              value={selectedSemester ?? "all"}
-              onValueChange={(v) => setSelectedSemester(v === "all" ? null : v)}
-            >
-              <SelectTrigger className="h-8 text-xs w-40">
-                <SelectValue placeholder="Semestre" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" className="text-xs">Todos os semestres</SelectItem>
-                {semesterOptions.map(s => (
-                  <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {selectedSemester && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Filter className="h-4 w-4" />
+            <span>Semestre: <strong className="text-foreground">{selectedSemester}</strong></span>
           </div>
         )}
       </div>

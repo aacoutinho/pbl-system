@@ -25,7 +25,7 @@ import { useIsMobile } from "@/hooks/useMobile";
 import { useComponentContext } from "@/contexts/ComponentContext";
 import { trpc } from "@/lib/trpc";
 import { LayoutDashboard, Users, ClipboardList, BarChart3, LogOut, PanelLeft, GraduationCap, BookOpen, ClipboardCheck, Download, KeyRound, UserCheck, Clock, Eye, EyeOff, Loader2, Mail, ArrowRightLeft, Layers, User, History, Bell, MessageSquare, DatabaseBackup, Settings, ChevronDown, UploadCloud } from "lucide-react";
-import { CSSProperties, useEffect, useRef, useState, FormEvent } from "react";
+import { CSSProperties, useEffect, useMemo, useRef, useState, FormEvent } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
@@ -560,9 +560,48 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
   const activeMenuItem = menuItems.find(item => item.path === location) 
     || allConfigSubItems.find(item => item.path === location);
 
-  // Component selector: list only user's accessible components
-  const { selectedComponentId, setSelectedComponentId, setSelectedComponentMeta } = useComponentContext();
+  // ── Global Filters ──────────────────────────────────────────────────────────
+  const {
+    selectedComponentId, setSelectedComponentId, setSelectedComponentMeta,
+    selectedSemester, setSelectedSemester,
+    selectedClassId, selectedClassCode, setSelectedClass,
+    selectedProblemNumber, setSelectedProblem,
+    selectedSessionId, selectedSessionNumber, setSelectedSession,
+  } = useComponentContext();
+
+  // Component list
   const { data: componentsList } = trpc.components.listMine.useQuery();
+
+  // Semester list (depends on component)
+  const { data: semestersList } = trpc.classes.semestersByComponent.useQuery(
+    { componentId: selectedComponentId! },
+    { enabled: !!selectedComponentId }
+  );
+
+  // Class list (depends on component + semester)
+  const { data: classesList } = trpc.classes.listByComponent.useQuery(
+    { componentId: selectedComponentId!, semester: selectedSemester ?? undefined },
+    { enabled: !!selectedComponentId }
+  );
+
+  // Session list (depends on component + semester + class)
+  const { data: sessionsList } = trpc.sessions.listByComponent.useQuery(
+    { componentId: selectedComponentId!, semester: selectedSemester ?? undefined, classId: selectedClassId ?? undefined },
+    { enabled: !!selectedComponentId }
+  );
+
+  // Derive unique problem numbers from sessions
+  const problemNumbers = useMemo(() => {
+    if (!sessionsList) return [];
+    const pSet = new Set(sessionsList.map((s: any) => s.problemNumber as number));
+    return Array.from(pSet).sort((a, b) => a - b);
+  }, [sessionsList]);
+
+  // Sessions for selected problem
+  const sessionsForProblem = useMemo(() => {
+    if (!sessionsList || selectedProblemNumber === null) return [];
+    return sessionsList.filter((s: any) => s.problemNumber === selectedProblemNumber);
+  }, [sessionsList, selectedProblemNumber]);
 
   // Auto-select first component if none selected or invalid
   useEffect(() => {
@@ -572,24 +611,53 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
       setSelectedComponentMeta(null, null);
       return;
     }
-    // If selectedComponentId is not in the user's components, reset it
     if (selectedComponentId !== null && !componentsList.some(c => c.id === selectedComponentId)) {
       const first = componentsList[0];
       setSelectedComponentId(first.id);
       setSelectedComponentMeta(first.code, first.name ?? null);
       return;
     }
-    // Auto-select first component if none selected
     if (selectedComponentId === null) {
       const first = componentsList[0];
       setSelectedComponentId(first.id);
       setSelectedComponentMeta(first.code, first.name ?? null);
     } else {
-      // Sync meta for already-selected component
       const found = componentsList.find(c => c.id === selectedComponentId);
       if (found) setSelectedComponentMeta(found.code, found.name ?? null);
     }
   }, [componentsList, selectedComponentId]);
+
+  // Auto-select latest semester when list loads
+  useEffect(() => {
+    if (!semestersList || semestersList.length === 0) return;
+    if (!selectedSemester || !semestersList.includes(selectedSemester)) {
+      setSelectedSemester(semestersList[0]); // semestersList is ordered desc
+    }
+  }, [semestersList]);
+
+  // Auto-select professor's class (or first) when class list loads
+  useEffect(() => {
+    if (!classesList || classesList.length === 0) return;
+    if (selectedClassId !== null && classesList.some((c: any) => c.id === selectedClassId)) return;
+    const profClass = classesList.find((c: any) => c.professorUserId === user?.id);
+    const target = profClass ?? classesList[0];
+    setSelectedClass(target.id, target.classCode);
+  }, [classesList]);
+
+  // Auto-select last problem when problem list changes
+  useEffect(() => {
+    if (problemNumbers.length === 0) return;
+    if (selectedProblemNumber !== null && problemNumbers.includes(selectedProblemNumber)) return;
+    setSelectedProblem(problemNumbers[problemNumbers.length - 1]);
+  }, [problemNumbers]);
+
+  // Auto-select last session for selected problem
+  useEffect(() => {
+    if (sessionsForProblem.length === 0) return;
+    if (selectedSessionId !== null && sessionsForProblem.some((s: any) => s.id === selectedSessionId)) return;
+    const last = sessionsForProblem[sessionsForProblem.length - 1];
+    setSelectedSession(last.id, last.sessionNumber);
+  }, [sessionsForProblem]);
 
   useEffect(() => {
     if (isCollapsed) setIsResizing(false);
@@ -647,30 +715,129 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
             </div>
           </SidebarHeader>
 
-          {/* Component selector */}
+          {/* Global Filters */}
           {!isCollapsed && componentOptions.length > 0 && (
-            <div className="px-3 pb-2 space-y-1">
-              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-0.5">Componente</p>
-              <Select
-                value={selectedComponentId ? String(selectedComponentId) : ""}
-                onValueChange={(v) => {
-                  const id = parseInt(v);
-                  setSelectedComponentId(id);
-                  const found = (componentsList ?? []).find(c => c.id === id);
-                  if (found) setSelectedComponentMeta(found.code, found.name ?? null);
-                }}
-              >
-                <SelectTrigger className="h-9 text-xs font-medium">
-                  <SelectValue placeholder="Selecione o componente..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {componentOptions.map(c => (
-                    <SelectItem key={c.id} value={String(c.id)} className="text-xs">
-                      <span className="font-semibold">{c.label}</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="px-3 pb-2 space-y-2">
+              {/* Componente */}
+              <div className="space-y-0.5">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Componente</p>
+                <Select
+                  value={selectedComponentId ? String(selectedComponentId) : ""}
+                  onValueChange={(v) => {
+                    const id = parseInt(v);
+                    setSelectedComponentId(id);
+                    const found = (componentsList ?? []).find(c => c.id === id);
+                    if (found) setSelectedComponentMeta(found.code, found.name ?? null);
+                  }}
+                >
+                  <SelectTrigger className="h-8 text-xs font-semibold">
+                    <SelectValue placeholder="Componente..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {componentOptions.map(c => (
+                      <SelectItem key={c.id} value={String(c.id)} className="text-xs">
+                        <span className="font-semibold">{c.label}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Semestre */}
+              {semestersList && semestersList.length > 0 && (
+                <div className="space-y-0.5">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Semestre</p>
+                  <Select
+                    value={selectedSemester ?? ""}
+                    onValueChange={(v) => setSelectedSemester(v)}
+                  >
+                    <SelectTrigger className="h-8 text-xs font-semibold">
+                      <SelectValue placeholder="Semestre..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {semestersList.map(s => (
+                        <SelectItem key={s} value={s} className="text-xs">
+                          <span className="font-semibold">{s}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Turma */}
+              {classesList && classesList.length > 0 && (
+                <div className="space-y-0.5">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Turma</p>
+                  <Select
+                    value={selectedClassId ? String(selectedClassId) : ""}
+                    onValueChange={(v) => {
+                      const id = parseInt(v);
+                      const found = (classesList ?? []).find((c: any) => c.id === id);
+                      setSelectedClass(id, found?.classCode ?? null);
+                    }}
+                  >
+                    <SelectTrigger className="h-8 text-xs font-semibold">
+                      <SelectValue placeholder="Turma..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(classesList ?? []).map((c: any) => (
+                        <SelectItem key={c.id} value={String(c.id)} className="text-xs">
+                          <span className="font-semibold">{c.classCode}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Problema */}
+              {problemNumbers.length > 0 && (
+                <div className="space-y-0.5">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Problema</p>
+                  <Select
+                    value={selectedProblemNumber !== null ? String(selectedProblemNumber) : ""}
+                    onValueChange={(v) => setSelectedProblem(parseInt(v))}
+                  >
+                    <SelectTrigger className="h-8 text-xs font-semibold">
+                      <SelectValue placeholder="Problema..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {problemNumbers.map(p => (
+                        <SelectItem key={p} value={String(p)} className="text-xs">
+                          <span className="font-semibold">P{p}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Sessão */}
+              {sessionsForProblem.length > 0 && (
+                <div className="space-y-0.5">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Sessão</p>
+                  <Select
+                    value={selectedSessionId !== null ? String(selectedSessionId) : ""}
+                    onValueChange={(v) => {
+                      const id = parseInt(v);
+                      const found = sessionsForProblem.find((s: any) => s.id === id);
+                      setSelectedSession(id, found?.sessionNumber ?? null);
+                    }}
+                  >
+                    <SelectTrigger className="h-8 text-xs font-semibold">
+                      <SelectValue placeholder="Sessão..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sessionsForProblem.map((s: any) => (
+                        <SelectItem key={s.id} value={String(s.id)} className="text-xs">
+                          <span className="font-semibold">S{s.sessionNumber}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
           )}
 

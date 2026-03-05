@@ -615,3 +615,10 @@
 - [x] Filtros de semestre e turma: isolar em estado local de cada página (não compartilhar via contexto global)
 - [x] Resultados Por Problema: auto-selecionar o último problema realizado no semestre e turma selecionados
 - [x] Resultados Por Sessão: auto-selecionar a última sessão realizada no semestre e turma selecionados
+
+## Filtros Globais no Menu Lateral
+
+- [x] ComponentContext: adicionar filtros globais (semestre, turma, problema, sessão) com persistência no localStorage e defaults automáticos
+- [x] DashboardLayout: seletores de Semestre, Turma, Problema e Sessão no topo do menu lateral (abaixo de Componente)
+- [x] Páginas: remover filtros locais e usar filtros globais do contexto; atualizar cabeçalhos com informações dos filtros selecionados
+- [x] Resultados: usar filtros globais como default para Por Sessão, Por Problema e Consolidado por Aluno
