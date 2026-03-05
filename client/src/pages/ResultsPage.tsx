@@ -68,6 +68,29 @@ function ResultsContent() {
 
   useEffect(() => { setSelectedSessionId(""); setSelectedProblem(""); }, [selectedClassId]);
 
+  // Derive unique problem numbers from finished sessions (needed before auto-select effects)
+  const problems = useMemo(() => {
+    if (!activeSessions) return [];
+    const pSet = new Set(activeSessions.map(s => s.problemNumber));
+    return Array.from(pSet).sort((a, b) => a - b);
+  }, [activeSessions]);
+
+  // Auto-select last session when sessions load or class changes
+  useEffect(() => {
+    if (activeSessions && activeSessions.length > 0 && !selectedSessionId) {
+      // activeSessions are ordered by sessionNumber; pick the last one
+      const lastSession = activeSessions[activeSessions.length - 1];
+      setSelectedSessionId(String(lastSession.id));
+    }
+  }, [activeSessions]);
+
+  // Auto-select last problem when problems list is derived
+  useEffect(() => {
+    if (problems && problems.length > 0 && !selectedProblem) {
+      setSelectedProblem(String(problems[problems.length - 1]));
+    }
+  }, [problems]);
+
   // Peer results
   const { data: sessionResults } = trpc.results.session.useQuery(
     { sessionId: parseInt(selectedSessionId) },
@@ -109,12 +132,6 @@ function ResultsContent() {
     { classId: selectedClassId!, problemNumber: parseInt(selectedProblem) },
     { enabled: !!selectedProblem && !!selectedClassId }
   );
-
-  const problems = useMemo(() => {
-    if (!activeSessions) return [];
-    const pSet = new Set(activeSessions.map(s => s.problemNumber));
-    return Array.from(pSet).sort((a, b) => a - b);
-  }, [activeSessions]);
 
   if (!selectedComponentId) {
     return (
