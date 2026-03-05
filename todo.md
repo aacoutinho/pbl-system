@@ -607,3 +607,4 @@
 - [x] Avaliar Tutorial: listar sessões ativas/em avaliação/fechadas do componente selecionado; selecionar sessão para avaliar
 - [x] Resultados: listar sessões do componente selecionado com filtro de semestre e turma; selecionar sessão para ver resultados
 - [x] Verificar compatibilidade de Backup e Restauração com o esquema atual do banco de dados (já verificado em tarefas anteriores - OK)
+- [x] Seletor de componente no menu lateral: exibir código + nome (ex.: TEC502 - Concorrência e Conectividade), ordenado pelo código

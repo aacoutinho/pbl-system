@@ -603,7 +603,10 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
     };
   }, [isResizing, setSidebarWidth]);
 
-  const componentOptions = (componentsList ?? []).map(c => ({ id: c.id, label: c.code, fullLabel: `${c.code} - ${c.name}` }));
+  const componentOptions = (componentsList ?? [])
+    .slice()
+    .sort((a, b) => a.code.localeCompare(b.code))
+    .map(c => ({ id: c.id, label: c.code, fullLabel: c.name ? `${c.code} - ${c.name}` : c.code }));
 
   return (
     <>
@@ -643,7 +646,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                 <SelectContent>
                   {componentOptions.map(c => (
                     <SelectItem key={c.id} value={String(c.id)} className="text-xs">
-                      <span className="font-semibold">{c.label}</span>
+                      <span className="font-semibold">{c.fullLabel}</span>
                     </SelectItem>
                   ))}
                 </SelectContent>
