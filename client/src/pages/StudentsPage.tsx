@@ -1,6 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
-import { useClassContext } from "@/contexts/ClassContext";
+import { useComponentContext } from "@/contexts/ComponentContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,32 +9,52 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Trash2, Upload, Users, BookOpen, FileSpreadsheet, Check, Pencil, ArrowRightLeft, Camera, AlertTriangle } from "lucide-react";
-import { useState, useRef, useMemo } from "react";
+import { Plus, Trash2, Upload, Users, BookOpen, FileSpreadsheet, Check, Pencil, ArrowRightLeft, Camera, AlertTriangle, Filter } from "lucide-react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { resizeImageToSquare, base64SizeKB } from "@/lib/resizeImage";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/_core/hooks/useAuth";
 
 export default function StudentsPage() {
-  return (
-    <DashboardLayout>
-      <StudentsContent />
-    </DashboardLayout>
-  );
+  return <StudentsContent />;
 }
 
 function StudentsContent() {
   const utils = trpc.useUtils();
-  const { selectedClassId } = useClassContext();
+  const { selectedComponentId } = useComponentContext();
   const { user } = useAuth();
 
-  // Check permissions for the selected class
-  const { data: classesList } = trpc.classes.list.useQuery();
+  // Semestre filter
+  const { data: semesters } = trpc.classes.semestersByComponent.useQuery(
+    { componentId: selectedComponentId! },
+    { enabled: !!selectedComponentId }
+  );
+  const latestSemester = semesters?.[0] ?? null;
+  const [selectedSemester, setSelectedSemester] = useState<string | null>(null);
+  useEffect(() => {
+    if (latestSemester && selectedSemester === null) setSelectedSemester(latestSemester);
+  }, [latestSemester]);
+  useEffect(() => { setSelectedSemester(null); }, [selectedComponentId]);
+
+  // Class filter
+  const { data: classesList } = trpc.classes.listByComponent.useQuery(
+    { componentId: selectedComponentId!, semester: selectedSemester ?? undefined },
+    { enabled: !!selectedComponentId }
+  );
+  const professorClass = classesList?.find((c: any) => c.professorUserId === user?.id);
+  const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
+  useEffect(() => {
+    if (classesList && selectedClassId === null) {
+      setSelectedClassId(professorClass?.id ?? classesList[0]?.id ?? null);
+    }
+  }, [classesList]);
+  useEffect(() => { setSelectedClassId(null); }, [selectedComponentId, selectedSemester]);
+
   const { data: myComponents } = trpc.professors.myComponents.useQuery();
 
   const selectedClass = useMemo(() => {
     if (!classesList || !selectedClassId) return null;
-    return classesList.find(c => c.id === selectedClassId) ?? null;
+    return (classesList as any[]).find((c: any) => c.id === selectedClassId) ?? null;
   }, [classesList, selectedClassId]);
 
   const isAdmin = user?.role === "admin";
@@ -42,7 +62,7 @@ function StudentsContent() {
   const isCoordinatorOfComponent = useMemo(() => {
     if (!selectedClass || !myComponents) return false;
     return myComponents.some(
-      c => c.componentId === selectedClass.componentId && c.componentRole === "coordinator" && c.status === "approved"
+      (c: any) => c.componentId === selectedClass.componentId && c.componentRole === "coordinator" && c.status === "approved"
     );
   }, [selectedClass, myComponents]);
   const canManage = isAdmin || isOwner || isCoordinatorOfComponent;
@@ -51,8 +71,8 @@ function StudentsContent() {
   // Other classes of the same component (for transfer target)
   const sameComponentClasses = useMemo(() => {
     if (!classesList || !selectedClass) return [];
-    return classesList.filter(
-      c => c.componentId === selectedClass.componentId && c.id !== selectedClassId
+    return (classesList as any[]).filter(
+      (c: any) => c.componentId === selectedClass.componentId && c.id !== selectedClassId
     );
   }, [classesList, selectedClass, selectedClassId]);
 
@@ -140,22 +160,22 @@ function StudentsContent() {
   const [transferTargetClassId, setTransferTargetClassId] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  if (!selectedClassId) {
+  if (!selectedComponentId) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <BookOpen className="h-12 w-12 text-muted-foreground/40 mb-4" />
-        <h2 className="text-xl font-semibold mb-2">Selecione uma Turma</h2>
+        <h2 className="text-xl font-semibold mb-2">Selecione um Componente</h2>
         <p className="text-muted-foreground text-center max-w-md">
-          Selecione uma turma no menu lateral para gerenciar seus alunos.
+          Selecione um componente no menu lateral para gerenciar alunos.
         </p>
       </div>
     );
   }
 
   const handleAdd = (useExisting?: boolean) => {
-    if (!newName.trim() || !newEnrollment.trim()) { toast.error("Preencha nome e matr\u00edcula"); return; }
+     if (!newName.trim() || !newEnrollment.trim()) { toast.error("Preencha nome e matrícula"); return; }
     createMutation.mutate({
-      classId: selectedClassId,
+      classId: selectedClassId!,
       name: newName.trim(),
       enrollment: newEnrollment.trim(),
       email: newEmail.trim() || undefined,
@@ -189,7 +209,7 @@ function StudentsContent() {
     }
     updateMutation.mutate({
       studentId: editingStudent.id,
-      classId: selectedClassId,
+      classId: selectedClassId!,
       name: editName.trim(),
       enrollment: editEnrollment.trim(),
       email: editEmail.trim() || null,
@@ -229,7 +249,7 @@ function StudentsContent() {
     }
     transferMutation.mutate({
       studentId: transferringStudent.id,
-      fromClassId: selectedClassId,
+      fromClassId: selectedClassId!,
       toClassId: parseInt(transferTargetClassId),
     });
   };
@@ -292,21 +312,54 @@ function StudentsContent() {
 
   const handleCSVImport = () => {
     if (!csvContent) { toast.error("Selecione um arquivo CSV"); return; }
-    importCSVMutation.mutate({ classId: selectedClassId, csvContent });
+    importCSVMutation.mutate({ classId: selectedClassId!, csvContent });
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {selectedClass
-              ? `${selectedClass.componentCode} - ${selectedClass.classCode} - Alunos da Turma`
-              : "Alunos"}
-          </h1>
+          <h1 className="text-2xl font-bold tracking-tight">Alunos</h1>
           <p className="text-muted-foreground mt-1">
             {canManage ? "Gerencie os alunos da turma selecionada." : "Visualize os alunos da turma selecionada."}
           </p>
+        </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <div className="flex items-center gap-2">
+            <Label className="text-sm whitespace-nowrap">Semestre:</Label>
+            <Select
+              value={selectedSemester ?? ""}
+              onValueChange={(v) => setSelectedSemester(v || null)}
+            >
+              <SelectTrigger className="w-32 h-8 text-xs">
+                <SelectValue placeholder="Semestre" />
+              </SelectTrigger>
+              <SelectContent>
+                {(semesters ?? []).map(s => (
+                  <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <Label className="text-sm whitespace-nowrap">Turma:</Label>
+            <Select
+              value={selectedClassId ? String(selectedClassId) : ""}
+              onValueChange={(v) => setSelectedClassId(parseInt(v))}
+            >
+              <SelectTrigger className="w-40 h-8 text-xs">
+                <SelectValue placeholder="Turma" />
+              </SelectTrigger>
+              <SelectContent>
+                {(classesList ?? []).map((c: any) => (
+                  <SelectItem key={c.id} value={String(c.id)} className="text-xs">
+                    {c.classCode}{c.professorUserId === user?.id ? " (minha)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         {canManage && <div className="flex gap-2">
           {/* CSV Import from SAGRES */}
@@ -448,14 +501,14 @@ function StudentsContent() {
                         </div>
                         <div className="flex gap-2">
                           <Button size="sm" variant="outline" onClick={async () => {
-                            await resolveConflictMutation.mutateAsync({ classId: selectedClassId, enrollment: m.enrollment, action: "use_existing" });
+                            await resolveConflictMutation.mutateAsync({ classId: selectedClassId!, enrollment: m.enrollment, action: "use_existing" });
                             setImportNameMismatches(prev => prev.filter((_, idx) => idx !== i));
                             toast.success(`${m.existingName} vinculado \u00e0 turma (dados do banco mantidos)`);
                           }} disabled={resolveConflictMutation.isPending}>
                             Usar dados do banco
                           </Button>
                           <Button size="sm" variant="outline" onClick={async () => {
-                            await resolveConflictMutation.mutateAsync({ classId: selectedClassId, enrollment: m.enrollment, action: "update_name", csvName: m.csvName });
+                            await resolveConflictMutation.mutateAsync({ classId: selectedClassId!, enrollment: m.enrollment, action: "update_name", csvName: m.csvName });
                             setImportNameMismatches(prev => prev.filter((_, idx) => idx !== i));
                             toast.success(`Nome atualizado para ${m.csvName} e vinculado \u00e0 turma`);
                           }} disabled={resolveConflictMutation.isPending}>
@@ -735,7 +788,7 @@ function StudentsContent() {
                               size="icon"
                               className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                               onClick={() => {
-                                if (confirm(`Remover ${student.name} desta turma? As avaliações anteriores serão preservadas.`)) removeMutation.mutate({ studentId: student.id, classId: selectedClassId });
+                                if (confirm(`Remover ${student.name} desta turma? As avaliações anteriores serão preservadas.`)) removeMutation.mutate({ studentId: student.id, classId: selectedClassId! });
                               }}
                               title="Remover da turma"
                             >

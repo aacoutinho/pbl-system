@@ -22,7 +22,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { useIsMobile } from "@/hooks/useMobile";
-import { useClassContext } from "@/contexts/ClassContext";
+import { useComponentContext } from "@/contexts/ComponentContext";
 import { trpc } from "@/lib/trpc";
 import { LayoutDashboard, Users, ClipboardList, BarChart3, LogOut, PanelLeft, GraduationCap, BookOpen, ClipboardCheck, Download, KeyRound, UserCheck, Clock, Eye, EyeOff, Loader2, Mail, ArrowRightLeft, Layers, User, History, Bell, MessageSquare, DatabaseBackup, Settings, ChevronDown, UploadCloud } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState, FormEvent } from "react";
@@ -35,9 +35,9 @@ import { Separator } from "./ui/separator";
 import { toast } from "sonner";
 
 // Common menu items for all approved users (prof, coordinator, admin)
+// "Componentes" moved to Configurações submenu
 const baseMenuItems = [
   { icon: LayoutDashboard, label: "Painel Geral", path: "/" },
-  { icon: Layers, label: "Componentes", path: "/components" },
   { icon: BookOpen, label: "Turmas", path: "/classes" },
   { icon: Users, label: "Alunos", path: "/students" },
   { icon: ClipboardList, label: "Sessões", path: "/sessions" },
@@ -48,8 +48,6 @@ const baseMenuItems = [
 // Tutorial evaluation: for prof, coordinator, and admin
 const tutorialEvalItem = { icon: ClipboardCheck, label: "Avaliar Tutorial", path: "/tutorial-eval" };
 
-// Audit log: moved to Configurações (admin only)
-
 // Notifications: for all approved users
 const notificationsItem = { icon: Bell, label: "Notificações", path: "/notifications" };
 
@@ -57,7 +55,8 @@ const notificationsItem = { icon: Bell, label: "Notificações", path: "/notific
 const contactItem = { icon: MessageSquare, label: "Contato", path: "/contact" };
 
 // Admin-only config sub-items (grouped under "Configurações")
-const configSubItems = [
+const configSubItemsAdmin = [
+  { icon: Layers, label: "Componentes", path: "/components" },
   { icon: Mail, label: "E-mails", path: "/smtp-config" },
   { icon: DatabaseBackup, label: "Backup", path: "/backup" },
   { icon: UploadCloud, label: "Restauração", path: "/restauracao" },
@@ -65,14 +64,20 @@ const configSubItems = [
   { icon: History, label: "Histórico", path: "/audit-log" },
 ];
 
-const configGroupItem = { icon: Settings, label: "Configurações", path: "__config__", subItems: configSubItems };
+// Non-admin config sub-items (no admin-only items)
+const configSubItemsUser = [
+  { icon: Download, label: "Exportar", path: "/export-students" },
+];
+
+const configGroupItemAdmin = { icon: Settings, label: "Configurações", path: "__config__", subItems: configSubItemsAdmin };
+const configGroupItemUser = { icon: Settings, label: "Configurações", path: "__config__", subItems: configSubItemsUser };
 
 function getMenuItemsForRole(role: string) {
   if (role === "admin") {
     const items = [...baseMenuItems];
     const sessionsIdx = items.findIndex(i => i.path === "/sessions");
     items.splice(sessionsIdx + 1, 0, tutorialEvalItem);
-    items.push(notificationsItem, contactItem, configGroupItem);
+    items.push(notificationsItem, contactItem, configGroupItemAdmin);
     return items;
   }
   // coordinator and prof: include tutorial eval
@@ -83,6 +88,7 @@ function getMenuItemsForRole(role: string) {
   // All approved users get notifications and contact
   items.push(notificationsItem);
   items.push(contactItem);
+  items.push(configGroupItemUser);
   return items;
 }
 
@@ -264,111 +270,71 @@ function LoginScreen() {
 
           {mode === "register" && (
             <div className="space-y-1.5">
-              <Label htmlFor="name" className="text-sm">Nome completo</Label>
+              <Label htmlFor="name" className="text-xs font-medium">Nome completo</Label>
               <Input
                 id="name"
                 type="text"
                 placeholder="Seu nome"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={e => setName(e.target.value)}
                 required
                 autoComplete="name"
+                className="h-10"
               />
             </div>
           )}
 
           {(mode === "login" || mode === "register" || mode === "forgot") && (
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-sm">E-mail</Label>
+              <Label htmlFor="email" className="text-xs font-medium">E-mail</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="professor@exemplo.com"
+                placeholder="seu@email.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={e => setEmail(e.target.value)}
                 required
-                autoComplete="off"
+                autoComplete="email"
+                className="h-10"
               />
             </div>
           )}
 
-          {mode === "register" && !isFirstUser && componentsList && componentsList.length > 0 && (
+          {mode === "verify" && (
             <div className="space-y-1.5">
-              <Label className="text-sm">Componentes desejados</Label>
-              <p className="text-xs text-muted-foreground">Selecione os componentes que deseja participar.</p>
-              <div className="flex flex-wrap gap-2 p-2 border rounded-md bg-background max-h-32 overflow-y-auto">
-                {componentsList.map(c => {
-                  const selected = selectedComponentIds.includes(c.id);
-                  return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => setSelectedComponentIds(prev => selected ? prev.filter(id => id !== c.id) : [...prev, c.id])}
-                      className={`px-2 py-1 text-xs rounded-md border transition-colors ${
-                        selected ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted/50 hover:bg-muted border-border'
-                      }`}
-                    >
-                      {c.code}
-                    </button>
-                  );
-                })}
-              </div>
+              <Label htmlFor="verificationCode" className="text-xs font-medium">Código de verificação</Label>
+              <Input
+                id="verificationCode"
+                type="text"
+                placeholder="Digite o código recebido por e-mail"
+                value={verificationCode}
+                onChange={e => setVerificationCode(e.target.value)}
+                required
+                className="h-10"
+              />
             </div>
           )}
 
-          {mode === "verify" && (
-            <>
-              <p className="text-sm text-muted-foreground text-center">
-                Um código de 6 dígitos foi enviado para <strong>{email}</strong>. Informe o código abaixo para confirmar seu cadastro.
-              </p>
-              <div className="space-y-1.5">
-                <Label htmlFor="verifyCode" className="text-sm">Código de verificação</Label>
-                <Input
-                  id="verifyCode"
-                  type="text"
-                  placeholder="000000"
-                  value={verificationCode}
-                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  required
-                  maxLength={6}
-                  className="text-center text-2xl tracking-[0.5em] font-mono"
-                  autoComplete="one-time-code"
-                  autoFocus
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSubmitting(true);
-                  sendVerificationCodeMutation.mutate({ email });
-                }}
-                className="text-xs text-primary hover:underline transition-colors text-center"
-                disabled={isSubmitting}
-              >
-                Reenviar código
-              </button>
-            </>
-          )}
-
-          {(mode === "login" || mode === "register") && (
+          {(mode === "login" || mode === "register" || mode === "verify" || mode === "newpass") && (
             <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-sm">Senha</Label>
+              <Label htmlFor="password" className="text-xs font-medium">
+                {mode === "newpass" ? "Nova senha" : "Senha"}
+              </Label>
               <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder={mode === "register" ? "Mínimo 6 caracteres" : "Sua senha"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={mode === "newpass" ? "Nova senha" : "Sua senha"}
+                  value={mode === "newpass" ? newPassword : password}
+                  onChange={e => mode === "newpass" ? setNewPassword(e.target.value) : setPassword(e.target.value)}
                   required
-                  minLength={mode === "register" ? 6 : 1}
                   autoComplete={mode === "login" ? "current-password" : "new-password"}
-                  className="pr-10"
+                  className="h-10 pr-10"
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => setShowPassword(p => !p)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   tabIndex={-1}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -377,127 +343,118 @@ function LoginScreen() {
             </div>
           )}
 
-          {mode === "forgot" && (
-            <p className="text-sm text-muted-foreground text-center">
-              Informe seu e-mail e enviaremos um código de 6 dígitos para redefinir sua senha.
-            </p>
-          )}
-
-          {(mode === "code" || mode === "newpass") && (
+          {mode === "code" && (
             <>
-              <p className="text-sm text-muted-foreground text-center">
-                Um código foi enviado para <strong>{email}</strong>. Informe o código e a nova senha.
-              </p>
               <div className="space-y-1.5">
-                <Label htmlFor="resetCode" className="text-sm">Código de 6 dígitos</Label>
+                <Label htmlFor="resetCode" className="text-xs font-medium">Código de recuperação</Label>
                 <Input
                   id="resetCode"
                   type="text"
-                  placeholder="000000"
+                  placeholder="Código recebido por e-mail"
                   value={resetCode}
-                  onChange={(e) => setResetCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  onChange={e => setResetCode(e.target.value)}
                   required
-                  maxLength={6}
-                  className="text-center text-2xl tracking-[0.5em] font-mono"
-                  autoComplete="one-time-code"
+                  className="h-10"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="newPassword" className="text-sm">Nova senha</Label>
-                <div className="relative">
-                  <Input
-                    id="newPassword"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Mínimo 6 caracteres"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    required
-                    minLength={6}
-                    autoComplete="new-password"
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                    tabIndex={-1}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
+                <Label htmlFor="newPassword" className="text-xs font-medium">Nova senha</Label>
+                <Input
+                  id="newPassword"
+                  type="password"
+                  placeholder="Nova senha"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  required
+                  className="h-10"
+                />
               </div>
             </>
           )}
 
+          {/* Component selection for registration */}
+          {mode === "verify" && !isFirstUser && componentsList && componentsList.length > 0 && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Componentes de interesse</Label>
+              <div className="border rounded-lg p-3 space-y-2 max-h-40 overflow-y-auto bg-muted/30">
+                {componentsList.map(comp => (
+                  <label key={comp.id} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedComponentIds.includes(comp.id)}
+                      onChange={e => {
+                        if (e.target.checked) {
+                          setSelectedComponentIds(prev => [...prev, comp.id]);
+                        } else {
+                          setSelectedComponentIds(prev => prev.filter(id => id !== comp.id));
+                        }
+                      }}
+                      className="rounded"
+                    />
+                    <span className="text-xs">{comp.code} - {comp.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
           <Button
             type="submit"
-            size="lg"
-            className="w-full font-semibold mt-1"
+            className="w-full h-10 font-semibold"
             disabled={isSubmitting}
           >
             {isSubmitting ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : null}
-            {mode === "login" ? "Entrar" : mode === "register" ? (isFirstUser ? "Criar Conta de Administrador" : "Enviar Código de Verificação") : mode === "verify" ? "Confirmar Cadastro" : mode === "forgot" ? "Enviar Código" : "Redefinir Senha"}
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : mode === "login" ? "Entrar" : mode === "register" ? "Continuar" : mode === "verify" ? "Verificar e Cadastrar" : mode === "forgot" ? "Enviar código" : "Redefinir senha"}
           </Button>
-        </form>
 
-        {!isFirstUser && (mode === "login" || mode === "register") && (
-          <div className="flex flex-col items-center gap-2">
-            <button
-              type="button"
-              onClick={() => { setMode(mode === "login" ? "register" : "login"); setIsSubmitting(false); }}
-              className="text-sm text-primary hover:underline transition-colors"
-            >
-              {mode === "login" ? "Professor não tem conta? Cadastre-se" : "Já tem conta? Faça login"}
-            </button>
-            {mode === "login" && smtpConfigured && (
+          <div className="flex flex-col gap-1 items-center">
+            {mode === "login" && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => { setMode("register"); setPassword(""); }}
+                  className="text-xs text-primary hover:underline"
+                >
+                  Criar conta de professor
+                </button>
+                {smtpConfigured && (
+                  <button
+                    type="button"
+                    onClick={() => setMode("forgot")}
+                    className="text-xs text-muted-foreground hover:underline"
+                  >
+                    Esqueci minha senha
+                  </button>
+                )}
+              </>
+            )}
+            {(mode !== "login") && (
               <button
                 type="button"
-                onClick={() => { setMode("forgot"); setIsSubmitting(false); }}
-                className="text-xs text-muted-foreground hover:text-primary hover:underline transition-colors"
+                onClick={() => { setMode("login"); setPassword(""); setResetCode(""); setNewPassword(""); setVerificationCode(""); }}
+                className="text-xs text-muted-foreground hover:underline"
               >
-                Esqueceu sua senha?
+                Voltar ao login
               </button>
             )}
           </div>
-        )}
-
-        {mode === "verify" && (
-          <button
-            type="button"
-            onClick={() => { setMode("register"); setIsSubmitting(false); setVerificationCode(""); }}
-            className="text-sm text-primary hover:underline transition-colors"
-          >
-            Voltar ao cadastro
-          </button>
-        )}
-
-        {(mode === "forgot" || mode === "code" || mode === "newpass") && (
-          <button
-            type="button"
-            onClick={() => { setMode("login"); setIsSubmitting(false); setResetCode(""); setNewPassword(""); }}
-            className="text-sm text-primary hover:underline transition-colors"
-          >
-            Voltar ao login
-          </button>
-        )}
-
-
+        </form>
       </div>
     </div>
   );
 }
 
-export default function DashboardLayout({
-  children,
-}: {
+type DashboardLayoutProps = {
   children: React.ReactNode;
-}) {
-  const [sidebarWidth, setSidebarWidth] = useState(() => {
+};
+
+export default function DashboardLayout({ children }: DashboardLayoutProps) {
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
     const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY);
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
+
   const { loading, user, logout } = useAuth();
 
   useEffect(() => {
@@ -571,9 +528,10 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
 
   const isAdmin = user?.role === "admin";
   const menuItems = getMenuItemsForRole(user?.role || "prof");
+  const allConfigSubItems = isAdmin ? configSubItemsAdmin : configSubItemsUser;
   const [configOpen, setConfigOpen] = useState(() => {
     // Auto-open if current location is a config sub-item
-    return configSubItems.some(si => si.path === window.location.pathname);
+    return allConfigSubItems.some(si => si.path === window.location.pathname);
   });
   const { data: unreadData } = trpc.notifications.unreadCount.useQuery(undefined, {
     refetchInterval: 30000,
@@ -595,29 +553,29 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
   });
   const openTicketsCount = openTicketsData?.count ?? 0;
   const activeMenuItem = menuItems.find(item => item.path === location) 
-    || configSubItems.find(item => item.path === location);
+    || allConfigSubItems.find(item => item.path === location);
 
-  // Class selector for admin
-  const { selectedClassId, setSelectedClassId } = useClassContext();
-  const { data: classesList } = trpc.classes.list.useQuery();
+  // Component selector: list only user's accessible components
+  const { selectedComponentId, setSelectedComponentId } = useComponentContext();
+  const { data: componentsList } = trpc.components.listMine.useQuery();
 
-  // Validate selectedClassId belongs to current user's classes, auto-select first if invalid
+  // Auto-select first component if none selected or invalid
   useEffect(() => {
-    if (!classesList) return;
-    if (classesList.length === 0) {
-      if (selectedClassId !== null) setSelectedClassId(null);
+    if (!componentsList) return;
+    if (componentsList.length === 0) {
+      if (selectedComponentId !== null) setSelectedComponentId(null);
       return;
     }
-    // If selectedClassId is not in the user's classes, reset it
-    if (selectedClassId !== null && !classesList.some(c => c.id === selectedClassId)) {
-      setSelectedClassId(classesList[0].id);
+    // If selectedComponentId is not in the user's components, reset it
+    if (selectedComponentId !== null && !componentsList.some(c => c.id === selectedComponentId)) {
+      setSelectedComponentId(componentsList[0].id);
       return;
     }
-    // Auto-select first class if none selected
-    if (selectedClassId === null) {
-      setSelectedClassId(classesList[0].id);
+    // Auto-select first component if none selected
+    if (selectedComponentId === null) {
+      setSelectedComponentId(componentsList[0].id);
     }
-  }, [classesList, selectedClassId, setSelectedClassId]);
+  }, [componentsList, selectedComponentId, setSelectedComponentId]);
 
   useEffect(() => {
     if (isCollapsed) setIsResizing(false);
@@ -645,20 +603,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
     };
   }, [isResizing, setSidebarWidth]);
 
-  const allClassOptions = (classesList ?? []).map(c => ({ id: c.id, label: `${c.componentCode} - ${c.classCode} (${c.semester})`, semester: c.semester }));
-  const semesters = Array.from(new Set(allClassOptions.map(c => c.semester))).sort().reverse();
-  const [semesterFilter, setSemesterFilter] = useState<string>("all");
-  const classOptions = semesterFilter === "all" ? allClassOptions : allClassOptions.filter(c => c.semester === semesterFilter);
-
-  // Auto-set semester filter to current class's semester
-  useEffect(() => {
-    if (selectedClassId && allClassOptions.length > 0) {
-      const current = allClassOptions.find(c => c.id === selectedClassId);
-      if (current && semesterFilter === "all" && semesters.length > 1) {
-        setSemesterFilter(current.semester);
-      }
-    }
-  }, [selectedClassId, allClassOptions.length]);
+  const componentOptions = (componentsList ?? []).map(c => ({ id: c.id, label: c.code, fullLabel: `${c.code} - ${c.name}` }));
 
   return (
     <>
@@ -684,33 +629,21 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
             </div>
           </SidebarHeader>
 
-          {/* Class selector with semester filter */}
-          {!isCollapsed && allClassOptions.length > 0 && (
-            <div className="px-3 pb-2 space-y-1.5">
-              {semesters.length > 1 && (
-                <Select value={semesterFilter} onValueChange={(v) => setSemesterFilter(v)}>
-                  <SelectTrigger className="h-7 text-[10px] bg-muted/50">
-                    <SelectValue placeholder="Semestre" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all" className="text-xs">Todos os semestres</SelectItem>
-                    {semesters.map(s => (
-                      <SelectItem key={s} value={s} className="text-xs">Semestre {s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+          {/* Component selector */}
+          {!isCollapsed && componentOptions.length > 0 && (
+            <div className="px-3 pb-2 space-y-1">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-0.5">Componente</p>
               <Select
-                value={selectedClassId ? String(selectedClassId) : ""}
-                onValueChange={(v) => setSelectedClassId(parseInt(v))}
+                value={selectedComponentId ? String(selectedComponentId) : ""}
+                onValueChange={(v) => setSelectedComponentId(parseInt(v))}
               >
-                <SelectTrigger className="h-9 text-xs">
-                  <SelectValue placeholder="Selecione a turma..." />
+                <SelectTrigger className="h-9 text-xs font-medium">
+                  <SelectValue placeholder="Selecione o componente..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {classOptions.map(c => (
+                  {componentOptions.map(c => (
                     <SelectItem key={c.id} value={String(c.id)} className="text-xs">
-                      {c.label}
+                      <span className="font-semibold">{c.label}</span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -729,7 +662,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                 const showContactBadge = isContact && isAdmin && openTicketsCount > 0;
 
                 if (hasSubItems) {
-                  const subItems = (item as any).subItems as typeof configSubItems;
+                  const subItems = (item as any).subItems as typeof configSubItemsAdmin;
                   const isAnySubActive = subItems.some(si => si.path === location);
                   return (
                     <SidebarMenuItem key={item.path}>
@@ -754,7 +687,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                                 key={sub.path}
                                 isActive={isSubActive}
                                 onClick={() => setLocation(sub.path)}
-                                tooltip={showSmtpWarning ? `${sub.label} (configura\u00e7\u00e3o pendente)` : sub.label}
+                                tooltip={showSmtpWarning ? `${sub.label} (configuração pendente)` : sub.label}
                                 className="h-9 transition-all font-normal text-sm"
                               >
                                 <div className="relative">
@@ -768,7 +701,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                                 </div>
                                 <span className="flex-1">{sub.label}</span>
                                 {showSmtpWarning && (
-                                  <span className="flex h-2 w-2 rounded-full bg-red-500 shrink-0" title="Configura\u00e7\u00e3o de e-mail pendente"></span>
+                                  <span className="flex h-2 w-2 rounded-full bg-red-500 shrink-0" title="Configuração de e-mail pendente"></span>
                                 )}
                               </SidebarMenuButton>
                             );

@@ -1,7 +1,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { useClassContext } from "@/contexts/ClassContext";
+import { useComponentContext } from "@/contexts/ComponentContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,38 +11,51 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BookOpen, Plus, Pencil, Trash2, ShieldCheck, UserPlus, X, User, UserCog } from "lucide-react";
-import { useState } from "react";
+import { BookOpen, Plus, Pencil, Trash2, ShieldCheck, UserPlus, X, User, UserCog, Filter } from "lucide-react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
 export default function ClassesPage() {
-  return (
-    <DashboardLayout>
-      <ClassesContent />
-    </DashboardLayout>
-  );
+  return <ClassesContent />;
 }
 
 function ClassesContent() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
-  const { data: classes, isLoading } = trpc.classes.list.useQuery();
+  const { selectedComponentId } = useComponentContext();
+
+  // Semestre filter
+  const { data: semesters } = trpc.classes.semestersByComponent.useQuery(
+    { componentId: selectedComponentId! },
+    { enabled: !!selectedComponentId }
+  );
+  const latestSemester = semesters?.[0] ?? null;
+  const [selectedSemester, setSelectedSemester] = useState<string | null>(null);
+  useEffect(() => {
+    if (latestSemester && selectedSemester === null) setSelectedSemester(latestSemester);
+  }, [latestSemester]);
+  useEffect(() => { setSelectedSemester(null); }, [selectedComponentId]);
+
+  // Classes filtered by component and semester
+  const { data: classes, isLoading } = trpc.classes.listByComponent.useQuery(
+    { componentId: selectedComponentId!, semester: selectedSemester ?? undefined },
+    { enabled: !!selectedComponentId }
+  );
   const { data: componentsList } = trpc.components.list.useQuery();
   const { data: myComponents } = trpc.professors.myComponents.useQuery();
-  const { selectedClassId, setSelectedClassId } = useClassContext();
 
   const createMutation = trpc.classes.create.useMutation({
-    onSuccess: () => { utils.classes.list.invalidate(); toast.success("Turma criada com sucesso!"); },
+    onSuccess: () => { utils.classes.list.invalidate(); utils.classes.listByComponent.invalidate(); toast.success("Turma criada com sucesso!"); },
     onError: (e) => toast.error(e.message),
   });
   const updateMutation = trpc.classes.update.useMutation({
-    onSuccess: () => { utils.classes.list.invalidate(); toast.success("Turma atualizada!"); },
+    onSuccess: () => { utils.classes.list.invalidate(); utils.classes.listByComponent.invalidate(); toast.success("Turma atualizada!"); },
     onError: (e) => toast.error(e.message),
   });
   const deleteMutation = trpc.classes.delete.useMutation({
-    onSuccess: (_, vars) => {
+    onSuccess: () => {
       utils.classes.list.invalidate();
-      if (selectedClassId === vars.id) setSelectedClassId(null);
+      utils.classes.listByComponent.invalidate();
       toast.success("Turma excluída!");
     },
     onError: (e) => toast.error(e.message),
@@ -125,12 +138,43 @@ function ClassesContent() {
     );
   }
 
+  if (!selectedComponentId) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <BookOpen className="h-12 w-12 text-muted-foreground/40 mb-4" />
+        <h2 className="text-xl font-semibold mb-2">Selecione um Componente</h2>
+        <p className="text-muted-foreground text-center max-w-md">
+          Selecione um componente no menu lateral para visualizar as turmas.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Turmas</h1>
-          <p className="text-muted-foreground mt-1">Gerencie suas turmas e seus alunos.</p>
+          <p className="text-muted-foreground mt-1">Turmas do componente selecionado.</p>
+        </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <Label className="text-sm whitespace-nowrap">Semestre:</Label>
+            <Select
+              value={selectedSemester ?? ""}
+              onValueChange={(v) => setSelectedSemester(v || null)}
+            >
+              <SelectTrigger className="w-32 h-8 text-xs">
+                <SelectValue placeholder="Semestre" />
+              </SelectTrigger>
+              <SelectContent>
+                {(semesters ?? []).map(s => (
+                  <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
@@ -244,14 +288,10 @@ function ClassesContent() {
             ) ?? false;
             const canManage = isOwner || isAdmin || isCoordinatorOfComponent;
             return (
-              <Card key={cls.id} className={`hover:shadow-md transition-all cursor-pointer ${selectedClassId === cls.id ? "ring-2 ring-primary" : ""}`}
-                onClick={() => setSelectedClassId(cls.id)}>
+              <Card key={cls.id} className="hover:shadow-md transition-all">
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-base">{comp?.code ?? "?"} - {cls.classCode}</CardTitle>
-                    {selectedClassId === cls.id && (
-                      <Badge variant="default" className="text-xs">Selecionada</Badge>
-                    )}
                   </div>
                 </CardHeader>
                 <CardContent>

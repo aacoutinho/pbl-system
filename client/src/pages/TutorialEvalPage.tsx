@@ -1,6 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
-import { useClassContext } from "@/contexts/ClassContext";
+import { useComponentContext } from "@/contexts/ComponentContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { BookOpen, ClipboardCheck, Save, CheckCircle2, Info, ShieldCheck, ShieldAlert, Crown, UserCheck, FileEdit, SendHorizonal, ThumbsUp, ThumbsDown, MessageSquare, User, Lightbulb, ExternalLink } from "lucide-react";
+import { BookOpen, ClipboardCheck, Save, CheckCircle2, Info, ShieldCheck, ShieldAlert, Crown, UserCheck, FileEdit, SendHorizonal, ThumbsUp, ThumbsDown, MessageSquare, User, Lightbulb, ExternalLink, Filter } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -187,34 +187,53 @@ function PointBar({ value, max, color, onChange, disabled }: {
 }
 
 export default function TutorialEvalPage() {
-  return (
-    <DashboardLayout>
-      <TutorialEvalContent />
-    </DashboardLayout>
-  );
+  return <TutorialEvalContent />;
 }
 
 function TutorialEvalContent() {
-  const { selectedClassId } = useClassContext();
+  const { selectedComponentId } = useComponentContext();
   const { user } = useAuth();
   const utils = trpc.useUtils();
 
+  // Semestre filter
+  const { data: semesters } = trpc.classes.semestersByComponent.useQuery(
+    { componentId: selectedComponentId! },
+    { enabled: !!selectedComponentId }
+  );
+  const latestSemester = semesters?.[0] ?? null;
+  const [selectedSemester, setSelectedSemester] = useState<string | null>(null);
+  useEffect(() => {
+    if (latestSemester && selectedSemester === null) setSelectedSemester(latestSemester);
+  }, [latestSemester]);
+  useEffect(() => { setSelectedSemester(null); }, [selectedComponentId]);
+
+  // Class filter
+  const { data: classesList } = trpc.classes.listByComponent.useQuery(
+    { componentId: selectedComponentId!, semester: selectedSemester ?? undefined },
+    { enabled: !!selectedComponentId }
+  );
+  const professorClass = classesList?.find((c: any) => c.professorUserId === user?.id);
+  const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
+  useEffect(() => {
+    if (classesList && selectedClassId === null) {
+      setSelectedClassId(professorClass?.id ?? classesList[0]?.id ?? null);
+    }
+  }, [classesList]);
+  useEffect(() => { setSelectedClassId(null); }, [selectedComponentId, selectedSemester]);
+
+  // Sessions with permissions for the selected class
   const { data: sessionsWithPerms, isLoading: sessionsLoading } = trpc.sessions.listWithPermissions.useQuery(
     { classId: selectedClassId! },
-    { enabled: !!selectedClassId && user?.role !== "admin" }
+    { enabled: !!selectedClassId }
   );
 
-  const { data: sessionsList, isLoading: sessionsListLoading } = trpc.sessions.list.useQuery(
-    { classId: selectedClassId! },
-    { enabled: !!selectedClassId && user?.role === "admin" }
+  const effectiveSessions = sessionsWithPerms?.filter(s =>
+    ["initiated", "open", "closed"].includes(s.status)
   );
-
-  const effectiveSessions = user?.role === "admin"
-    ? sessionsList?.map(s => ({ ...s, evalPermission: "admin" as EvalPermission }))
-    : sessionsWithPerms;
-  const isLoadingSessions = user?.role === "admin" ? sessionsListLoading : sessionsLoading;
+  const isLoadingSessions = sessionsLoading;
 
   const [selectedSessionId, setSelectedSessionId] = useState<string>("");
+  useEffect(() => { setSelectedSessionId(""); }, [selectedClassId]);
 
   const selectedSession = useMemo(() => {
     if (!selectedSessionId || !effectiveSessions) return null;
@@ -490,13 +509,13 @@ function TutorialEvalContent() {
   const isDataLoading = evalLoading || (canEvaluateSelected && draftLoading);
   const sessionStatus = (selectedSession as any)?.status as string | undefined;
 
-  if (!selectedClassId) {
+  if (!selectedComponentId) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <BookOpen className="h-12 w-12 text-muted-foreground/40 mb-4" />
-        <h2 className="text-xl font-semibold mb-2">Selecione uma Turma</h2>
+        <h2 className="text-xl font-semibold mb-2">Selecione um Componente</h2>
         <p className="text-muted-foreground text-center max-w-md">
-          Selecione uma turma no menu lateral para avaliar sessões tutoriais.
+          Selecione um componente no menu lateral para avaliar sessões tutoriais.
         </p>
       </div>
     );
@@ -531,6 +550,49 @@ function TutorialEvalContent() {
             <div className="flex items-center gap-1">
               <ShieldAlert className="h-3 w-3 text-red-500" />
               <span>Sem permissão</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Filtros de semestre e turma */}
+      <Card className="border-dashed">
+        <CardContent className="py-3 px-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+            <div className="flex items-center gap-2">
+              <Label className="text-sm whitespace-nowrap">Semestre:</Label>
+              <Select
+                value={selectedSemester ?? ""}
+                onValueChange={(v) => setSelectedSemester(v || null)}
+              >
+                <SelectTrigger className="w-32 h-8 text-xs">
+                  <SelectValue placeholder="Semestre" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(semesters ?? []).map(s => (
+                    <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-sm whitespace-nowrap">Turma:</Label>
+              <Select
+                value={selectedClassId ? String(selectedClassId) : ""}
+                onValueChange={(v) => setSelectedClassId(parseInt(v))}
+              >
+                <SelectTrigger className="w-40 h-8 text-xs">
+                  <SelectValue placeholder="Turma" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(classesList ?? []).map((c: any) => (
+                    <SelectItem key={c.id} value={String(c.id)} className="text-xs">
+                      {c.classCode}{c.professorUserId === user?.id ? " (minha)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>

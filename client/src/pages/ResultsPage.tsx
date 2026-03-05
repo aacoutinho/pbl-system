@@ -1,6 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
-import { useClassContext } from "@/contexts/ClassContext";
+import { useComponentContext } from "@/contexts/ComponentContext";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, Download, UserX, BookOpen, Info, Eye, FileSpreadsheet, Table2, Mail, Loader2, Lightbulb, HelpCircle, Target, ExternalLink, Link2, ImageIcon, Users, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Wand2 } from "lucide-react";
+import { BarChart3, Download, UserX, BookOpen, Info, Eye, FileSpreadsheet, Table2, Mail, Loader2, Lightbulb, HelpCircle, Target, ExternalLink, Link2, ImageIcon, Users, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Wand2, Filter, ListChecks } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
@@ -21,43 +21,55 @@ function valueToLabel(value: number, _gender: "fem" | "masc"): string {
 }
 
 export default function ResultsPage() {
-  return (
-    <DashboardLayout>
-      <ResultsContent />
-    </DashboardLayout>
-  );
+  return <ResultsContent />;
 }
 
 function ResultsContent() {
-  const { selectedClassId } = useClassContext();
+  const { selectedComponentId } = useComponentContext();
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
 
-  const { data: allClasses } = trpc.classes.listAll.useQuery(undefined, { enabled: isAdmin });
-
-  const [viewingClassId, setViewingClassId] = useState<number | null>(null);
-  const activeClassId = viewingClassId ?? selectedClassId;
-
-  useEffect(() => { setViewingClassId(null); }, [selectedClassId]);
-
-  const { data: sessionsList, isLoading: sessionsLoading } = trpc.sessions.list.useQuery(
-    { classId: activeClassId! },
-    { enabled: !!activeClassId && (!viewingClassId || viewingClassId === selectedClassId) }
+  // Semestre filter
+  const { data: semesters } = trpc.classes.semestersByComponent.useQuery(
+    { componentId: selectedComponentId! },
+    { enabled: !!selectedComponentId }
   );
-  const { data: crossSessionsList, isLoading: crossSessionsLoading } = trpc.results.sessionsForClass.useQuery(
-    { classId: viewingClassId! },
-    { enabled: !!viewingClassId && viewingClassId !== selectedClassId }
-  );
+  const latestSemester = semesters?.[0] ?? null;
+  const [selectedSemester, setSelectedSemester] = useState<string | null>(null);
+  // Auto-select latest semester
+  useEffect(() => {
+    if (latestSemester && selectedSemester === null) setSelectedSemester(latestSemester);
+  }, [latestSemester]);
+  useEffect(() => { setSelectedSemester(null); }, [selectedComponentId]);
 
-  const activeSessions = viewingClassId && viewingClassId !== selectedClassId ? crossSessionsList : sessionsList;
-  const activeSessionsLoading = viewingClassId && viewingClassId !== selectedClassId ? crossSessionsLoading : sessionsLoading;
+  // Class filter
+  const { data: classesList } = trpc.classes.listByComponent.useQuery(
+    { componentId: selectedComponentId!, semester: selectedSemester ?? undefined },
+    { enabled: !!selectedComponentId }
+  );
+  // Default to professor's own class
+  const professorClass = classesList?.find(c => c.professorUserId === user?.id);
+  const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
+  useEffect(() => {
+    if (classesList && selectedClassId === null) {
+      setSelectedClassId(professorClass?.id ?? classesList[0]?.id ?? null);
+    }
+  }, [classesList]);
+  useEffect(() => { setSelectedClassId(null); }, [selectedComponentId, selectedSemester]);
+
+  // Sessions for selected class (only finished sessions for results)
+  const { data: allSessionsForClass, isLoading: sessionsLoading } = trpc.results.sessionsForClass.useQuery(
+    { classId: selectedClassId! },
+    { enabled: !!selectedClassId }
+  );
+  const activeSessions = allSessionsForClass?.filter(s => s.status === "finished") ?? [];
+  const activeSessionsLoading = sessionsLoading;
 
   const [selectedSessionId, setSelectedSessionId] = useState<string>("");
   const [selectedProblem, setSelectedProblem] = useState<string>("");
   const [criteriaExpanded, setCriteriaExpanded] = useState(false);
   const [brainstormExpanded, setBrainstormExpanded] = useState(false);
 
-  useEffect(() => { setSelectedSessionId(""); setSelectedProblem(""); }, [activeClassId]);
+  useEffect(() => { setSelectedSessionId(""); setSelectedProblem(""); }, [selectedClassId]);
 
   // Peer results
   const { data: sessionResults } = trpc.results.session.useQuery(
@@ -97,8 +109,8 @@ function ResultsContent() {
 
   // Problem-level results
   const { data: problemFinalResults, isLoading: problemFinalLoading } = trpc.results.problemFinal.useQuery(
-    { classId: activeClassId!, problemNumber: parseInt(selectedProblem) },
-    { enabled: !!selectedProblem && !!activeClassId }
+    { classId: selectedClassId!, problemNumber: parseInt(selectedProblem) },
+    { enabled: !!selectedProblem && !!selectedClassId }
   );
 
   const problems = useMemo(() => {
@@ -107,21 +119,17 @@ function ResultsContent() {
     return Array.from(pSet).sort((a, b) => a - b);
   }, [activeSessions]);
 
-  if (!selectedClassId) {
+  if (!selectedComponentId) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <BookOpen className="h-12 w-12 text-muted-foreground/40 mb-4" />
-        <h2 className="text-xl font-semibold mb-2">Selecione uma Turma</h2>
+        <h2 className="text-xl font-semibold mb-2">Selecione um Componente</h2>
         <p className="text-muted-foreground text-center max-w-md">
-          Selecione uma turma no menu lateral para ver os resultados.
+          Selecione um componente no menu lateral para ver os resultados.
         </p>
       </div>
     );
   }
-
-  const viewingOtherClass = viewingClassId && viewingClassId !== selectedClassId;
-  const viewingClass = allClasses?.find(c => c.id === viewingClassId);
-  const viewingClassName = viewingClass ? `${viewingClass.componentCode} - ${viewingClass.classCode} (${viewingClass.semester})` : undefined;
 
   // ─── Export helpers ───
 
@@ -262,37 +270,48 @@ function ResultsContent() {
         <p className="text-muted-foreground mt-1">Visualize e exporte as notas calculadas automaticamente.</p>
       </div>
 
-      {/* Cross-class selector for professors */}
-      {isAdmin && allClasses && allClasses.length > 1 && (
-        <Card className="border-dashed">
-          <CardContent className="py-3 px-4">
-            <div className="flex items-center gap-3 flex-wrap">
-              <Eye className="h-4 w-4 text-muted-foreground shrink-0" />
-              <Label className="text-sm whitespace-nowrap">Visualizar turma:</Label>
+      {/* Filtros de semestre e turma */}
+      <Card className="border-dashed">
+        <CardContent className="py-3 px-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+            <div className="flex items-center gap-2">
+              <Label className="text-sm whitespace-nowrap">Semestre:</Label>
               <Select
-                value={String(activeClassId)}
-                onValueChange={(v) => setViewingClassId(parseInt(v))}
+                value={selectedSemester ?? ""}
+                onValueChange={(v) => setSelectedSemester(v || null)}
               >
-                <SelectTrigger className="w-72">
-                  <SelectValue placeholder="Selecione uma turma..." />
+                <SelectTrigger className="w-32 h-8 text-xs">
+                  <SelectValue placeholder="Semestre" />
                 </SelectTrigger>
                 <SelectContent>
-                  {allClasses.map(c => (
-                    <SelectItem key={c.id} value={String(c.id)}>
-                      {c.componentCode} - {c.classCode} ({c.semester}){c.professorUserId === user?.id ? " — Minha turma" : ` — Prof. ${c.professorName || "N/A"}`}
+                  {(semesters ?? []).map(s => (
+                    <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-sm whitespace-nowrap">Turma:</Label>
+              <Select
+                value={selectedClassId ? String(selectedClassId) : ""}
+                onValueChange={(v) => setSelectedClassId(parseInt(v))}
+              >
+                <SelectTrigger className="w-40 h-8 text-xs">
+                  <SelectValue placeholder="Turma" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(classesList ?? []).map((c: any) => (
+                    <SelectItem key={c.id} value={String(c.id)} className="text-xs">
+                      {c.classCode}{c.professorUserId === user?.id ? " (minha)" : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {viewingOtherClass && (
-                <Badge variant="secondary" className="text-xs">
-                  Visualizando: {viewingClassName}
-                </Badge>
-              )}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        </CardContent>
+      </Card>
 
       <Tabs defaultValue="session" className="space-y-4">
         <TabsList>
@@ -828,7 +847,7 @@ function ResultsContent() {
 
         {/* ─── Consolidated Student Report ─── */}
         <TabsContent value="consolidated" className="space-y-4">
-          <ConsolidatedStudentReport classId={activeClassId!} />
+          <ConsolidatedStudentReport classId={selectedClassId!} />
         </TabsContent>
       </Tabs>
 

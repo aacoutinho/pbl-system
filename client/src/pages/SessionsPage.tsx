@@ -1,6 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
-import { useClassContext } from "@/contexts/ClassContext";
+import { useComponentContext } from "@/contexts/ComponentContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Lock, Unlock, Trash2, ClipboardList, Users, Eye, BookOpen, RotateCcw, CheckCircle2, Clock, FileSearch, AlertTriangle, Mail, ClipboardCheck, Pencil, Presentation } from "lucide-react";
+import { Plus, Lock, Unlock, Trash2, ClipboardList, Users, Eye, BookOpen, RotateCcw, CheckCircle2, Clock, FileSearch, AlertTriangle, Mail, ClipboardCheck, Pencil, Presentation, Filter } from "lucide-react";
 import { EvaluationPreviewDialog } from "@/components/EvaluationPreview";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,26 +19,46 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 
 export default function SessionsPage() {
-  return (
-    <DashboardLayout>
-      <SessionsContent />
-    </DashboardLayout>
-  );
+  return <SessionsContent />;
 }
 
 function SessionsContent() {
   const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
-  const { selectedClassId } = useClassContext();
+  const { selectedComponentId } = useComponentContext();
   const { user } = useAuth();
 
-  // Get the class info to check ownership
-  const { data: classesList } = trpc.classes.list.useQuery();
+  // Semestre filter
+  const { data: semesters } = trpc.classes.semestersByComponent.useQuery(
+    { componentId: selectedComponentId! },
+    { enabled: !!selectedComponentId }
+  );
+  const latestSemester = semesters?.[0] ?? null;
+  const [selectedSemester, setSelectedSemester] = useState<string | null>(null);
+  useEffect(() => {
+    if (latestSemester && selectedSemester === null) setSelectedSemester(latestSemester);
+  }, [latestSemester]);
+  useEffect(() => { setSelectedSemester(null); }, [selectedComponentId]);
+
+  // Class filter
+  const { data: classesList } = trpc.classes.listByComponent.useQuery(
+    { componentId: selectedComponentId!, semester: selectedSemester ?? undefined },
+    { enabled: !!selectedComponentId }
+  );
+  const professorClass = classesList?.find((c: any) => c.professorUserId === user?.id);
+  const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
+  useEffect(() => {
+    if (classesList && selectedClassId === null) {
+      setSelectedClassId(professorClass?.id ?? classesList[0]?.id ?? null);
+    }
+  }, [classesList]);
+  useEffect(() => { setSelectedClassId(null); }, [selectedComponentId, selectedSemester]);
+
   const { data: myComponents } = trpc.professors.myComponents.useQuery();
 
   const selectedClass = useMemo(() => {
     if (!classesList || !selectedClassId) return null;
-    return classesList.find(c => c.id === selectedClassId) ?? null;
+    return (classesList as any[]).find((c: any) => c.id === selectedClassId) ?? null;
   }, [classesList, selectedClassId]);
 
   const isAdmin = user?.role === "admin";
@@ -46,7 +66,7 @@ function SessionsContent() {
   const isCoordinatorOfComponent = useMemo(() => {
     if (!selectedClass || !myComponents) return false;
     return myComponents.some(
-      c => c.componentId === selectedClass.componentId && c.componentRole === "coordinator" && c.status === "approved"
+      (c: any) => c.componentId === selectedClass.componentId && c.componentRole === "coordinator" && c.status === "approved"
     );
   }, [selectedClass, myComponents]);
   const canManage = isAdmin || isOwner || isCoordinatorOfComponent;
@@ -164,13 +184,13 @@ function SessionsContent() {
     return `Problema ${pn} - Sessão ${autoSessionNumber}${titlePart}`;
   }, [problemNum, problemTitle, autoSessionNumber]);
 
-  if (!selectedClassId) {
+  if (!selectedComponentId) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <BookOpen className="h-12 w-12 text-muted-foreground/40 mb-4" />
-        <h2 className="text-xl font-semibold mb-2">Selecione uma Turma</h2>
+        <h2 className="text-xl font-semibold mb-2">Selecione um Componente</h2>
         <p className="text-muted-foreground text-center max-w-md">
-          Selecione uma turma no menu lateral para gerenciar suas sessões.
+          Selecione um componente no menu lateral para gerenciar sessões.
         </p>
       </div>
     );
@@ -193,7 +213,7 @@ function SessionsContent() {
     if (!presentRoles.includes("MESA")) { toast.error("É necessário atribuir o papel de Mesa a um aluno presente."); return; }
     if (!presentRoles.includes("QUADRO")) { toast.error("É necessário atribuir o papel de Quadro a um aluno presente."); return; }
     createMutation.mutate({
-      classId: selectedClassId,
+      classId: selectedClassId!,
       problemNumber: pn,
       problemTitle: problemTitle.trim() || undefined,
       studentAssignments: selected.map(sa => ({ studentId: sa.studentId, role: sa.role, absent: sa.absent })),
@@ -243,12 +263,49 @@ function SessionsContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Sessões</h1>
           <p className="text-muted-foreground mt-1">
             {canManage ? "Crie e gerencie sessões tutoriais." : "Visualize as sessões tutoriais."}
           </p>
+        </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <div className="flex items-center gap-2">
+            <Label className="text-sm whitespace-nowrap">Semestre:</Label>
+            <Select
+              value={selectedSemester ?? ""}
+              onValueChange={(v) => setSelectedSemester(v || null)}
+            >
+              <SelectTrigger className="w-32 h-8 text-xs">
+                <SelectValue placeholder="Semestre" />
+              </SelectTrigger>
+              <SelectContent>
+                {(semesters ?? []).map(s => (
+                  <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <Label className="text-sm whitespace-nowrap">Turma:</Label>
+            <Select
+              value={selectedClassId ? String(selectedClassId) : ""}
+              onValueChange={(v) => setSelectedClassId(parseInt(v))}
+            >
+              <SelectTrigger className="w-40 h-8 text-xs">
+                <SelectValue placeholder="Turma" />
+              </SelectTrigger>
+              <SelectContent>
+                {(classesList ?? []).map((c: any) => (
+                  <SelectItem key={c.id} value={String(c.id)} className="text-xs">
+                    {c.classCode}{c.professorUserId === user?.id ? " (minha)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         {canManage && (
           <div className="flex items-center gap-2">
@@ -651,12 +708,12 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onFini
     onError: (e: { message: string }) => toast.error(e.message),
   });
 
-  const allowReevalMutation = trpc.evaluations.allowReevaluation.useMutation({
+  const allowReevalMutation = trpc.studentAccess.allowReevaluation.useMutation({
     onSuccess: () => {
       utils.sessions.submissionStatus.invalidate({ sessionId: session.id });
       toast.success("Reavaliação liberada! O aluno pode avaliar novamente.");
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e: { message: string }) => toast.error(e.message),
   });
 
 

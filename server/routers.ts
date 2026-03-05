@@ -58,6 +58,9 @@ import {
   updateDesempenhoPapel,
   addBoardSendHistory, getBoardSendHistory, getLastBoardSend,
   listApprovedProfessorsByComponent,
+  listClassesByComponent, listSemestersByComponent,
+  listStudentsByComponent, listSessionsByComponent,
+  getDashboardStatsByComponentAndSemester,
 } from "./db";
 import { storagePut } from "./storage";
 import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml, buildContactTicketEmailHtml, buildSessionOpenedEmailHtml, buildStudentGradeReportHtml, buildBrainstormNotificationEmailHtml, buildBrainstormBoardEmailHtml } from "./email";
@@ -441,6 +444,14 @@ export const appRouter = router({
     listPublic: publicProcedure.query(async () => {
       return listComponents();
     }),
+    // List only the components accessible to the current user
+    listMine: approvedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role === "admin") return listComponents();
+      const componentIds = await getUserApprovedComponentIds(ctx.user.id);
+      if (componentIds.length === 0) return [];
+      const all = await listComponents();
+      return all.filter(c => componentIds.includes(c.id));
+    }),
     // Only admin can create/update/delete
     create: adminProcedure.input(z.object({
       code: z.string().min(1),
@@ -559,6 +570,19 @@ export const appRouter = router({
       const componentIds = await getUserApprovedComponentIds(ctx.user.id);
       if (componentIds.length === 0) return [];
       return listClassesByComponents(componentIds);
+    }),
+    // List classes by single component with optional semester filter
+    listByComponent: approvedProcedure.input(z.object({
+      componentId: z.number(),
+      semester: z.string().optional(),
+    })).query(async ({ ctx, input }) => {
+      await assertComponentAccess(ctx.user.id, ctx.user.role, input.componentId);
+      return listClassesByComponent(input.componentId, input.semester);
+    }),
+    // List distinct semesters for a component
+    semestersByComponent: approvedProcedure.input(z.object({ componentId: z.number() })).query(async ({ ctx, input }) => {
+      await assertComponentAccess(ctx.user.id, ctx.user.role, input.componentId);
+      return listSemestersByComponent(input.componentId);
     }),
   }),
 
@@ -828,6 +852,15 @@ export const appRouter = router({
       await transferStudentBetweenClasses(input.studentId, input.fromClassId, input.toClassId);
       await createAuditLog({ action: "transfer_student", actorUserId: ctx.user.id, componentId: fromCls.componentId, classId: input.fromClassId, details: JSON.stringify({ studentId: input.studentId, fromClassId: input.fromClassId, toClassId: input.toClassId }) });
       return { success: true };
+    }),
+    // List students by component with optional semester/class filters
+    listByComponent: approvedProcedure.input(z.object({
+      componentId: z.number(),
+      semester: z.string().optional(),
+      classId: z.number().optional(),
+    })).query(async ({ ctx, input }) => {
+      await assertComponentAccess(ctx.user.id, ctx.user.role, input.componentId);
+      return listStudentsByComponent(input.componentId, input.semester, input.classId);
     }),
   }),
 
@@ -1223,6 +1256,40 @@ export const appRouter = router({
       console.log(`[Sessions] Resent emails for session ${input.sessionId}, ${emailsSent} emails queued`);
       return { emailsSent };
     }),
+    // List sessions by component with optional semester/class filters
+    listByComponent: approvedProcedure.input(z.object({
+      componentId: z.number(),
+      semester: z.string().optional(),
+      classId: z.number().optional(),
+    })).query(async ({ ctx, input }) => {
+      await assertComponentAccess(ctx.user.id, ctx.user.role, input.componentId);
+      return listSessionsByComponent(input.componentId, input.semester, input.classId);
+    }),
+    // List sessions by component with eval permissions (for TutorialEvalPage)
+    listByComponentWithPermissions: professorProcedure.input(z.object({
+      componentId: z.number(),
+      semester: z.string().optional(),
+      classId: z.number().optional(),
+    })).query(async ({ ctx, input }) => {
+      await assertComponentAccess(ctx.user.id, ctx.user.role, input.componentId);
+      const sessionsList = await listSessionsByComponent(input.componentId, input.semester, input.classId);
+      if (ctx.user.role === "admin") {
+        return sessionsList.map(s => ({ ...s, evalPermission: "admin" as const }));
+      }
+      // For each session, determine permission based on class ownership
+      const compRole = await getUserComponentRole(ctx.user.id, input.componentId);
+      const isCoordinator = compRole === "coordinator";
+      const results = await Promise.all(sessionsList.map(async (s) => {
+        const cls = await getClassById(s.classId);
+        if (!cls) return { ...s, evalPermission: "no_permission" as const };
+        const isOwner = cls.professorUserId === ctx.user.id;
+        if (isOwner) return { ...s, evalPermission: "owner" as const };
+        if (isCoordinator) return { ...s, evalPermission: "coordinator" as const };
+        const permitted = await hasEvalPermission(s.classId, ctx.user.id);
+        return { ...s, evalPermission: permitted ? "authorized" as const : "no_permission" as const };
+      }));
+      return results;
+    }),
   }),
 
   // ─── Student simplified access (no login required) ───
@@ -1526,39 +1593,6 @@ export const appRouter = router({
         evaluatorStudentId: input.evaluatorStudentId,
         items: itemsWithRoles,
       });
-      return { success: true, evaluationId: evalId };
-    }),
-  }),
-
-  // ─── Evaluations ───
-  evaluations: router({
-    submit: protectedProcedure.input(z.object({
-      sessionId: z.number(),
-      evaluatorStudentId: z.number(),
-      items: z.array(z.object({
-        evaluatedStudentId: z.number(),
-        pontualidade: z.number().min(0).max(1),
-        pesquisaMetas: z.number().min(0).max(1),
-        dominio: z.number().min(0).max(1),
-        participacao: z.number().min(0).max(1),
-        desempenhoPapel: z.number().min(0).max(1),
-      })),
-    })).mutation(async ({ input }) => {
-      const selfEval = input.items.find(i => i.evaluatedStudentId === input.evaluatorStudentId);
-      if (selfEval) throw new TRPCError({ code: "BAD_REQUEST", message: "Autoavaliação não é permitida" });
-      // Fetch role/absent from sessionStudents (defined by professor)
-      const sessionStudentsList = await getSessionStudents(input.sessionId);
-      const studentMap = new Map(sessionStudentsList.map(s => [s.studentId, s]));
-      // Block evaluation from absent students
-      const evaluatorEntry = studentMap.get(input.evaluatorStudentId);
-      if (evaluatorEntry?.absent) throw new TRPCError({ code: "FORBIDDEN", message: "Alunos marcados como ausentes não podem avaliar" });
-      const itemsWithRoles = input.items.map(item => {
-        const ss = studentMap.get(item.evaluatedStudentId);
-        const role = ss?.role ?? "PARTICIPANTE";
-        const absent = ss?.absent ?? false;
-        return { ...item, role: role as "COORDENADOR" | "MESA" | "QUADRO" | "PARTICIPANTE", absent };
-      });
-      const evalId = await submitEvaluation({ sessionId: input.sessionId, evaluatorStudentId: input.evaluatorStudentId, items: itemsWithRoles });
       return { success: true, evaluationId: evalId };
     }),
     hasSubmitted: protectedProcedure.input(z.object({
@@ -2335,6 +2369,14 @@ export const appRouter = router({
       const componentIds = await getUserApprovedComponentIds(ctx.user.id);
       if (componentIds.length === 0) return { totalStudents: 0, totalSessions: 0, openSessions: 0, totalEvaluations: 0, totalClasses: 0 };
       return getDashboardStatsByComponents(componentIds);
+    }),
+    // Dashboard stats for a single component with optional semester filter
+    dashboardByComponent: approvedProcedure.input(z.object({
+      componentId: z.number(),
+      semester: z.string().optional(),
+    })).query(async ({ ctx, input }) => {
+      await assertComponentAccess(ctx.user.id, ctx.user.role, input.componentId);
+      return getDashboardStatsByComponentAndSemester(input.componentId, input.semester);
     }),
   }),
 

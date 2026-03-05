@@ -598,3 +598,12 @@
 - [x] Por Problema e Por Aluno: badge "Prov." âmbar nas colunas de sessão fechada
 - [x] Invalidar cache das abas Por Problema (problemFinal) e Por Aluno (studentConsolidated) ao professor avaliar tutorial
 - [x] Exportações CSV atualizadas: sem colunas de pares; sessões provisórias marcadas com (P); aviso no topo do arquivo quando há notas provisórias
+- [x] Navegação: mover Componentes para Configurações (apenas admin)
+- [x] Navegação: seletor de componente no topo do menu lateral (lista de componentes do professor; default = único componente se só tiver um)
+- [x] Painel Geral: estatísticas do componente selecionado (turmas, alunos, sessões, avaliações) com filtro de semestre
+- [x] Turmas: listar todas as turmas do componente selecionado, ordenadas pelo código, com filtro de semestre
+- [x] Alunos: listar todos os alunos do componente selecionado, ordenados por nome, com filtro de semestre e turma
+- [x] Sessões: listar todas as sessões do componente selecionado, ordenadas de forma crescente, com filtro de semestre e turma
+- [x] Avaliar Tutorial: listar sessões ativas/em avaliação/fechadas do componente selecionado; selecionar sessão para avaliar
+- [x] Resultados: listar sessões do componente selecionado com filtro de semestre e turma; selecionar sessão para ver resultados
+- [x] Verificar compatibilidade de Backup e Restauração com o esquema atual do banco de dados (já verificado em tarefas anteriores - OK)

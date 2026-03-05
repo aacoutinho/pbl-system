@@ -4276,3 +4276,135 @@ export async function getLastBoardSend(sessionId: number) {
     .limit(1);
   return row || null;
 }
+
+// ─── Component-scoped queries with semester/class filters ───
+
+/** Lista turmas de um único componente, com filtro opcional de semestre, ordenadas por classCode. */
+export async function listClassesByComponent(componentId: number, semester?: string) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(classes.componentId, componentId)];
+  if (semester) conditions.push(eq(classes.semester, semester));
+  return db.select({
+    id: classes.id,
+    classCode: classes.classCode,
+    componentId: classes.componentId,
+    semester: classes.semester,
+    professorUserId: classes.professorUserId,
+    createdAt: classes.createdAt,
+    componentCode: components.code,
+    componentName: components.name,
+    professorName: users.name,
+  })
+    .from(classes)
+    .leftJoin(components, eq(classes.componentId, components.id))
+    .leftJoin(users, eq(classes.professorUserId, users.id))
+    .where(and(...conditions))
+    .orderBy(classes.classCode);
+}
+
+/** Lista semestres distintos de um componente, ordenados do mais recente ao mais antigo. */
+export async function listSemestersByComponent(componentId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.selectDistinct({ semester: classes.semester })
+    .from(classes)
+    .where(eq(classes.componentId, componentId))
+    .orderBy(desc(classes.semester));
+  return rows.map(r => r.semester);
+}
+
+/** Lista todos os alunos de um componente, com filtro opcional de semestre e turma, ordenados por nome. */
+export async function listStudentsByComponent(componentId: number, semester?: string, classId?: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const classConditions = [eq(classes.componentId, componentId)];
+  if (semester) classConditions.push(eq(classes.semester, semester));
+  if (classId) classConditions.push(eq(classes.id, classId));
+  const componentClassRows = await db.select({ id: classes.id, classCode: classes.classCode })
+    .from(classes)
+    .where(and(...classConditions));
+  if (componentClassRows.length === 0) return [];
+  const classIds = componentClassRows.map(c => c.id);
+  const classMap = new Map(componentClassRows.map(c => [c.id, c.classCode]));
+  const rows = await db.select({
+    studentId: classStudents.studentId,
+    classId: classStudents.classId,
+    name: students.name,
+    enrollment: students.enrollment,
+    email: students.email,
+    photoUrl: students.photoUrl,
+  })
+    .from(classStudents)
+    .innerJoin(students, eq(classStudents.studentId, students.id))
+    .where(inArray(classStudents.classId, classIds))
+    .orderBy(students.name);
+  return rows.map(r => ({ ...r, classCode: classMap.get(r.classId) ?? "" }));
+}
+
+/** Lista sessões de um componente, com filtro opcional de semestre e turma, ordenadas por sessão. */
+export async function listSessionsByComponent(componentId: number, semester?: string, classId?: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const classConditions = [eq(classes.componentId, componentId)];
+  if (semester) classConditions.push(eq(classes.semester, semester));
+  if (classId) classConditions.push(eq(classes.id, classId));
+  const componentClassRows = await db.select({ id: classes.id, classCode: classes.classCode })
+    .from(classes)
+    .where(and(...classConditions));
+  if (componentClassRows.length === 0) return [];
+  const classIds = componentClassRows.map(c => c.id);
+  const classMap = new Map(componentClassRows.map(c => [c.id, c.classCode]));
+  const rows = await db.select({
+    id: sessions.id,
+    classId: sessions.classId,
+    sessionNumber: sessions.sessionNumber,
+    problemTitle: sessions.problemTitle,
+    status: sessions.status,
+    accessCode: sessions.accessCode,
+    createdAt: sessions.createdAt,
+    closedAt: sessions.closedAt,
+  })
+    .from(sessions)
+    .where(inArray(sessions.classId, classIds))
+    .orderBy(sessions.sessionNumber);
+  return rows.map(r => ({ ...r, classCode: classMap.get(r.classId) ?? "" }));
+}
+
+/** Estatísticas do dashboard para um único componente, com filtro opcional de semestre. */
+export async function getDashboardStatsByComponentAndSemester(componentId: number, semester?: string) {
+  const db = await getDb();
+  if (!db) return { totalStudents: 0, totalSessions: 0, openSessions: 0, closedSessions: 0, finishedSessions: 0, totalEvaluations: 0, totalClasses: 0 };
+
+  const classConditions = [eq(classes.componentId, componentId)];
+  if (semester) classConditions.push(eq(classes.semester, semester));
+
+  const componentClasses = await db.select({ id: classes.id }).from(classes).where(and(...classConditions));
+  if (componentClasses.length === 0) return { totalStudents: 0, totalSessions: 0, openSessions: 0, closedSessions: 0, finishedSessions: 0, totalEvaluations: 0, totalClasses: 0 };
+
+  const classIds = componentClasses.map(c => c.id);
+
+  const [studentCount] = await db.select({ count: sql<number>`count(DISTINCT ${classStudents.studentId})` }).from(classStudents).where(inArray(classStudents.classId, classIds));
+  const [sessionCount] = await db.select({ count: sql<number>`count(*)` }).from(sessions).where(inArray(sessions.classId, classIds));
+  const [openCount] = await db.select({ count: sql<number>`count(*)` }).from(sessions).where(and(inArray(sessions.classId, classIds), eq(sessions.status, "open")));
+  const [closedCount] = await db.select({ count: sql<number>`count(*)` }).from(sessions).where(and(inArray(sessions.classId, classIds), eq(sessions.status, "closed")));
+  const [finishedCount] = await db.select({ count: sql<number>`count(*)` }).from(sessions).where(and(inArray(sessions.classId, classIds), eq(sessions.status, "finished")));
+
+  const classSessions = await db.select({ id: sessions.id }).from(sessions).where(inArray(sessions.classId, classIds));
+  let evalCount = 0;
+  if (classSessions.length > 0) {
+    const sessionIds = classSessions.map(s => s.id);
+    const [ec] = await db.select({ count: sql<number>`count(*)` }).from(evaluations).where(inArray(evaluations.sessionId, sessionIds));
+    evalCount = Number(ec.count);
+  }
+
+  return {
+    totalStudents: Number(studentCount.count),
+    totalSessions: Number(sessionCount.count),
+    openSessions: Number(openCount.count),
+    closedSessions: Number(closedCount.count),
+    finishedSessions: Number(finishedCount.count),
+    totalEvaluations: evalCount,
+    totalClasses: componentClasses.length,
+  };
+}
