@@ -724,7 +724,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                 <div className="grid grid-cols-2 divide-x divide-sidebar-accent border-b border-sidebar-accent">
                   {/* Componente */}
                   <div className="px-1 pt-2 pb-0.5">
-                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider leading-none mb-0">Componente</p>
+                    <p className="text-[8px] font-semibold text-gray-400 uppercase tracking-wider leading-none mb-0">Componente</p>
                     <Select
                       value={selectedComponentId ? String(selectedComponentId) : ""}
                       onValueChange={(v) => {
@@ -751,7 +751,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
 
                   {/* Semestre */}
                   <div className="px-1 pt-2 pb-0.5">
-                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider leading-none mb-0">Semestre</p>
+                    <p className="text-[8px] font-semibold text-gray-400 uppercase tracking-wider leading-none mb-0">Semestre</p>
                     <Select
                       value={selectedSemester ?? ""}
                       onValueChange={(v) => setSelectedSemester(v)}
@@ -776,7 +776,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                 <div className="grid grid-cols-3 divide-x divide-sidebar-accent">
                   {/* Turma */}
                   <div className="px-1 py-0.5">
-                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider leading-none mb-0">Turma</p>
+                    <p className="text-[8px] font-semibold text-gray-400 uppercase tracking-wider leading-none mb-0">Turma</p>
                     <Select
                       value={selectedClassId ? String(selectedClassId) : ""}
                       onValueChange={(v) => {
@@ -802,7 +802,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
 
                   {/* Problema */}
                   <div className="px-1 py-0.5">
-                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider leading-none mb-0">Problema</p>
+                    <p className="text-[8px] font-semibold text-gray-400 uppercase tracking-wider leading-none mb-0">Problema</p>
                     <Select
                       value={selectedProblemNumber !== null ? String(selectedProblemNumber) : ""}
                       onValueChange={(v) => setSelectedProblem(parseInt(v))}
@@ -824,7 +824,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
 
                   {/* Sessão */}
                   <div className="px-1 py-0.5">
-                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider leading-none mb-0">Sessão</p>
+                    <p className="text-[8px] font-semibold text-gray-400 uppercase tracking-wider leading-none mb-0">Sessão</p>
                     <Select
                       value={selectedSessionId !== null ? String(selectedSessionId) : ""}
                       onValueChange={(v) => {
