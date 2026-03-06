@@ -738,9 +738,9 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                         <SelectValue placeholder="—" />
                       </SelectTrigger>
                       <SelectContent>
-                        {(!componentsList || componentsList.length === 0) ? (
-                          <SelectItem key="__none" value="__none" disabled className="text-xs text-muted-foreground">Nenhum</SelectItem>
-                        ) : componentOptions.map(c => (
+                        {(!componentsList || componentsList.length === 0)
+                          ? [<SelectItem key="__none" value="__none" disabled className="text-xs text-muted-foreground">Nenhum</SelectItem>]
+                          : componentOptions.map(c => (
                           <SelectItem key={c.id} value={String(c.id)} className="text-xs">
                             <span className="font-semibold">{c.label}</span>
                           </SelectItem>
@@ -760,9 +760,9 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                         <SelectValue placeholder="—" />
                       </SelectTrigger>
                       <SelectContent>
-                        {(!semestersList || semestersList.length === 0) ? (
-                          <SelectItem key="__none" value="__none" disabled className="text-xs text-muted-foreground">Nenhum</SelectItem>
-                        ) : semestersList.map(s => (
+                        {(!semestersList || semestersList.length === 0)
+                          ? [<SelectItem key="__none" value="__none" disabled className="text-xs text-muted-foreground">Nenhum</SelectItem>]
+                          : semestersList.map(s => (
                           <SelectItem key={s} value={s} className="text-xs">
                             <span className="font-semibold">{s}</span>
                           </SelectItem>
@@ -789,9 +789,9 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                         <SelectValue placeholder="—" />
                       </SelectTrigger>
                       <SelectContent>
-                        {(!classesList || classesList.length === 0) ? (
-                          <SelectItem key="__none" value="__none" disabled className="text-xs text-muted-foreground">Nenhuma</SelectItem>
-                        ) : (classesList ?? []).map((c: any) => (
+                        {(!classesList || classesList.length === 0)
+                          ? [<SelectItem key="__none" value="__none" disabled className="text-xs text-muted-foreground">Nenhuma</SelectItem>]
+                          : (classesList ?? []).map((c: any) => (
                           <SelectItem key={c.id} value={String(c.id)} className="text-xs">
                             <span className="font-semibold">{c.classCode}</span>
                           </SelectItem>
@@ -811,9 +811,9 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                         <SelectValue placeholder="—" />
                       </SelectTrigger>
                       <SelectContent>
-                        {problemNumbers.length === 0 ? (
-                          <SelectItem key="__none" value="__none" disabled className="text-xs text-muted-foreground">Nenhum</SelectItem>
-                        ) : problemNumbers.map(p => (
+                        {problemNumbers.length === 0
+                          ? [<SelectItem key="__none" value="__none" disabled className="text-xs text-muted-foreground">Nenhum</SelectItem>]
+                          : problemNumbers.map(p => (
                           <SelectItem key={p} value={String(p)} className="text-xs font-semibold">
                             P{p}
                           </SelectItem>
@@ -837,9 +837,9 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                         <SelectValue placeholder="—" />
                       </SelectTrigger>
                       <SelectContent>
-                        {sessionsForProblem.length === 0 ? (
-                          <SelectItem key="__none" value="__none" disabled className="text-xs text-muted-foreground">Nenhuma</SelectItem>
-                        ) : sessionsForProblem.map((s: any) => (
+                        {sessionsForProblem.length === 0
+                          ? [<SelectItem key="__none" value="__none" disabled className="text-xs text-muted-foreground">Nenhuma</SelectItem>]
+                          : sessionsForProblem.map((s: any) => (
                           <SelectItem key={s.id} value={String(s.id)} className="text-xs font-semibold">
                             S{s.sessionNumber}
                           </SelectItem>
