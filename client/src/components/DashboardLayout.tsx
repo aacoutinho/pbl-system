@@ -718,7 +718,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
           {/* Global Filters */}
           {!isCollapsed && (
             <div className="px-2 pb-1.5">
-              <div className="border rounded-md overflow-hidden bg-gray-100">
+              <div className="border rounded-md overflow-hidden bg-sidebar-accent">
 
                 {/* Linha 1: Componente + Semestre */}
                 <div className="grid grid-cols-2 divide-x border-b">
