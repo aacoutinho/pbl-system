@@ -63,7 +63,7 @@ import {
   getDashboardStatsByComponentAndSemester,
 } from "./db";
 import { storagePut } from "./storage";
-import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml, buildContactTicketEmailHtml, buildSessionOpenedEmailHtml, buildStudentGradeReportHtml, buildBrainstormNotificationEmailHtml, buildBrainstormBoardEmailHtml } from "./email";
+import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml, buildContactTicketEmailHtml, buildSessionOpenedEmailHtml, buildStudentGradeReportHtml, buildBrainstormNotificationEmailHtml, buildBrainstormBoardEmailHtml, buildProfessorInviteEmailHtml } from "./email";
 
 /**
  * Normaliza o semestre para o formato ANO.SEMESTRE (ex: 2026.1, 2026.2).
@@ -2237,6 +2237,43 @@ export const appRouter = router({
     }),
     myStatus: protectedProcedure.query(async ({ ctx }) => {
       return { approvalStatus: ctx.user.approvalStatus, role: ctx.user.role };
+    }),
+    // List approved professors for a specific component (admin or coordinator of that component)
+    listByComponent: approvedProcedure.input(z.object({ componentId: z.number() })).query(async ({ input }) => {
+      return listApprovedProfessorsByComponent(input.componentId);
+    }),
+    // Send invite email to a professor for a specific component
+    sendInvite: approvedProcedure.input(z.object({
+      email: z.string().email(),
+      componentId: z.number(),
+      origin: z.string(),
+    })).mutation(async ({ ctx, input }) => {
+      const component = await getComponentById(input.componentId);
+      if (!component) throw new TRPCError({ code: "NOT_FOUND", message: "Componente não encontrado" });
+      await assertComponentCoordinator(ctx.user.id, ctx.user.role, input.componentId);
+      const inviter = await getUserById(ctx.user.id);
+      const registerUrl = `${input.origin}/`;
+      const result = await sendEmail({
+        to: input.email,
+        subject: `Convite para o componente ${component.code} - Sistema de Sessão Tutorial`,
+        text: `Você foi convidado por ${inviter?.name || "um professor"} para participar do componente ${component.code} - ${component.name}. Acesse: ${registerUrl}`,
+        html: buildProfessorInviteEmailHtml({
+          inviterName: inviter?.name || "Professor",
+          componentCode: component.code,
+          componentName: component.name,
+          registerUrl,
+        }),
+      });
+      if (!result.success) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: result.error || "Erro ao enviar e-mail" });
+      }
+      await createAuditLog({
+        action: "send_professor_invite",
+        actorUserId: ctx.user.id,
+        componentId: input.componentId,
+        details: JSON.stringify({ invitedEmail: input.email, componentId: input.componentId }),
+      });
+      return { success: true };
     }),
   }),
 

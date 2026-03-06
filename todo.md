@@ -631,3 +631,12 @@
 - [x] Criar componente PageHeader reutilizável com layout de 4 cantos (título+componente à esquerda, semestre+turma à direita)
 - [x] Aplicar PageHeader no Painel Geral, Turmas, Alunos, Sessões, Avaliar Tutorial e Resultados
 - [x] ClassesPage: botão "Selecionar" nos cards de turma para mudar a turma ativa no filtro global
+
+## Ajustes de Layout e ProfessorsPage (Mar 2026)
+
+- [x] DashboardLayout: seletores alinhados à esquerda; COMPONENTE+SEMESTRE e TURMA+PROBLEMA+SESSÃO formando retângulo
+- [x] PageHeader: semestre e turma movidos para abaixo do nome do componente, em preto, mesmo tamanho
+- [x] ClassesPage (Turmas): cabeçalho sem semestre no canto direito; semestre abaixo do componente em preto
+- [x] StudentsPage/SessionsPage/TutorialEvalPage/ResultsPage: cabeçalho sem semestre/turma no canto; ambos abaixo do componente em preto
+- [x] ProfessorsPage: remover filtro local de componente; usar componente global; mostrar admin + professores do componente selecionado
+- [x] ProfessorsPage: botão "Enviar Convite" por e-mail para o componente selecionado

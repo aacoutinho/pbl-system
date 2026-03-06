@@ -1,20 +1,31 @@
 /**
  * PageHeader — cabeçalho padronizado para todas as páginas do sistema.
  *
- * Layout:
+ * Layout por página:
+ *
+ *  Painel Geral / Turmas (showClass=false):
  *   ┌──────────────────────────────────────────────────────┐
- *   │  [título da página]          Semestre: 2026.1        │
- *   │  TEC502 - Concorrência...    Turma: TP01             │
+ *   │  [título da página]                                  │
+ *   │  TEC502 - Concorrência...  (azul)                    │
+ *   │  SEMESTRE: 2026.1          (preto, mesmo tamanho)    │
+ *   │  [slot de ação (botões)]                             │
+ *   └──────────────────────────────────────────────────────┘
+ *
+ *  Alunos / Sessões / Avaliar Tutorial / Resultados (showClass=true):
+ *   ┌──────────────────────────────────────────────────────┐
+ *   │  [título da página]                                  │
+ *   │  TEC502 - Concorrência...  (azul)                    │
+ *   │  TURMA: TP01 - SEMESTRE: 2026.1  (preto)             │
  *   │  [slot de ação (botões)]                             │
  *   └──────────────────────────────────────────────────────┘
  *
  * Props:
- *   title       — nome da página (ex: "Painel Geral")
+ *   title          — nome da página (ex: "Painel Geral")
  *   componentLabel — rótulo completo do componente (ex: "TEC502 - Concorrência e Conectividade")
- *   semester    — semestre selecionado (ex: "2026.1")
- *   classCode   — turma selecionada (ex: "TP01") — opcional
- *   showClass   — se false, oculta a linha de turma mesmo que classCode exista (default: true)
- *   actions     — slot de botões/controles no canto inferior esquerdo
+ *   semester       — semestre selecionado (ex: "2026.1")
+ *   classCode      — turma selecionada (ex: "TP01") — opcional
+ *   showClass      — se false, oculta a turma mesmo que classCode exista (default: true)
+ *   actions        — slot de botões/controles abaixo do cabeçalho
  */
 
 import React from "react";
@@ -36,32 +47,29 @@ export function PageHeader({
   showClass = true,
   actions,
 }: PageHeaderProps) {
-  return (
-    <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
-      {/* Esquerda: título + componente + ações */}
-      <div className="flex flex-col gap-0.5 min-w-0">
-        <h1 className="text-2xl font-bold tracking-tight leading-tight">{title}</h1>
-        {componentLabel && (
-          <p className="text-sm font-semibold text-primary leading-tight">{componentLabel}</p>
-        )}
-        {actions && <div className="mt-3">{actions}</div>}
-      </div>
+  // Linha de contexto abaixo do componente (semestre e/ou turma)
+  const hasClass = showClass && classCode;
+  const hasSemester = !!semester;
 
-      {/* Direita: semestre + turma */}
-      {(semester || (showClass && classCode)) && (
-        <div className="flex flex-col items-end gap-0.5 shrink-0 pt-0.5">
-          {semester && (
-            <span className="text-xs font-medium text-muted-foreground">
-              Semestre: <strong className="text-foreground">{semester}</strong>
-            </span>
-          )}
-          {showClass && classCode && (
-            <span className="text-xs font-medium text-muted-foreground">
-              Turma: <strong className="text-foreground">{classCode}</strong>
-            </span>
-          )}
-        </div>
+  let contextLine: string | null = null;
+  if (hasClass && hasSemester) {
+    contextLine = `TURMA: ${classCode} - SEMESTRE: ${semester}`;
+  } else if (hasClass) {
+    contextLine = `TURMA: ${classCode}`;
+  } else if (hasSemester) {
+    contextLine = `SEMESTRE: ${semester}`;
+  }
+
+  return (
+    <div className="flex flex-col gap-0.5 mb-6">
+      <h1 className="text-2xl font-bold tracking-tight leading-tight">{title}</h1>
+      {componentLabel && (
+        <p className="text-sm font-semibold text-primary leading-tight">{componentLabel}</p>
       )}
+      {contextLine && (
+        <p className="text-sm font-semibold text-foreground leading-tight">{contextLine}</p>
+      )}
+      {actions && <div className="mt-3">{actions}</div>}
     </div>
   );
 }

@@ -648,3 +648,40 @@ export function buildBrainstormBoardEmailHtml(data: {
     </div>
   `;
 }
+
+export function buildProfessorInviteEmailHtml(data: {
+  inviterName: string;
+  componentCode: string;
+  componentName: string;
+  registerUrl: string;
+}): string {
+  return `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <div style="display: inline-block; background: #eff6ff; border-radius: 50%; padding: 16px; margin-bottom: 12px;">
+          <span style="font-size: 32px;">🎓</span>
+        </div>
+        <h1 style="color: #1e40af; font-size: 22px; margin: 0 0 4px;">Convite para Componente</h1>
+        <p style="color: #6b7280; font-size: 14px; margin: 0;">Sistema de Sessão Tutorial</p>
+      </div>
+      <p style="color: #374151; font-size: 15px; line-height: 1.6; margin: 0 0 16px;">
+        Você foi convidado por <strong>${data.inviterName}</strong> para participar como professor do componente:
+      </p>
+      <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 16px; margin: 0 0 20px; text-align: center;">
+        <p style="color: #1e40af; font-size: 18px; font-weight: 700; margin: 0 0 4px;">${data.componentCode}</p>
+        <p style="color: #3b82f6; font-size: 14px; margin: 0;">${data.componentName}</p>
+      </div>
+      <p style="color: #374151; font-size: 14px; line-height: 1.6; margin: 0 0 20px;">
+        Para aceitar o convite, cadastre-se no sistema e solicite entrada no componente <strong>${data.componentCode}</strong>.
+      </p>
+      <div style="text-align: center; margin: 24px 0;">
+        <a href="${data.registerUrl}" style="display: inline-block; background: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-size: 15px; font-weight: 600;">Acessar o Sistema</a>
+      </div>
+      <div style="background: #f9fafb; border-radius: 8px; padding: 12px 16px; margin-top: 16px;">
+        <p style="color: #6b7280; font-size: 12px; margin: 0; text-align: center;">
+          Se você não esperava este convite, pode ignorar este e-mail.
+        </p>
+      </div>
+    </div>
+  `;
+}

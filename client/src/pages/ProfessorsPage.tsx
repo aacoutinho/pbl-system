@@ -1,19 +1,21 @@
 import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { useComponentContext } from "@/contexts/ComponentContext";
+import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { CheckCircle, XCircle, Plus, Trash2, Clock, ShieldCheck, BookOpen, Crown, ArrowRightLeft, AlertTriangle, Mail, ArrowUp, ArrowDown, UserPlus, Filter } from "lucide-react";
+import { CheckCircle, XCircle, Plus, Trash2, Clock, ShieldCheck, BookOpen, Crown, ArrowRightLeft, AlertTriangle, Mail, ArrowUp, ArrowDown, UserPlus, Send } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function ProfessorsPage() {
-  return (
-      <ProfessorsContent />
-  );
+  return <ProfessorsContent />;
 }
 
 function ProfessorsContent() {
@@ -23,11 +25,22 @@ function ProfessorsContent() {
   const isAdmin = user?.role === "admin";
   const isCoordinator = user?.role === "coordinator";
 
-  // Filter state
-  const [filterComponentId, setFilterComponentId] = useState<string>("all");
+  const {
+    selectedComponentId,
+    selectedComponentFullLabel,
+    selectedSemester,
+    selectedClassCode,
+  } = useComponentContext();
+
+  // Invite dialog state
+  const [showInviteDialog, setShowInviteDialog] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
 
   // Data queries
-  const { data: approvedList, isLoading: loadingApproved } = trpc.professors.approved.useQuery();
+  const { data: approvedList, isLoading: loadingApproved } = trpc.professors.listByComponent.useQuery(
+    { componentId: selectedComponentId! },
+    { enabled: !!selectedComponentId }
+  );
   const { data: allProfComponents } = trpc.professors.allComponents.useQuery();
   const { data: coordinator } = trpc.coordination.current.useQuery();
   const { data: smtpStatus } = trpc.auth.smtpStatus.useQuery();
@@ -40,7 +53,7 @@ function ProfessorsContent() {
 
   // ─── Mutations ───
   const deleteUserMut = trpc.professors.deleteUser.useMutation({
-    onSuccess: () => { utils.professors.approved.invalidate(); utils.professors.allComponents.invalidate(); toast.success("Professor removido do sistema"); },
+    onSuccess: () => { utils.professors.listByComponent.invalidate(); utils.professors.allComponents.invalidate(); toast.success("Professor removido do sistema"); },
     onError: (err) => toast.error(err.message),
   });
   const addComponentMut = trpc.professors.addComponent.useMutation({
@@ -51,7 +64,7 @@ function ProfessorsContent() {
   });
   const transferMut = trpc.coordination.transfer.useMutation({
     onSuccess: () => {
-      utils.professors.approved.invalidate(); utils.coordination.current.invalidate();
+      utils.professors.listByComponent.invalidate(); utils.coordination.current.invalidate();
       setTransferTarget(null);
       toast.success("Administração transferida com sucesso! Faça login novamente para atualizar.");
       setTimeout(() => window.location.reload(), 1500);
@@ -63,7 +76,7 @@ function ProfessorsContent() {
     onError: (err) => toast.error(err.message),
   });
   const approveCompReqMut = trpc.professors.approveComponentRequest.useMutation({
-    onSuccess: () => { utils.professors.pendingComponentRequests.invalidate(); utils.professors.allComponents.invalidate(); utils.professors.approved.invalidate(); toast.success("Professor aprovado no componente"); },
+    onSuccess: () => { utils.professors.pendingComponentRequests.invalidate(); utils.professors.allComponents.invalidate(); utils.professors.listByComponent.invalidate(); toast.success("Professor aprovado no componente"); },
     onError: (err) => toast.error(err.message),
   });
   const rejectCompReqMut = trpc.professors.rejectComponentRequest.useMutation({
@@ -74,7 +87,7 @@ function ProfessorsContent() {
     onSuccess: (data) => {
       utils.professors.pendingComponentRequests.invalidate();
       utils.professors.allComponents.invalidate();
-      utils.professors.approved.invalidate();
+      utils.professors.listByComponent.invalidate();
       const msg = data.autoApprovedUsers > 0
         ? `${data.approvedCount} solicitações aprovadas (${data.autoApprovedUsers} novos usuários aprovados no sistema)`
         : `${data.approvedCount} solicitações aprovadas`;
@@ -83,20 +96,27 @@ function ProfessorsContent() {
     onError: (err) => toast.error(err.message),
   });
   const promoteToCoordMut = trpc.professors.promoteToCoordinator.useMutation({
-    onSuccess: () => { utils.professors.allComponents.invalidate(); utils.professors.approved.invalidate(); toast.success("Professor promovido a coordenador do componente"); },
+    onSuccess: () => { utils.professors.allComponents.invalidate(); utils.professors.listByComponent.invalidate(); toast.success("Professor promovido a coordenador do componente"); },
     onError: (err) => toast.error(err.message),
   });
   const demoteToProfMut = trpc.professors.demoteToProf.useMutation({
-    onSuccess: () => { utils.professors.allComponents.invalidate(); utils.professors.approved.invalidate(); toast.success("Coordenador rebaixado a professor no componente"); },
+    onSuccess: () => { utils.professors.allComponents.invalidate(); utils.professors.listByComponent.invalidate(); toast.success("Coordenador rebaixado a professor no componente"); },
     onError: (err) => toast.error(err.message),
   });
   const removeFromCompMut = trpc.professors.removeFromComponent.useMutation({
-    onSuccess: () => { utils.professors.allComponents.invalidate(); toast.success("Professor removido do componente"); },
+    onSuccess: () => { utils.professors.allComponents.invalidate(); utils.professors.listByComponent.invalidate(); toast.success("Professor removido do componente"); },
+    onError: (err) => toast.error(err.message),
+  });
+  const sendInviteMut = trpc.professors.sendInvite.useMutation({
+    onSuccess: () => {
+      toast.success(`Convite enviado para ${inviteEmail}`);
+      setInviteEmail("");
+      setShowInviteDialog(false);
+    },
     onError: (err) => toast.error(err.message),
   });
 
   // ─── Derived data ───
-  // Build map: professorId -> list of { componentId, componentCode, componentName, componentRole }
   const componentsByProfessor = useMemo(() => {
     const map: Record<number, { componentId: number; componentCode: string | null; componentName: string | null; componentRole: string | null }[]> = {};
     if (allProfComponents) {
@@ -108,42 +128,46 @@ function ProfessorsContent() {
     return map;
   }, [allProfComponents]);
 
-  // My coordinated component IDs
   const myCoordinatedComponentIds = useMemo(() => {
     if (!myComponents) return new Set<number>();
     return new Set(myComponents.filter(c => c.componentRole === "coordinator" && c.status === "approved").map(c => c.componentId));
   }, [myComponents]);
 
-  // My approved component IDs
-  const myApprovedComponentIds = useMemo(() => {
-    if (!myComponents) return new Set<number>();
-    return new Set(myComponents.filter(c => c.status === "approved").map(c => c.componentId));
-  }, [myComponents]);
-
-  // Components I can request to join (not already member or pending)
   const requestableComponents = useMemo(() => {
     if (!availableComponents || !myComponents) return [];
     const myCompIds = new Set(myComponents.map(c => c.componentId));
     return availableComponents.filter(c => !myCompIds.has(c.id));
   }, [availableComponents, myComponents]);
 
-  // Filter approved professors by component
-  const filteredApproved = useMemo(() => {
-    if (!approvedList) return [];
-    if (filterComponentId === "all") return approvedList;
-    const compId = parseInt(filterComponentId);
-    return approvedList.filter(prof => {
-      const profComps = componentsByProfessor[prof.id] || [];
-      return profComps.some(c => c.componentId === compId);
-    });
-  }, [approvedList, filterComponentId, componentsByProfessor]);
+  // Can send invite: admin or coordinator of the selected component
+  const canInvite = selectedComponentId && (isAdmin || myCoordinatedComponentIds.has(selectedComponentId));
+
+  // Pending requests filtered to selected component (if any)
+  const filteredPendingRequests = useMemo(() => {
+    if (!pendingComponentRequests) return [];
+    if (!selectedComponentId) return pendingComponentRequests;
+    return pendingComponentRequests.filter((r: any) => r.componentId === selectedComponentId);
+  }, [pendingComponentRequests, selectedComponentId]);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Professores</h1>
-        <p className="text-muted-foreground">Gerencie o acesso de professores e seus componentes curriculares.</p>
-      </div>
+      <PageHeader
+        title="Professores"
+        componentLabel={selectedComponentFullLabel}
+        semester={selectedSemester}
+        classCode={selectedClassCode}
+        showClass={false}
+        actions={
+          <div className="flex gap-2 flex-wrap">
+            {canInvite && (
+              <Button size="sm" variant="outline" className="gap-1" onClick={() => setShowInviteDialog(true)}>
+                <Send className="h-4 w-4" />
+                Enviar Convite
+              </Button>
+            )}
+          </div>
+        }
+      />
 
       {/* SMTP Alert for admin */}
       {isAdmin && !smtpStatus?.configured && (
@@ -162,199 +186,189 @@ function ProfessorsContent() {
         </div>
       )}
 
-      {/* Admin Info */}
-      {coordinator && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Crown className="h-5 w-5 text-amber-500" />
-              Administrador
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">{coordinator.name || "Sem nome"}</p>
-                <p className="text-sm text-muted-foreground">{coordinator.email || "Sem e-mail"}</p>
-              </div>
-              <Badge className="bg-amber-100 text-amber-800 border-amber-300">
-                <Crown className="h-3 w-3 mr-1" />
-                Administrador
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
+      {/* No component selected */}
+      {!selectedComponentId && (
+        <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
+          <BookOpen className="h-10 w-10 mb-3 opacity-30" />
+          <p className="text-sm">Selecione um componente no menu lateral para ver os professores.</p>
+        </div>
       )}
 
-      {/* Request to join a component (for any approved user) */}
-      {!isAdmin && requestableComponents.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <UserPlus className="h-5 w-5 text-blue-500" />
-              Solicitar Entrada em Componente
-            </CardTitle>
-            <CardDescription>Solicite ao coordenador a entrada em um componente curricular.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-2 items-center">
-              <Select value={requestComponentId} onValueChange={setRequestComponentId}>
-                <SelectTrigger className="max-w-[300px]">
-                  <SelectValue placeholder="Selecione um componente..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {requestableComponents.map(c => (
-                    <SelectItem key={c.id} value={String(c.id)} title={c.name}>{c.code}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                size="sm"
-                onClick={() => requestComponentId && requestComponentMut.mutate({ componentId: parseInt(requestComponentId) })}
-                disabled={!requestComponentId || requestComponentMut.isPending}
-                className="gap-1"
-              >
-                <Plus className="h-4 w-4" />
-                Solicitar
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Pending Component Requests - for coordinators of those components */}
-      {/* Approving a component request also auto-approves the user in the system if still pending */}
-      {(isAdmin || isCoordinator) && pendingComponentRequests && pendingComponentRequests.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-blue-500" />
-              Solicitações de Entrada em Componentes
-            </CardTitle>
-            <CardDescription>Professores que solicitaram entrada nos seus componentes. Ao aprovar, o professor também é automaticamente aprovado no sistema se ainda estiver pendente.</CardDescription>
-          </CardHeader>
-          {pendingComponentRequests.length > 1 && (
-            <div className="px-6 pb-2">
-              <Button
-                size="sm"
-                onClick={() => approveAllMut.mutate()}
-                disabled={approveAllMut.isPending}
-                className="gap-1"
-              >
-                <CheckCircle className="h-4 w-4" />
-                {approveAllMut.isPending ? "Aprovando..." : `Aprovar Todos (${pendingComponentRequests.length})`}
-              </Button>
-            </div>
-          )}
-          <CardContent>
-            <div className="space-y-3">
-              {pendingComponentRequests.map((req: any) => (
-                <div key={`${req.userId}-${req.componentId}`} className="flex items-center justify-between p-3 border rounded-lg bg-blue-50/50">
+      {selectedComponentId && (
+        <>
+          {/* Admin Info */}
+          {coordinator && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Crown className="h-5 w-5 text-amber-500" />
+                  Administrador do Sistema
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
                   <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium">{req.professorName || "Sem nome"}</p>
-                      {req.userApprovalStatus === "pending" && (
-                        <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-300">
-                          <UserPlus className="h-3 w-3 mr-1" />
-                          Novo usuário
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground">{req.professorEmail || "Sem e-mail"}</p>
-                    <Badge variant="outline" className="mt-1 text-xs">
-                      <BookOpen className="h-3 w-3 mr-1" />
-                      {req.componentCode}
-                    </Badge>
+                    <p className="font-medium">{coordinator.name || "Sem nome"}</p>
+                    <p className="text-sm text-muted-foreground">{coordinator.email || "Sem e-mail"}</p>
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      onClick={() => approveCompReqMut.mutate({ userId: req.userId, componentId: req.componentId })}
-                      disabled={approveCompReqMut.isPending}
-                      className="gap-1"
-                    >
-                      <CheckCircle className="h-4 w-4" />
-                      Aprovar
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => rejectCompReqMut.mutate({ userId: req.userId, componentId: req.componentId })}
-                      disabled={rejectCompReqMut.isPending}
-                      className="gap-1"
-                    >
-                      <XCircle className="h-4 w-4" />
-                      Rejeitar
-                    </Button>
-                  </div>
+                  <Badge className="bg-amber-100 text-amber-800 border-amber-300">
+                    <Crown className="h-3 w-3 mr-1" />
+                    Administrador
+                  </Badge>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+              </CardContent>
+            </Card>
+          )}
 
-      {/* Approved Professors with filter */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div>
+          {/* Request to join a component (for any approved user) */}
+          {!isAdmin && requestableComponents.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <UserPlus className="h-5 w-5 text-blue-500" />
+                  Solicitar Entrada em Componente
+                </CardTitle>
+                <CardDescription>Solicite ao coordenador a entrada em um componente curricular.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-2 items-center">
+                  <Select value={requestComponentId} onValueChange={setRequestComponentId}>
+                    <SelectTrigger className="max-w-[300px]">
+                      <SelectValue placeholder="Selecione um componente..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {requestableComponents.map(c => (
+                        <SelectItem key={c.id} value={String(c.id)} title={c.name}>{c.code}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    onClick={() => requestComponentId && requestComponentMut.mutate({ componentId: parseInt(requestComponentId) })}
+                    disabled={!requestComponentId || requestComponentMut.isPending}
+                    className="gap-1"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Solicitar
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Pending Component Requests */}
+          {(isAdmin || isCoordinator) && filteredPendingRequests.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-blue-500" />
+                  Solicitações de Entrada
+                </CardTitle>
+                <CardDescription>Professores que solicitaram entrada no componente. Ao aprovar, o professor também é automaticamente aprovado no sistema se ainda estiver pendente.</CardDescription>
+              </CardHeader>
+              {filteredPendingRequests.length > 1 && (
+                <div className="px-6 pb-2">
+                  <Button
+                    size="sm"
+                    onClick={() => approveAllMut.mutate()}
+                    disabled={approveAllMut.isPending}
+                    className="gap-1"
+                  >
+                    <CheckCircle className="h-4 w-4" />
+                    {approveAllMut.isPending ? "Aprovando..." : `Aprovar Todos (${filteredPendingRequests.length})`}
+                  </Button>
+                </div>
+              )}
+              <CardContent>
+                <div className="space-y-3">
+                  {filteredPendingRequests.map((req: any) => (
+                    <div key={`${req.userId}-${req.componentId}`} className="flex items-center justify-between p-3 border rounded-lg bg-blue-50/50">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">{req.professorName || "Sem nome"}</p>
+                          {req.userApprovalStatus === "pending" && (
+                            <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-300">
+                              <UserPlus className="h-3 w-3 mr-1" />
+                              Novo usuário
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground">{req.professorEmail || "Sem e-mail"}</p>
+                        <Badge variant="outline" className="mt-1 text-xs">
+                          <BookOpen className="h-3 w-3 mr-1" />
+                          {req.componentCode}
+                        </Badge>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => approveCompReqMut.mutate({ userId: req.userId, componentId: req.componentId })}
+                          disabled={approveCompReqMut.isPending}
+                          className="gap-1"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                          Aprovar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => rejectCompReqMut.mutate({ userId: req.userId, componentId: req.componentId })}
+                          disabled={rejectCompReqMut.isPending}
+                          className="gap-1"
+                        >
+                          <XCircle className="h-4 w-4" />
+                          Rejeitar
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Professors of the selected component */}
+          <Card>
+            <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <ShieldCheck className="h-5 w-5 text-green-500" />
-                Professores Autorizados
+                Professores do Componente
               </CardTitle>
-              <CardDescription>Professores aprovados e seus componentes curriculares.</CardDescription>
-            </div>
-            {/* Component filter */}
-            {availableComponents && availableComponents.length > 0 && (
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-muted-foreground" />
-                <Select value={filterComponentId} onValueChange={setFilterComponentId}>
-                  <SelectTrigger className="w-[220px] h-9 text-sm">
-                    <SelectValue placeholder="Filtrar por componente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                     {availableComponents.map(c => (
-                       <SelectItem key={c.id} value={String(c.id)} title={c.name}>{c.code}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {loadingApproved ? (
-            <p className="text-sm text-muted-foreground">Carregando...</p>
-          ) : filteredApproved.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhum professor encontrado.</p>
-          ) : (
-            <div className="space-y-4">
-              {filteredApproved.map((prof) => (
-                <ProfessorCard
-                  key={prof.id}
-                  professor={prof}
-                  components={componentsByProfessor[prof.id] || []}
-                  availableComponents={availableComponents || []}
-                  isAdmin={isAdmin}
-                  isCurrentUser={prof.id === user?.id}
-                  coordinatorId={coordinator?.id}
-                  myCoordinatedComponentIds={myCoordinatedComponentIds}
-                  onTransfer={() => setTransferTarget({ id: prof.id, name: prof.name || "Professor" })}
-                  onAddComponent={(componentId) => addComponentMut.mutate({ userId: prof.id, componentId })}
-                  onRemoveComponent={(componentId) => removeFromCompMut.mutate({ userId: prof.id, componentId })}
-                  onPromote={(componentId) => promoteToCoordMut.mutate({ userId: prof.id, componentId })}
-                  onDemote={(componentId) => demoteToProfMut.mutate({ userId: prof.id, componentId })}
-                  onDeleteUser={() => deleteUserMut.mutate({ userId: prof.id })}
-                  isAdding={addComponentMut.isPending}
-                  isRemoving={removeFromCompMut.isPending}
-                />
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              <CardDescription>Professores autorizados neste componente curricular.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingApproved ? (
+                <p className="text-sm text-muted-foreground">Carregando...</p>
+              ) : !approvedList || approvedList.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhum professor neste componente.</p>
+              ) : (
+                <div className="space-y-4">
+                  {approvedList.map((prof: any) => (
+                    <ProfessorCard
+                      key={prof.id}
+                      professor={prof}
+                      components={componentsByProfessor[prof.id] || []}
+                      availableComponents={availableComponents || []}
+                      isAdmin={isAdmin}
+                      isCurrentUser={prof.id === user?.id}
+                      coordinatorId={coordinator?.id}
+                      myCoordinatedComponentIds={myCoordinatedComponentIds}
+                      onTransfer={() => setTransferTarget({ id: prof.id, name: prof.name || "Professor" })}
+                      onAddComponent={(componentId) => addComponentMut.mutate({ userId: prof.id, componentId })}
+                      onRemoveComponent={(componentId) => removeFromCompMut.mutate({ userId: prof.id, componentId })}
+                      onPromote={(componentId) => promoteToCoordMut.mutate({ userId: prof.id, componentId })}
+                      onDemote={(componentId) => demoteToProfMut.mutate({ userId: prof.id, componentId })}
+                      onDeleteUser={() => deleteUserMut.mutate({ userId: prof.id })}
+                      isAdding={addComponentMut.isPending}
+                      isRemoving={removeFromCompMut.isPending}
+                    />
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       {/* Transfer Coordination Dialog */}
       <Dialog open={!!transferTarget} onOpenChange={() => setTransferTarget(null)}>
@@ -388,6 +402,53 @@ function ProfessorsContent() {
             >
               <ArrowRightLeft className="h-4 w-4" />
               Confirmar Transferência
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Invite Dialog */}
+      <Dialog open={showInviteDialog} onOpenChange={(open) => { setShowInviteDialog(open); if (!open) setInviteEmail(""); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5 text-blue-500" />
+              Enviar Convite por E-mail
+            </DialogTitle>
+            <DialogDescription>
+              O convidado receberá um e-mail com instruções para acessar o sistema e solicitar entrada no componente <strong>{selectedComponentFullLabel}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="invite-email">E-mail do Professor</Label>
+              <Input
+                id="invite-email"
+                type="email"
+                placeholder="professor@instituicao.edu.br"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && inviteEmail && selectedComponentId) {
+                    sendInviteMut.mutate({ email: inviteEmail, componentId: selectedComponentId, origin: window.location.origin });
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowInviteDialog(false); setInviteEmail(""); }}>Cancelar</Button>
+            <Button
+              onClick={() => {
+                if (inviteEmail && selectedComponentId) {
+                  sendInviteMut.mutate({ email: inviteEmail, componentId: selectedComponentId, origin: window.location.origin });
+                }
+              }}
+              disabled={!inviteEmail || sendInviteMut.isPending}
+              className="gap-1"
+            >
+              <Send className="h-4 w-4" />
+              {sendInviteMut.isPending ? "Enviando..." : "Enviar Convite"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -443,7 +504,6 @@ function ProfessorCard({
 
   const isProfAdmin = professor.id === coordinatorId;
 
-  // Can current user manage this professor's component?
   const canManageComponent = (componentId: number) => {
     if (isAdmin) return true;
     return myCoordinatedComponentIds.has(componentId);

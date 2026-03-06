@@ -717,12 +717,12 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
 
           {/* Global Filters */}
           {!isCollapsed && (
-            <div className="px-3 pb-2 space-y-2">
+            <div className="px-3 pb-2 space-y-1.5">
               {/* Linha 1: Componente + Semestre */}
               <div className="grid grid-cols-2 gap-1.5">
                 {/* Componente */}
                 <div className="space-y-0.5">
-                  <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Componente</p>
+                  <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Componente</p>
                   <Select
                     value={selectedComponentId ? String(selectedComponentId) : ""}
                     onValueChange={(v) => {
@@ -732,7 +732,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                       if (found) setSelectedComponentMeta(found.code, found.name ?? null);
                     }}
                   >
-                    <SelectTrigger className="h-7 text-[11px] font-semibold px-2">
+                    <SelectTrigger className="h-7 text-[11px] font-semibold px-2 justify-start gap-1">
                       <SelectValue placeholder="—" />
                     </SelectTrigger>
                     <SelectContent>
@@ -749,12 +749,12 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
 
                 {/* Semestre */}
                 <div className="space-y-0.5">
-                  <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Semestre</p>
+                  <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Semestre</p>
                   <Select
                     value={selectedSemester ?? ""}
                     onValueChange={(v) => setSelectedSemester(v)}
                   >
-                    <SelectTrigger className="h-7 text-[11px] font-semibold px-2">
+                    <SelectTrigger className="h-7 text-[11px] font-semibold px-2 justify-start gap-1">
                       <SelectValue placeholder="—" />
                     </SelectTrigger>
                     <SelectContent>
@@ -775,7 +775,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
               <div className="grid grid-cols-3 gap-1.5">
                 {/* Turma */}
                 <div className="space-y-0.5">
-                  <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Turma</p>
+                  <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Turma</p>
                   <Select
                     value={selectedClassId ? String(selectedClassId) : ""}
                     onValueChange={(v) => {
@@ -784,7 +784,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                       setSelectedClass(id, found?.classCode ?? null);
                     }}
                   >
-                    <SelectTrigger className="h-7 text-[11px] font-semibold px-2">
+                    <SelectTrigger className="h-7 text-[11px] font-semibold px-2 justify-start gap-1">
                       <SelectValue placeholder="—" />
                     </SelectTrigger>
                     <SelectContent>
@@ -800,12 +800,12 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                 </div>
                 {/* Problema */}
                 <div className="space-y-0.5">
-                  <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Problema</p>
+                  <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Problema</p>
                   <Select
                     value={selectedProblemNumber !== null ? String(selectedProblemNumber) : ""}
                     onValueChange={(v) => setSelectedProblem(parseInt(v))}
                   >
-                    <SelectTrigger className="h-7 text-[11px] font-semibold px-2">
+                    <SelectTrigger className="h-7 text-[11px] font-semibold px-2 justify-start gap-1">
                       <SelectValue placeholder="—" />
                     </SelectTrigger>
                     <SelectContent>
@@ -822,7 +822,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
 
                 {/* Sessão */}
                 <div className="space-y-0.5">
-                  <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Sessão</p>
+                  <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Sessão</p>
                   <Select
                     value={selectedSessionId !== null ? String(selectedSessionId) : ""}
                     onValueChange={(v) => {
@@ -831,7 +831,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                       setSelectedSession(id, found?.sessionNumber ?? null);
                     }}
                   >
-                    <SelectTrigger className="h-7 text-[11px] font-semibold px-2">
+                    <SelectTrigger className="h-7 text-[11px] font-semibold px-2 justify-start gap-1">
                       <SelectValue placeholder="—" />
                     </SelectTrigger>
                     <SelectContent>
