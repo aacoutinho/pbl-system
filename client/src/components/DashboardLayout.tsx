@@ -46,7 +46,7 @@ const baseMenuItems = [
 ];
 
 // Tutorial evaluation: for prof, coordinator, and admin
-const tutorialEvalItem = { icon: ClipboardCheck, label: "Avaliar Tutorial", path: "/tutorial-eval" };
+const tutorialEvalItem = { icon: ClipboardCheck, label: "Avaliação", path: "/tutorial-eval" };
 
 // Notifications: for all approved users
 const notificationsItem = { icon: Bell, label: "Notificações", path: "/notifications" };
@@ -724,8 +724,8 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
             <div className="px-2 pb-1.5">
               <div className="border border-sidebar rounded-md overflow-hidden bg-sidebar-accent">
 
-                {/* Linha 1: Componente + Semestre */}
-                <div className="grid grid-cols-2 divide-x divide-sidebar-accent border-b border-sidebar-accent">
+                {/* Linha única: Componente + Semestre + Turma */}
+                <div className="grid grid-cols-3 divide-x divide-sidebar-accent">
                   {/* Componente */}
                   <div className="px-1 pt-2 pb-0.5">
                     <p className="text-[8px] font-semibold text-gray-400 uppercase tracking-wider leading-none mb-0">Componente</p>
@@ -780,12 +780,9 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
 
-                {/* Linha 2: Turma */}
-                <div className="grid grid-cols-1">
                   {/* Turma */}
-                  <div className="px-1 py-0.5">
+                  <div className="px-1 pt-2 pb-0.5">
                     <p className="text-[8px] font-semibold text-gray-400 uppercase tracking-wider leading-none mb-0">Turma</p>
                     <Select
                       value={selectedClassId ? String(selectedClassId) : ""}

@@ -688,3 +688,9 @@
 ## Simplificar Retângulo do Menu (Mar 2026)
 
 - [x] Remover seletores PROBLEMA e SESSÃO do retângulo do menu; manter apenas COMPONENTE, SEMESTRE e TURMA
+
+## Ajustes de Layout e Nomenclatura (Mar 2026)
+
+- [x] DashboardLayout: COMPONENTE, SEMESTRE e TURMA em uma única linha (3 colunas)
+- [x] TutorialEvalPage: selecionar automaticamente a última sessão ao abrir
+- [x] Renomear "Avaliar Tutorial" para "Avaliação" no menu e na página

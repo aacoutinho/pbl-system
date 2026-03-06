@@ -207,7 +207,16 @@ function TutorialEvalContent() {
   const isLoadingSessions = sessionsLoading;
 
   const [selectedSessionId, setSelectedSessionId] = useState<string>("");
-  useEffect(() => { setSelectedSessionId(""); }, [selectedClassId]);
+
+  // Selecionar automaticamente a última sessão ao carregar ou trocar de turma
+  useEffect(() => {
+    if (effectiveSessions && effectiveSessions.length > 0) {
+      const lastSession = effectiveSessions[effectiveSessions.length - 1];
+      setSelectedSessionId(String(lastSession.id));
+    } else {
+      setSelectedSessionId("");
+    }
+  }, [selectedClassId, effectiveSessions?.length]);
 
   const selectedSession = useMemo(() => {
     if (!selectedSessionId || !effectiveSessions) return null;
@@ -498,7 +507,7 @@ function TutorialEvalContent() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Avaliação do Tutorial"
+        title="Avaliação"
         componentLabel={selectedComponentFullLabel}
         semester={selectedSemester}
         classCode={selectedClassCode}
