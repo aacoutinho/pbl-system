@@ -684,3 +684,7 @@
 ## Correção "Pundefined" no Seletor (Mar 2026)
 
 - [x] Seletor PROBLEMA: exibia "Pundefined" - corrigido filtrando undefined/null/NaN ao construir problemNumbers
+
+## Simplificar Retângulo do Menu (Mar 2026)
+
+- [x] Remover seletores PROBLEMA e SESSÃO do retângulo do menu; manter apenas COMPONENTE, SEMESTRE e TURMA

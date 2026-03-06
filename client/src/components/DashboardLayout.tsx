@@ -782,8 +782,8 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                   </div>
                 </div>
 
-                {/* Linha 2: Turma + Problema + Sessão */}
-                <div className="grid grid-cols-3 divide-x divide-sidebar-accent">
+                {/* Linha 2: Turma */}
+                <div className="grid grid-cols-1">
                   {/* Turma */}
                   <div className="px-1 py-0.5">
                     <p className="text-[8px] font-semibold text-gray-400 uppercase tracking-wider leading-none mb-0">Turma</p>
@@ -808,58 +808,6 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                           : (classesList ?? []).map((c: any) => (
                           <SelectItem key={c.id} value={String(c.id)} className="text-xs">
                             <span className="font-semibold">{c.classCode}</span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Problema */}
-                  <div className="px-1 py-0.5">
-                    <p className="text-[8px] font-semibold text-gray-400 uppercase tracking-wider leading-none mb-0">Problema</p>
-                    <Select
-                      value={selectedProblemNumber !== null ? String(selectedProblemNumber) : ""}
-                      onValueChange={(v) => setSelectedProblem(parseInt(v))}
-                    >
-                      <SelectTrigger className="h-5 w-full text-[12px] font-semibold px-0.5 justify-start border-0 shadow-none focus:ring-0 bg-transparent [&>svg]:hidden overflow-hidden">
-                        <span className="truncate">
-                          {selectedProblemNumber !== null ? `P${selectedProblemNumber}` : "—"}
-                        </span>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {problemNumbers.length === 0
-                          ? [<SelectItem key="__none" value="__none" disabled className="text-xs text-muted-foreground">Nenhum</SelectItem>]
-                          : problemNumbers.map(p => (
-                          <SelectItem key={p} value={String(p)} className="text-xs font-semibold">
-                            P{p}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Sessão */}
-                  <div className="px-1 py-0.5">
-                    <p className="text-[8px] font-semibold text-gray-400 uppercase tracking-wider leading-none mb-0">Sessão</p>
-                    <Select
-                      value={selectedSessionId !== null ? String(selectedSessionId) : ""}
-                      onValueChange={(v) => {
-                        const id = parseInt(v);
-                        const found = sessionsForProblem.find((s: any) => s.id === id);
-                        setSelectedSession(id, found?.sessionNumber ?? null);
-                      }}
-                    >
-                      <SelectTrigger className="h-5 w-full text-[12px] font-semibold px-0.5 justify-start border-0 shadow-none focus:ring-0 bg-transparent [&>svg]:hidden overflow-hidden">
-                        <span className="truncate">
-                          {selectedSessionNumber !== null ? `S${selectedSessionNumber}` : "—"}
-                        </span>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {sessionsForProblem.length === 0
-                          ? [<SelectItem key="__none" value="__none" disabled className="text-xs text-muted-foreground">Nenhuma</SelectItem>]
-                          : sessionsForProblem.map((s: any) => (
-                          <SelectItem key={s.id} value={String(s.id)} className="text-xs font-semibold">
-                            S{s.sessionNumber}
                           </SelectItem>
                         ))}
                       </SelectContent>
