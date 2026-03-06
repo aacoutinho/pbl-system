@@ -721,7 +721,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
               <div className="border border-sidebar rounded-md overflow-hidden bg-sidebar-accent">
 
                 {/* Linha 1: Componente + Semestre */}
-                <div className="grid grid-cols-2 divide-x divide-sidebar border-b border-sidebar">
+                <div className="grid grid-cols-2 divide-x divide-sidebar-accent border-b border-sidebar-accent">
                   {/* Componente */}
                   <div className="px-1 py-0.5">
                     <p className="text-[7px] font-semibold text-muted-foreground uppercase tracking-wider leading-none mb-0">Componente</p>
@@ -773,7 +773,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                 </div>
 
                 {/* Linha 2: Turma + Problema + Sessão */}
-                <div className="grid grid-cols-3 divide-x divide-sidebar">
+                <div className="grid grid-cols-3 divide-x divide-sidebar-accent">
                   {/* Turma */}
                   <div className="px-1 py-0.5">
                     <p className="text-[7px] font-semibold text-muted-foreground uppercase tracking-wider leading-none mb-0">Turma</p>
