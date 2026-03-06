@@ -662,3 +662,8 @@
 
 - [x] ResultsPage: listar todas as sessões criadas (não filtrar por status)
 - [x] TutorialEvalPage: listar todas as sessões criadas (não filtrar por status)
+
+## Seletores de Problema e Sessão no Menu (Mar 2026)
+
+- [x] Seletor PROBLEMA: exibir P1, P2, P3 etc. (não apenas "P")
+- [x] Seletores PROBLEMA e SESSÃO: atualizar imediatamente após criação (refetch a cada 15s)

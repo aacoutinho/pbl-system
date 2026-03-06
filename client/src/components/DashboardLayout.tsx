@@ -584,10 +584,10 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
     { enabled: !!selectedComponentId }
   );
 
-  // Session list (depends on component + semester + class)
+  // Session list (depends on component + semester + class) — refetch every 15s so new sessions appear immediately
   const { data: sessionsList } = trpc.sessions.listByComponent.useQuery(
     { componentId: selectedComponentId!, semester: selectedSemester ?? undefined, classId: selectedClassId ?? undefined },
-    { enabled: !!selectedComponentId }
+    { enabled: !!selectedComponentId, refetchInterval: 15000 }
   );
 
   // Derive unique problem numbers from sessions
@@ -814,8 +814,8 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                         {problemNumbers.length === 0 ? (
                           <SelectItem value="__none" disabled className="text-xs text-muted-foreground">Nenhum</SelectItem>
                         ) : problemNumbers.map(p => (
-                          <SelectItem key={p} value={String(p)} className="text-xs">
-                            <span className="font-semibold">P{p}</span>
+                          <SelectItem key={p} value={String(p)} className="text-xs font-semibold">
+                            P{p}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -840,8 +840,8 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                         {sessionsForProblem.length === 0 ? (
                           <SelectItem value="__none" disabled className="text-xs text-muted-foreground">Nenhuma</SelectItem>
                         ) : sessionsForProblem.map((s: any) => (
-                          <SelectItem key={s.id} value={String(s.id)} className="text-xs">
-                            <span className="font-semibold">S{s.sessionNumber}</span>
+                          <SelectItem key={s.id} value={String(s.id)} className="text-xs font-semibold">
+                            S{s.sessionNumber}
                           </SelectItem>
                         ))}
                       </SelectContent>
