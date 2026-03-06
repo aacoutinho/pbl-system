@@ -157,16 +157,6 @@ function ProfessorsContent() {
         semester={selectedSemester}
         classCode={selectedClassCode}
         showClass={false}
-        actions={
-          <div className="flex gap-2 flex-wrap">
-            {canInvite && (
-              <Button size="sm" variant="outline" className="gap-1" onClick={() => setShowInviteDialog(true)}>
-                <Send className="h-4 w-4" />
-                Enviar Convite
-              </Button>
-            )}
-          </div>
-        }
       />
 
       {/* SMTP Alert for admin */}
@@ -325,6 +315,16 @@ function ProfessorsContent() {
                 </div>
               </CardContent>
             </Card>
+          )}
+
+          {/* Invite button — between Admin card and Professors card */}
+          {canInvite && (
+            <div>
+              <Button variant="outline" className="gap-2" onClick={() => setShowInviteDialog(true)}>
+                <Send className="h-4 w-4" />
+                Enviar Convite para Professor
+              </Button>
+            </div>
           )}
 
           {/* Professors of the selected component */}

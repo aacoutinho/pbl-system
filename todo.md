@@ -644,3 +644,7 @@
 ## Badges de Semestre e Turma no Cabeçalho (Mar 2026)
 
 - [x] PageHeader: SEMESTRE e TURMA como retângulos coloridos (badges), ordem: semestre primeiro, depois turma
+
+## Ajuste do Botão de Convite (Mar 2026)
+
+- [x] ProfessorsPage: mover botão de convite para entre o card do Admin e o card de Professores; texto "Enviar Convite para Professor"
