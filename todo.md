@@ -667,3 +667,7 @@
 
 - [x] Seletor PROBLEMA: exibir P1, P2, P3 etc. (não apenas "P") - removido chevron que cortava o texto
 - [x] Seletores PROBLEMA e SESSÃO: atualizar imediatamente após criação (refetch a cada 15s)
+
+## Correção de Erros (Mar 2026)
+
+- [x] DashboardLayout: corrigir aviso "key" prop faltando nos SelectItems
