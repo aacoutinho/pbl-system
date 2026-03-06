@@ -671,3 +671,7 @@
 ## Correção de Erros (Mar 2026)
 
 - [x] DashboardLayout: corrigir aviso "key" prop faltando nos SelectItems
+
+## Correção Seletor PROBLEMA (Mar 2026)
+
+- [x] Seletor PROBLEMA: corrigido com textValue em todos os SelectItems (P1, P2, S1, S2...)

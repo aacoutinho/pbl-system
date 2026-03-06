@@ -741,7 +741,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                         {(!componentsList || componentsList.length === 0)
                           ? [<SelectItem key="__none" value="__none" disabled className="text-xs text-muted-foreground">Nenhum</SelectItem>]
                           : componentOptions.map(c => (
-                          <SelectItem key={c.id} value={String(c.id)} className="text-xs">
+                          <SelectItem key={c.id} value={String(c.id)} textValue={c.label} className="text-xs">
                             <span className="font-semibold">{c.label}</span>
                           </SelectItem>
                         ))}
@@ -763,7 +763,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                         {(!semestersList || semestersList.length === 0)
                           ? [<SelectItem key="__none" value="__none" disabled className="text-xs text-muted-foreground">Nenhum</SelectItem>]
                           : semestersList.map(s => (
-                          <SelectItem key={s} value={s} className="text-xs">
+                          <SelectItem key={s} value={s} textValue={s} className="text-xs">
                             <span className="font-semibold">{s}</span>
                           </SelectItem>
                         ))}
@@ -792,7 +792,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                         {(!classesList || classesList.length === 0)
                           ? [<SelectItem key="__none" value="__none" disabled className="text-xs text-muted-foreground">Nenhuma</SelectItem>]
                           : (classesList ?? []).map((c: any) => (
-                          <SelectItem key={c.id} value={String(c.id)} className="text-xs">
+                          <SelectItem key={c.id} value={String(c.id)} textValue={c.classCode} className="text-xs">
                             <span className="font-semibold">{c.classCode}</span>
                           </SelectItem>
                         ))}
@@ -814,7 +814,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                         {problemNumbers.length === 0
                           ? [<SelectItem key="__none" value="__none" disabled className="text-xs text-muted-foreground">Nenhum</SelectItem>]
                           : problemNumbers.map(p => (
-                          <SelectItem key={p} value={String(p)} className="text-xs font-semibold">
+                          <SelectItem key={p} value={String(p)} textValue={`P${p}`} className="text-xs font-semibold">
                             P{p}
                           </SelectItem>
                         ))}
@@ -840,7 +840,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                         {sessionsForProblem.length === 0
                           ? [<SelectItem key="__none" value="__none" disabled className="text-xs text-muted-foreground">Nenhuma</SelectItem>]
                           : sessionsForProblem.map((s: any) => (
-                          <SelectItem key={s.id} value={String(s.id)} className="text-xs font-semibold">
+                          <SelectItem key={s.id} value={String(s.id)} textValue={`S${s.sessionNumber}`} className="text-xs font-semibold">
                             S{s.sessionNumber}
                           </SelectItem>
                         ))}
