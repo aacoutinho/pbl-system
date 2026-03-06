@@ -209,9 +209,15 @@ function TutorialEvalContent() {
   const [selectedSessionId, setSelectedSessionId] = useState<string>("");
 
   // Selecionar automaticamente a última sessão ao carregar ou trocar de turma
+  // Ordena por problemNumber (desc) e sessionNumber (desc) para pegar a mais recente
   useEffect(() => {
     if (effectiveSessions && effectiveSessions.length > 0) {
-      const lastSession = effectiveSessions[effectiveSessions.length - 1];
+      const sorted = [...effectiveSessions].sort((a, b) => {
+        const pDiff = (b.problemNumber ?? 0) - (a.problemNumber ?? 0);
+        if (pDiff !== 0) return pDiff;
+        return (b.sessionNumber ?? 0) - (a.sessionNumber ?? 0);
+      });
+      const lastSession = sorted[0];
       setSelectedSessionId(String(lastSession.id));
     } else {
       setSelectedSessionId("");
