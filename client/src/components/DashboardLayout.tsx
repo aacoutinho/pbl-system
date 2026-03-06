@@ -717,14 +717,14 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
 
           {/* Global Filters */}
           {!isCollapsed && (
-            <div className="px-2 pb-2">
-              <div className="border rounded-lg overflow-hidden">
+            <div className="px-2 pb-1.5">
+              <div className="border rounded-md overflow-hidden">
 
                 {/* Linha 1: Componente + Semestre */}
                 <div className="grid grid-cols-2 divide-x border-b">
                   {/* Componente */}
-                  <div className="px-1.5 py-1">
-                    <p className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Componente</p>
+                  <div className="px-1 py-0.5">
+                    <p className="text-[7px] font-semibold text-muted-foreground uppercase tracking-wider leading-none mb-0">Componente</p>
                     <Select
                       value={selectedComponentId ? String(selectedComponentId) : ""}
                       onValueChange={(v) => {
@@ -734,7 +734,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                         if (found) setSelectedComponentMeta(found.code, found.name ?? null);
                       }}
                     >
-                      <SelectTrigger className="h-5 w-full text-[10px] font-semibold px-1 justify-start gap-0.5 border-0 shadow-none focus:ring-0 bg-transparent">
+                      <SelectTrigger className="h-4 w-full text-[9px] font-semibold px-0.5 justify-start gap-0 border-0 shadow-none focus:ring-0 bg-transparent">
                         <SelectValue placeholder="—" />
                       </SelectTrigger>
                       <SelectContent>
@@ -750,13 +750,13 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                   </div>
 
                   {/* Semestre */}
-                  <div className="px-1.5 py-1">
-                    <p className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Semestre</p>
+                  <div className="px-1 py-0.5">
+                    <p className="text-[7px] font-semibold text-muted-foreground uppercase tracking-wider leading-none mb-0">Semestre</p>
                     <Select
                       value={selectedSemester ?? ""}
                       onValueChange={(v) => setSelectedSemester(v)}
                     >
-                      <SelectTrigger className="h-5 w-full text-[10px] font-semibold px-1 justify-start gap-0.5 border-0 shadow-none focus:ring-0 bg-transparent">
+                      <SelectTrigger className="h-4 w-full text-[9px] font-semibold px-0.5 justify-start gap-0 border-0 shadow-none focus:ring-0 bg-transparent">
                         <SelectValue placeholder="—" />
                       </SelectTrigger>
                       <SelectContent>
@@ -775,8 +775,8 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                 {/* Linha 2: Turma + Problema + Sessão */}
                 <div className="grid grid-cols-3 divide-x">
                   {/* Turma */}
-                  <div className="px-1.5 py-1">
-                    <p className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Turma</p>
+                  <div className="px-1 py-0.5">
+                    <p className="text-[7px] font-semibold text-muted-foreground uppercase tracking-wider leading-none mb-0">Turma</p>
                     <Select
                       value={selectedClassId ? String(selectedClassId) : ""}
                       onValueChange={(v) => {
@@ -785,7 +785,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                         setSelectedClass(id, found?.classCode ?? null);
                       }}
                     >
-                      <SelectTrigger className="h-5 w-full text-[10px] font-semibold px-1 justify-start gap-0.5 border-0 shadow-none focus:ring-0 bg-transparent">
+                      <SelectTrigger className="h-4 w-full text-[9px] font-semibold px-0.5 justify-start gap-0 border-0 shadow-none focus:ring-0 bg-transparent">
                         <SelectValue placeholder="—" />
                       </SelectTrigger>
                       <SelectContent>
@@ -801,13 +801,13 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                   </div>
 
                   {/* Problema */}
-                  <div className="px-1.5 py-1">
-                    <p className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Problema</p>
+                  <div className="px-1 py-0.5">
+                    <p className="text-[7px] font-semibold text-muted-foreground uppercase tracking-wider leading-none mb-0">Problema</p>
                     <Select
                       value={selectedProblemNumber !== null ? String(selectedProblemNumber) : ""}
                       onValueChange={(v) => setSelectedProblem(parseInt(v))}
                     >
-                      <SelectTrigger className="h-5 w-full text-[10px] font-semibold px-1 justify-start gap-0.5 border-0 shadow-none focus:ring-0 bg-transparent">
+                      <SelectTrigger className="h-4 w-full text-[9px] font-semibold px-0.5 justify-start gap-0 border-0 shadow-none focus:ring-0 bg-transparent">
                         <SelectValue placeholder="—" />
                       </SelectTrigger>
                       <SelectContent>
@@ -823,8 +823,8 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                   </div>
 
                   {/* Sessão */}
-                  <div className="px-1.5 py-1">
-                    <p className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Sessão</p>
+                  <div className="px-1 py-0.5">
+                    <p className="text-[7px] font-semibold text-muted-foreground uppercase tracking-wider leading-none mb-0">Sessão</p>
                     <Select
                       value={selectedSessionId !== null ? String(selectedSessionId) : ""}
                       onValueChange={(v) => {
@@ -833,7 +833,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                         setSelectedSession(id, found?.sessionNumber ?? null);
                       }}
                     >
-                      <SelectTrigger className="h-5 w-full text-[10px] font-semibold px-1 justify-start gap-0.5 border-0 shadow-none focus:ring-0 bg-transparent">
+                      <SelectTrigger className="h-4 w-full text-[9px] font-semibold px-0.5 justify-start gap-0 border-0 shadow-none focus:ring-0 bg-transparent">
                         <SelectValue placeholder="—" />
                       </SelectTrigger>
                       <SelectContent>
