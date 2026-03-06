@@ -723,7 +723,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                 {/* Linha 1: Componente + Semestre */}
                 <div className="grid grid-cols-2 divide-x divide-sidebar-accent border-b border-sidebar-accent">
                   {/* Componente */}
-                  <div className="px-1 py-0.5">
+                  <div className="px-1 pt-2 pb-0.5">
                     <p className="text-[7px] font-semibold text-muted-foreground uppercase tracking-wider leading-none mb-0">Componente</p>
                     <Select
                       value={selectedComponentId ? String(selectedComponentId) : ""}
@@ -750,7 +750,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                   </div>
 
                   {/* Semestre */}
-                  <div className="px-1 py-0.5">
+                  <div className="px-1 pt-2 pb-0.5">
                     <p className="text-[7px] font-semibold text-muted-foreground uppercase tracking-wider leading-none mb-0">Semestre</p>
                     <Select
                       value={selectedSemester ?? ""}
