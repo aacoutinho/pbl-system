@@ -675,3 +675,8 @@
 ## Correção Seletor PROBLEMA (Mar 2026)
 
 - [x] Seletor PROBLEMA: corrigido com textValue em todos os SelectItems (P1, P2, S1, S2...)
+
+## Correção Definitiva Seletor PROBLEMA (Mar 2026)
+
+- [x] Seletor PROBLEMA: substituir SelectValue por texto direto da variável de estado em todos os 5 seletores
+- [x] Corrigir aviso de key prop: removidos textValue e spans aninhados que causavam o problema

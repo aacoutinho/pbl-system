@@ -735,13 +735,17 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                       }}
                     >
                       <SelectTrigger className="h-5 w-full text-[12px] font-semibold px-0.5 justify-start border-0 shadow-none focus:ring-0 bg-transparent [&>svg]:hidden overflow-hidden">
-                        <SelectValue placeholder="—" />
+                        <span className="truncate">
+                          {selectedComponentId
+                            ? (componentOptions.find(c => c.id === selectedComponentId)?.label ?? "—")
+                            : "—"}
+                        </span>
                       </SelectTrigger>
                       <SelectContent>
                         {(!componentsList || componentsList.length === 0)
                           ? [<SelectItem key="__none" value="__none" disabled className="text-xs text-muted-foreground">Nenhum</SelectItem>]
                           : componentOptions.map(c => (
-                          <SelectItem key={c.id} value={String(c.id)} textValue={c.label} className="text-xs">
+                          <SelectItem key={c.id} value={String(c.id)} className="text-xs">
                             <span className="font-semibold">{c.label}</span>
                           </SelectItem>
                         ))}
@@ -757,13 +761,15 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                       onValueChange={(v) => setSelectedSemester(v)}
                     >
                       <SelectTrigger className="h-5 w-full text-[12px] font-semibold px-0.5 justify-start border-0 shadow-none focus:ring-0 bg-transparent [&>svg]:hidden overflow-hidden">
-                        <SelectValue placeholder="—" />
+                        <span className="truncate">
+                          {selectedSemester ?? "—"}
+                        </span>
                       </SelectTrigger>
                       <SelectContent>
                         {(!semestersList || semestersList.length === 0)
                           ? [<SelectItem key="__none" value="__none" disabled className="text-xs text-muted-foreground">Nenhum</SelectItem>]
                           : semestersList.map(s => (
-                          <SelectItem key={s} value={s} textValue={s} className="text-xs">
+                          <SelectItem key={s} value={s} className="text-xs">
                             <span className="font-semibold">{s}</span>
                           </SelectItem>
                         ))}
@@ -786,13 +792,17 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                       }}
                     >
                       <SelectTrigger className="h-5 w-full text-[12px] font-semibold px-0.5 justify-start border-0 shadow-none focus:ring-0 bg-transparent [&>svg]:hidden overflow-hidden">
-                        <SelectValue placeholder="—" />
+                        <span className="truncate">
+                          {selectedClassId
+                            ? ((classesList ?? []).find((c: any) => c.id === selectedClassId)?.classCode ?? "—")
+                            : "—"}
+                        </span>
                       </SelectTrigger>
                       <SelectContent>
                         {(!classesList || classesList.length === 0)
                           ? [<SelectItem key="__none" value="__none" disabled className="text-xs text-muted-foreground">Nenhuma</SelectItem>]
                           : (classesList ?? []).map((c: any) => (
-                          <SelectItem key={c.id} value={String(c.id)} textValue={c.classCode} className="text-xs">
+                          <SelectItem key={c.id} value={String(c.id)} className="text-xs">
                             <span className="font-semibold">{c.classCode}</span>
                           </SelectItem>
                         ))}
@@ -808,13 +818,15 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                       onValueChange={(v) => setSelectedProblem(parseInt(v))}
                     >
                       <SelectTrigger className="h-5 w-full text-[12px] font-semibold px-0.5 justify-start border-0 shadow-none focus:ring-0 bg-transparent [&>svg]:hidden overflow-hidden">
-                        <SelectValue placeholder="—" />
+                        <span className="truncate">
+                          {selectedProblemNumber !== null ? `P${selectedProblemNumber}` : "—"}
+                        </span>
                       </SelectTrigger>
                       <SelectContent>
                         {problemNumbers.length === 0
                           ? [<SelectItem key="__none" value="__none" disabled className="text-xs text-muted-foreground">Nenhum</SelectItem>]
                           : problemNumbers.map(p => (
-                          <SelectItem key={p} value={String(p)} textValue={`P${p}`} className="text-xs font-semibold">
+                          <SelectItem key={p} value={String(p)} className="text-xs font-semibold">
                             P{p}
                           </SelectItem>
                         ))}
@@ -834,13 +846,15 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                       }}
                     >
                       <SelectTrigger className="h-5 w-full text-[12px] font-semibold px-0.5 justify-start border-0 shadow-none focus:ring-0 bg-transparent [&>svg]:hidden overflow-hidden">
-                        <SelectValue placeholder="—" />
+                        <span className="truncate">
+                          {selectedSessionNumber !== null ? `S${selectedSessionNumber}` : "—"}
+                        </span>
                       </SelectTrigger>
                       <SelectContent>
                         {sessionsForProblem.length === 0
                           ? [<SelectItem key="__none" value="__none" disabled className="text-xs text-muted-foreground">Nenhuma</SelectItem>]
                           : sessionsForProblem.map((s: any) => (
-                          <SelectItem key={s.id} value={String(s.id)} textValue={`S${s.sessionNumber}`} className="text-xs font-semibold">
+                          <SelectItem key={s.id} value={String(s.id)} className="text-xs font-semibold">
                             S{s.sessionNumber}
                           </SelectItem>
                         ))}
