@@ -691,6 +691,7 @@ export const appRouter = router({
     importCSV: approvedProcedure.input(z.object({
       classId: z.number(),
       csvContent: z.string(),
+      skipEnrollments: z.array(z.string()).optional(), // matrículas a ignorar (já existentes)
     })).mutation(async ({ ctx, input }) => {
       const cls = await getClassById(input.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
@@ -727,8 +728,13 @@ export const appRouter = router({
         throw new TRPCError({ code: "BAD_REQUEST", message: "Nenhum aluno encontrado no CSV. Verifique se o formato é compatível com a Folha de Frequência do SAGRES." });
       }
 
+      // Filter out enrollments explicitly skipped by the user
+      const studentsToImport = input.skipEnrollments && input.skipEnrollments.length > 0
+        ? parsedStudents.filter(s => !input.skipEnrollments!.includes(s.enrollment))
+        : parsedStudents;
+
       const results = await bulkImportStudents(
-        parsedStudents.map(s => ({ ...s, classId: input.classId }))
+        studentsToImport.map(s => ({ ...s, classId: input.classId }))
       );
 
       const created = results.filter(r => r.status === "created").length;
@@ -737,12 +743,16 @@ export const appRouter = router({
       const conflicts = results.filter(r => r.status === "conflict");
       const nameMismatches = results.filter(r => r.status === "name_mismatch");
 
+      const alreadyInClassDetails = results.filter(r => r.status === "already_in_class");
+
       return {
         success: true,
-        count: parsedStudents.length,
+        count: studentsToImport.length,
+        totalInCsv: parsedStudents.length,
         created,
         linked,
         alreadyInClass,
+        alreadyInClassDetails: alreadyInClassDetails.map(c => ({ name: c.name, enrollment: c.enrollment, currentClassCode: c.currentClassCode ?? null })),
         conflicts: conflicts.map(c => ({ name: c.name, enrollment: c.enrollment })),
         nameMismatches: nameMismatches.map(c => ({
           csvName: c.name,

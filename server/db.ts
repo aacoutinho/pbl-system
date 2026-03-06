@@ -779,7 +779,7 @@ export async function bulkImportStudents(data: { name: string; enrollment: strin
   const cls = await getClassById(data[0].classId);
   if (!cls) throw new Error("Class not found");
   
-  const results: { name: string; enrollment: string; status: "created" | "linked" | "already_in_class" | "conflict" | "name_mismatch"; existingName?: string; existingEmail?: string | null }[] = [];
+  const results: { name: string; enrollment: string; status: "created" | "linked" | "already_in_class" | "conflict" | "name_mismatch"; existingName?: string; existingEmail?: string | null; currentClassCode?: string | null }[] = [];
   
   for (const s of data) {
     const existing = await getStudentByEnrollment(s.enrollment);
@@ -790,7 +790,13 @@ export async function bulkImportStudents(data: { name: string; enrollment: strin
         .limit(1);
       
       if (link.length > 0) {
-        results.push({ name: s.name, enrollment: s.enrollment, status: "already_in_class" });
+        // Find which class the student is already in (same class = this one)
+        const currentClassRow = await db.select({ classCode: classes.classCode })
+          .from(classes)
+          .where(eq(classes.id, s.classId))
+          .limit(1);
+        const currentClassCode = currentClassRow[0]?.classCode ?? null;
+        results.push({ name: s.name, enrollment: s.enrollment, status: "already_in_class", currentClassCode });
         continue;
       }
       

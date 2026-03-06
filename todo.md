@@ -652,3 +652,8 @@
 ## Seletores em Retângulo Unificado (Mar 2026)
 
 - [x] DashboardLayout: seletores em retângulo único com borda; linha 1 (COMPONENTE+SEMESTRE), linha 2 (TURMA+PROBLEMA+SESSÃO), colunas justificadas
+
+## Importação CSV com Duplicatas (Mar 2026)
+
+- [x] Importação CSV: detectar matrículas duplicadas e oferecer opção de importar apenas alunos novos
+- [x] Importação CSV: informar turma em que o aluno duplicado já está matriculado

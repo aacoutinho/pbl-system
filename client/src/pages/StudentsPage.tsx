@@ -87,19 +87,26 @@ function StudentsContent() {
   const importCSVMutation = trpc.students.importCSV.useMutation({
     onSuccess: (data) => {
       utils.students.list.invalidate();
-      let msg = `${data.count} alunos processados: ${data.created} novos, ${data.linked} vinculados`;
-      if (data.alreadyInClass > 0) msg += `, ${data.alreadyInClass} já na turma`;
+      let msg = `${data.created + data.linked} alunos importados: ${data.created} novos, ${data.linked} vinculados`;
+      // Show already-in-class details if any
+      if ((data as any).alreadyInClassDetails && (data as any).alreadyInClassDetails.length > 0) {
+        setAlreadyInClassDetails((data as any).alreadyInClassDetails);
+      }
       if (data.conflicts.length > 0) {
         setImportConflicts(data.conflicts);
       }
       if (data.nameMismatches && data.nameMismatches.length > 0) {
         setImportNameMismatches(data.nameMismatches);
         toast.warning(`${data.nameMismatches.length} aluno(s) com divergência de nome. Resolva os conflitos abaixo.`);
-      } else if (data.conflicts.length === 0) {
+      } else if (data.conflicts.length === 0 && (data as any).alreadyInClassDetails?.length === 0) {
         toast.success(msg);
         setShowCSVImport(false);
         setCsvPreview(null);
         setCsvContent("");
+        setPendingCsvContent("");
+      } else if (data.conflicts.length === 0 && (data as any).alreadyInClassDetails?.length > 0) {
+        // Only duplicates — show info but also success for newly imported
+        if (data.created + data.linked > 0) toast.success(msg);
       } else {
         toast.warning(`${data.conflicts.length} aluno(s) não importado(s): já cadastrado(s) em outra turma deste componente.`);
       }
@@ -127,6 +134,8 @@ function StudentsContent() {
   const [enrollmentConflict, setEnrollmentConflict] = useState<{ existingName: string; existingEmail: string | null; inputName: string; inputEmail: string | null } | null>(null);
   const [importNameMismatches, setImportNameMismatches] = useState<{ csvName: string; enrollment: string; existingName: string; existingEmail: string | null }[]>([]);
   const [importConflicts, setImportConflicts] = useState<{ name: string; enrollment: string }[]>([]);
+  const [alreadyInClassDetails, setAlreadyInClassDetails] = useState<{ name: string; enrollment: string; currentClassCode?: string | null }[]>([]);
+  const [pendingCsvContent, setPendingCsvContent] = useState<string>(""); // saved for "import only new"
   const [showCSVImport, setShowCSVImport] = useState(false);
   const [csvContent, setCsvContent] = useState("");
   const [csvPreview, setCsvPreview] = useState<{ name: string; enrollment: string }[] | null>(null);
@@ -291,9 +300,12 @@ function StudentsContent() {
     reader.readAsText(file, "ISO-8859-1");
   };
 
-  const handleCSVImport = () => {
-    if (!csvContent) { toast.error("Selecione um arquivo CSV"); return; }
-    importCSVMutation.mutate({ classId: selectedClassId!, csvContent });
+  const handleCSVImport = (skipEnrollments?: string[]) => {
+    if (!csvContent && !pendingCsvContent) { toast.error("Selecione um arquivo CSV"); return; }
+    const content = skipEnrollments ? pendingCsvContent : csvContent;
+    if (!content) { toast.error("Selecione um arquivo CSV"); return; }
+    if (!skipEnrollments) setPendingCsvContent(csvContent); // save for potential "import only new"
+    importCSVMutation.mutate({ classId: selectedClassId!, csvContent: content, skipEnrollments });
   };
 
   return (
@@ -307,7 +319,7 @@ function StudentsContent() {
           {/* CSV Import from SAGRES */}
           <Dialog open={showCSVImport} onOpenChange={(open) => {
             setShowCSVImport(open);
-            if (!open) { setCsvPreview(null); setCsvContent(""); }
+            if (!open) { setCsvPreview(null); setCsvContent(""); setPendingCsvContent(""); setAlreadyInClassDetails([]); setImportConflicts([]); setImportNameMismatches([]); }
           }}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm">
@@ -379,7 +391,69 @@ function StudentsContent() {
                     </div>
                   </div>
                 )}
-                {/* Name mismatch conflicts from import */}
+                {/* Already in this class — duplicates with class info and option to import only new */}
+                {alreadyInClassDetails.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-2 p-3 rounded-lg border border-amber-300 bg-amber-50">
+                      <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-amber-800">
+                          {alreadyInClassDetails.length} aluno(s) já matriculado(s) nesta turma
+                        </p>
+                        <p className="text-xs text-amber-700 mt-1">
+                          As matrículas abaixo já constam nesta turma e foram ignoradas na importação.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="border rounded-lg overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/50">
+                          <tr>
+                            <th className="px-3 py-2 text-left font-medium">Matrícula</th>
+                            <th className="px-3 py-2 text-left font-medium">Nome</th>
+                            <th className="px-3 py-2 text-left font-medium">Turma</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {alreadyInClassDetails.map((c, i) => (
+                            <tr key={i} className="border-t">
+                              <td className="px-3 py-2 font-mono text-xs">{c.enrollment}</td>
+                              <td className="px-3 py-2">{c.name}</td>
+                              <td className="px-3 py-2">
+                                {c.currentClassCode
+                                  ? <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">{c.currentClassCode}</span>
+                                  : <span className="text-muted-foreground text-xs">—</span>
+                                }
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          const skipEnrollments = alreadyInClassDetails.map(c => c.enrollment);
+                          setAlreadyInClassDetails([]);
+                          handleCSVImport(skipEnrollments);
+                        }}
+                        disabled={importCSVMutation.isPending}
+                      >
+                        Importar apenas novos
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => { setAlreadyInClassDetails([]); setShowCSVImport(false); setCsvPreview(null); setCsvContent(""); setPendingCsvContent(""); }}
+                      >
+                        Fechar
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                {/* Already in another class of same component (conflict) */}
                 {importConflicts.length > 0 && (
                   <div className="space-y-3">
                     <div className="flex items-start gap-2 p-3 rounded-lg border border-red-300 bg-red-50">
@@ -467,7 +541,7 @@ function StudentsContent() {
               </div>
               <DialogFooter>
                 <Button
-                  onClick={handleCSVImport}
+                  onClick={() => handleCSVImport()}
                   disabled={importCSVMutation.isPending || !csvPreview || csvPreview.length === 0 || importNameMismatches.length > 0}
                 >
                   {importCSVMutation.isPending ? "Importando..." : `Importar ${csvPreview?.length ?? 0} Alunos`}
