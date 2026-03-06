@@ -44,17 +44,17 @@ export function PageHeader({
     <div className="flex flex-col gap-1 mb-6">
       <h1 className="text-2xl font-bold tracking-tight leading-tight">{title}</h1>
       {componentLabel && (
-        <p className="text-sm font-semibold text-primary leading-tight">{componentLabel}</p>
+        <p className="text-base font-semibold text-primary leading-tight">{componentLabel}</p>
       )}
       {(hasSemester || hasClass) && (
         <div className="flex items-center gap-2 flex-wrap mt-0.5">
           {hasSemester && (
-            <span className="inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 tracking-wide">
+            <span className="inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-sm font-semibold text-blue-700 tracking-wide">
               SEMESTRE: {semester}
             </span>
           )}
           {hasClass && (
-            <span className="inline-flex items-center rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 tracking-wide">
+            <span className="inline-flex items-center rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-sm font-semibold text-emerald-700 tracking-wide">
               TURMA: {classCode}
             </span>
           )}
