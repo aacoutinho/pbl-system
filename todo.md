@@ -665,5 +665,5 @@
 
 ## Seletores de Problema e Sessão no Menu (Mar 2026)
 
-- [x] Seletor PROBLEMA: exibir P1, P2, P3 etc. (não apenas "P")
+- [x] Seletor PROBLEMA: exibir P1, P2, P3 etc. (não apenas "P") - removido chevron que cortava o texto
 - [x] Seletores PROBLEMA e SESSÃO: atualizar imediatamente após criação (refetch a cada 15s)

@@ -734,11 +734,11 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                         if (found) setSelectedComponentMeta(found.code, found.name ?? null);
                       }}
                     >
-                      <SelectTrigger className="h-5 w-full text-[12px] font-semibold px-0.5 justify-start gap-0 border-0 shadow-none focus:ring-0 bg-transparent">
+                      <SelectTrigger className="h-5 w-full text-[12px] font-semibold px-0.5 justify-start border-0 shadow-none focus:ring-0 bg-transparent [&>svg]:hidden overflow-hidden">
                         <SelectValue placeholder="—" />
                       </SelectTrigger>
                       <SelectContent>
-                        {componentOptions.length === 0 ? (
+                        {(!componentsList || componentsList.length === 0) ? (
                           <SelectItem value="__none" disabled className="text-xs text-muted-foreground">Nenhum</SelectItem>
                         ) : componentOptions.map(c => (
                           <SelectItem key={c.id} value={String(c.id)} className="text-xs">
@@ -756,7 +756,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                       value={selectedSemester ?? ""}
                       onValueChange={(v) => setSelectedSemester(v)}
                     >
-                      <SelectTrigger className="h-5 w-full text-[12px] font-semibold px-0.5 justify-start gap-0 border-0 shadow-none focus:ring-0 bg-transparent">
+                      <SelectTrigger className="h-5 w-full text-[12px] font-semibold px-0.5 justify-start border-0 shadow-none focus:ring-0 bg-transparent [&>svg]:hidden overflow-hidden">
                         <SelectValue placeholder="—" />
                       </SelectTrigger>
                       <SelectContent>
@@ -785,7 +785,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                         setSelectedClass(id, found?.classCode ?? null);
                       }}
                     >
-                      <SelectTrigger className="h-5 w-full text-[12px] font-semibold px-0.5 justify-start gap-0 border-0 shadow-none focus:ring-0 bg-transparent">
+                      <SelectTrigger className="h-5 w-full text-[12px] font-semibold px-0.5 justify-start border-0 shadow-none focus:ring-0 bg-transparent [&>svg]:hidden overflow-hidden">
                         <SelectValue placeholder="—" />
                       </SelectTrigger>
                       <SelectContent>
@@ -807,7 +807,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                       value={selectedProblemNumber !== null ? String(selectedProblemNumber) : ""}
                       onValueChange={(v) => setSelectedProblem(parseInt(v))}
                     >
-                      <SelectTrigger className="h-5 w-full text-[12px] font-semibold px-0.5 justify-start gap-0 border-0 shadow-none focus:ring-0 bg-transparent">
+                      <SelectTrigger className="h-5 w-full text-[12px] font-semibold px-0.5 justify-start border-0 shadow-none focus:ring-0 bg-transparent [&>svg]:hidden overflow-hidden">
                         <SelectValue placeholder="—" />
                       </SelectTrigger>
                       <SelectContent>
@@ -833,7 +833,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                         setSelectedSession(id, found?.sessionNumber ?? null);
                       }}
                     >
-                      <SelectTrigger className="h-5 w-full text-[12px] font-semibold px-0.5 justify-start gap-0 border-0 shadow-none focus:ring-0 bg-transparent">
+                      <SelectTrigger className="h-5 w-full text-[12px] font-semibold px-0.5 justify-start border-0 shadow-none focus:ring-0 bg-transparent [&>svg]:hidden overflow-hidden">
                         <SelectValue placeholder="—" />
                       </SelectTrigger>
                       <SelectContent>
