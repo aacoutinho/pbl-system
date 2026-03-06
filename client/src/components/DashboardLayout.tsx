@@ -853,7 +853,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
             </div>
           )}
 
-          {!isCollapsed && <Separator className="mb-1" />}
+          {!isCollapsed && <div className="mb-1" />}
 
           <SidebarContent className="gap-0">
             <SidebarMenu className="px-2 py-1">
