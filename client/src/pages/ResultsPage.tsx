@@ -33,12 +33,12 @@ function ResultsContent() {
     selectedProblemNumber, selectedSessionId: globalSessionId,
   } = useComponentContext();
 
-  // Sessions for selected class (only finished sessions for results)
+  // Sessions for selected class (all sessions — initiated, open, closed, finished)
   const { data: allSessionsForClass, isLoading: sessionsLoading } = trpc.results.sessionsForClass.useQuery(
     { classId: selectedClassId! },
     { enabled: !!selectedClassId }
   );
-  const activeSessions = allSessionsForClass?.filter(s => s.status === "finished") ?? [];
+  const activeSessions = allSessionsForClass ?? [];
   const activeSessionsLoading = sessionsLoading;
 
   // Use global session/problem from context; local state only for UI overrides within this page

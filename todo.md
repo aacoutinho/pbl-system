@@ -657,3 +657,8 @@
 
 - [x] Importação CSV: detectar matrículas duplicadas e oferecer opção de importar apenas alunos novos
 - [x] Importação CSV: informar turma em que o aluno duplicado já está matriculado
+
+## Listar Todas as Sessões em Resultados e Avaliar Tutorial (Mar 2026)
+
+- [x] ResultsPage: listar todas as sessões criadas (não filtrar por status)
+- [x] TutorialEvalPage: listar todas as sessões criadas (não filtrar por status)

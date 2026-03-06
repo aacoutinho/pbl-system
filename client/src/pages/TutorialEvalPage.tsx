@@ -202,9 +202,8 @@ function TutorialEvalContent() {
     { enabled: !!selectedClassId }
   );
 
-  const effectiveSessions = sessionsWithPerms?.filter(s =>
-    ["initiated", "open", "closed"].includes(s.status)
-  );
+  // Show all sessions regardless of status
+  const effectiveSessions = sessionsWithPerms;
   const isLoadingSessions = sessionsLoading;
 
   const [selectedSessionId, setSelectedSessionId] = useState<string>("");
