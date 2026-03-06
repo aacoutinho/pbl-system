@@ -640,3 +640,7 @@
 - [x] StudentsPage/SessionsPage/TutorialEvalPage/ResultsPage: cabeçalho sem semestre/turma no canto; ambos abaixo do componente em preto
 - [x] ProfessorsPage: remover filtro local de componente; usar componente global; mostrar admin + professores do componente selecionado
 - [x] ProfessorsPage: botão "Enviar Convite" por e-mail para o componente selecionado
+
+## Badges de Semestre e Turma no Cabeçalho (Mar 2026)
+
+- [x] PageHeader: SEMESTRE e TURMA como retângulos coloridos (badges), ordem: semestre primeiro, depois turma

@@ -1,23 +1,13 @@
 /**
  * PageHeader — cabeçalho padronizado para todas as páginas do sistema.
  *
- * Layout por página:
- *
- *  Painel Geral / Turmas (showClass=false):
- *   ┌──────────────────────────────────────────────────────┐
- *   │  [título da página]                                  │
- *   │  TEC502 - Concorrência...  (azul)                    │
- *   │  SEMESTRE: 2026.1          (preto, mesmo tamanho)    │
- *   │  [slot de ação (botões)]                             │
- *   └──────────────────────────────────────────────────────┘
- *
- *  Alunos / Sessões / Avaliar Tutorial / Resultados (showClass=true):
- *   ┌──────────────────────────────────────────────────────┐
- *   │  [título da página]                                  │
- *   │  TEC502 - Concorrência...  (azul)                    │
- *   │  TURMA: TP01 - SEMESTRE: 2026.1  (preto)             │
- *   │  [slot de ação (botões)]                             │
- *   └──────────────────────────────────────────────────────┘
+ * Layout:
+ *   ┌──────────────────────────────────────────────────────────────────┐
+ *   │  [título da página]                                              │
+ *   │  TEC502 - Concorrência...  (azul)                                │
+ *   │  [SEMESTRE: 2026.1] [TURMA: TP01]  ← badges coloridos           │
+ *   │  [slot de ação (botões)]                                         │
+ *   └──────────────────────────────────────────────────────────────────┘
  *
  * Props:
  *   title          — nome da página (ex: "Painel Geral")
@@ -47,27 +37,28 @@ export function PageHeader({
   showClass = true,
   actions,
 }: PageHeaderProps) {
-  // Linha de contexto abaixo do componente (semestre e/ou turma)
   const hasClass = showClass && classCode;
   const hasSemester = !!semester;
 
-  let contextLine: string | null = null;
-  if (hasClass && hasSemester) {
-    contextLine = `TURMA: ${classCode} - SEMESTRE: ${semester}`;
-  } else if (hasClass) {
-    contextLine = `TURMA: ${classCode}`;
-  } else if (hasSemester) {
-    contextLine = `SEMESTRE: ${semester}`;
-  }
-
   return (
-    <div className="flex flex-col gap-0.5 mb-6">
+    <div className="flex flex-col gap-1 mb-6">
       <h1 className="text-2xl font-bold tracking-tight leading-tight">{title}</h1>
       {componentLabel && (
         <p className="text-sm font-semibold text-primary leading-tight">{componentLabel}</p>
       )}
-      {contextLine && (
-        <p className="text-sm font-semibold text-foreground leading-tight">{contextLine}</p>
+      {(hasSemester || hasClass) && (
+        <div className="flex items-center gap-2 flex-wrap mt-0.5">
+          {hasSemester && (
+            <span className="inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 tracking-wide">
+              SEMESTRE: {semester}
+            </span>
+          )}
+          {hasClass && (
+            <span className="inline-flex items-center rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 tracking-wide">
+              TURMA: {classCode}
+            </span>
+          )}
+        </div>
       )}
       {actions && <div className="mt-3">{actions}</div>}
     </div>
