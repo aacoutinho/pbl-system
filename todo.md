@@ -648,3 +648,7 @@
 ## Ajuste do Botão de Convite (Mar 2026)
 
 - [x] ProfessorsPage: mover botão de convite para entre o card do Admin e o card de Professores; texto "Enviar Convite para Professor"
+
+## Seletores em Retângulo Unificado (Mar 2026)
+
+- [x] DashboardLayout: seletores em retângulo único com borda; linha 1 (COMPONENTE+SEMESTRE), linha 2 (TURMA+PROBLEMA+SESSÃO), colunas justificadas
