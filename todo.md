@@ -680,3 +680,7 @@
 
 - [x] Seletor PROBLEMA: substituir SelectValue por texto direto da variável de estado em todos os 5 seletores
 - [x] Corrigir aviso de key prop: removidos textValue e spans aninhados que causavam o problema
+
+## Correção "Pundefined" no Seletor (Mar 2026)
+
+- [x] Seletor PROBLEMA: exibia "Pundefined" - corrigido filtrando undefined/null/NaN ao construir problemNumbers

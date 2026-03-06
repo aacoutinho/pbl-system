@@ -593,7 +593,11 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
   // Derive unique problem numbers from sessions
   const problemNumbers = useMemo(() => {
     if (!sessionsList) return [];
-    const pSet = new Set(sessionsList.map((s: any) => s.problemNumber as number));
+    const pSet = new Set(
+      sessionsList
+        .map((s: any) => s.problemNumber as number | undefined)
+        .filter((n): n is number => n !== undefined && n !== null && !isNaN(n))
+    );
     return Array.from(pSet).sort((a, b) => a - b);
   }, [sessionsList]);
 
