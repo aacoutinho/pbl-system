@@ -724,7 +724,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                 <div className="grid grid-cols-2 divide-x border-b">
                   {/* Componente */}
                   <div className="px-2 py-1.5">
-                    <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Componente</p>
+                    <p className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Componente</p>
                     <Select
                       value={selectedComponentId ? String(selectedComponentId) : ""}
                       onValueChange={(v) => {
@@ -734,7 +734,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                         if (found) setSelectedComponentMeta(found.code, found.name ?? null);
                       }}
                     >
-                      <SelectTrigger className="h-7 w-full text-[11px] font-semibold px-2 justify-start gap-1 border-0 shadow-none focus:ring-0 bg-transparent">
+                      <SelectTrigger className="h-6 w-full text-[10px] font-semibold px-1.5 justify-start gap-1 border-0 shadow-none focus:ring-0 bg-transparent">
                         <SelectValue placeholder="—" />
                       </SelectTrigger>
                       <SelectContent>
@@ -751,12 +751,12 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
 
                   {/* Semestre */}
                   <div className="px-2 py-1.5">
-                    <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Semestre</p>
+                    <p className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Semestre</p>
                     <Select
                       value={selectedSemester ?? ""}
                       onValueChange={(v) => setSelectedSemester(v)}
                     >
-                      <SelectTrigger className="h-7 w-full text-[11px] font-semibold px-2 justify-start gap-1 border-0 shadow-none focus:ring-0 bg-transparent">
+                      <SelectTrigger className="h-6 w-full text-[10px] font-semibold px-1.5 justify-start gap-1 border-0 shadow-none focus:ring-0 bg-transparent">
                         <SelectValue placeholder="—" />
                       </SelectTrigger>
                       <SelectContent>
@@ -776,7 +776,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                 <div className="grid grid-cols-3 divide-x">
                   {/* Turma */}
                   <div className="px-2 py-1.5">
-                    <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Turma</p>
+                    <p className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Turma</p>
                     <Select
                       value={selectedClassId ? String(selectedClassId) : ""}
                       onValueChange={(v) => {
@@ -785,7 +785,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                         setSelectedClass(id, found?.classCode ?? null);
                       }}
                     >
-                      <SelectTrigger className="h-7 w-full text-[11px] font-semibold px-2 justify-start gap-1 border-0 shadow-none focus:ring-0 bg-transparent">
+                      <SelectTrigger className="h-6 w-full text-[10px] font-semibold px-1.5 justify-start gap-1 border-0 shadow-none focus:ring-0 bg-transparent">
                         <SelectValue placeholder="—" />
                       </SelectTrigger>
                       <SelectContent>
@@ -802,12 +802,12 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
 
                   {/* Problema */}
                   <div className="px-2 py-1.5">
-                    <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Problema</p>
+                    <p className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Problema</p>
                     <Select
                       value={selectedProblemNumber !== null ? String(selectedProblemNumber) : ""}
                       onValueChange={(v) => setSelectedProblem(parseInt(v))}
                     >
-                      <SelectTrigger className="h-7 w-full text-[11px] font-semibold px-2 justify-start gap-1 border-0 shadow-none focus:ring-0 bg-transparent">
+                      <SelectTrigger className="h-6 w-full text-[10px] font-semibold px-1.5 justify-start gap-1 border-0 shadow-none focus:ring-0 bg-transparent">
                         <SelectValue placeholder="—" />
                       </SelectTrigger>
                       <SelectContent>
@@ -824,7 +824,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
 
                   {/* Sessão */}
                   <div className="px-2 py-1.5">
-                    <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Sessão</p>
+                    <p className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Sessão</p>
                     <Select
                       value={selectedSessionId !== null ? String(selectedSessionId) : ""}
                       onValueChange={(v) => {
@@ -833,7 +833,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                         setSelectedSession(id, found?.sessionNumber ?? null);
                       }}
                     >
-                      <SelectTrigger className="h-7 w-full text-[11px] font-semibold px-2 justify-start gap-1 border-0 shadow-none focus:ring-0 bg-transparent">
+                      <SelectTrigger className="h-6 w-full text-[10px] font-semibold px-1.5 justify-start gap-1 border-0 shadow-none focus:ring-0 bg-transparent">
                         <SelectValue placeholder="—" />
                       </SelectTrigger>
                       <SelectContent>
