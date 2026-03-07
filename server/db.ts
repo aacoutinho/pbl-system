@@ -894,6 +894,21 @@ export async function closeSession(id: number) {
 export async function openSession(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
+
+  // Ao reabrir a sessão, remover avaliações preenchidas automaticamente (autoFilled=true)
+  // criadas no encerramento anterior, para que o contador de alunos que enviaram
+  // avaliação volte ao estado real (apenas avaliações genuinamente enviadas pelos alunos).
+  const autoFilledEvals = await db
+    .select({ id: evaluations.id })
+    .from(evaluations)
+    .where(and(eq(evaluations.sessionId, id), eq(evaluations.autoFilled, true)));
+
+  if (autoFilledEvals.length > 0) {
+    const evalIds = autoFilledEvals.map(e => e.id);
+    await db.delete(evaluationItems).where(inArray(evaluationItems.evaluationId, evalIds));
+    await db.delete(evaluations).where(inArray(evaluations.id, evalIds));
+  }
+
   await db.update(sessions).set({ status: "open", closedAt: null }).where(eq(sessions.id, id));
 }
 
