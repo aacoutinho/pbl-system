@@ -695,3 +695,4 @@
 - [x] TutorialEvalPage: selecionar automaticamente a última sessão ao abrir
 - [x] Renomear "Avaliar Tutorial" para "Avaliação" no menu e na página
 - [x] Bug: contador de avaliações dos alunos mostrava 10/10 após reabrir sessão — corrigido removendo avaliações autoFilled ao reabrir sessão
+- [x] Modal de visualização ampliada da foto do aluno ao clicar na foto (com nome do aluno)

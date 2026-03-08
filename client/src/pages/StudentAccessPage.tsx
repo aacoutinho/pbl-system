@@ -13,6 +13,7 @@ import BrainstormBoardPage from "./BrainstormBoardPage";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { resizeImageToSquare, base64SizeKB } from "@/lib/resizeImage";
+import { StudentPhotoAvatar } from "@/components/StudentPhotoModal";
 
 type RoleType = "COORDENADOR" | "MESA" | "QUADRO" | "PARTICIPANTE";
 
@@ -978,13 +979,13 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
       <Card className="border-blue-200 bg-blue-50/50">
         <CardContent className="pt-4 pb-4">
           <div className="flex items-center gap-4">
-            {authData.studentPhotoUrl ? (
-              <img src={authData.studentPhotoUrl} alt="Foto" className="w-16 h-16 rounded-full object-cover border-2 border-blue-200" />
-            ) : (
-              <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center border-2 border-blue-200">
-                <User className="h-7 w-7 text-blue-400" />
-              </div>
-            )}
+            <StudentPhotoAvatar
+              photoUrl={authData.studentPhotoUrl}
+              studentName={authData.studentName}
+              size="lg"
+              borderClass="border-2 border-blue-200"
+              clickable={false}
+            />
             <div className="flex-1 min-w-0">
               <p className="text-lg font-semibold truncate">{authData.studentName}</p>
               <p className="text-sm text-muted-foreground truncate">{authData.studentEmail || "E-mail não informado"}</p>
@@ -1314,13 +1315,13 @@ function EvaluationForm({ studentInfo, sessionInfo, studentEmail, studentPhotoUr
       <Card className="border-blue-200 bg-blue-50/50">
         <CardContent className="pt-4 pb-4">
           <div className="flex items-center gap-4">
-            {studentPhotoUrl ? (
-              <img src={studentPhotoUrl} alt="Foto" className="w-12 h-12 rounded-full object-cover border-2 border-blue-200" />
-            ) : (
-              <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center border-2 border-blue-200">
-                <Camera className="h-5 w-5 text-blue-400" />
-              </div>
-            )}
+            <StudentPhotoAvatar
+              photoUrl={studentPhotoUrl}
+              studentName={studentInfo.studentName}
+              size="md"
+              borderClass="border-2 border-blue-200"
+              clickable={false}
+            />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{studentEmail || "E-mail não informado"}</p>
               <p className="text-xs text-muted-foreground">
@@ -1355,13 +1356,11 @@ function EvaluationForm({ studentInfo, sessionInfo, studentEmail, studentPhotoUr
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  {peer.studentPhotoUrl ? (
-                    <img src={peer.studentPhotoUrl} alt="" className="w-10 h-10 rounded-full object-cover border-2 border-muted shrink-0" />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center border-2 border-muted shrink-0">
-                      <span className="text-sm font-medium text-muted-foreground">{peer.studentName.charAt(0).toUpperCase()}</span>
-                    </div>
-                  )}
+                  <StudentPhotoAvatar
+                    photoUrl={peer.studentPhotoUrl}
+                    studentName={peer.studentName}
+                    size="md"
+                  />
                   <div>
                     <CardTitle className="text-base">{peer.studentName}</CardTitle>
                     <Badge variant={peer.role === "PARTICIPANTE" ? "secondary" : "default"} className="text-xs mt-1">

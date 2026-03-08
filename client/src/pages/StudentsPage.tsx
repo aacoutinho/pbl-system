@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { Plus, Trash2, Upload, Users, BookOpen, FileSpreadsheet, Check, Pencil, ArrowRightLeft, Camera, AlertTriangle, Filter } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import { StudentPhotoAvatar } from "@/components/StudentPhotoModal";
 import { useState, useRef, useMemo, useEffect } from "react";
 import { resizeImageToSquare, base64SizeKB } from "@/lib/resizeImage";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -765,13 +766,12 @@ function StudentsContent() {
                   {studentsList.map((student: any) => (
                     <tr key={student.id} className="border-b last:border-0 hover:bg-accent/20 transition-colors">
                       <td className="py-3 pr-4">
-                        {student.photoUrl ? (
-                          <img src={student.photoUrl} alt="" className="w-8 h-8 rounded-full object-cover" />
-                        ) : (
-                          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                            <span className="text-xs font-medium text-muted-foreground">{student.name?.charAt(0)?.toUpperCase()}</span>
-                          </div>
-                        )}
+                        <StudentPhotoAvatar
+                          photoUrl={student.photoUrl}
+                          studentName={student.name}
+                          size="sm"
+                          borderClass="border border-muted"
+                        />
                       </td>
                       <td className="py-3 pr-4 text-sm font-mono">{student.enrollment}</td>
                       <td className="py-3 pr-4 font-medium">{student.name}</td>

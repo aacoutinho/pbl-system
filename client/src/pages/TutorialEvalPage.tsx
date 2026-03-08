@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { BookOpen, ClipboardCheck, Save, CheckCircle2, Info, ShieldCheck, ShieldAlert, Crown, UserCheck, FileEdit, SendHorizonal, ThumbsUp, ThumbsDown, MessageSquare, User, Lightbulb, ExternalLink, Filter } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import { StudentPhotoAvatar } from "@/components/StudentPhotoModal";
 import { useLocation } from "wouter";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -713,17 +714,11 @@ function TutorialEvalContent() {
                         <div key={student.studentId} className="p-4 rounded-lg border bg-card">
                           {/* Student header with photo and name side by side */}
                           <div className="flex items-center gap-3 mb-3">
-                            {student.studentPhotoUrl ? (
-                              <img
-                                src={student.studentPhotoUrl}
-                                alt={student.studentName}
-                                className="w-10 h-10 rounded-full object-cover border-2 border-muted"
-                              />
-                            ) : (
-                              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-sm font-semibold text-muted-foreground border-2 border-muted">
-                                {student.studentName?.charAt(0)?.toUpperCase() ?? "?"}
-                              </div>
-                            )}
+                            <StudentPhotoAvatar
+                              photoUrl={student.studentPhotoUrl}
+                              studentName={student.studentName}
+                              size="md"
+                            />
                             <p className="font-medium text-sm">{student.studentName}</p>
                           </div>
 
