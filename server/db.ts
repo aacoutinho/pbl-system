@@ -1126,9 +1126,14 @@ export async function updateDesempenhoPapel(data: {
   return true;
 }
 
-export async function getSessionEvaluations(sessionId: number) {
+export async function getSessionEvaluations(sessionId: number, realOnly = false) {
   const db = await getDb();
   if (!db) return [];
+  if (realOnly) {
+    return db.select().from(evaluations).where(
+      and(eq(evaluations.sessionId, sessionId), eq(evaluations.autoFilled, false))
+    );
+  }
   return db.select().from(evaluations).where(eq(evaluations.sessionId, sessionId));
 }
 
@@ -3715,29 +3720,71 @@ export async function getStudentEvaluationHistory(studentId: number) {
   }
 
   // Calculate problem averages per component
+  // We need the TOTAL session count per problem (including sessions the student missed or wasn't enrolled in)
+  // so that absences reduce the average correctly.
   for (const comp of Array.from(componentMap.values())) {
-    const problemMap = new Map<number, { grades: number[]; sessionCount: number; title: string }>();
-    for (const s of comp.sessions) {
-      if (!problemMap.has(s.problemNumber)) {
-        // Extract problem title from sessionLabel (format: "Problema X - Sessão Y - Title")
+    // Determine the classId for this component+class combination
+    const firstSession = comp.sessions[0];
+    if (!firstSession) {
+      comp.problemAverages = [];
+      continue;
+    }
+    // Find the classId from the first session in this component group
+    const classRow = await db.select({ id: classes.id })
+      .from(classes)
+      .innerJoin(components, eq(classes.componentId, components.id))
+      .where(and(
+        eq(components.code, comp.componentCode),
+        eq(classes.classCode, comp.classCode),
+        eq(classes.semester, comp.semester)
+      ))
+      .limit(1);
+    const classId = classRow[0]?.id;
+
+    // Get ALL sessions for this class (not just the ones the student participated in)
+    const allClassSessions = classId
+      ? await db.select({
+          id: sessions.id,
+          problemNumber: sessions.problemNumber,
+          sessionLabel: sessions.label,
+          status: sessions.status,
+        })
+        .from(sessions)
+        .where(eq(sessions.classId, classId))
+        .orderBy(sessions.problemNumber, sessions.sessionNumber)
+      : [];
+
+    // Build a map: problemNumber -> total session count in the class
+    const totalSessionsPerProblem = new Map<number, { count: number; title: string }>();
+    for (const s of allClassSessions) {
+      if (!totalSessionsPerProblem.has(s.problemNumber)) {
         const parts = s.sessionLabel.split(' - ');
         const title = parts.length >= 3 ? parts.slice(2).join(' - ') : '';
-        problemMap.set(s.problemNumber, { grades: [], sessionCount: 0, title });
+        totalSessionsPerProblem.set(s.problemNumber, { count: 0, title });
       }
-      const entry = problemMap.get(s.problemNumber)!;
-      entry.sessionCount++;
+      totalSessionsPerProblem.get(s.problemNumber)!.count++;
+    }
+
+    // Build grades map from sessions the student actually participated in
+    const problemGrades = new Map<number, number[]>();
+    for (const s of comp.sessions) {
+      if (!problemGrades.has(s.problemNumber)) problemGrades.set(s.problemNumber, []);
       if (!s.absent && (s.sessionStatus === 'finished' || s.sessionStatus === 'closed')) {
-        entry.grades.push(s.finalGrade);
+        problemGrades.get(s.problemNumber)!.push(s.finalGrade);
       }
     }
-    comp.problemAverages = Array.from(problemMap.entries())
+
+    // Use all problems that exist in the class (not just those the student attended)
+    comp.problemAverages = Array.from(totalSessionsPerProblem.entries())
       .sort(([a], [b]) => a - b)
-      .map(([problemNumber, { grades, sessionCount, title }]) => {
-        const rawAvg = grades.length > 0 ? (grades.reduce((a, b) => a + b, 0) / sessionCount) : 0;
+      .map(([problemNumber, { count: totalCount, title }]) => {
+        const grades = problemGrades.get(problemNumber) ?? [];
+        // Denominator = total sessions for this problem in the class
+        const rawAvg = totalCount > 0 ? (grades.reduce((a, b) => a + b, 0) / totalCount) : 0;
         const cappedAvg = Math.min(rawAvg, 10);
         const average = Math.round(cappedAvg * 10) / 10;
         const capped = rawAvg > 10;
-        return { problemNumber, problemTitle: title, sessionCount, average, capped };
+        return { problemNumber, problemTitle: title, sessionCount: totalCount, average, capped };
       });
   }
 

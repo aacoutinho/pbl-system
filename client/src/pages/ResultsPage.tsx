@@ -456,7 +456,7 @@ function ResultsContent() {
                     Notas Individuais dos Pares
                   </CardTitle>
                   <CardDescription>
-                    Tabela detalhada com as notas que cada aluno recebeu de cada avaliador. Colunas identificadas pelo número serial do avaliador.
+                    Tabela detalhada com as notas que cada aluno recebeu de cada avaliador. Colunas identificadas pelo número do aluno.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -545,9 +545,9 @@ function ResultsContent() {
                                           </span>
                                         </TooltipTrigger>
                                         {grade.autoFilled && !grade.absent && (
-                                          <TooltipContent side="top">
-                                            <p className="text-xs">Preenchido automaticamente (aluno não submeteu avaliação)</p>
-                                          </TooltipContent>
+                          <TooltipContent side="top">
+                                             <p className="text-xs">Não enviou (autopreenchida)</p>
+                                           </TooltipContent>
                                         )}
                                       </Tooltip>
                                     </td>
@@ -572,7 +572,7 @@ function ResultsContent() {
                         </table>
                       </div>
                       <div className="mt-4 pt-3 border-t text-xs text-muted-foreground space-y-1">
-                        <p><strong>Legenda:</strong> A1, A2, ... = Número serial do avaliador (passe o mouse para ver o nome). <strong>—</strong> = Autoavaliação (excluída). <strong>F</strong> = Faltou. <strong>-</strong> = Sem avaliação. <Wand2 className="inline h-3 w-3 mx-0.5" /> = Preenchido automaticamente.</p>
+                        <p><strong>Legenda:</strong> A1, A2, ... = Número do aluno (passe o mouse para ver o nome). <strong>—</strong> = Autoavaliação (excluída). <strong>F</strong> = Faltou. <strong>-</strong> = Sem avaliação. <Wand2 className="inline h-3 w-3 mx-0.5" /> = Não enviou (autopreenchida).</p>
                       </div>
                     </TooltipProvider>
                   )}

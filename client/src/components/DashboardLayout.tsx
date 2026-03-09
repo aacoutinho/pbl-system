@@ -568,6 +568,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
     selectedProblemNumber, setSelectedProblem,
     selectedSessionId, selectedSessionNumber, setSelectedSession,
   } = useComponentContext();
+  const utils = trpc.useUtils();
 
   // Component list
   const { data: componentsList } = trpc.components.listMine.useQuery();
@@ -736,6 +737,8 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                         setSelectedComponentId(id);
                         const found = (componentsList ?? []).find(c => c.id === id);
                         if (found) setSelectedComponentMeta(found.code, found.name ?? null);
+                        // Invalidate all queries so pages refresh immediately with new component data
+                        utils.invalidate();
                       }}
                     >
                       <SelectTrigger className="h-5 w-full text-[12px] font-semibold px-0.5 justify-start border-0 shadow-none focus:ring-0 bg-transparent [&>svg]:hidden overflow-hidden">

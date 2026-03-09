@@ -1148,7 +1148,8 @@ export const appRouter = router({
     }),
     submissionStatus: protectedProcedure.input(z.object({ sessionId: z.number() })).query(async ({ input }) => {
       const sessionStudentsList = await getSessionStudents(input.sessionId);
-      const evals = await getSessionEvaluations(input.sessionId);
+      // Use realOnly=true so autoFilled evaluations are NOT counted as submitted
+      const evals = await getSessionEvaluations(input.sessionId, true);
       const submittedIds = new Set(evals.map(e => e.evaluatorStudentId));
       return sessionStudentsList.map(s => ({
         ...s,

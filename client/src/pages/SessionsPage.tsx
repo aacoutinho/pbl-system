@@ -684,12 +684,18 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onFini
         <div className="flex items-center gap-4 mt-1.5 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <Users className="h-3.5 w-3.5 shrink-0" />
-            <span className="whitespace-nowrap">{submitted}/{total}</span>
+            <span className={`whitespace-nowrap font-medium ${
+              (session.status === "closed" || session.status === "finished") && total > 0 && submitted < total
+                ? "text-red-600"
+                : ""
+            }`}>{submitted}/{total}</span>
             <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-500 ${
                   total > 0 && submitted === total
                     ? "bg-emerald-500"
+                    : (session.status === "closed" || session.status === "finished") && submitted < total
+                    ? "bg-red-500"
                     : submitted > 0
                     ? "bg-blue-500"
                     : "bg-muted-foreground/20"

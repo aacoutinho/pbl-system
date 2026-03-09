@@ -696,3 +696,7 @@
 - [x] Renomear "Avaliar Tutorial" para "Avaliação" no menu e na página
 - [x] Bug: contador de avaliações dos alunos mostrava 10/10 após reabrir sessão — corrigido removendo avaliações autoFilled ao reabrir sessão
 - [x] Modal de visualização ampliada da foto do aluno ao clicar na foto (com nome do aluno)
+- [x] Bug 1: Trocar componente no menu não atualiza imediatamente as páginas (problema de cache/invalidação de queries)
+- [x] Bug 2: Média por problema no perfil do aluno não considera sessões em que o aluno faltou ou ainda não existia
+- [x] Bug 3: Contador de avaliações na página Sessões deve mostrar apenas avaliações reais (excluir autoFilled), em vermelho se incompleto
+- [x] Bug 4: Legenda da tabela de avaliação dos pares: "Número serial do avaliador" → "Número do aluno"; "Preenchido automaticamente" → "Não enviou (autopreenchida)"
