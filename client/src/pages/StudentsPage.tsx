@@ -163,6 +163,18 @@ function StudentsContent() {
     );
   }
 
+  if (!selectedClassId) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <BookOpen className="h-12 w-12 text-muted-foreground/40 mb-4" />
+        <h2 className="text-xl font-semibold mb-2">Nenhuma turma encontrada</h2>
+        <p className="text-muted-foreground text-center max-w-md">
+          O componente selecionado não possui turmas cadastradas neste semestre.
+        </p>
+      </div>
+    );
+  }
+
   const handleAdd = (useExisting?: boolean) => {
      if (!newName.trim() || !newEnrollment.trim()) { toast.error("Preencha nome e matrícula"); return; }
     createMutation.mutate({

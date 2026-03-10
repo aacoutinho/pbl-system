@@ -640,9 +640,14 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
     }
   }, [semestersList]);
 
-  // Auto-select professor's class (or first) when class list loads
+  // Auto-select professor's class (or first) when class list loads; clear when list is empty
   useEffect(() => {
-    if (!classesList || classesList.length === 0) return;
+    if (!classesList) return;
+    if (classesList.length === 0) {
+      // Component has no classes — clear the selected class immediately
+      if (selectedClassId !== null) setSelectedClass(null, null);
+      return;
+    }
     if (selectedClassId !== null && classesList.some((c: any) => c.id === selectedClassId)) return;
     const profClass = classesList.find((c: any) => c.professorUserId === user?.id);
     const target = profClass ?? classesList[0];
@@ -737,6 +742,11 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                         setSelectedComponentId(id);
                         const found = (componentsList ?? []).find(c => c.id === id);
                         if (found) setSelectedComponentMeta(found.code, found.name ?? null);
+                        // Clear class/problem/session immediately so pages show empty state
+                        // while the new component's data is loading
+                        setSelectedClass(null, null);
+                        setSelectedProblem(null);
+                        setSelectedSession(null, null);
                         // Invalidate all queries so pages refresh immediately with new component data
                         utils.invalidate();
                       }}
