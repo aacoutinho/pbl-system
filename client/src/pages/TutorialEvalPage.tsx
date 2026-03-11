@@ -411,7 +411,7 @@ function TutorialEvalContent() {
 
   const handleStudentNoteChange = (studentId: number, field: keyof StudentNote, value: number | string) => {
     setStudentNotes(prev => {
-      const existing = prev[studentId] ?? { studentId, positivePoints: 0, negativePoints: 0, notes: "" };
+      const existing = prev[studentId] ?? { studentId, positivePoints: 0, negativePoints: 0, positiveTexts: [""], negativeTexts: [""], notes: "" };
       return { ...prev, [studentId]: { ...existing, [field]: value } };
     });
     triggerNotesAutoSave();
@@ -744,7 +744,7 @@ function TutorialEvalContent() {
                               </div>
                               <Textarea
                                 placeholder="Anote os pontos positivos deste aluno..."
-                                value={note.positiveTexts[0] ?? ""}
+                                value={(note.positiveTexts ?? [""])[0] ?? ""}
                                 onChange={(e) => {
                                   handleStudentNoteChange(student.studentId, "positiveTexts", [e.target.value] as any);
                                 }}
@@ -761,7 +761,7 @@ function TutorialEvalContent() {
                               </div>
                               <Textarea
                                 placeholder="Anote os pontos negativos deste aluno..."
-                                value={note.negativeTexts[0] ?? ""}
+                                value={(note.negativeTexts ?? [""])[0] ?? ""}
                                 onChange={(e) => {
                                   handleStudentNoteChange(student.studentId, "negativeTexts", [e.target.value] as any);
                                 }}

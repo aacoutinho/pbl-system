@@ -701,3 +701,4 @@
 - [x] Bug 3: Contador de avaliações na página Sessões deve mostrar apenas avaliações reais (excluir autoFilled), em vermelho se incompleto
 - [x] Bug 4: Legenda da tabela de avaliação dos pares: "Número serial do avaliador" → "Número do aluno"; "Preenchido automaticamente" → "Não enviou (autopreenchida)"
 - [x] Bug: páginas Alunos, Sessões, Avaliação e Resultados não atualizam ao trocar componente — selectedClassId limpo imediatamente + estado vazio explícito em cada página
+- [x] Bug: TypeError "Cannot read properties of undefined (reading '0')" na página /tutorial-eval
