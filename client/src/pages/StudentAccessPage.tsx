@@ -82,10 +82,11 @@ export default function StudentAccessPage() {
   // Auto-open brainstorm board after login if URL has brainstorm=1&sessionId=X
   useEffect(() => {
     if (step === 'dashboard' && authData && pendingBrainstormSessionId) {
+      // canEdit is determined when the brainstorm page loads based on session status
       setBrainstormSession({
         sessionId: pendingBrainstormSessionId,
         sessionLabel: `Sessão #${pendingBrainstormSessionId}`,
-        canEdit: true, // Mesa student can edit
+        canEdit: false, // Will be determined by BrainstormBoardPage based on session status
       });
       setStep('brainstorm');
       setPendingBrainstormSessionId(null);
@@ -337,6 +338,29 @@ export default function StudentAccessPage() {
   // ─── Step: Evaluate ───
   if (step === "evaluate" && authData && selectedSession) {
     const sessionStatus = (selectedSession as any).sessionStatus;
+    if (sessionStatus === "finished") {
+      // Session is finished — show read-only view
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4">
+          <div className="max-w-2xl mx-auto">
+            <div className="flex items-center gap-3 mb-6">
+              <Button variant="ghost" size="icon" onClick={handleBackToDashboard}>
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div>
+                <h1 className="text-xl font-bold">{selectedSession.sessionLabel}</h1>
+                <p className="text-sm text-muted-foreground">{selectedSession.componentCode} - {selectedSession.classCode}</p>
+              </div>
+            </div>
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-6 text-center">
+              <CheckCircle2 className="h-12 w-12 text-slate-400 mx-auto mb-3" />
+              <h2 className="text-lg font-semibold text-slate-700 mb-2">Sessão Encerrada</h2>
+              <p className="text-sm text-muted-foreground">Esta sessão foi encerrada. A avaliação não pode mais ser modificada.</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
     if (sessionStatus === "closed") {
       return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4">
@@ -1052,7 +1076,10 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
                           className="text-xs"
                           onClick={(e) => {
                             e.stopPropagation();
-                            onOpenBrainstorm(s.sessionId, s.sessionLabel, (s as any).studentRole === "MESA");
+                            // Mesa can edit only if session is not finished
+                            const sessionStatus = (s as any).sessionStatus;
+                            const canEdit = (s as any).studentRole === "MESA" && sessionStatus !== "finished";
+                            onOpenBrainstorm(s.sessionId, s.sessionLabel, canEdit);
                           }}
                         >
                           <Lightbulb className="h-3 w-3 mr-1" />
@@ -1158,7 +1185,11 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
                         </tr>
                       </thead>
                       <tbody>
-                        {comp.sessions.map((ev, idx) => (
+                        {comp.sessions.map((ev, idx) => {
+                          const canEditBrainstorm = ev.role === 'MESA' && ev.sessionStatus !== 'finished';
+                          const canEval = ev.sessionStatus === 'open' || ev.sessionStatus === 'closed';
+                          const evalDone = ev.hasSubmitted;
+                          return (
                           <tr key={`${ev.sessionId}-${idx}`} className={`border-b last:border-0 ${
                             ev.absent ? 'bg-red-50/40' : ''
                           }`}>
@@ -1167,6 +1198,44 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
                               <Badge variant={ev.sessionStatus === 'finished' ? 'secondary' : 'outline'} className="text-[9px] px-1 py-0 mt-0.5">
                                 {ev.sessionStatus === 'finished' ? 'Encerrada' : ev.sessionStatus === 'closed' ? 'Fechada' : ev.sessionStatus === 'open' ? 'Em Avaliação' : 'Ativa'}
                               </Badge>
+                              {/* Action buttons */}
+                              <div className="flex gap-1 mt-1.5 flex-wrap">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-5 text-[9px] px-1.5 py-0"
+                                  onClick={() => onOpenBrainstorm(ev.sessionId, ev.sessionLabel, canEditBrainstorm)}
+                                >
+                                  <Lightbulb className="h-2.5 w-2.5 mr-0.5" />
+                                  {canEditBrainstorm ? 'Editar' : 'Ver'} Quadro
+                                </Button>
+                                {!ev.absent && (
+                                  <Button
+                                    variant={canEval && !evalDone ? 'default' : 'outline'}
+                                    size="sm"
+                                    className="h-5 text-[9px] px-1.5 py-0"
+                                    disabled={ev.sessionStatus === 'active'}
+                                    onClick={() => {
+                                      if (ev.sessionStatus === 'active') return;
+                                      onSelectSession({
+                                        sessionId: ev.sessionId,
+                                        sessionLabel: ev.sessionLabel,
+                                        classId: 0,
+                                        classCode: comp.classCode,
+                                        componentCode: comp.componentCode,
+                                        componentName: comp.componentName,
+                                        semester: comp.semester,
+                                        studentRole: ev.role,
+                                        sessionStatus: ev.sessionStatus,
+                                        alreadySubmitted: ev.hasSubmitted,
+                                      } as any);
+                                    }}
+                                  >
+                                    <ClipboardList className="h-2.5 w-2.5 mr-0.5" />
+                                    {ev.sessionStatus === 'active' ? 'Aguardando' : evalDone ? 'Ver Avaliação' : 'Avaliar'}
+                                  </Button>
+                                )}
+                              </div>
                             </td>
                             <td className="py-2 px-2 text-center">
                               <span className="text-muted-foreground">
@@ -1192,7 +1261,8 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
                               )}
                             </td>
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

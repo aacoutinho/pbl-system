@@ -1,0 +1,28 @@
+{
+  "query": "SELECT id, sessionId, CAST(organizacao AS CHAR) as organizacao, CAST(cooperacao AS CHAR) as cooperacao, CAST(conteudo AS CHAR) as conteudo, CAST(objetivo AS CHAR) as objetivo, CAST(metas AS CHAR) as metas FROM tutorial_evaluations;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute SELECT id, sessionId, CAST(organizacao AS CHAR) as organizacao, CAST(cooperacao AS CHAR) as cooperacao, CAST(conteudo AS CHAR) as conteudo, CAST(objetivo AS CHAR) as objetivo, CAST(metas AS CHAR) as metas FROM tutorial_evaluations;",
+  "rows": [
+    {
+      "id": "390001",
+      "sessionId": "660001",
+      "organizacao": "0.80",
+      "cooperacao": "1.00",
+      "conteudo": "1.00",
+      "objetivo": "1.00",
+      "metas": "0.80"
+    },
+    {
+      "id": "390002",
+      "sessionId": "660005",
+      "organizacao": "0.80",
+      "cooperacao": "1.00",
+      "conteudo": "0.80",
+      "objetivo": "1.00",
+      "metas": "1.00"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tsessionId\torganizacao\tcooperacao\tconteudo\tobjetivo\tmetas\n390001\t660001\t0.80\t1.00\t1.00\t1.00\t0.80\n390002\t660005\t0.80\t1.00\t0.80\t1.00\t1.00\n",
+  "stderr": "",
+  "execution_time_ms": 403
+}

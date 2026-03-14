@@ -246,6 +246,13 @@
       "when": 1772508598076,
       "tag": "0034_magical_blur",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "5",
+      "when": 1773199586633,
+      "tag": "0035_violet_ezekiel_stane",
+      "breakpoints": true
     }
   ]
 }

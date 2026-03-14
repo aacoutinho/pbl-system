@@ -271,11 +271,11 @@ function SessionsContent() {
             <DialogTrigger asChild>
               <Button size="sm"><Plus className="h-4 w-4 mr-2" />Nova Sessão</Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
+            <DialogContent className="max-w-lg max-h-[92vh] flex flex-col overflow-hidden">
               <DialogHeader className="shrink-0">
                 <DialogTitle>Criar Nova Sessão</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4 overflow-y-auto flex-1 pr-1">
+              <div className="space-y-4 overflow-y-auto flex-1 pr-2 min-h-0">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Problema</Label>
@@ -350,7 +350,7 @@ function SessionsContent() {
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground mb-2">Alunos não selecionados receberão falta. Defina o papel de cada aluno presente.</p>
-                  <div className="border rounded-lg max-h-72 overflow-y-auto divide-y">
+                  <div className="border rounded-lg overflow-y-auto divide-y" style={{maxHeight: 'min(288px, 35vh)'}}>
                     {!studentsList || studentsList.length === 0 ? (
                       <p className="p-4 text-sm text-muted-foreground text-center">Nenhum aluno cadastrado. Cadastre alunos primeiro.</p>
                     ) : (

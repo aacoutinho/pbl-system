@@ -151,11 +151,11 @@ export const tutorialEvaluations = mysqlTable("tutorial_evaluations", {
   id: int("id").autoincrement().primaryKey(),
   sessionId: int("sessionId").notNull().unique(),
   professorUserId: int("professorUserId").notNull(),
-  organizacao: decimal("organizacao", { precision: 3, scale: 1 }).default("0").notNull(), // peso 1
-  cooperacao: decimal("cooperacao", { precision: 3, scale: 1 }).default("0").notNull(),   // peso 1
-  conteudo: decimal("conteudo", { precision: 3, scale: 1 }).default("0").notNull(),       // peso 3
-  objetivo: decimal("objetivo", { precision: 3, scale: 1 }).default("0").notNull(),       // peso 3
-  metas: decimal("metas", { precision: 3, scale: 1 }).default("0").notNull(),             // peso 2
+  organizacao: decimal("organizacao", { precision: 4, scale: 2 }).default("0").notNull(), // peso 1
+  cooperacao: decimal("cooperacao", { precision: 4, scale: 2 }).default("0").notNull(),   // peso 1
+  conteudo: decimal("conteudo", { precision: 4, scale: 2 }).default("0").notNull(),       // peso 3
+  objetivo: decimal("objetivo", { precision: 4, scale: 2 }).default("0").notNull(),       // peso 3
+  metas: decimal("metas", { precision: 4, scale: 2 }).default("0").notNull(),             // peso 2
   submittedAt: timestamp("submittedAt").defaultNow().notNull(),
 });
 
@@ -167,11 +167,11 @@ export const tutorialEvalDrafts = mysqlTable("tutorial_eval_drafts", {
   id: int("id").autoincrement().primaryKey(),
   sessionId: int("sessionId").notNull().unique(),
   professorUserId: int("professorUserId").notNull(),
-  organizacao: decimal("organizacao", { precision: 3, scale: 1 }).default("0").notNull(),
-  cooperacao: decimal("cooperacao", { precision: 3, scale: 1 }).default("0").notNull(),
-  conteudo: decimal("conteudo", { precision: 3, scale: 1 }).default("0").notNull(),
-  objetivo: decimal("objetivo", { precision: 3, scale: 1 }).default("0").notNull(),
-  metas: decimal("metas", { precision: 3, scale: 1 }).default("0").notNull(),
+  organizacao: decimal("organizacao", { precision: 4, scale: 2 }).default("0").notNull(),
+  cooperacao: decimal("cooperacao", { precision: 4, scale: 2 }).default("0").notNull(),
+  conteudo: decimal("conteudo", { precision: 4, scale: 2 }).default("0").notNull(),
+  objetivo: decimal("objetivo", { precision: 4, scale: 2 }).default("0").notNull(),
+  metas: decimal("metas", { precision: 4, scale: 2 }).default("0").notNull(),
   savedAt: timestamp("savedAt").defaultNow().notNull(),
 });
 

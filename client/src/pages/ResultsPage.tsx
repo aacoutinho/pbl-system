@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, Download, UserX, BookOpen, Info, Eye, FileSpreadsheet, Table2, Mail, Loader2, Lightbulb, HelpCircle, Target, ExternalLink, Link2, ImageIcon, Users, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Wand2, Filter, ListChecks } from "lucide-react";
+import { BarChart3, Download, UserX, BookOpen, Info, Eye, FileSpreadsheet, Table2, Mail, Loader2, Lightbulb, HelpCircle, Target, ExternalLink, Link2, ImageIcon, Users, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Wand2, Filter, ListChecks, FileText } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useMemo, useEffect } from "react";
@@ -275,6 +275,79 @@ function ResultsContent() {
     downloadCSV(lines.join("\n"), `resultados_problema_${selectedProblem}.csv`);
   };
 
+  // ─── PDF Export helpers ───
+  const exportSessionPDF = async () => {
+    if (!finalResults) return;
+    const { jsPDF } = await import('jspdf');
+    const autoTable = (await import('jspdf-autotable')).default;
+    const session = activeSessions?.find(s => s.id === parseInt(selectedSessionId));
+    const sessionLabel = session?.label || 'Sessão';
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    doc.setFontSize(14);
+    doc.text(`Resultados - ${sessionLabel}`, 14, 18);
+    doc.setFontSize(9);
+    doc.text(`Componente: ${selectedComponentFullLabel || ''} | Turma: ${selectedClassCode || ''} | Semestre: ${selectedSemester || ''}`, 14, 26);
+    let y = 32;
+    if (tutorialEval) {
+      doc.setFontSize(10);
+      doc.text('Avaliação do Tutorial', 14, y + 4);
+      autoTable(doc, {
+        startY: y + 7,
+        head: [['Critério', 'Nota', 'Peso', 'Contribuição']],
+        body: [
+          ['Organização', Number(tutorialEval.organizacao).toFixed(2), '1', (Number(tutorialEval.organizacao)*1).toFixed(2)],
+          ['Cooperação', Number(tutorialEval.cooperacao).toFixed(2), '1', (Number(tutorialEval.cooperacao)*1).toFixed(2)],
+          ['Discussão', Number(tutorialEval.conteudo).toFixed(2), '3', (Number(tutorialEval.conteudo)*3).toFixed(2)],
+          ['Progresso', Number(tutorialEval.objetivo).toFixed(2), '3', (Number(tutorialEval.objetivo)*3).toFixed(2)],
+          ['Metas', Number(tutorialEval.metas).toFixed(2), '2', (Number(tutorialEval.metas)*2).toFixed(2)],
+          ['Nota do Tutorial', tutorialEval.tutorialGrade.toFixed(1), '', ''],
+        ],
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [59, 130, 246] },
+        margin: { left: 14, right: 14 },
+      });
+      y = (doc as any).lastAutoTable.finalY + 6;
+    }
+    doc.setFontSize(10);
+    doc.text('Resultados dos Alunos', 14, y + 4);
+    autoTable(doc, {
+      startY: y + 7,
+      head: [['Aluno', 'Papel', 'Nota Final', 'Status']],
+      body: finalResults.map(r => [r.studentName, r.role, r.finalGrade.toFixed(1), r.absent ? 'Faltou' : 'Presente']),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [59, 130, 246] },
+      margin: { left: 14, right: 14 },
+    });
+    doc.save(`resultados_${sessionLabel.replace(/\s/g, '_')}.pdf`);
+  };
+
+  const exportProblemPDF = async () => {
+    if (!problemFinalResults) return;
+    const { jsPDF } = await import('jspdf');
+    const autoTable = (await import('jspdf-autotable')).default;
+    const sessionsForProblem = activeSessions?.filter(s => s.problemNumber === parseInt(selectedProblem)).sort((a, b) => a.sessionNumber - b.sessionNumber) ?? [];
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    doc.setFontSize(14);
+    doc.text(`Resultados - Problema ${selectedProblem}`, 14, 18);
+    doc.setFontSize(9);
+    doc.text(`Componente: ${selectedComponentFullLabel || ''} | Turma: ${selectedClassCode || ''} | Semestre: ${selectedSemester || ''}`, 14, 26);
+    const headers = ['Aluno', ...sessionsForProblem.map(s => `S${s.sessionNumber}`), 'Média Final'];
+    const body = problemFinalResults.map(r => [
+      r.studentName,
+      ...sessionsForProblem.map((_, i) => (r.finalGrades[i] ?? 0).toFixed(1)),
+      r.finalAverage.toFixed(1),
+    ]);
+    autoTable(doc, {
+      startY: 32,
+      head: [headers],
+      body,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [59, 130, 246] },
+      margin: { left: 14, right: 14 },
+    });
+    doc.save(`resultados_problema_${selectedProblem}.pdf`);
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -312,9 +385,12 @@ function ResultsContent() {
               </Select>
             </div>
             {finalResults && finalResults.length > 0 && (
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <Button variant="outline" size="sm" onClick={exportSessionResults}>
                   <FileSpreadsheet className="h-4 w-4 mr-2" />Exportar CSV
+                </Button>
+                <Button variant="outline" size="sm" onClick={exportSessionPDF}>
+                  <FileText className="h-4 w-4 mr-2" />Exportar PDF
                 </Button>
                 <SendGradeEmailsButton sessionId={parseInt(selectedSessionId)} hasTutorialEval={!!tutorialEval} />
               </div>
@@ -715,9 +791,14 @@ function ResultsContent() {
               </Select>
             </div>
             {problemFinalResults && problemFinalResults.length > 0 && (
-              <Button variant="outline" size="sm" onClick={exportProblemResults}>
-                <FileSpreadsheet className="h-4 w-4 mr-2" />Exportar CSV
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={exportProblemResults}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />Exportar CSV
+                </Button>
+                <Button variant="outline" size="sm" onClick={exportProblemPDF}>
+                  <FileText className="h-4 w-4 mr-2" />Exportar PDF
+                </Button>
+              </div>
             )}
           </div>
 
@@ -818,7 +899,7 @@ function ResultsContent() {
 
         {/* ─── Consolidated Student Report ─── */}
         <TabsContent value="consolidated" className="space-y-4">
-          <ConsolidatedStudentReport classId={selectedClassId!} />
+          <ConsolidatedStudentReport classId={selectedClassId!} componentLabel={selectedComponentFullLabel ?? undefined} classCode={selectedClassCode ?? undefined} semester={selectedSemester ?? undefined} />
         </TabsContent>
       </Tabs>
 
@@ -1042,7 +1123,7 @@ function BrainstormResultsCard({ items }: { items: BrainstormItemResult[] }) {
   );
 }
 
-function ConsolidatedStudentReport({ classId }: { classId: number }) {
+function ConsolidatedStudentReport({ classId, componentLabel, classCode, semester }: { classId: number; componentLabel?: string; classCode?: string; semester?: string }) {
   const { data: report, isLoading } = trpc.results.studentConsolidated.useQuery(
     { classId },
     { enabled: !!classId }
@@ -1105,6 +1186,26 @@ function ConsolidatedStudentReport({ classId }: { classId: number }) {
 
   const sessions = report[0].sessions;
 
+  // Build ordered column list: sessions grouped by problem, with MPX after each group
+  const problemNumbers = Array.from(new Set(sessions.map(s => s.problemNumber))).sort((a, b) => a - b);
+  const columnDefs: Array<{ type: 'session'; session: typeof sessions[0]; idx: number } | { type: 'avg'; problemNumber: number }> = [];
+  for (const pNum of problemNumbers) {
+    const pSessions = sessions.map((s, i) => ({ s, i })).filter(({ s }) => s.problemNumber === pNum);
+    pSessions.forEach(({ s, i }) => columnDefs.push({ type: 'session', session: s, idx: i }));
+    columnDefs.push({ type: 'avg', problemNumber: pNum });
+  }
+
+  // Calculate per-problem average for a student
+  const calcProblemAvg = (studentSessions: typeof sessions, pNum: number) => {
+    const allPSessions = sessions.filter(s => s.problemNumber === pNum);
+    const pStudentSessions = studentSessions.filter(s => s.problemNumber === pNum);
+    const totalCount = allPSessions.length;
+    if (totalCount === 0) return null;
+    const presentSum = pStudentSessions.filter(s => !s.absent && !(s as any).excluded).reduce((sum, s) => sum + s.finalGrade, 0);
+    const raw = Math.round(presentSum / totalCount * 10) / 10;
+    return raw > 10 ? 10 : raw;
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -1117,9 +1218,61 @@ function ConsolidatedStudentReport({ classId }: { classId: number }) {
             Visão geral de todas as sessões do semestre, com notas e presenças acumuladas.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={exportConsolidated}>
-          <FileSpreadsheet className="h-4 w-4 mr-2" />Exportar CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={exportConsolidated}>
+            <FileSpreadsheet className="h-4 w-4 mr-2" />Exportar CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={async () => {
+            if (!report || report.length === 0) return;
+            const { jsPDF } = await import('jspdf');
+            const autoTable = (await import('jspdf-autotable')).default;
+            const sessions = report[0].sessions;
+            const pNums = Array.from(new Set(sessions.map((s: any) => s.problemNumber))).sort((a: any, b: any) => a - b) as number[];
+            const colHeaders: string[] = ['#', 'Matrícula', 'Aluno'];
+            for (const pNum of pNums) {
+              const pSessions = sessions.filter((s: any) => s.problemNumber === pNum);
+              pSessions.forEach((s: any) => colHeaders.push(`P${s.problemNumber}S${s.sessionNumber}`));
+              colHeaders.push(`MP${pNum}`);
+            }
+            colHeaders.push('Presenças', 'Faltas', 'Média Final');
+            const body = report.map((student: any, idx: number) => {
+              const row: string[] = [String(idx + 1), student.studentEnrollment, student.studentName];
+              for (const pNum of pNums) {
+                const pSessions = sessions.filter((s: any) => s.problemNumber === pNum);
+                pSessions.forEach((s: any, i: number) => {
+                  const sIdx = sessions.indexOf(s);
+                  const sd = student.sessions[sIdx];
+                  if (!sd) { row.push('—'); return; }
+                  if (sd.excluded) { row.push('E'); return; }
+                  if (sd.absent) { row.push('F'); return; }
+                  row.push(sd.finalGrade.toFixed(1));
+                });
+                const totalCount = pSessions.length;
+                const presentSum = student.sessions.filter((s: any) => s.problemNumber === pNum && !s.absent && !s.excluded).reduce((sum: number, s: any) => sum + s.finalGrade, 0);
+                const avg = totalCount > 0 ? Math.min(10, Math.round(presentSum / totalCount * 10) / 10) : 0;
+                row.push(avg.toFixed(1));
+              }
+              row.push(String(student.presentCount), String(student.absentCount), student.avgFinalGrade.toFixed(1));
+              return row;
+            });
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            doc.setFontSize(14);
+            doc.text('Relatório Consolidado por Aluno', 14, 18);
+            doc.setFontSize(9);
+            doc.text(`Componente: ${componentLabel || ''} | Turma: ${classCode || ''} | Semestre: ${semester || ''}`, 14, 26);
+            autoTable(doc, {
+              startY: 32,
+              head: [colHeaders],
+              body,
+              styles: { fontSize: 7 },
+              headStyles: { fillColor: [59, 130, 246] },
+              margin: { left: 10, right: 10 },
+            });
+            doc.save(`relatorio_consolidado_${classCode || 'turma'}.pdf`);
+          }}>
+            <FileText className="h-4 w-4 mr-2" />Exportar PDF
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -1131,15 +1284,21 @@ function ConsolidatedStudentReport({ classId }: { classId: number }) {
                   <th className="py-3 px-3 font-semibold sticky left-0 bg-muted/30 z-10">#</th>
                   <th className="py-3 px-3 font-semibold sticky left-8 bg-muted/30 z-10 min-w-[180px]">Aluno</th>
                   <th className="py-3 px-2 font-semibold text-center min-w-[60px]">Matrícula</th>
-                  {sessions.map((s, i) => (
-                    <th key={i} className="py-3 px-2 font-semibold text-center min-w-[70px]">
-                      <div className="flex flex-col items-center gap-0.5">
-                        <span className="text-xs">P{s.problemNumber}S{s.sessionNumber}</span>
-                        {s.status === "closed" && (
-                          <span className="text-[9px] font-normal text-amber-600 bg-amber-50 border border-amber-200 rounded px-1 leading-tight">Prov.</span>
-                        )}
-                      </div>
-                    </th>
+                  {columnDefs.map((col, i) => (
+                    col.type === 'avg' ? (
+                      <th key={`avg-${col.problemNumber}`} className="py-3 px-2 font-semibold text-center min-w-[60px] bg-blue-50/60">
+                        <span className="text-xs text-blue-700 font-bold">MP{col.problemNumber}</span>
+                      </th>
+                    ) : (
+                      <th key={i} className="py-3 px-2 font-semibold text-center min-w-[70px]">
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className="text-xs">P{col.session.problemNumber}S{col.session.sessionNumber}</span>
+                          {col.session.status === "closed" && (
+                            <span className="text-[9px] font-normal text-amber-600 bg-amber-50 border border-amber-200 rounded px-1 leading-tight">Prov.</span>
+                          )}
+                        </div>
+                      </th>
+                    )
                   ))}
                   <th className="py-3 px-2 font-semibold text-center bg-emerald-50/50">
                     <div className="flex items-center justify-center gap-1">
@@ -1189,32 +1348,48 @@ function ConsolidatedStudentReport({ classId }: { classId: number }) {
                     <td className="py-2.5 px-2 text-center text-xs font-mono text-muted-foreground">
                       {student.studentEnrollment}
                     </td>
-                    {student.sessions.map((s, i) => (
-                      <td key={i} className="py-2.5 px-2 text-center">
-                        {(s as any).excluded ? (
-                          <div className="flex flex-col items-center">
-                            <Badge variant="outline" className="text-[9px] bg-orange-50 text-orange-500 border-orange-200 px-1">
-                              <UserX className="h-2.5 w-2.5 mr-0.5" />E
-                            </Badge>
-                          </div>
-                        ) : s.absent ? (
-                          <div className="flex flex-col items-center">
-                            <Badge variant="outline" className="text-[9px] bg-red-50 text-red-500 border-red-200 px-1">
-                              <UserX className="h-2.5 w-2.5 mr-0.5" />F
-                            </Badge>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center gap-0.5">
-                            <span className={`text-xs font-medium ${
-                              s.finalGrade >= 8 ? "text-emerald-600" : s.finalGrade >= 5 ? "text-amber-600" : s.finalGrade > 0 ? "text-red-600" : "text-muted-foreground"
-                            }`}>
-                              {s.finalGrade > 0 ? s.finalGrade.toFixed(1) : "—"}
-                            </span>
-                            <span className="text-[9px] text-muted-foreground">{s.role.substring(0, 4)}</span>
-                          </div>
-                        )}
-                      </td>
-                    ))}
+                    {columnDefs.map((col, i) => {
+                      if (col.type === 'avg') {
+                        const avg = calcProblemAvg(student.sessions, col.problemNumber);
+                        return (
+                          <td key={`avg-${col.problemNumber}`} className="py-2.5 px-2 text-center bg-blue-50/30">
+                            {avg !== null ? (
+                              <span className={`text-xs font-bold ${
+                                avg >= 8 ? "text-emerald-600" : avg >= 5 ? "text-amber-600" : avg > 0 ? "text-red-600" : "text-muted-foreground"
+                              }`}>{avg.toFixed(1)}</span>
+                            ) : <span className="text-muted-foreground text-xs">—</span>}
+                          </td>
+                        );
+                      }
+                      const s = student.sessions[col.idx];
+                      if (!s) return <td key={i} className="py-2.5 px-2 text-center"><span className="text-muted-foreground">—</span></td>;
+                      return (
+                        <td key={i} className="py-2.5 px-2 text-center">
+                          {(s as any).excluded ? (
+                            <div className="flex flex-col items-center">
+                              <Badge variant="outline" className="text-[9px] bg-orange-50 text-orange-500 border-orange-200 px-1">
+                                <UserX className="h-2.5 w-2.5 mr-0.5" />E
+                              </Badge>
+                            </div>
+                          ) : s.absent ? (
+                            <div className="flex flex-col items-center">
+                              <Badge variant="outline" className="text-[9px] bg-red-50 text-red-500 border-red-200 px-1">
+                                <UserX className="h-2.5 w-2.5 mr-0.5" />F
+                              </Badge>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center gap-0.5">
+                              <span className={`text-xs font-medium ${
+                                s.finalGrade >= 8 ? "text-emerald-600" : s.finalGrade >= 5 ? "text-amber-600" : s.finalGrade > 0 ? "text-red-600" : "text-muted-foreground"
+                              }`}>
+                                {s.finalGrade > 0 ? s.finalGrade.toFixed(1) : "—"}
+                              </span>
+                              <span className="text-[9px] text-muted-foreground">{s.role.substring(0, 4)}</span>
+                            </div>
+                          )}
+                        </td>
+                      );
+                    })}
                     <td className="py-2.5 px-2 text-center bg-emerald-50/30">
                       {(student as any).allExcluded ? (
                         <span className="font-medium text-orange-400">—</span>

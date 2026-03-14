@@ -430,6 +430,48 @@ export function buildBrainstormNotificationEmailHtml(data: {
   `;
 }
 
+export function buildBrainstormViewerEmailHtml(data: {
+  studentName: string;
+  sessionLabel: string;
+  brainstormUrl: string;
+  componentCode: string;
+  classCode: string;
+  role: string;
+}): string {
+  const roleLabel = data.role === 'COORDENADOR' ? 'Coordenador' : data.role === 'QUADRO' ? 'Quadro' : 'Participante';
+  return `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <h2 style="color: #1f2937; margin: 0 0 8px;">Quadro de Brainstorming</h2>
+        <p style="color: #6b7280; margin: 0; font-size: 14px;">Sess\u00e3o Tutorial — ${roleLabel}</p>
+      </div>
+      <p style="color: #374151; font-size: 15px; line-height: 1.6;">
+        Ol\u00e1 <strong>${data.studentName}</strong>,
+      </p>
+      <p style="color: #374151; font-size: 15px; line-height: 1.6;">
+        Uma nova sess\u00e3o tutorial foi criada. Voc\u00ea pode visualizar o <strong>Quadro de Brainstorming</strong> da sess\u00e3o abaixo, onde o aluno no papel de Mesa registrar\u00e1 as Ideias, Fatos, Quest\u00f5es e Metas discutidas durante o tutorial.
+      </p>
+      <div style="text-align: center; margin: 24px 0;">
+        <div style="display: inline-block; background: #eff6ff; border: 2px solid #93c5fd; border-radius: 8px; padding: 16px 32px;">
+          <span style="font-size: 14px; color: #2563eb;">${data.componentCode} - ${data.classCode}</span>
+          <br />
+          <span style="font-size: 18px; font-weight: 600; color: #1d4ed8;">${data.sessionLabel}</span>
+        </div>
+      </div>
+      <div style="text-align: center; margin: 28px 0;">
+        <a href="${data.brainstormUrl}" style="display: inline-block; background: #2563eb; color: #ffffff; text-decoration: none; padding: 14px 40px; border-radius: 8px; font-size: 16px; font-weight: 600;">Ver Quadro de Brainstorming</a>
+      </div>
+      <div style="background: #eff6ff; border-radius: 8px; padding: 12px 16px; margin: 12px 0;">
+        <p style="color: #1e40af; font-size: 12px; margin: 0;">\ud83d\udc41 Voc\u00ea pode visualizar o quadro a qualquer momento. Apenas o aluno no papel de Mesa pode editar o conte\u00fado.</p>
+      </div>
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+      <p style="color: #9ca3af; font-size: 12px; text-align: center;">
+        Sistema de Avalia\u00e7\u00e3o de Desempenho Tutorial
+      </p>
+    </div>
+  `;
+}
+
 export function buildContactTicketEmailHtml(data: {
   ticketType: "bug" | "feature";
   subject: string;

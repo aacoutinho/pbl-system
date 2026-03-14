@@ -702,3 +702,14 @@
 - [x] Bug 4: Legenda da tabela de avaliação dos pares: "Número serial do avaliador" → "Número do aluno"; "Preenchido automaticamente" → "Não enviou (autopreenchida)"
 - [x] Bug: páginas Alunos, Sessões, Avaliação e Resultados não atualizam ao trocar componente — selectedClassId limpo imediatamente + estado vazio explícito em cada página
 - [x] Bug: TypeError "Cannot read properties of undefined (reading '0')" na página /tutorial-eval
+- [x] Bug: critérios já avaliados na página Avaliação não aparecem com cor mais forte ao visualizar avaliação submetida
+- [x] Envio de link de brainstorming por e-mail a todos os participantes ao criar sessão
+- [x] Controle de edição do quadro de brainstorming: só aluno com papel de mesa pode editar; após encerramento, apenas visualização
+- [x] Após fechamento da sessão, alunos só podem avaliar o critério de desempenho do aluno no papel de mesa
+- [x] Após encerramento da sessão, alunos só podem visualizar a avaliação (sem edição)
+- [x] Perfil do aluno: listar todas as sessões (ativas, em avaliação, fechadas, encerradas) com botões de brainstorming e avaliação
+- [x] Tabela consolidada no perfil do aluno (colunas: #, Matrícula, Aluno, P1S1, P1S2, MP1, P2S1, ..., Presenças, Faltas, Média Final)
+- [x] Tabela consolidada por componente na aba Consolidado por Aluno nos Resultados
+- [x] Exportação PDF dos relatórios na página de Resultados (por Sessão, por Problema, Consolidado por Aluno)
+- [x] Bug: scroll na criação de sessão não mostra os últimos alunos no notebook (problema de altura do modal)
+- [x] Bug: critérios já avaliados não aparecem com cor mais forte (scale: 2 migrado, corrigir dados existentes com arredondamento incorreto)

@@ -63,7 +63,7 @@ import {
   getDashboardStatsByComponentAndSemester,
 } from "./db";
 import { storagePut } from "./storage";
-import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml, buildContactTicketEmailHtml, buildSessionOpenedEmailHtml, buildStudentGradeReportHtml, buildBrainstormNotificationEmailHtml, buildBrainstormBoardEmailHtml, buildProfessorInviteEmailHtml } from "./email";
+import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml, buildContactTicketEmailHtml, buildSessionOpenedEmailHtml, buildStudentGradeReportHtml, buildBrainstormNotificationEmailHtml, buildBrainstormBoardEmailHtml, buildProfessorInviteEmailHtml, buildBrainstormViewerEmailHtml } from "./email";
 
 /**
  * Normaliza o semestre para o formato ANO.SEMESTRE (ex: 2026.1, 2026.2).
@@ -972,37 +972,55 @@ export const appRouter = router({
         studentAssignments: input.studentAssignments,
       });
 
-      // Send brainstorm board link to Mesa student
+      // Send brainstorm board link to all participants
       if (newSession && input.origin) {
         try {
-          const mesaAssignment = input.studentAssignments.find(sa => sa.role === "MESA" && !sa.absent);
-          if (mesaAssignment) {
-            const studentsInClass = await listStudentsByClass(input.classId);
-            const mesaStudent = studentsInClass.find(s => s.id === mesaAssignment.studentId);
-            if (mesaStudent?.email) {
-              let componentCode = "";
-              if (cls.componentId) {
-                const comp = await getComponentById(cls.componentId);
-                componentCode = comp?.code ?? "";
-              }
-              const brainstormUrl = `${input.origin}/brainstorm/${newSession.id}`;
+          const studentsInClass = await listStudentsByClass(input.classId);
+          let componentCode = "";
+          if (cls.componentId) {
+            const comp = await getComponentById(cls.componentId);
+            componentCode = comp?.code ?? "";
+          }
+          const brainstormUrl = `${input.origin}/brainstorm/${newSession.id}`;
+          for (const assignment of input.studentAssignments) {
+            if (assignment.absent) continue;
+            const student = studentsInClass.find(s => s.id === assignment.studentId);
+            if (!student?.email) continue;
+            if (assignment.role === "MESA") {
+              // Mesa student: editor email
               const html = buildBrainstormNotificationEmailHtml({
-                studentName: mesaStudent.name,
+                studentName: student.name,
                 sessionLabel: label,
                 brainstormUrl,
                 componentCode,
                 classCode: cls.classCode,
               });
               sendEmail({
-                to: mesaStudent.email,
+                to: student.email,
                 subject: `Quadro de Brainstorming - ${label}`,
-                text: `Ol\u00e1 ${mesaStudent.name}, voc\u00ea \u00e9 o respons\u00e1vel pelo Quadro de Brainstorming da sess\u00e3o ${label}. Acesse: ${brainstormUrl}`,
+                text: `Ol\u00e1 ${student.name}, voc\u00ea \u00e9 o respons\u00e1vel pelo Quadro de Brainstorming da sess\u00e3o ${label}. Acesse: ${brainstormUrl}`,
                 html,
-              }).catch(err => console.error(`[Email] Failed to send brainstorm link to ${mesaStudent.email}:`, err));
+              }).catch(err => console.error(`[Email] Failed to send brainstorm link to ${student.email}:`, err));
+            } else {
+              // Other participants: viewer email
+              const html = buildBrainstormViewerEmailHtml({
+                studentName: student.name,
+                sessionLabel: label,
+                brainstormUrl,
+                componentCode,
+                classCode: cls.classCode,
+                role: assignment.role,
+              });
+              sendEmail({
+                to: student.email,
+                subject: `Quadro de Brainstorming - ${label}`,
+                text: `Ol\u00e1 ${student.name}, uma nova sess\u00e3o tutorial foi criada: ${label}. Acesse o quadro de brainstorming: ${brainstormUrl}`,
+                html,
+              }).catch(err => console.error(`[Email] Failed to send brainstorm viewer link to ${student.email}:`, err));
             }
           }
         } catch (err) {
-          console.error("[Sessions] Error sending brainstorm email to Mesa:", err);
+          console.error("[Sessions] Error sending brainstorm emails:", err);
         }
       }
 
