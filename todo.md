@@ -713,3 +713,4 @@
 - [x] Exportação PDF dos relatórios na página de Resultados (por Sessão, por Problema, Consolidado por Aluno)
 - [x] Bug: scroll na criação de sessão não mostra os últimos alunos no notebook (problema de altura do modal)
 - [x] Bug: critérios já avaliados não aparecem com cor mais forte (scale: 2 migrado, corrigir dados existentes com arredondamento incorreto)
+- [x] Bug: ResultsPage não auto-seleciona a última sessão ao trocar de turma — campo "Selecione a sessão" fica desmarcado

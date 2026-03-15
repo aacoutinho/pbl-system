@@ -55,10 +55,21 @@ function ResultsContent() {
     if (selectedProblemNumber) setSelectedProblem(String(selectedProblemNumber));
   }, [selectedProblemNumber]);
 
-  // Auto-select last session when sessions load
+  // Reset session/problem selection when class changes
   useEffect(() => {
-    if (activeSessions && activeSessions.length > 0 && !selectedSessionId) {
-      const lastSession = activeSessions[activeSessions.length - 1];
+    setSelectedSessionId("");
+    setSelectedProblem("");
+  }, [selectedClassId]);
+
+  // Auto-select last session when sessions load (or when class changes and sessions reload)
+  useEffect(() => {
+    if (activeSessions && activeSessions.length > 0) {
+      const sorted = [...activeSessions].sort((a, b) =>
+        a.problemNumber !== b.problemNumber
+          ? a.problemNumber - b.problemNumber
+          : a.sessionNumber - b.sessionNumber
+      );
+      const lastSession = sorted[sorted.length - 1];
       setSelectedSessionId(String(lastSession.id));
     }
   }, [activeSessions]);
@@ -70,9 +81,9 @@ function ResultsContent() {
     return Array.from(pSet).sort((a, b) => a - b);
   }, [activeSessions]);
 
-  // Auto-select last problem when problems list is derived
+  // Auto-select last problem when problems list is derived (or when class changes)
   useEffect(() => {
-    if (problems && problems.length > 0 && !selectedProblem) {
+    if (problems && problems.length > 0) {
       setSelectedProblem(String(problems[problems.length - 1]));
     }
   }, [problems]);
