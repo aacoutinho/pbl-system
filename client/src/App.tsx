@@ -26,6 +26,7 @@ import BackupPage from "./pages/BackupPage";
 import RestorePage from "./pages/RestorePage";
 import DirectEvalPage from "./pages/DirectEvalPage";
 import BrainstormViewPage from "./pages/BrainstormViewPage";
+import AdminStudentProfilePage from "./pages/AdminStudentProfilePage";
 
 // Routes that do NOT use the DashboardLayout (public/standalone pages)
 const PUBLIC_PATHS = ["/acesso", "/avaliacao"];
@@ -58,6 +59,7 @@ function Router() {
             <Route path="/backup" component={BackupPage} />
             <Route path="/restauracao" component={RestorePage} />
             <Route path="/brainstorm/:sessionId" component={BrainstormViewPage} />
+            <Route path="/admin/aluno/:studentId" component={AdminStudentProfilePage} />
             <Route path="/404" component={NotFound} />
             <Route component={NotFound} />
           </Switch>

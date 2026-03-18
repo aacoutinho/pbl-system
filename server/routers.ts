@@ -863,6 +863,15 @@ export const appRouter = router({
       await createAuditLog({ action: "transfer_student", actorUserId: ctx.user.id, componentId: fromCls.componentId, classId: input.fromClassId, details: JSON.stringify({ studentId: input.studentId, fromClassId: input.fromClassId, toClassId: input.toClassId }) });
       return { success: true };
     }),
+    // Get student profile (history + info) for professor view
+    profile: approvedProcedure.input(z.object({
+      studentId: z.number(),
+    })).query(async ({ ctx, input }) => {
+      const student = await getStudentById(input.studentId);
+      if (!student) throw new TRPCError({ code: "NOT_FOUND", message: "Aluno não encontrado" });
+      const history = await getStudentEvaluationHistory(input.studentId);
+      return { student, history };
+    }),
     // List students by component with optional semester/class filters
     listByComponent: approvedProcedure.input(z.object({
       componentId: z.number(),
@@ -2341,6 +2350,57 @@ export const appRouter = router({
       await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);
       return getStudentConsolidatedReport(input.classId);
     }),
+    // Export all classes data for a component/semester
+    allClassesSessionResults: approvedProcedure.input(z.object({
+      componentId: z.number(),
+      semester: z.string(),
+      problemNumber: z.number(),
+      sessionNumber: z.number(),
+    })).query(async ({ ctx, input }) => {
+      await assertComponentAccess(ctx.user.id, ctx.user.role, input.componentId);
+      const classes = await listClassesByComponent(input.componentId, input.semester);
+      const results = [];
+      for (const cls of classes) {
+        const sessions = await listSessionsByClass(cls.id);
+        const session = sessions.find(s => s.problemNumber === input.problemNumber && s.sessionNumber === input.sessionNumber);
+        if (!session) { results.push({ classCode: cls.classCode, classId: cls.id, sessionId: null, finalGrades: [] }); continue; }
+        const finalGrades = await calculateFinalGrades(session.id, session.status !== 'finished');
+        results.push({ classCode: cls.classCode, classId: cls.id, sessionId: session.id, finalGrades });
+      }
+      return results;
+    }),
+
+    allClassesProblemResults: approvedProcedure.input(z.object({
+      componentId: z.number(),
+      semester: z.string(),
+      problemNumber: z.number(),
+    })).query(async ({ ctx, input }) => {
+      await assertComponentAccess(ctx.user.id, ctx.user.role, input.componentId);
+      const classes = await listClassesByComponent(input.componentId, input.semester);
+      const results = [];
+      for (const cls of classes) {
+        const problemFinal = await calculateProblemFinalGrades(cls.id, input.problemNumber);
+        const sessions = await listSessionsByClass(cls.id);
+        const problemSessions = sessions.filter(s => s.problemNumber === input.problemNumber).sort((a, b) => a.sessionNumber - b.sessionNumber);
+        results.push({ classCode: cls.classCode, classId: cls.id, problemFinal, problemSessions });
+      }
+      return results;
+    }),
+
+    allClassesConsolidated: approvedProcedure.input(z.object({
+      componentId: z.number(),
+      semester: z.string(),
+    })).query(async ({ ctx, input }) => {
+      await assertComponentAccess(ctx.user.id, ctx.user.role, input.componentId);
+      const classes = await listClassesByComponent(input.componentId, input.semester);
+      const results = [];
+      for (const cls of classes) {
+        const report = await getStudentConsolidatedReport(cls.id);
+        results.push({ classCode: cls.classCode, classId: cls.id, report });
+      }
+      return results;
+    }),
+
     // Send grade report emails to all students of a session
     sendGradeEmails: approvedProcedure.input(z.object({ sessionId: z.number() })).mutation(async ({ ctx, input }) => {
       const session = await getSessionById(input.sessionId);

@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Trash2, Upload, Users, BookOpen, FileSpreadsheet, Check, Pencil, ArrowRightLeft, Camera, AlertTriangle, Filter } from "lucide-react";
+import { Plus, Trash2, Upload, Users, BookOpen, FileSpreadsheet, Check, Pencil, ArrowRightLeft, Camera, AlertTriangle, Filter, Info } from "lucide-react";
+import { Link } from "wouter";
 import { PageHeader } from "@/components/PageHeader";
 import { StudentPhotoAvatar } from "@/components/StudentPhotoModal";
 import { useState, useRef, useMemo, useEffect } from "react";
@@ -789,6 +790,16 @@ function StudentsContent() {
                       <td className="py-3 pr-4 font-medium">{student.name}</td>
                       <td className="py-3 pr-4 text-sm text-muted-foreground">{student.email || <span className="italic text-muted-foreground/50">não informado</span>}</td>
                       <td className="py-3 flex gap-1">
+                        <Link href={`/admin/aluno/${student.id}`}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            title="Ver perfil do aluno"
+                          >
+                            <Info className="h-4 w-4" />
+                          </Button>
+                        </Link>
                         {canManage && (
                           <>
                             <Button

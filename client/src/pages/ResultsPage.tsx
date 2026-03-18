@@ -155,6 +155,10 @@ function ResultsContent() {
   }
 
   // ─── Export helpers ───
+  const trpcUtils = trpc.useUtils();
+  const [exportingAllSession, setExportingAllSession] = React.useState(false);
+  const [exportingAllProblem, setExportingAllProblem] = React.useState(false);
+  const [exportingAllConsolidated, setExportingAllConsolidated] = React.useState(false);
 
   const downloadCSV = (content: string, filename: string) => {
     const blob = new Blob(["\uFEFF" + content], { type: "text/csv;charset=utf-8;" });
@@ -175,15 +179,15 @@ function ResultsContent() {
   // Export session results: tutor eval per item + peer avg + final grade
   const exportSessionResults = () => {
     if (!finalResults) return;
-    const session = activeSessions?.find(s => s.id === parseInt(selectedSessionId));
-    const sessionLabel = session?.label || "sessao";
+    const csvSession = activeSessions?.find(s => s.id === parseInt(selectedSessionId));
+    const sessionLabel = csvSession?.label || "sessao";
     const presentCount = finalResults.filter(r => !r.absent && r.peerScore > 0).length;
 
     const lines: string[] = [];
 
     // Header section: Session info
     lines.push(`Sessão Tutorial: ${escapeCSV(sessionLabel)}`);
-    lines.push(`Problema: ${session?.problemNumber ?? ""},Sessão: ${session?.sessionNumber ?? ""}`);
+    lines.push(`Problema: ${csvSession?.problemNumber ?? ""},Sessão: ${csvSession?.sessionNumber ?? ""}`);
     lines.push("");
 
     // Tutorial evaluation section
@@ -291,8 +295,8 @@ function ResultsContent() {
     if (!finalResults) return;
     const { jsPDF } = await import('jspdf');
     const autoTable = (await import('jspdf-autotable')).default;
-    const session = activeSessions?.find(s => s.id === parseInt(selectedSessionId));
-    const sessionLabel = session?.label || 'Sessão';
+    const pdfSession = activeSessions?.find(s => s.id === parseInt(selectedSessionId));
+    const sessionLabel = pdfSession?.label || 'Sessão';
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     doc.setFontSize(14);
     doc.text(`Resultados - ${sessionLabel}`, 14, 18);
@@ -329,7 +333,11 @@ function ResultsContent() {
       headStyles: { fillColor: [59, 130, 246] },
       margin: { left: 14, right: 14 },
     });
-    doc.save(`resultados_${sessionLabel.replace(/\s/g, '_')}.pdf`);
+    const classCodeNorm = (selectedClassCode || 'tp').toLowerCase().replace(/\s/g, '-');
+    const exportSession = activeSessions?.find(s => s.id === parseInt(selectedSessionId));
+    const pNum = exportSession?.problemNumber ?? 1;
+    const sNum = exportSession?.sessionNumber ?? 1;
+    doc.save(`desempenho-${classCodeNorm}-p${pNum}-s${sNum}.pdf`);
   };
 
   const exportProblemPDF = async () => {
@@ -356,7 +364,167 @@ function ResultsContent() {
       headStyles: { fillColor: [59, 130, 246] },
       margin: { left: 14, right: 14 },
     });
-    doc.save(`resultados_problema_${selectedProblem}.pdf`);
+    const classCodeNorm2 = (selectedClassCode || 'tp').toLowerCase().replace(/\s/g, '-');
+    doc.save(`desempenho-${classCodeNorm2}-p${selectedProblem}.pdf`);
+  };
+
+  // ─── Export All Classes ───
+  const exportAllClassesSessionPDF = async () => {
+    if (!selectedComponentId || !selectedSemester || !selectedSessionId) return;
+    const pdfSession = activeSessions?.find(s => s.id === parseInt(selectedSessionId));
+    if (!pdfSession) return;
+    setExportingAllSession(true);
+    try {
+      const allData = await trpcUtils.results.allClassesSessionResults.fetch({
+        componentId: selectedComponentId,
+        semester: selectedSemester,
+        problemNumber: pdfSession.problemNumber,
+        sessionNumber: pdfSession.sessionNumber,
+      });
+      const { jsPDF } = await import('jspdf');
+      const autoTable = (await import('jspdf-autotable')).default;
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      let firstPage = true;
+      for (const cls of allData) {
+        if (!firstPage) doc.addPage();
+        firstPage = false;
+        doc.setFontSize(14);
+        doc.text(`Turma ${cls.classCode} — P${pdfSession.problemNumber}S${pdfSession.sessionNumber}`, 14, 18);
+        doc.setFontSize(9);
+        doc.text(`Componente: ${selectedComponentFullLabel || ''} | Semestre: ${selectedSemester || ''}`, 14, 26);
+        if (cls.finalGrades.length === 0) {
+          doc.setFontSize(10);
+          doc.text('Sessão não encontrada para esta turma.', 14, 36);
+        } else {
+          autoTable(doc, {
+            startY: 32,
+            head: [['Matrícula', 'Papel', 'Nota Final', 'Status']],
+            body: cls.finalGrades.map((r: any) => [r.studentEnrollment || r.studentName, r.role, r.finalGrade.toFixed(1), r.absent ? 'Faltou' : 'Presente']),
+            styles: { fontSize: 8 },
+            headStyles: { fillColor: [59, 130, 246] },
+            margin: { left: 14, right: 14 },
+          });
+        }
+      }
+      doc.save(`desempenho-todas-turmas-p${pdfSession.problemNumber}-s${pdfSession.sessionNumber}.pdf`);
+    } catch (e) {
+      toast.error('Erro ao exportar todas as turmas');
+    } finally {
+      setExportingAllSession(false);
+    }
+  };
+
+  const exportAllClassesProblemPDF = async () => {
+    if (!selectedComponentId || !selectedSemester || !selectedProblem) return;
+    setExportingAllProblem(true);
+    try {
+      const allData = await trpcUtils.results.allClassesProblemResults.fetch({
+        componentId: selectedComponentId,
+        semester: selectedSemester,
+        problemNumber: parseInt(selectedProblem),
+      });
+      const { jsPDF } = await import('jspdf');
+      const autoTable = (await import('jspdf-autotable')).default;
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      let firstPage = true;
+      for (const cls of allData) {
+        if (!firstPage) doc.addPage();
+        firstPage = false;
+        doc.setFontSize(14);
+        doc.text(`Turma ${cls.classCode} — Problema ${selectedProblem}`, 14, 18);
+        doc.setFontSize(9);
+        doc.text(`Componente: ${selectedComponentFullLabel || ''} | Semestre: ${selectedSemester || ''}`, 14, 26);
+        const headers = ['Matrícula', ...cls.problemSessions.map((s: any) => `S${s.sessionNumber}`), 'Média Final'];
+        const body = cls.problemFinal.map((r: any) => [
+          r.studentEnrollment || r.studentName,
+          ...cls.problemSessions.map((_: any, i: number) => (r.finalGrades[i] ?? 0).toFixed(1)),
+          r.finalAverage.toFixed(1),
+        ]);
+        autoTable(doc, {
+          startY: 32,
+          head: [headers],
+          body,
+          styles: { fontSize: 8 },
+          headStyles: { fillColor: [59, 130, 246] },
+          margin: { left: 14, right: 14 },
+        });
+      }
+      doc.save(`desempenho-todas-turmas-p${selectedProblem}.pdf`);
+    } catch (e) {
+      toast.error('Erro ao exportar todas as turmas');
+    } finally {
+      setExportingAllProblem(false);
+    }
+  };
+
+  const exportAllClassesConsolidatedPDF = async () => {
+    if (!selectedComponentId || !selectedSemester) return;
+    setExportingAllConsolidated(true);
+    try {
+      const allData = await trpcUtils.results.allClassesConsolidated.fetch({
+        componentId: selectedComponentId,
+        semester: selectedSemester,
+      });
+      const { jsPDF } = await import('jspdf');
+      const autoTable = (await import('jspdf-autotable')).default;
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      let firstPage = true;
+      for (const cls of allData) {
+        if (!firstPage) doc.addPage();
+        firstPage = false;
+        doc.setFontSize(14);
+        doc.text(`Turma ${cls.classCode} — Consolidado`, 14, 18);
+        doc.setFontSize(9);
+        doc.text(`Componente: ${selectedComponentFullLabel || ''} | Semestre: ${selectedSemester || ''}`, 14, 26);
+        if (!cls.report || cls.report.length === 0) {
+          doc.setFontSize(10);
+          doc.text('Sem dados para esta turma.', 14, 36);
+          continue;
+        }
+        const sessions = cls.report[0].sessions;
+        const pNums = Array.from(new Set(sessions.map((s: any) => s.problemNumber))).sort((a: any, b: any) => a - b) as number[];
+        const colHeaders: string[] = ['#', 'Matrícula'];
+        for (const pNum of pNums) {
+          const pSessions = sessions.filter((s: any) => s.problemNumber === pNum);
+          pSessions.forEach((s: any) => colHeaders.push(`P${s.problemNumber}S${s.sessionNumber}`));
+          colHeaders.push(`MP${pNum}`);
+        }
+        colHeaders.push('Faltas', 'Média Final');
+        const body = cls.report.map((student: any, idx: number) => {
+          const row: string[] = [String(idx + 1), student.studentEnrollment];
+          for (const pNum of pNums) {
+            const pSessions = sessions.filter((s: any) => s.problemNumber === pNum);
+            pSessions.forEach((s: any) => {
+              const sIdx = sessions.indexOf(s);
+              const sd = student.sessions[sIdx];
+              if (!sd) { row.push('—'); return; }
+              if (sd.excluded) { row.push('E'); return; }
+              if (sd.absent) { row.push('F'); return; }
+              row.push(sd.finalGrade.toFixed(1));
+            });
+            const totalCount = pSessions.length;
+            const presentSum = student.sessions.filter((s: any) => s.problemNumber === pNum && !s.absent && !s.excluded).reduce((sum: number, s: any) => sum + s.finalGrade, 0);
+            const avg = totalCount > 0 ? Math.min(10, Math.round(presentSum / totalCount * 10) / 10) : 0;
+            row.push(avg.toFixed(1));
+          }
+          row.push(String(student.absentCount), student.avgFinalGrade.toFixed(1));
+          return row;
+        });
+        autoTable(doc, {
+          startY: 32,
+          head: [colHeaders],
+          body,
+          styles: { fontSize: 7 },
+          headStyles: { fillColor: [59, 130, 246] },
+          margin: { left: 10, right: 10 },
+        });
+      }
+      doc.save(`desempenho-todas-turmas.pdf`);
+    } catch (e) {
+      toast.error('Erro ao exportar todas as turmas');
+    } finally {
+      setExportingAllConsolidated(false);
+    }
   };
 
   return (
@@ -402,6 +570,9 @@ function ResultsContent() {
                 </Button>
                 <Button variant="outline" size="sm" onClick={exportSessionPDF}>
                   <FileText className="h-4 w-4 mr-2" />Exportar PDF
+                </Button>
+                <Button variant="outline" size="sm" onClick={exportAllClassesSessionPDF} disabled={exportingAllSession}>
+                  <FileText className="h-4 w-4 mr-2" />{exportingAllSession ? 'Exportando...' : 'Exportar todas as turmas'}
                 </Button>
                 <SendGradeEmailsButton sessionId={parseInt(selectedSessionId)} hasTutorialEval={!!tutorialEval} />
               </div>
@@ -705,6 +876,7 @@ function ResultsContent() {
                         <thead>
                           <tr className="border-b text-left">
                             <th className="pb-3 pr-4 font-semibold w-12">#</th>
+                            <th className="pb-3 pr-4 font-semibold">Matrícula</th>
                             <th className="pb-3 pr-4 font-semibold">Aluno</th>
                             <th className="pb-3 pr-4 font-semibold">Papel</th>
                             <th className="pb-3 pr-4 font-semibold text-center">Média Pares</th>
@@ -717,6 +889,9 @@ function ResultsContent() {
                             <tr key={r.studentId} className={`border-b last:border-0 transition-colors ${r.absent ? "bg-red-50/60 hover:bg-red-50" : "hover:bg-accent/20"}`}>
                               <td className="py-3 pr-4">
                                 <span className="text-muted-foreground">{i + 1}</span>
+                              </td>
+                              <td className="py-3 pr-4 text-sm font-mono text-muted-foreground">
+                                {(r as any).enrollment || (r as any).studentEnrollment || "–"}
                               </td>
                               <td className="py-3 pr-4">
                                 <p className={`font-medium ${r.absent ? "text-red-400" : ""}`}>{r.studentName}</p>
@@ -809,6 +984,9 @@ function ResultsContent() {
                 <Button variant="outline" size="sm" onClick={exportProblemPDF}>
                   <FileText className="h-4 w-4 mr-2" />Exportar PDF
                 </Button>
+                <Button variant="outline" size="sm" onClick={exportAllClassesProblemPDF} disabled={exportingAllProblem}>
+                  <FileText className="h-4 w-4 mr-2" />{exportingAllProblem ? 'Exportando...' : 'Exportar todas as turmas'}
+                </Button>
               </div>
             )}
           </div>
@@ -835,6 +1013,7 @@ function ResultsContent() {
                       <thead>
                         <tr className="border-b text-left">
                           <th className="pb-3 pr-4 font-semibold w-12">#</th>
+                          <th className="pb-3 pr-4 font-semibold">Matrícula</th>
                           <th className="pb-3 pr-4 font-semibold">Aluno</th>
                           {activeSessions?.filter(s => s.problemNumber === parseInt(selectedProblem)).sort((a, b) => a.sessionNumber - b.sessionNumber).map(s => (
                             <th key={s.id} className="pb-3 pr-2 font-semibold text-center text-xs">
@@ -857,6 +1036,9 @@ function ResultsContent() {
                           }`}>
                             <td className="py-3 pr-4">
                               <span className="text-muted-foreground">{i + 1}</span>
+                            </td>
+                            <td className="py-3 pr-4 text-sm font-mono text-muted-foreground">
+                              {(r as any).studentEnrollment || "–"}
                             </td>
                             <td className="py-3 pr-4">
                               <div className="flex items-center gap-2 flex-wrap">
@@ -910,7 +1092,7 @@ function ResultsContent() {
 
         {/* ─── Consolidated Student Report ─── */}
         <TabsContent value="consolidated" className="space-y-4">
-          <ConsolidatedStudentReport classId={selectedClassId!} componentLabel={selectedComponentFullLabel ?? undefined} classCode={selectedClassCode ?? undefined} semester={selectedSemester ?? undefined} />
+           <ConsolidatedStudentReport classId={selectedClassId!} componentLabel={selectedComponentFullLabel ?? undefined} classCode={selectedClassCode ?? undefined} semester={selectedSemester ?? undefined} onExportAll={exportAllClassesConsolidatedPDF} exportingAll={exportingAllConsolidated} />
         </TabsContent>
       </Tabs>
 
@@ -1134,7 +1316,7 @@ function BrainstormResultsCard({ items }: { items: BrainstormItemResult[] }) {
   );
 }
 
-function ConsolidatedStudentReport({ classId, componentLabel, classCode, semester }: { classId: number; componentLabel?: string; classCode?: string; semester?: string }) {
+function ConsolidatedStudentReport({ classId, componentLabel, classCode, semester, onExportAll, exportingAll }: { classId: number; componentLabel?: string; classCode?: string; semester?: string; onExportAll?: () => void; exportingAll?: boolean }) {
   const { data: report, isLoading } = trpc.results.studentConsolidated.useQuery(
     { classId },
     { enabled: !!classId }
@@ -1279,9 +1461,13 @@ function ConsolidatedStudentReport({ classId, componentLabel, classCode, semeste
               headStyles: { fillColor: [59, 130, 246] },
               margin: { left: 10, right: 10 },
             });
-            doc.save(`relatorio_consolidado_${classCode || 'turma'}.pdf`);
+            const classCodeNormCons = (classCode || 'tp').toLowerCase().replace(/\s/g, '-');
+            doc.save(`desempenho-${classCodeNormCons}.pdf`);
           }}>
             <FileText className="h-4 w-4 mr-2" />Exportar PDF
+          </Button>
+          <Button variant="outline" size="sm" onClick={onExportAll} disabled={exportingAll}>
+            <FileText className="h-4 w-4 mr-2" />{exportingAll ? 'Exportando...' : 'Exportar todas as turmas'}
           </Button>
         </div>
       </div>
@@ -1293,8 +1479,8 @@ function ConsolidatedStudentReport({ classId, componentLabel, classCode, semeste
               <thead>
                 <tr className="border-b bg-muted/30 text-left">
                   <th className="py-3 px-3 font-semibold sticky left-0 bg-muted/30 z-10">#</th>
+                  <th className="py-3 px-2 font-semibold text-center min-w-[80px] bg-muted/30">Matrícula</th>
                   <th className="py-3 px-3 font-semibold sticky left-8 bg-muted/30 z-10 min-w-[180px]">Aluno</th>
-                  <th className="py-3 px-2 font-semibold text-center min-w-[60px]">Matrícula</th>
                   {columnDefs.map((col, i) => (
                     col.type === 'avg' ? (
                       <th key={`avg-${col.problemNumber}`} className="py-3 px-2 font-semibold text-center min-w-[60px] bg-blue-50/60">
@@ -1311,12 +1497,6 @@ function ConsolidatedStudentReport({ classId, componentLabel, classCode, semeste
                       </th>
                     )
                   ))}
-                  <th className="py-3 px-2 font-semibold text-center bg-emerald-50/50">
-                    <div className="flex items-center justify-center gap-1">
-                      <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-                      <span className="text-xs">Presenças</span>
-                    </div>
-                  </th>
                   <th className="py-3 px-2 font-semibold text-center bg-red-50/50">
                     <div className="flex items-center justify-center gap-1">
                       <AlertTriangle className="h-3 w-3 text-red-500" />
@@ -1343,6 +1523,9 @@ function ConsolidatedStudentReport({ classId, componentLabel, classCode, semeste
                     }`}
                   >
                     <td className="py-2.5 px-3 text-muted-foreground sticky left-0 bg-background z-10">{idx + 1}</td>
+                    <td className="py-2.5 px-2 text-center text-xs font-mono text-muted-foreground">
+                      {student.studentEnrollment}
+                    </td>
                     <td className="py-2.5 px-3 sticky left-8 bg-background z-10">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <p className={`font-medium text-sm ${
@@ -1355,9 +1538,6 @@ function ConsolidatedStudentReport({ classId, componentLabel, classCode, semeste
                           <Badge variant="outline" className="text-[9px] bg-orange-50 text-orange-500 border-orange-200 px-1 py-0">Excluído</Badge>
                         )}
                       </div>
-                    </td>
-                    <td className="py-2.5 px-2 text-center text-xs font-mono text-muted-foreground">
-                      {student.studentEnrollment}
                     </td>
                     {columnDefs.map((col, i) => {
                       if (col.type === 'avg') {
@@ -1401,16 +1581,6 @@ function ConsolidatedStudentReport({ classId, componentLabel, classCode, semeste
                         </td>
                       );
                     })}
-                    <td className="py-2.5 px-2 text-center bg-emerald-50/30">
-                      {(student as any).allExcluded ? (
-                        <span className="font-medium text-orange-400">—</span>
-                      ) : (
-                        <>
-                          <span className="font-medium text-emerald-700">{student.presentCount}</span>
-                          <span className="text-muted-foreground text-xs">/{student.totalSessions - ((student as any).excludedCount ?? 0)}</span>
-                        </>
-                      )}
-                    </td>
                     <td className="py-2.5 px-2 text-center bg-red-50/30">
                       {(student as any).allExcluded ? (
                         <span className="font-medium text-orange-400">—</span>

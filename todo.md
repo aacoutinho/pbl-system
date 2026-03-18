@@ -714,3 +714,11 @@
 - [x] Bug: scroll na criação de sessão não mostra os últimos alunos no notebook (problema de altura do modal)
 - [x] Bug: critérios já avaliados não aparecem com cor mais forte (scale: 2 migrado, corrigir dados existentes com arredondamento incorreto)
 - [x] Bug: ResultsPage não auto-seleciona a última sessão ao trocar de turma — campo "Selecione a sessão" fica desmarcado
+- [x] Folha Alunos: botão/ícone de informação para visualizar perfil do aluno diretamente (sem código por e-mail)
+- [x] Resultados Por Sessão: coluna "Matrícula" antes de "Aluno" nas Notas Finais da Sessão
+- [x] Resultados Por Problema: coluna "Matrícula" antes de "Aluno" nas Notas Finais do Problema
+- [x] Resultados Consolidado por Aluno: realocar "Matrícula" antes de "Aluno" e remover coluna "Presenças"
+- [x] Resultados: botão "Exportar todas as Turmas" nas 3 abas — gera PDF com todas as turmas (sem coluna Aluno, apenas Matrícula)
+- [x] Resultados Por Sessão: nome do arquivo PDF = "desempenho-tp01-p1-s1" (turma-problema-sessão)
+- [x] Resultados Por Problema: nome do arquivo PDF = "desempenho-tp01-p1" (turma-problema)
+- [x] Resultados Consolidado por Aluno: nome do arquivo PDF = "desempenho-tp01" (turma)
