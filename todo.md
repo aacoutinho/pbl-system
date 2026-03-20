@@ -722,3 +722,11 @@
 - [x] Resultados Por Sessão: nome do arquivo PDF = "desempenho-tp01-p1-s1" (turma-problema-sessão)
 - [x] Resultados Por Problema: nome do arquivo PDF = "desempenho-tp01-p1" (turma-problema)
 - [x] Resultados Consolidado por Aluno: nome do arquivo PDF = "desempenho-tp01" (turma)
+
+### Presença na Sessão Ativa (Mar 2026)
+
+- [x] Criação de sessão: todos os alunos da turma aparecem na lista com toggle Presente/Faltou (padrão: Presente)
+- [x] Edição de sessão ativa: professor pode alterar Presente/Faltou de qualquer aluno (inclusive marcar como Presente quem chegou atrasado)
+- [x] Ao abrir sessão para avaliação: alunos marcados como Faltou não recebem e-mail com link de avaliação
+- [x] Formulário de avaliação de pares: alunos marcados como Faltou não aparecem na lista de avaliados
+- [x] Cálculo de médias: alunos marcados como Faltou são excluídos do cálculo de média de pares e média final

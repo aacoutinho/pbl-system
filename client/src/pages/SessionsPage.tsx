@@ -112,18 +112,18 @@ function SessionsContent() {
   const [problemTitle, setProblemTitle] = useState("");
   const [assignments, setAssignments] = useState<Record<number, StudentAssignment>>({});
 
-  // Initialize assignments when studentsList loads
+  // Initialize assignments when studentsList loads or when create dialog opens
   useEffect(() => {
-    if (studentsList && Object.keys(assignments).length === 0) {
+    if (studentsList) {
       const init: Record<number, StudentAssignment> = {};
       studentsList.forEach(s => {
         init[s.id] = { studentId: s.id, role: "PARTICIPANTE", absent: false, selected: true };
       });
       setAssignments(init);
     }
-  }, [studentsList]);
+  }, [studentsList, showCreate]);
 
-  const selectedStudents = useMemo(() => Object.values(assignments).filter(a => a.selected), [assignments]);
+  const selectedStudents = useMemo(() => Object.values(assignments).filter(a => !a.absent), [assignments]);
 
   // Auto-set problem number and pre-fill title when nextInfo loads
   useEffect(() => {
@@ -192,16 +192,18 @@ function SessionsContent() {
   const handleCreate = () => {
     const pn = parseInt(problemNum);
     if (isNaN(pn) || pn < 1) { toast.error("Número do problema inválido"); return; }
-    const selected = Object.values(assignments).filter(a => a.selected);
-    if (selected.length === 0) { toast.error("Selecione ao menos um aluno"); return; }
+    const allStudents = Object.values(assignments);
+    if (allStudents.length === 0) { toast.error("Nenhum aluno cadastrado na turma"); return; }
+    const presentStudents = allStudents.filter(a => !a.absent);
+    if (presentStudents.length === 0) { toast.error("Pelo menos um aluno deve estar presente"); return; }
     // Validate exclusive roles
     const exclusiveRoles: RoleType[] = ["COORDENADOR", "MESA", "QUADRO"];
     for (const role of exclusiveRoles) {
-      const count = selected.filter(sa => sa.role === role && !sa.absent).length;
+      const count = presentStudents.filter(sa => sa.role === role).length;
       if (count > 1) { toast.error(`O papel ${role} só pode ser atribuído a um aluno`); return; }
     }
     // Validate required roles
-    const presentRoles = selected.filter(sa => !sa.absent).map(sa => sa.role);
+    const presentRoles = presentStudents.map(sa => sa.role);
     if (!presentRoles.includes("COORDENADOR")) { toast.error("É necessário atribuir o papel de Coordenador a um aluno presente."); return; }
     if (!presentRoles.includes("MESA")) { toast.error("É necessário atribuir o papel de Mesa a um aluno presente."); return; }
     if (!presentRoles.includes("QUADRO")) { toast.error("É necessário atribuir o papel de Quadro a um aluno presente."); return; }
@@ -209,13 +211,19 @@ function SessionsContent() {
       classId: selectedClassId!,
       problemNumber: pn,
       problemTitle: problemTitle.trim() || undefined,
-      studentAssignments: selected.map(sa => ({ studentId: sa.studentId, role: sa.role, absent: sa.absent })),
+      studentAssignments: allStudents.map(sa => ({ studentId: sa.studentId, role: sa.role, absent: sa.absent })),
       origin: window.location.origin,
     });
   };
 
-  const toggleStudent = (id: number) => {
-    setAssignments(prev => ({ ...prev, [id]: { ...prev[id], selected: !prev[id]?.selected } }));
+  const toggleAbsent = (id: number) => {
+    setAssignments(prev => {
+      const wasAbsent = prev[id]?.absent;
+      const updated = { ...prev, [id]: { ...prev[id], absent: !wasAbsent, selected: true } };
+      // If marking as absent, reset role to PARTICIPANTE
+      if (!wasAbsent) updated[id].role = "PARTICIPANTE";
+      return updated;
+    });
   };
 
   const updateRole = (id: number, role: RoleType) => {
@@ -237,22 +245,19 @@ function SessionsContent() {
     }
   };
 
-  const toggleAbsent = (id: number) => {
-    setAssignments(prev => ({ ...prev, [id]: { ...prev[id], absent: !prev[id]?.absent } }));
-  };
 
-  const selectAll = () => {
-    if (studentsList) {
-      const allSelected = selectedStudents.length === studentsList.length;
-      setAssignments(prev => {
-        const updated = { ...prev };
-        studentsList.forEach(s => {
-          updated[s.id] = { ...updated[s.id], selected: !allSelected };
-        });
-        return updated;
+  const selectAll = useCallback(() => {
+    const allPresent = selectedStudents.length === (studentsList?.length ?? 0);
+    setAssignments(prev => {
+      const updated = { ...prev };
+      (studentsList ?? []).forEach(s => {
+        // Toggle: if all present, mark all absent; if any absent, mark all present
+        updated[s.id] = { ...updated[s.id], absent: !allPresent, selected: true };
+        if (!allPresent) updated[s.id].role = "PARTICIPANTE";
       });
-    }
-  };
+      return updated;
+    });
+  }, [selectedStudents, studentsList]);
 
   return (
     <div className="space-y-6">
@@ -345,12 +350,9 @@ function SessionsContent() {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <Label>Alunos da Sessão (presença e papéis)</Label>
-                    <Button variant="ghost" size="sm" onClick={selectAll} className="text-xs h-7">
-                      {selectedStudents.length === (studentsList?.length ?? 0) ? "Desmarcar todos" : "Selecionar todos"}
-                    </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-2">Alunos não selecionados receberão falta. Defina o papel de cada aluno presente.</p>
-                  <div className="border rounded-lg overflow-y-auto divide-y" style={{maxHeight: 'min(288px, 35vh)'}}>
+                  <p className="text-xs text-muted-foreground mb-2">Todos os alunos da turma aparecem. Marque como "Faltou" quem não está presente. Você pode alterar a presença enquanto a sessão estiver ativa.</p>
+                  <div className="border rounded-lg overflow-y-auto divide-y" style={{maxHeight: 'min(320px, 40vh)'}}>
                     {!studentsList || studentsList.length === 0 ? (
                       <p className="p-4 text-sm text-muted-foreground text-center">Nenhum aluno cadastrado. Cadastre alunos primeiro.</p>
                     ) : (
@@ -358,19 +360,15 @@ function SessionsContent() {
                         const a = assignments[student.id];
                         if (!a) return null;
                         return (
-                          <div key={student.id} className={`px-3 py-2.5 transition-colors ${a.selected ? 'bg-background' : 'bg-muted/30 opacity-60'}`}>
+                          <div key={student.id} className={`px-3 py-2.5 transition-colors ${a.absent ? 'bg-red-50/50 opacity-70' : 'bg-background'}`}>
                             <div className="flex items-center gap-3">
-                              <Checkbox
-                                checked={a.selected}
-                                onCheckedChange={() => toggleStudent(student.id)}
-                              />
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">{student.name}</p>
+                                <p className={`text-sm font-medium truncate ${a.absent ? 'line-through text-muted-foreground' : ''}`}>{student.name}</p>
                                 <p className="text-xs text-muted-foreground truncate">{student.enrollment}</p>
                               </div>
-                              {a.selected && (
+                              {!a.absent && (
                                 <Select value={a.role} onValueChange={(v) => updateRole(student.id, v as RoleType)}>
-                                  <SelectTrigger className="w-[140px] h-8 text-xs">
+                                  <SelectTrigger className="w-[130px] h-8 text-xs">
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -381,6 +379,14 @@ function SessionsContent() {
                                   </SelectContent>
                                 </Select>
                               )}
+                              <Button
+                                variant={a.absent ? "destructive" : "outline"}
+                                size="sm"
+                                className="h-8 text-xs px-2 shrink-0"
+                                onClick={() => toggleAbsent(student.id)}
+                              >
+                                {a.absent ? "Faltou" : "Presente"}
+                              </Button>
                             </div>
                           </div>
                         );
@@ -390,7 +396,7 @@ function SessionsContent() {
                   <div className="flex items-center justify-between mt-1">
                     <p className="text-xs text-muted-foreground">{selectedStudents.length} presente(s), {(studentsList?.length ?? 0) - selectedStudents.length} falta(s)</p>
                     <div className="flex gap-1">
-                      {Object.values(assignments).filter(a => a.selected && a.role !== "PARTICIPANTE").map(a => (
+                      {Object.values(assignments).filter(a => !a.absent && a.role !== "PARTICIPANTE").map(a => (
                         <Badge key={a.role} variant="outline" className="text-[10px] h-5">{a.role}</Badge>
                       ))}
                     </div>
@@ -573,8 +579,10 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onFini
   const [, navigate] = useLocation();
   const utils = trpc.useUtils();
   const { data: status } = trpc.sessions.submissionStatus.useQuery({ sessionId: session.id });
-  const submitted = status?.filter(s => s.submitted).length ?? 0;
-  const total = status?.length ?? 0;
+  // Only count present students (not absent) in submission tracking
+  const presentStatus = status?.filter(s => !s.absent) ?? [];
+  const submitted = presentStatus.filter(s => s.submitted).length;
+  const total = presentStatus.length;
   const pending = total - submitted;
 
   const [showReevalDialog, setShowReevalDialog] = useState(false);

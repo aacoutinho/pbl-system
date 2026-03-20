@@ -1083,6 +1083,8 @@ export const appRouter = router({
         }
         const baseUrl = input.origin || "";
         for (const ss of sessionStudentsList) {
+          // Skip absent students — they don't receive tokens or emails
+          if (ss.absent) continue;
           const student = studentMap.get(ss.studentId);
           if (!student) continue;
           const token = await generateSessionTokenForStudent(input.id, student.id);
@@ -1210,6 +1212,8 @@ export const appRouter = router({
         const baseUrl = input.origin || "";
 
         for (const ss of sessionStudentsList) {
+          // Skip absent students — they don't receive tokens or emails
+          if (ss.absent) continue;
           const student = studentMap.get(ss.studentId);
           if (!student) continue;
           // Generate individual token for this student
@@ -1266,6 +1270,8 @@ export const appRouter = router({
 
       let emailsSent = 0;
       for (const ss of sessionStudentsList) {
+        // Skip absent students — they don't receive emails
+        if (ss.absent) continue;
         const student = studentMap.get(ss.studentId);
         if (student?.email) {
           // Get existing token or generate new one

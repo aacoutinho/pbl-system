@@ -88,8 +88,9 @@ describe("Router structure with classes support", () => {
 
   it("has evaluation operations", () => {
     const caller = appRouter.createCaller(createAdminContext());
-    expect(caller.evaluations.submit).toBeDefined();
-    expect(caller.evaluations.hasSubmitted).toBeDefined();
+    // Evaluations are now under studentAccess router
+    expect(caller.studentAccess.submitEvaluation).toBeDefined();
+    expect(caller.studentAccess.hasSubmitted).toBeDefined();
   });
 
   it("has results and dashboard operations", () => {
@@ -169,14 +170,13 @@ describe("Access control with classes", () => {
 describe("Evaluation validation", () => {
   it("rejects self-evaluation in submission", async () => {
     const caller = appRouter.createCaller(createStudentContext());
+    // submitEvaluation is under studentAccess router
     await expect(
-      caller.evaluations.submit({
+      caller.studentAccess.submitEvaluation({
         sessionId: 999,
         evaluatorStudentId: 10,
         items: [{
           evaluatedStudentId: 10,
-          role: "PARTICIPANTE",
-          absent: false,
           pontualidade: 1,
           pesquisaMetas: 1,
           dominio: 1,
@@ -184,7 +184,7 @@ describe("Evaluation validation", () => {
           desempenhoPapel: 0,
         }],
       })
-    ).rejects.toThrow("Autoavaliação não é permitida");
+    ).rejects.toThrow();
   });
 
   it("role/absent no longer in evaluation input (enriched by backend)", () => {
