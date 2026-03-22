@@ -730,3 +730,11 @@
 - [x] Ao abrir sessão para avaliação: alunos marcados como Faltou não recebem e-mail com link de avaliação
 - [x] Formulário de avaliação de pares: alunos marcados como Faltou não aparecem na lista de avaliados
 - [x] Cálculo de médias: alunos marcados como Faltou são excluídos do cálculo de média de pares e média final
+
+## Bugs Quadro de Brainstorming (Mar 2026)
+
+- [x] Bug: papel do aluno (MESA) não é transmitido corretamente para a página do quadro — aluno mesa aparece como PARTICIPANTE e não consegue editar o quadro
+- [x] Garantir que ao acessar o quadro (pelo link do e-mail ou pelo botão no perfil), o papel correto (MESA/PARTICIPANTE) seja carregado e MESA possa editar
+- [x] getStudentEvaluationHistory: incluir campo role da tabela sessionStudents (antes retornava PARTICIPANTE fixo para sessões ativas)
+- [x] Link de brainstorm no e-mail: incluir ?student=:studentId para BrainstormViewPage determinar canEdit
+- [x] BrainstormViewPage: verificar papel do aluno via getSessionStudents + sessionStatus do getBoard

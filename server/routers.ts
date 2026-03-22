@@ -990,11 +990,12 @@ export const appRouter = router({
             const comp = await getComponentById(cls.componentId);
             componentCode = comp?.code ?? "";
           }
-          const brainstormUrl = `${input.origin}/brainstorm/${newSession.id}`;
           for (const assignment of input.studentAssignments) {
             if (assignment.absent) continue;
             const student = studentsInClass.find(s => s.id === assignment.studentId);
             if (!student?.email) continue;
+            // Include studentId in URL so BrainstormViewPage can determine edit permission
+            const brainstormUrl = `${input.origin}/brainstorm/${newSession.id}?student=${student.id}`;
             if (assignment.role === "MESA") {
               // Mesa student: editor email
               const html = buildBrainstormNotificationEmailHtml({

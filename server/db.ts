@@ -3591,6 +3591,8 @@ export async function getAllSessionsForStudent(studentId: number) {
     componentCode: components.code,
     componentName: components.name,
     semester: classes.semester,
+    role: sessionStudents.role,
+    absent: sessionStudents.absent,
   })
     .from(sessionStudents)
     .innerJoin(sessions, eq(sessionStudents.sessionId, sessions.id))
@@ -3630,6 +3632,7 @@ export async function getStudentEvaluationHistory(studentId: number) {
     sessionStudentId: sessionStudents.id,
     sessionId: sessionStudents.sessionId,
     absent: sessionStudents.absent,
+    role: sessionStudents.role,
     sessionLabel: sessions.label,
     sessionStatus: sessions.status,
     problemNumber: sessions.problemNumber,
@@ -3663,6 +3666,8 @@ export async function getStudentEvaluationHistory(studentId: number) {
     let peerScore = 0;
     let role = "PARTICIPANTE";
     let isAbsent = !!ss.absent;
+    // Use the actual role from sessionStudents for all session states
+    role = ss.role || "PARTICIPANTE";
 
     if (ss.sessionStatus === "finished" || ss.sessionStatus === "closed") {
       const finalGrades = await calculateFinalGrades(ss.sessionId);
@@ -3670,7 +3675,7 @@ export async function getStudentEvaluationHistory(studentId: number) {
       if (studentGrade) {
         finalGrade = studentGrade.finalGrade;
         peerScore = studentGrade.peerScore;
-        role = studentGrade.role;
+        role = studentGrade.role || ss.role || "PARTICIPANTE";
         isAbsent = studentGrade.absent;
       }
     }
@@ -4156,8 +4161,8 @@ export async function getBrainstormBoardWithItems(sessionId: number) {
   const board = await getBrainstormBoard(sessionId);
   if (!board) {
     // Even if no board, return session label for display
-    const [session] = await db.select({ label: sessions.label }).from(sessions).where(eq(sessions.id, sessionId)).limit(1);
-    return { id: 0, sessionId, mesaStudentId: 0, sessionLabel: session?.label || '', items: [], createdAt: new Date(), updatedAt: new Date(), noBoard: true };
+    const [session] = await db.select({ label: sessions.label, status: sessions.status }).from(sessions).where(eq(sessions.id, sessionId)).limit(1);
+    return { id: 0, sessionId, mesaStudentId: 0, sessionLabel: session?.label || '', sessionStatus: session?.status || '', items: [], createdAt: new Date(), updatedAt: new Date(), noBoard: true };
   }
 
   const items = await getBrainstormItems(board.id);
@@ -4173,8 +4178,8 @@ export async function getBrainstormBoardWithItems(sessionId: number) {
     ...item,
     attachments: attachmentsByItem.get(item.id) || [],
   }));
-  const [session] = await db.select({ label: sessions.label }).from(sessions).where(eq(sessions.id, sessionId)).limit(1);
-  return { ...board, sessionLabel: session?.label || '', items: itemsWithAttachments };
+  const [session] = await db.select({ label: sessions.label, status: sessions.status }).from(sessions).where(eq(sessions.id, sessionId)).limit(1);
+  return { ...board, sessionLabel: session?.label || '', sessionStatus: session?.status || '', items: itemsWithAttachments };
 }
 
 export async function getComponentSessionsForSharing(sessionId: number) {
