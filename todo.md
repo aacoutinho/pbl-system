@@ -746,3 +746,12 @@
 - [x] calculateFinalGrades: adicionado campo tutorialScore ao FinalGradeResult e ao retorno da função
 - [x] getStudentEvaluationHistory: retorna tutorialScore e finalScore (alias de finalGrade) para compatibilidade com frontend
 - [x] StudentAccessPage: adicionadas colunas Nota Pares e Nota Tutorial na tabela de histórico de sessões
+
+## Melhorias de Interface (Mar 2026)
+
+- [x] Fotos dos alunos no formulário de criar/editar sessão (lista de alunos com papel)
+- [x] Fotos dos alunos no Resumo de Papéis por Aluno
+- [x] Fotos dos alunos no formulário de Avaliação do professor (Avaliar Tutorial) — já existia
+- [x] Resumo de Papéis por Aluno: substituir coluna "Faltas" por coluna "C/M/Q" (sessões como Coord./Mesa/Quadro)
+- [x] Resumo de Papéis por Aluno: coluna "Total" = Part. + C/M/Q
+- [x] getRoleSummaryByClass: retorna studentPhotoUrl para exibir fotos no Resumo de Papéis

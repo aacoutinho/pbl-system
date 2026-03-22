@@ -3899,6 +3899,7 @@ export async function getRoleSummaryByClass(classId: number) {
     absent: sessionStudents.absent,
     studentName: students.name,
     studentEnrollment: students.enrollment,
+    studentPhotoUrl: students.photoUrl,
   })
     .from(sessionStudents)
     .innerJoin(students, eq(sessionStudents.studentId, students.id))
@@ -3909,6 +3910,7 @@ export async function getRoleSummaryByClass(classId: number) {
     studentId: number;
     studentName: string;
     studentEnrollment: string;
+    studentPhotoUrl: string | null;
     coordenador: number;
     mesa: number;
     quadro: number;
@@ -3923,6 +3925,7 @@ export async function getRoleSummaryByClass(classId: number) {
         studentId: a.studentId,
         studentName: a.studentName,
         studentEnrollment: a.studentEnrollment,
+        studentPhotoUrl: a.studentPhotoUrl ?? null,
         coordenador: 0,
         mesa: 0,
         quadro: 0,

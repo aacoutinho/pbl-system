@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { Plus, Lock, Unlock, Trash2, ClipboardList, Users, Eye, BookOpen, RotateCcw, CheckCircle2, Clock, FileSearch, AlertTriangle, Mail, ClipboardCheck, Pencil, Presentation, Filter } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { EvaluationPreviewDialog } from "@/components/EvaluationPreview";
+import { StudentPhotoAvatar } from "@/components/StudentPhotoModal";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
@@ -362,6 +363,12 @@ function SessionsContent() {
                         return (
                           <div key={student.id} className={`px-3 py-2.5 transition-colors ${a.absent ? 'bg-red-50/50 opacity-70' : 'bg-background'}`}>
                             <div className="flex items-center gap-3">
+                              <StudentPhotoAvatar
+                                photoUrl={(student as any).photoUrl}
+                                studentName={student.name}
+                                size="sm"
+                                className={a.absent ? 'opacity-50' : ''}
+                              />
                               <div className="flex-1 min-w-0">
                                 <p className={`text-sm font-medium truncate ${a.absent ? 'line-through text-muted-foreground' : ''}`}>{student.name}</p>
                                 <p className="text-xs text-muted-foreground truncate">{student.enrollment}</p>
@@ -507,19 +514,28 @@ function SessionsContent() {
                       <th className="text-center px-2 py-2 font-medium text-emerald-700" title="Mesa">Mesa</th>
                       <th className="text-center px-2 py-2 font-medium text-purple-700" title="Quadro">Quadro</th>
                       <th className="text-center px-2 py-2 font-medium text-gray-600" title="Participante">Part.</th>
-                      <th className="text-center px-2 py-2 font-medium text-red-600" title="Ausências">Faltas</th>
-                      <th className="text-center px-2 py-2 font-medium" title="Total de sessões">Total</th>
+                      <th className="text-center px-2 py-2 font-medium text-indigo-700" title="Coordenador + Mesa + Quadro">C/M/Q</th>
+                      <th className="text-center px-2 py-2 font-medium" title="Part. + C/M/Q (sessões presentes)">Total</th>
                     </tr>
                   </thead>
                   <tbody>
                     {roleSummary.map(s => {
                       const hasNoSpecialRole = s.coordenador === 0 && s.mesa === 0 && s.quadro === 0;
+                      const cmq = s.coordenador + s.mesa + s.quadro;
+                      const total = s.participante + cmq;
                       return (
                         <tr key={s.studentId} className={`border-b last:border-0 ${hasNoSpecialRole ? 'bg-amber-50/50' : ''}`}>
                           <td className="px-3 py-2">
-                            <div className="min-w-0">
-                              <p className="font-medium truncate">{s.studentName}</p>
-                              <p className="text-xs text-muted-foreground">{s.studentEnrollment}</p>
+                            <div className="flex items-center gap-2 min-w-0">
+                              <StudentPhotoAvatar
+                                photoUrl={(s as any).studentPhotoUrl}
+                                studentName={s.studentName}
+                                size="sm"
+                              />
+                              <div className="min-w-0">
+                                <p className="font-medium truncate">{s.studentName}</p>
+                                <p className="text-xs text-muted-foreground">{s.studentEnrollment}</p>
+                              </div>
                             </div>
                           </td>
                           <td className="text-center px-2 py-2">
@@ -541,9 +557,11 @@ function SessionsContent() {
                             <span className="text-muted-foreground">{s.participante}</span>
                           </td>
                           <td className="text-center px-2 py-2">
-                            <span className={s.ausencias > 0 ? 'text-red-600 font-semibold' : 'text-muted-foreground/40'}>{s.ausencias}</span>
+                            <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold ${cmq > 0 ? 'bg-indigo-100 text-indigo-700' : 'text-muted-foreground/40'}`}>
+                              {cmq}
+                            </span>
                           </td>
-                          <td className="text-center px-2 py-2 font-medium">{s.totalSessions}</td>
+                          <td className="text-center px-2 py-2 font-semibold">{total}</td>
                         </tr>
                       );
                     })}
@@ -841,6 +859,12 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onFini
                         <Checkbox
                           checked={!a.absent}
                           onCheckedChange={() => toggleEditAbsent(s.studentId)}
+                        />
+                        <StudentPhotoAvatar
+                          photoUrl={s.studentPhotoUrl}
+                          studentName={s.studentName}
+                          size="sm"
+                          className={a.absent ? 'opacity-50' : ''}
                         />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{s.studentName}</p>
