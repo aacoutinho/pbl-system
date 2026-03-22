@@ -766,3 +766,7 @@
 - [x] AdminStudentProfilePage: remover coluna "Presenças", exibir apenas "Faltas" com o valor correto
 - [x] getStudentEvaluationHistory: calcular e retornar campo absences no byComponent
 - [x] StudentAccessPage: exibir contador de "Faltas" no cabeçalho do card de componente (só aparece quando há faltas)
+
+## Bug Resumo de Papéis (Mar 2026)
+
+- [x] getRoleSummaryByClass: exibir todos os alunos da turma, mesmo os sem nenhuma sessão (inicializa todos os matriculados com contadores zerados, depois acumula as sessões)

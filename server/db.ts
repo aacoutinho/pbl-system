@@ -3888,30 +3888,19 @@ export async function getRoleSummaryByClass(classId: number) {
   const db = await getDb();
   if (!db) return [];
 
-  // Get all sessions for this class
-  const classSessions = await db.select({ id: sessions.id })
-    .from(sessions)
-    .where(eq(sessions.classId, classId));
-
-  if (classSessions.length === 0) return [];
-
-  const sessionIds = classSessions.map(s => s.id);
-
-  // Get all session students with their roles
-  const allAssignments = await db.select({
-    studentId: sessionStudents.studentId,
-    sessionId: sessionStudents.sessionId,
-    role: sessionStudents.role,
-    absent: sessionStudents.absent,
+  // Get ALL students enrolled in this class
+  const enrolledStudents = await db.select({
+    studentId: classStudents.studentId,
     studentName: students.name,
     studentEnrollment: students.enrollment,
     studentPhotoUrl: students.photoUrl,
   })
-    .from(sessionStudents)
-    .innerJoin(students, eq(sessionStudents.studentId, students.id))
-    .where(inArray(sessionStudents.sessionId, sessionIds));
+    .from(classStudents)
+    .innerJoin(students, eq(classStudents.studentId, students.id))
+    .where(eq(classStudents.classId, classId))
+    .orderBy(students.name);
 
-  // Group by student
+  // Initialize summary map with ALL enrolled students (zeroed counters)
   const summaryMap = new Map<number, {
     studentId: number;
     studentName: string;
@@ -3925,31 +3914,53 @@ export async function getRoleSummaryByClass(classId: number) {
     totalSessions: number;
   }>();
 
-  for (const a of allAssignments) {
-    if (!summaryMap.has(a.studentId)) {
-      summaryMap.set(a.studentId, {
-        studentId: a.studentId,
-        studentName: a.studentName,
-        studentEnrollment: a.studentEnrollment,
-        studentPhotoUrl: a.studentPhotoUrl ?? null,
-        coordenador: 0,
-        mesa: 0,
-        quadro: 0,
-        participante: 0,
-        ausencias: 0,
-        totalSessions: 0,
-      });
-    }
-    const entry = summaryMap.get(a.studentId)!;
-    entry.totalSessions++;
-    if (a.absent) {
-      entry.ausencias++;
-    } else {
-      switch (a.role) {
-        case "COORDENADOR": entry.coordenador++; break;
-        case "MESA": entry.mesa++; break;
-        case "QUADRO": entry.quadro++; break;
-        case "PARTICIPANTE": entry.participante++; break;
+  for (const s of enrolledStudents) {
+    summaryMap.set(s.studentId, {
+      studentId: s.studentId,
+      studentName: s.studentName,
+      studentEnrollment: s.studentEnrollment,
+      studentPhotoUrl: s.studentPhotoUrl ?? null,
+      coordenador: 0,
+      mesa: 0,
+      quadro: 0,
+      participante: 0,
+      ausencias: 0,
+      totalSessions: 0,
+    });
+  }
+
+  // Get all sessions for this class
+  const classSessions = await db.select({ id: sessions.id })
+    .from(sessions)
+    .where(eq(sessions.classId, classId));
+
+  if (classSessions.length > 0) {
+    const sessionIds = classSessions.map(s => s.id);
+
+    // Get all session students with their roles
+    const allAssignments = await db.select({
+      studentId: sessionStudents.studentId,
+      sessionId: sessionStudents.sessionId,
+      role: sessionStudents.role,
+      absent: sessionStudents.absent,
+    })
+      .from(sessionStudents)
+      .where(inArray(sessionStudents.sessionId, sessionIds));
+
+    // Accumulate role counts for students who have participated
+    for (const a of allAssignments) {
+      const entry = summaryMap.get(a.studentId);
+      if (!entry) continue; // student not in this class (shouldn't happen)
+      entry.totalSessions++;
+      if (a.absent) {
+        entry.ausencias++;
+      } else {
+        switch (a.role) {
+          case "COORDENADOR": entry.coordenador++; break;
+          case "MESA": entry.mesa++; break;
+          case "QUADRO": entry.quadro++; break;
+          case "PARTICIPANTE": entry.participante++; break;
+        }
       }
     }
   }
