@@ -3802,6 +3802,11 @@ export async function getStudentEvaluationHistory(studentId: number) {
       });
   }
 
+  // Calculate absences per component
+  for (const comp of Array.from(componentMap.values())) {
+    (comp as any).absences = comp.sessions.filter((s: any) => s.absent).length;
+  }
+
   return {
     flat: history,
     byComponent: Array.from(componentMap.values()) as Array<{
@@ -3810,6 +3815,7 @@ export async function getStudentEvaluationHistory(studentId: number) {
       classCode: string;
       semester: string;
       sessions: typeof history;
+      absences: number;
       problemAverages: { problemNumber: number; problemTitle: string; average: number; sessionCount: number; capped: boolean }[];
     }>,
   };

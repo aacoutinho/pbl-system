@@ -109,12 +109,8 @@ export default function AdminStudentProfilePage() {
               </CardTitle>
               <div className="flex gap-4 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
-                  Presenças: <strong className="text-foreground">{comp.presences}</strong>
-                </span>
-                <span className="flex items-center gap-1">
                   <XCircle className="h-3.5 w-3.5 text-red-500" />
-                  Faltas: <strong className="text-foreground">{comp.absences}</strong>
+                  Faltas: <strong className="text-foreground">{(comp as any).absences ?? 0}</strong>
                 </span>
                 {comp.finalAverage !== null && comp.finalAverage !== undefined && (
                   <span className="flex items-center gap-1">

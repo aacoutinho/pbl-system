@@ -760,3 +760,8 @@
 
 - [x] Resumo de Papéis: letras C/M/Q coloridas (C=azul, M=verde, Q=violeta) combinando com colunas Coord./Mesa/Quadro
 - [x] Perfil do aluno: exibir "Pendente" (ícone de relógio) para Nota Tutorial em sessões fechadas (status "closed") ainda sem avaliação tutorial
+
+## Bug Perfil do Aluno (Mar 2026)
+
+- [x] AdminStudentProfilePage: remover coluna "Presenças", exibir apenas "Faltas" com o valor correto
+- [x] getStudentEvaluationHistory: calcular e retornar campo absences no byComponent
