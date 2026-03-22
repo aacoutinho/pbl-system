@@ -705,9 +705,10 @@ function ResultsContent() {
                         </tbody>
                       </table>
                     </div>
-                    <div className="mt-3 pt-3 border-t border-blue-200 text-xs text-blue-700 flex gap-6">
+                    <div className="mt-3 pt-3 border-t border-blue-200 text-xs text-blue-700 flex gap-6 flex-wrap">
                       <span>Alunos presentes: <strong>{finalResults?.filter(r => !r.absent && r.peerScore > 0).length ?? 0}</strong></span>
                       <span>Pontuação total: <strong>{((tutorialEval.tutorialGrade) * (finalResults?.filter(r => !r.absent && r.peerScore > 0).length ?? 0)).toFixed(1)}</strong></span>
+                      <span>Média por aluno: <strong>{tutorialEval.tutorialGrade.toFixed(1)}</strong></span>
                     </div>
                   </CardContent>
                 </Card>

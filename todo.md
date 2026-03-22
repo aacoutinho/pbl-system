@@ -770,3 +770,7 @@
 ## Bug Resumo de Papéis (Mar 2026)
 
 - [x] getRoleSummaryByClass: exibir todos os alunos da turma, mesmo os sem nenhuma sessão (inicializa todos os matriculados com contadores zerados, depois acumula as sessões)
+
+## Melhorias Resultados (Mar 2026)
+
+- [x] ResultsPage: adicionar "Média por Aluno" na legenda da tabela de Avaliação do Tutorial pelo Professor
