@@ -1757,6 +1757,7 @@ export interface FinalGradeResult {
   role: string;
   peerScore: number;
   finalGrade: number;
+  tutorialScore?: number; // nota do tutorial (calculateTutorialGrade), undefined se não avaliado
   absent: boolean;
   excluded: boolean; // true when student was removed from class before this session
   validEvaluations: number;
@@ -1833,6 +1834,7 @@ export async function calculateFinalGrades(sessionId: number, provisional = fals
   }
 
   const tutorialGrade = calculateTutorialGrade(tutorialEval);
+  const tutorialScoreRounded = Math.round(tutorialGrade * 10) / 10;
   const presentStudents = peerResults.filter(r => !r.absent && r.totalScore > 0);
   const numPresent = presentStudents.length;
   const totalPoints = tutorialGrade * numPresent;
@@ -1848,6 +1850,7 @@ export async function calculateFinalGrades(sessionId: number, provisional = fals
         role: r.role,
         peerScore: 0,
         finalGrade: 0,
+        tutorialScore: tutorialScoreRounded,
         absent: r.absent,
         excluded: r.excluded,
         validEvaluations: r.validEvaluations,
@@ -1867,6 +1870,7 @@ export async function calculateFinalGrades(sessionId: number, provisional = fals
       role: r.role,
       peerScore: Math.round(r.totalScore * 10) / 10,
       finalGrade,
+      tutorialScore: tutorialScoreRounded,
       absent: r.absent,
       excluded: r.excluded,
       validEvaluations: r.validEvaluations,
@@ -3664,6 +3668,7 @@ export async function getStudentEvaluationHistory(studentId: number) {
     // Get the final grade for this student in this session (same calculation as professor results)
     let finalGrade = 0;
     let peerScore = 0;
+    let tutorialScore: number | undefined = undefined;
     let role = "PARTICIPANTE";
     let isAbsent = !!ss.absent;
     // Use the actual role from sessionStudents for all session states
@@ -3675,6 +3680,7 @@ export async function getStudentEvaluationHistory(studentId: number) {
       if (studentGrade) {
         finalGrade = studentGrade.finalGrade;
         peerScore = studentGrade.peerScore;
+        tutorialScore = studentGrade.tutorialScore;
         role = studentGrade.role || ss.role || "PARTICIPANTE";
         isAbsent = studentGrade.absent;
       }
@@ -3694,7 +3700,10 @@ export async function getStudentEvaluationHistory(studentId: number) {
       hasSubmitted,
       role,
       peerScore: Math.round(peerScore * 10) / 10,
+      tutorialScore: tutorialScore !== undefined ? Math.round(tutorialScore * 10) / 10 : undefined,
       finalGrade: Math.round(finalGrade * 10) / 10,
+      // Aliases for frontend compatibility
+      finalScore: Math.round(finalGrade * 10) / 10,
       absent: isAbsent,
     };
   }));

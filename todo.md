@@ -738,3 +738,11 @@
 - [x] getStudentEvaluationHistory: incluir campo role da tabela sessionStudents (antes retornava PARTICIPANTE fixo para sessões ativas)
 - [x] Link de brainstorm no e-mail: incluir ?student=:studentId para BrainstormViewPage determinar canEdit
 - [x] BrainstormViewPage: verificar papel do aluno via getSessionStudents + sessionStatus do getBoard
+
+## Bug Notas no Perfil do Aluno (Mar 2026)
+
+- [x] Perfil do aluno (professor, folha Alunos): mostrar nota tutorial e nota final além da média de pares
+- [x] Perfil do aluno (professor e aluno): garantir que as notas exibidas são idênticas às da folha de Resultados
+- [x] calculateFinalGrades: adicionado campo tutorialScore ao FinalGradeResult e ao retorno da função
+- [x] getStudentEvaluationHistory: retorna tutorialScore e finalScore (alias de finalGrade) para compatibilidade com frontend
+- [x] StudentAccessPage: adicionadas colunas Nota Pares e Nota Tutorial na tabela de histórico de sessões

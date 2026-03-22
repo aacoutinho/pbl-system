@@ -1157,7 +1157,9 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
                 sessionNumber: number;
                 role: string;
                 peerScore: number;
+                tutorialScore?: number;
                 finalGrade: number;
+                finalScore?: number;
                 absent: boolean;
                 hasSubmitted: boolean;
                 submittedAt: Date | null;
@@ -1180,6 +1182,8 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
                         <tr className="bg-muted/50 border-b">
                           <th className="text-left py-2 px-3 font-medium text-muted-foreground">Sessão</th>
                           <th className="text-center py-2 px-2 font-medium text-muted-foreground">Papel</th>
+                          <th className="text-center py-2 px-2 font-medium text-muted-foreground">Nota Pares</th>
+                          <th className="text-center py-2 px-2 font-medium text-muted-foreground">Nota Tutorial</th>
                           <th className="text-center py-2 px-2 font-medium text-muted-foreground">Nota Final</th>
                           <th className="text-center py-2 px-2 font-medium text-muted-foreground">Avaliou</th>
                         </tr>
@@ -1245,8 +1249,26 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
                             <td className="py-2 px-2 text-center">
                               {ev.absent ? (
                                 <span className="text-red-500 font-semibold">F</span>
+                              ) : (ev.sessionStatus === 'finished' || ev.sessionStatus === 'closed') && ev.peerScore > 0 ? (
+                                <span className="text-slate-700">{ev.peerScore.toFixed(1)}</span>
+                              ) : (
+                                <span className="text-muted-foreground text-[10px]">—</span>
+                              )}
+                            </td>
+                            <td className="py-2 px-2 text-center">
+                              {ev.absent ? (
+                                <span className="text-red-500 font-semibold">F</span>
+                              ) : (ev.sessionStatus === 'finished' || ev.sessionStatus === 'closed') && ev.tutorialScore !== undefined ? (
+                                <span className="text-slate-700">{ev.tutorialScore.toFixed(1)}</span>
+                              ) : (
+                                <span className="text-muted-foreground text-[10px]">—</span>
+                              )}
+                            </td>
+                            <td className="py-2 px-2 text-center">
+                              {ev.absent ? (
+                                <span className="text-red-500 font-semibold">F</span>
                               ) : ev.sessionStatus === 'finished' || ev.sessionStatus === 'closed' ? (
-                                <span className="font-semibold text-blue-700">{ev.finalGrade.toFixed(1)}</span>
+                                <span className="font-semibold text-blue-700">{(ev.finalScore ?? ev.finalGrade).toFixed(1)}</span>
                               ) : (
                                 <span className="text-muted-foreground text-[10px]">Pendente</span>
                               )}
