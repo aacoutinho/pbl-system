@@ -514,7 +514,13 @@ function SessionsContent() {
                       <th className="text-center px-2 py-2 font-medium text-emerald-700" title="Mesa">Mesa</th>
                       <th className="text-center px-2 py-2 font-medium text-purple-700" title="Quadro">Quadro</th>
                       <th className="text-center px-2 py-2 font-medium text-gray-600" title="Participante">Part.</th>
-                      <th className="text-center px-2 py-2 font-medium text-indigo-700" title="Coordenador + Mesa + Quadro">C/M/Q</th>
+                      <th className="text-center px-2 py-2 font-medium" title="Coordenador + Mesa + Quadro">
+                        <span className="text-blue-600">C</span>
+                        <span className="text-muted-foreground">/</span>
+                        <span className="text-emerald-600">M</span>
+                        <span className="text-muted-foreground">/</span>
+                        <span className="text-purple-600">Q</span>
+                      </th>
                       <th className="text-center px-2 py-2 font-medium" title="Part. + C/M/Q (sessões presentes)">Total</th>
                     </tr>
                   </thead>
@@ -557,20 +563,12 @@ function SessionsContent() {
                             <span className="text-muted-foreground">{s.participante}</span>
                           </td>
                           <td className="text-center px-2 py-2">
-                            {cmq > 0 ? (
-                              <span
-                                className="inline-flex items-center gap-0.5 text-xs font-bold"
-                                title={`Coordenador: ${s.coordenador} | Mesa: ${s.mesa} | Quadro: ${s.quadro}`}
-                              >
-                                {s.coordenador > 0 && <span className="text-blue-600">{s.coordenador}C</span>}
-                                {s.coordenador > 0 && (s.mesa > 0 || s.quadro > 0) && <span className="text-muted-foreground/50">/</span>}
-                                {s.mesa > 0 && <span className="text-emerald-600">{s.mesa}M</span>}
-                                {s.mesa > 0 && s.quadro > 0 && <span className="text-muted-foreground/50">/</span>}
-                                {s.quadro > 0 && <span className="text-purple-600">{s.quadro}Q</span>}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground/40 text-xs">—</span>
-                            )}
+                            <span
+                              className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold ${cmq > 0 ? 'bg-indigo-100 text-indigo-700' : 'text-muted-foreground/40'}`}
+                              title={`Coordenador: ${s.coordenador} | Mesa: ${s.mesa} | Quadro: ${s.quadro}`}
+                            >
+                              {cmq > 0 ? cmq : '—'}
+                            </span>
                           </td>
                           <td className="text-center px-2 py-2 font-semibold">{total}</td>
                         </tr>
