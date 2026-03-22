@@ -1172,6 +1172,14 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
                     <CardTitle className="text-base font-semibold">{comp.componentCode}</CardTitle>
                     <p className="text-xs text-muted-foreground mt-0.5">{comp.componentName}</p>
                     <p className="text-xs text-muted-foreground">{comp.classCode} &bull; {comp.semester}</p>
+                    {(() => {
+                      const absences = comp.sessions.filter(s => s.absent).length;
+                      return absences > 0 ? (
+                        <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                          <span>✗</span> Faltas: <strong>{absences}</strong>
+                        </p>
+                      ) : null;
+                    })()}
                   </div>
                 </CardHeader>
                 <CardContent className="px-4 pb-4 space-y-3">

@@ -765,3 +765,4 @@
 
 - [x] AdminStudentProfilePage: remover coluna "Presenças", exibir apenas "Faltas" com o valor correto
 - [x] getStudentEvaluationHistory: calcular e retornar campo absences no byComponent
+- [x] StudentAccessPage: exibir contador de "Faltas" no cabeçalho do card de componente (só aparece quando há faltas)
