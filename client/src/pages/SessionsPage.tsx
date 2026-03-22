@@ -557,9 +557,20 @@ function SessionsContent() {
                             <span className="text-muted-foreground">{s.participante}</span>
                           </td>
                           <td className="text-center px-2 py-2">
-                            <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold ${cmq > 0 ? 'bg-indigo-100 text-indigo-700' : 'text-muted-foreground/40'}`}>
-                              {cmq}
-                            </span>
+                            {cmq > 0 ? (
+                              <span
+                                className="inline-flex items-center gap-0.5 text-xs font-bold"
+                                title={`Coordenador: ${s.coordenador} | Mesa: ${s.mesa} | Quadro: ${s.quadro}`}
+                              >
+                                {s.coordenador > 0 && <span className="text-blue-600">{s.coordenador}C</span>}
+                                {s.coordenador > 0 && (s.mesa > 0 || s.quadro > 0) && <span className="text-muted-foreground/50">/</span>}
+                                {s.mesa > 0 && <span className="text-emerald-600">{s.mesa}M</span>}
+                                {s.mesa > 0 && s.quadro > 0 && <span className="text-muted-foreground/50">/</span>}
+                                {s.quadro > 0 && <span className="text-purple-600">{s.quadro}Q</span>}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground/40 text-xs">—</span>
+                            )}
                           </td>
                           <td className="text-center px-2 py-2 font-semibold">{total}</td>
                         </tr>

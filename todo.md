@@ -755,3 +755,8 @@
 - [x] Resumo de Papéis por Aluno: substituir coluna "Faltas" por coluna "C/M/Q" (sessões como Coord./Mesa/Quadro)
 - [x] Resumo de Papéis por Aluno: coluna "Total" = Part. + C/M/Q
 - [x] getRoleSummaryByClass: retorna studentPhotoUrl para exibir fotos no Resumo de Papéis
+
+## Melhorias Visuais (Mar 2026)
+
+- [x] Resumo de Papéis: letras C/M/Q coloridas (C=azul, M=verde, Q=violeta) combinando com colunas Coord./Mesa/Quadro
+- [x] Perfil do aluno: exibir "Pendente" (ícone de relógio) para Nota Tutorial em sessões fechadas (status "closed") ainda sem avaliação tutorial

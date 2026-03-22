@@ -1258,8 +1258,12 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
                             <td className="py-2 px-2 text-center">
                               {ev.absent ? (
                                 <span className="text-red-500 font-semibold">F</span>
-                              ) : (ev.sessionStatus === 'finished' || ev.sessionStatus === 'closed') && ev.tutorialScore !== undefined ? (
+                              ) : ev.sessionStatus === 'finished' && ev.tutorialScore !== undefined ? (
                                 <span className="text-slate-700">{ev.tutorialScore.toFixed(1)}</span>
+                              ) : ev.sessionStatus === 'closed' ? (
+                                <span className="inline-flex items-center gap-1 text-amber-600 text-[10px]" title="Avaliação tutorial ainda não realizada pelo professor">
+                                  ⏳ Pendente
+                                </span>
                               ) : (
                                 <span className="text-muted-foreground text-[10px]">—</span>
                               )}
