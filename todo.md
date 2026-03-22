@@ -774,3 +774,4 @@
 ## Melhorias Resultados (Mar 2026)
 
 - [x] ResultsPage: adicionar "Média por Aluno" na legenda da tabela de Avaliação do Tutorial pelo Professor
+- [x] ResultsPage: remover "Média por Aluno" da legenda da tabela de Avaliação do Tutorial (redundante com nota do tutorial)
