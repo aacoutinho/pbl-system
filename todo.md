@@ -775,3 +775,10 @@
 
 - [x] ResultsPage: adicionar "Média por Aluno" na legenda da tabela de Avaliação do Tutorial pelo Professor
 - [x] ResultsPage: remover "Média por Aluno" da legenda da tabela de Avaliação do Tutorial (redundante com nota do tutorial)
+
+## Bug Reavaliação Sessão Fechada (Mar 2026)
+
+- [x] Regra 1: após sessão fechada, apenas alunos com papel Mesa podem ser reavaliados (não Coord./Quadro)
+- [x] Regra 2: qualquer aluno presente pode reavaliar após fechamento, mesmo sem ter submetido durante a sessão aberta
+- [x] Corrigir mensagem de aviso exibida ao aluno que não submeteu
+- [x] Backend: removida validação de submissão prévia no updateDesempenho

@@ -1650,7 +1650,7 @@ function DesempenhoPapelFormInline({ studentInfo, sessionInfo, alreadySubmitted,
   const peersWithRole = useMemo(() => {
     if (!sessionStudentsList) return [];
     return sessionStudentsList.filter(
-      s => s.studentId !== studentInfo.studentId && !s.absent && ["COORDENADOR", "MESA", "QUADRO"].includes(s.role)
+      s => s.studentId !== studentInfo.studentId && !s.absent && s.role === "MESA"
     );
   }, [sessionStudentsList, studentInfo.studentId]);
 
@@ -1722,10 +1722,7 @@ function DesempenhoPapelFormInline({ studentInfo, sessionInfo, alreadySubmitted,
             <HelpCircle className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
             <div className="text-sm text-blue-800 space-y-1">
               <p className="font-semibold">Sobre este formulário</p>
-              <p>A sessão foi encerrada para novas avaliações, mas você ainda pode atualizar a nota de <strong>Desempenho no Papel</strong> dos colegas que exerceram funções especiais (Coordenador, Mesa ou Quadro).</p>
-              {!alreadySubmitted && (
-                <p className="text-amber-700 font-medium mt-1">Atenção: você não submeteu avaliação durante a sessão aberta. A atualização de desempenho só é possível para quem avaliou.</p>
-              )}
+              <p>A sessão foi encerrada para novas avaliações, mas você ainda pode atualizar a nota de <strong>Desempenho no Papel</strong> do colega que exerceu a função de <strong>Mesa</strong>.</p>
             </div>
           </div>
         </CardContent>
@@ -1804,7 +1801,7 @@ function DesempenhoPapelFormInline({ studentInfo, sessionInfo, alreadySubmitted,
                 </Button>
                 <Button
                   onClick={handleSubmit}
-                  disabled={updateMutation.isPending || !alreadySubmitted}
+                  disabled={updateMutation.isPending}
                   className="bg-amber-600 hover:bg-amber-700"
                 >
                   <Send className="h-4 w-4 mr-2" />

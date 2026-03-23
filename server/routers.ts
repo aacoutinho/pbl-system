@@ -1593,8 +1593,7 @@ export const appRouter = router({
       const session = await getSessionById(input.sessionId);
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
       if (session.status !== "closed") throw new TRPCError({ code: "BAD_REQUEST", message: "Esta sessão não está fechada. O desempenho no papel só pode ser atualizado em sessões fechadas." });
-      const alreadySubmitted = await hasStudentSubmitted(session.id, input.evaluatorStudentId);
-      if (!alreadySubmitted) throw new TRPCError({ code: "BAD_REQUEST", message: "Você não submeteu avaliação para esta sessão" });
+      // Qualquer aluno presente pode atualizar o desempenho da Mesa, mesmo sem ter submetido durante a sessão aberta
       await updateDesempenhoPapel({
         sessionId: input.sessionId,
         evaluatorStudentId: input.evaluatorStudentId,
