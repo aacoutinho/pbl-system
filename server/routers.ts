@@ -1548,7 +1548,7 @@ export const appRouter = router({
     })).query(async ({ input }) => {
       const tokenData = await getSessionByStudentToken(input.token);
       if (!tokenData) throw new TRPCError({ code: "NOT_FOUND", message: "Link inválido ou expirado" });
-      if (tokenData.sessionStatus !== "open" && tokenData.sessionStatus !== "closed") throw new TRPCError({ code: "BAD_REQUEST", message: "Esta sessão não está disponível para acesso" });
+      // Todos os estados são permitidos — o frontend trata cada caso (active, open, closed, finished)
       const student = await getStudentById(tokenData.studentId);
       if (!student) throw new TRPCError({ code: "NOT_FOUND", message: "Aluno não encontrado" });
       const alreadySubmitted = await hasStudentSubmitted(tokenData.sessionId, tokenData.studentId);

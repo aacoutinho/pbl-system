@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Send, CheckCircle2, HelpCircle, Users, ClipboardList, Loader2, ShieldAlert, LinkIcon, Lock } from "lucide-react";
+import { Send, CheckCircle2, HelpCircle, Users, ClipboardList, Loader2, ShieldAlert, LinkIcon, Lock, Clock } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useMemo } from "react";
 
@@ -106,6 +106,36 @@ export default function DirectEvalPage() {
   }
 
   if (!data) return null;
+
+  // Sessão encerrada: nenhuma avaliação pode ser feita
+  if (data.sessionStatus === "finished") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardContent className="pt-8 pb-8 text-center">
+            <CheckCircle2 className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Sessão Encerrada</h2>
+            <p className="text-muted-foreground">Esta sessão foi encerrada. A avaliação não pode mais ser modificada.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Sessão ativa (initiated): alunos ainda não podem avaliar
+  if (data.sessionStatus === "initiated") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardContent className="pt-8 pb-8 text-center">
+            <Clock className="h-12 w-12 text-amber-400 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Sessão em Andamento</h2>
+            <p className="text-muted-foreground">A sessão ainda não foi aberta para avaliações. Aguarde o professor liberar a avaliação.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // Sessão fechada: exibir formulário de Desempenho no Papel
   if (data.sessionStatus === "closed") {

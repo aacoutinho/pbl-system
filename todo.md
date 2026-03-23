@@ -782,3 +782,12 @@
 - [x] Regra 2: qualquer aluno presente pode reavaliar após fechamento, mesmo sem ter submetido durante a sessão aberta
 - [x] Corrigir mensagem de aviso exibida ao aluno que não submeteu
 - [x] Backend: removida validação de submissão prévia no updateDesempenho
+
+## Auditoria Fluxo de Avaliação (Mar 2026)
+
+- [x] initiated (Ativa): nenhum aluno pode submeter avaliação — backend bloqueia, frontend exibe "Aguardando"
+- [x] open (Em Avaliação): aluno pode avaliar qualquer papel — correto em backend e frontend
+- [x] closed (Fechada): alunos podem avaliar apenas a Mesa — correto em backend e frontend
+- [x] finished (Encerrada): nenhuma avaliação pode ser alterada — correto em backend; corrigido no DirectEvalPage (link e-mail não tratava finished)
+- [x] DirectEvalPage: adicionado tratamento de finished ("Sessão Encerrada") e initiated ("Sessão em Andamento")
+- [x] accessByToken: removido bloqueio de finished/initiated para que o frontend possa exibir mensagem adequada
