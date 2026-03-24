@@ -64,9 +64,9 @@ interface SelectedSession {
   studentRole?: string;
 }
 
-// ─── Student session persistence (8 hours) ───
+// ─── Student session persistence (3 hours) ───
 const STUDENT_SESSION_KEY = "student_auth_session";
-const STUDENT_SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8 hours
+const STUDENT_SESSION_TTL_MS = 3 * 60 * 60 * 1000; // 3 hours
 function loadStudentSession(): AuthenticatedData | null {
   try {
     const raw = localStorage.getItem(STUDENT_SESSION_KEY);
