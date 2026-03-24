@@ -3669,8 +3669,8 @@ export async function getStudentEvaluationHistory(studentId: number) {
   const db = await getDb();
   if (!db) return [];
 
-  // Get all sessions where this student participated (via session_students)
-  const studentSessions = await db.select({
+  // Step 1: Get all sessions where this student is explicitly listed in session_students
+  const sessionStudentRows = await db.select({
     sessionStudentId: sessionStudents.id,
     sessionId: sessionStudents.sessionId,
     absent: sessionStudents.absent,
@@ -3689,19 +3689,97 @@ export async function getStudentEvaluationHistory(studentId: number) {
     .innerJoin(sessions, eq(sessionStudents.sessionId, sessions.id))
     .innerJoin(classes, eq(sessions.classId, classes.id))
     .innerJoin(components, eq(classes.componentId, components.id))
-    .where(eq(sessionStudents.studentId, studentId))
-    .orderBy(sessions.problemNumber, sessions.sessionNumber);
+    .where(eq(sessionStudents.studentId, studentId));
+
+  // Build a set of sessionIds already covered
+  const coveredSessionIds = new Set(sessionStudentRows.map(r => r.sessionId));
+
+  // Step 2: Get all classes this student belongs to
+  const studentClasses = await db.select({
+    classId: classStudents.classId,
+    classCode: classes.classCode,
+    componentCode: components.code,
+    componentName: components.name,
+    semester: classes.semester,
+  })
+    .from(classStudents)
+    .innerJoin(classes, eq(classStudents.classId, classes.id))
+    .innerJoin(components, eq(classes.componentId, components.id))
+    .where(eq(classStudents.studentId, studentId));
+
+  // Step 3: For each class, find sessions NOT in coveredSessionIds → student was absent (not added to session)
+  const missedSessionRows: Array<{
+    sessionStudentId: null;
+    sessionId: number;
+    absent: true;
+    role: string;
+    sessionLabel: string;
+    sessionStatus: string;
+    problemNumber: number;
+    sessionNumber: number;
+    classId: number;
+    classCode: string;
+    componentCode: string;
+    componentName: string;
+    semester: string;
+  }> = [];
+  for (const cls of studentClasses) {
+    const allClassSessions = await db.select({
+      id: sessions.id,
+      label: sessions.label,
+      status: sessions.status,
+      problemNumber: sessions.problemNumber,
+      sessionNumber: sessions.sessionNumber,
+    })
+      .from(sessions)
+      .where(eq(sessions.classId, cls.classId));
+    for (const s of allClassSessions) {
+      if (!coveredSessionIds.has(s.id)) {
+        missedSessionRows.push({
+          sessionStudentId: null,
+          sessionId: s.id,
+          absent: true,
+          role: 'PARTICIPANTE',
+          sessionLabel: s.label,
+          sessionStatus: s.status,
+          problemNumber: s.problemNumber,
+          sessionNumber: s.sessionNumber,
+          classId: cls.classId,
+          classCode: cls.classCode,
+          componentCode: cls.componentCode,
+          componentName: cls.componentName,
+          semester: cls.semester,
+        });
+      }
+    }
+  }
+
+  // Merge and sort all sessions by problemNumber then sessionNumber
+  const studentSessions = [...sessionStudentRows, ...missedSessionRows]
+    .sort((a, b) => a.problemNumber !== b.problemNumber ? a.problemNumber - b.problemNumber : a.sessionNumber - b.sessionNumber);
 
   // For each session, get the student's final grade (same as professor sees)
   const history = await Promise.all(studentSessions.map(async (ss) => {
     // Check if student submitted an evaluation in this session
-    const [evalRecord] = await db.select({ id: evaluations.id, submittedAt: evaluations.submittedAt })
-      .from(evaluations)
-      .where(and(
-        eq(evaluations.sessionId, ss.sessionId),
-        eq(evaluations.evaluatorStudentId, ss.sessionStudentId)
-      ));
-    const hasSubmitted = !!evalRecord;
+    // (only possible if sessionStudentId is not null)
+    const hasSubmitted = ss.sessionStudentId !== null && await (async () => {
+      const [evalRecord] = await db.select({ id: evaluations.id })
+        .from(evaluations)
+        .where(and(
+          eq(evaluations.sessionId, ss.sessionId),
+          eq(evaluations.evaluatorStudentId, ss.sessionStudentId!)
+        ));
+      return !!evalRecord;
+    })();
+    const evalSubmittedAt: Date | null = ss.sessionStudentId !== null ? await (async () => {
+      const [evalRecord] = await db.select({ submittedAt: evaluations.submittedAt })
+        .from(evaluations)
+        .where(and(
+          eq(evaluations.sessionId, ss.sessionId),
+          eq(evaluations.evaluatorStudentId, ss.sessionStudentId!)
+        ));
+      return evalRecord?.submittedAt ?? null;
+    })() : null;
 
     // Get the final grade for this student in this session (same calculation as professor results)
     let desempenhoScore = 0;
@@ -3734,7 +3812,7 @@ export async function getStudentEvaluationHistory(studentId: number) {
       componentCode: ss.componentCode,
       componentName: ss.componentName,
       semester: ss.semester,
-      submittedAt: evalRecord?.submittedAt ?? null,
+      submittedAt: evalSubmittedAt,
       hasSubmitted,
       role,
       peerScore: Math.round(peerScore * 10) / 10,
