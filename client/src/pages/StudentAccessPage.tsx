@@ -1287,7 +1287,7 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
                             </td>
                             <td className="py-2 px-2 text-center">
                               {ev.absent ? (
-                                <span className="text-red-500 font-semibold">F</span>
+                                <span className="text-muted-foreground font-semibold">0.0</span>
                               ) : ev.sessionStatus === 'finished' || ev.sessionStatus === 'closed' ? (
                                 <span className="font-semibold text-blue-700">{(ev.desempenhoScore ?? ev.desempenhoScore).toFixed(1)}</span>
                               ) : (

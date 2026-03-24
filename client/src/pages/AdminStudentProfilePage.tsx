@@ -13,8 +13,9 @@ function gradeLabel(val: number | null | undefined): string {
   return val.toFixed(2);
 }
 
-function GradeCell({ value, absent, pending }: { value: number | null | undefined; absent?: boolean; pending?: boolean }) {
-  if (absent) return <span className="text-red-500 font-medium">F</span>;
+function GradeCell({ value, absent, pending, showZeroWhenAbsent }: { value: number | null | undefined; absent?: boolean; pending?: boolean; showZeroWhenAbsent?: boolean }) {
+  if (absent && !showZeroWhenAbsent) return <span className="text-red-500 font-medium">F</span>;
+  if (absent && showZeroWhenAbsent) return <span className="text-muted-foreground font-medium">0.0</span>;
   if (pending) return (
     <span className="inline-flex items-center gap-1 text-amber-600 text-[10px]" title="Avaliação tutorial ainda não realizada pelo professor">
       ⏳ Pendente
@@ -157,7 +158,7 @@ export default function AdminStudentProfilePage() {
                           />
                         </td>
                         <td className="text-center py-2 px-2 font-semibold">
-                          <GradeCell value={s.desempenhoScore} absent={s.absent} />
+                          <GradeCell value={s.desempenhoScore} absent={s.absent} showZeroWhenAbsent />
                         </td>
                       </tr>
                     ))}
