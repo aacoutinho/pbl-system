@@ -120,7 +120,7 @@ interface BrainstormBoardPageProps {
   onBack: () => void;
 }
 
-export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel, canEdit, onBack }: BrainstormBoardPageProps) {
+export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel, canEdit: canEditProp, onBack }: BrainstormBoardPageProps) {
   const [newItemTexts, setNewItemTexts] = useState<Record<Section, string>>({
     ideias: "", fatos: "", questoes: "", metas: "",
   });
@@ -146,6 +146,22 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
 
   const displayLabel = sessionLabel || (boardData as any)?.sessionLabel || `Sessão #${sessionId}`;
   const hasBoard = boardData && !(boardData as any).noBoard;
+
+  // Determine canEdit: fetch session students to check if this student is Mesa
+  // This overrides the prop to ensure correctness even when opened via direct URL
+  const { data: sessionStudentsData } = trpc.studentAccess.getSessionStudents.useQuery(
+    { sessionId },
+    { enabled: !!sessionId }
+  );
+  const studentEntry = sessionStudentsData?.find((s: any) => s.studentId === studentId);
+  const isMesa = studentEntry?.role === "MESA" && !studentEntry?.absent;
+  // sessionStatus comes from boardData once loaded (getBrainstormBoardWithItems returns it)
+  const resolvedSessionStatus = (boardData as any)?.sessionStatus ?? null;
+  // canEdit: Mesa can edit unless session is finished.
+  // Fall back to canEditProp while data is still loading.
+  const canEdit = (sessionStudentsData && resolvedSessionStatus)
+    ? (isMesa && resolvedSessionStatus !== "finished")
+    : canEditProp;
 
   const initBoard = useCallback(() => {
     if (canEdit && !hasBoard) {
