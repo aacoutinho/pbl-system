@@ -983,8 +983,17 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
     { studentId: authData.studentId },
   );
 
-  const pendingSessions = openSessions?.filter(s => !s.alreadySubmitted) || [];
-  const completedSessions = openSessions?.filter(s => s.alreadySubmitted) || [];
+  // Sessões abertas sem avaliação submetida
+  const pendingOpenSessions = openSessions?.filter(s => s.sessionStatus === "open" && !s.alreadySubmitted) || [];
+  // Sessões fechadas com Mesa para reavaliar (qualquer aluno presente, incluindo quem já submeteu)
+  const pendingMesaReview = openSessions?.filter(s => s.sessionStatus === "closed" && (s as any).hasMesaToReview) || [];
+  // Sessões avaliadas (open + já submeteu) ou fechadas sem Mesa
+  const completedSessions = openSessions?.filter(s => {
+    if (s.sessionStatus === "open" && s.alreadySubmitted) return true;
+    if (s.sessionStatus === "closed" && !(s as any).hasMesaToReview) return true;
+    return false;
+  }) || [];
+  const pendingSessions = [...pendingOpenSessions, ...pendingMesaReview];
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -1047,20 +1056,21 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
           <div className="space-y-2">
             {pendingSessions.map(s => {
               const isClosed = (s as any).sessionStatus === "closed";
+              const isMesaReview = isClosed && (s as any).hasMesaToReview;
               return (
-                <Card key={s.sessionId} className={isClosed ? "border-orange-200 hover:border-orange-300 transition-colors" : "border-amber-200 hover:border-amber-300 transition-colors"}>
+                <Card key={s.sessionId} className={isMesaReview ? "border-orange-200 hover:border-orange-300 transition-colors" : "border-amber-200 hover:border-amber-300 transition-colors"}>
                   <CardContent className="py-3">
                     <div className="flex items-center justify-between cursor-pointer" onClick={() => onSelectSession(s as any)}>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-sm">{s.sessionLabel}</p>
                         <p className="text-xs text-muted-foreground">{s.componentCode} - {s.classCode} ({s.semester})</p>
-                        {isClosed && (
-                          <p className="text-xs text-orange-600 mt-0.5">Sessão fechada — avalie o desempenho no papel</p>
+                        {isMesaReview && (
+                          <p className="text-xs text-orange-600 mt-0.5">Sessão fechada — reavaliar desempenho da Mesa</p>
                         )}
                       </div>
-                      {isClosed ? (
+                      {isMesaReview ? (
                         <Badge variant="outline" className="border-orange-300 text-orange-700 shrink-0">
-                          <Clock className="h-3 w-3 mr-1" /> Desempenho
+                          <Clock className="h-3 w-3 mr-1" /> Reavaliar Mesa
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="border-amber-300 text-amber-700 shrink-0">
@@ -1068,7 +1078,7 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
                         </Badge>
                       )}
                     </div>
-                    {!isClosed && (
+                    {!isMesaReview && (
                       <div className="flex gap-2 mt-2">
                         <Button
                           variant="outline"
@@ -1646,6 +1656,7 @@ function DesempenhoPapelFormInline({ studentInfo, sessionInfo, alreadySubmitted,
 
   const [done, setDone] = useState(false);
   const [desempenhos, setDesempenhos] = useState<Record<number, number>>({});
+  const [initializedFromPrevious, setInitializedFromPrevious] = useState(false);
 
   const peersWithRole = useMemo(() => {
     if (!sessionStudentsList) return [];
@@ -1654,13 +1665,36 @@ function DesempenhoPapelFormInline({ studentInfo, sessionInfo, alreadySubmitted,
     );
   }, [sessionStudentsList, studentInfo.studentId]);
 
-  useMemo(() => {
-    if (peersWithRole.length > 0 && Object.keys(desempenhos).length === 0) {
+  // Fetch previous scores for each Mesa peer
+  const mesaStudentId = peersWithRole.length > 0 ? peersWithRole[0].studentId : undefined;
+  const { data: previousScoreData } = trpc.studentAccess.getPreviousMesaScore.useQuery(
+    {
+      sessionId: studentInfo.sessionId,
+      evaluatorStudentId: studentInfo.studentId,
+      mesaStudentId: mesaStudentId ?? 0,
+    },
+    { enabled: !!mesaStudentId }
+  );
+
+  // Initialize desempenhos with previous score (or 0 = Excelente as default)
+  // Wait for both peersWithRole and previousScoreData to be available before initializing
+  useEffect(() => {
+    if (peersWithRole.length > 0 && !initializedFromPrevious) {
+      // If the student has submitted before, wait for previousScoreData to arrive
+      // If mesaStudentId is set but previousScoreData is still undefined, wait
+      if (mesaStudentId && previousScoreData === undefined) return;
       const init: Record<number, number> = {};
-      peersWithRole.forEach(p => { init[p.studentId] = 0; });
+      peersWithRole.forEach(p => {
+        // previousScoreData.score is the previous desempenhoPapel value, or null if not submitted
+        const prevScore = (p.studentId === mesaStudentId && previousScoreData !== undefined)
+          ? (previousScoreData.score ?? 0)
+          : 0;
+        init[p.studentId] = prevScore;
+      });
       setDesempenhos(init);
+      setInitializedFromPrevious(true);
     }
-  }, [peersWithRole]);
+  }, [peersWithRole, previousScoreData, initializedFromPrevious, mesaStudentId]);
 
   const handleSubmit = () => {
     const items = Object.entries(desempenhos).map(([id, val]) => ({
@@ -1742,24 +1776,50 @@ function DesempenhoPapelFormInline({ studentInfo, sessionInfo, alreadySubmitted,
 
       {peersWithRole.map((peer) => {
         const val = desempenhos[peer.studentId] ?? 0;
+        // Determine if this is a pre-filled value from a previous evaluation
+        const hasPreviousScore = peer.studentId === mesaStudentId && previousScoreData?.score !== null && previousScoreData?.score !== undefined;
         return (
           <Card key={peer.studentId}>
             <CardHeader className="pb-3">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold text-sm">
-                  {peer.studentName.charAt(0).toUpperCase()}
-                </div>
-                <div>
+                <StudentPhotoAvatar
+                  photoUrl={(peer as any).studentPhotoUrl ?? null}
+                  studentName={peer.studentName}
+                  size="md"
+                  borderClass="border-2 border-amber-200"
+                  clickable={false}
+                />
+                <div className="flex-1">
                   <CardTitle className="text-base">{peer.studentName}</CardTitle>
                   <div className="flex items-center gap-2 mt-1">
                     <CardDescription className="text-xs">{peer.studentEnrollment}</CardDescription>
-                    <Badge variant="default" className="text-xs">{peer.role}</Badge>
+                    <Badge variant="default" className="text-xs bg-green-600">{peer.role}</Badge>
                   </div>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="pt-0 space-y-3">
               <Separator />
+              {/* Indicator: previous score or default */}
+              {initializedFromPrevious && (
+                <div className={`text-xs rounded-md px-3 py-2 flex items-center gap-2 ${
+                  hasPreviousScore
+                    ? "bg-blue-50 border border-blue-200 text-blue-700"
+                    : "bg-emerald-50 border border-emerald-200 text-emerald-700"
+                }`}>
+                  {hasPreviousScore ? (
+                    <>
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                      <span>Nota anterior: <strong>{penaltyLabelsInline[previousScoreData!.score!] ?? previousScoreData!.score}</strong>. Ajuste se desejar.</span>
+                    </>
+                  ) : (
+                    <>
+                      <HelpCircle className="h-3.5 w-3.5 shrink-0" />
+                      <span>Você não avaliou esta sessão anteriormente. Padrão: <strong>Excelente</strong>.</span>
+                    </>
+                  )}
+                </div>
+              )}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">

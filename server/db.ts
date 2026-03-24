@@ -1100,6 +1100,7 @@ export async function submitEvaluation(data: {
 }
 
 // ─── Update desempenhoPapel only (for closed sessions) ───
+// If no evaluation exists yet (student didn't submit during open session), creates one with auto-fill defaults.
 export async function updateDesempenhoPapel(data: {
   sessionId: number;
   evaluatorStudentId: number;
@@ -1109,10 +1110,47 @@ export async function updateDesempenhoPapel(data: {
   if (!db) throw new Error("DB not available");
 
   // Find the existing evaluation
-  const [existing] = await db.select().from(evaluations)
+  let [existing] = await db.select().from(evaluations)
     .where(and(eq(evaluations.sessionId, data.sessionId), eq(evaluations.evaluatorStudentId, data.evaluatorStudentId)))
     .limit(1);
-  if (!existing) throw new Error("Avaliação não encontrada");
+
+  if (!existing) {
+    // No evaluation exists yet — create one with auto-fill defaults for all session students
+    const sessionStudentsList = await getSessionStudents(data.sessionId);
+    const presentStudents = sessionStudentsList.filter(s => !s.absent);
+    const peers = presentStudents.filter(s => s.studentId !== data.evaluatorStudentId);
+
+    await db.transaction(async (tx) => {
+      const [result] = await tx.insert(evaluations).values({
+        sessionId: data.sessionId,
+        evaluatorStudentId: data.evaluatorStudentId,
+        autoFilled: true,
+      }).$returningId();
+      const evaluationId = result.id;
+
+      if (peers.length > 0) {
+        await tx.insert(evaluationItems).values(
+          peers.map(peer => ({
+            evaluationId,
+            evaluatedStudentId: peer.studentId,
+            role: peer.role as "COORDENADOR" | "MESA" | "QUADRO" | "PARTICIPANTE",
+            absent: false,
+            pontualidade: "1.00",
+            pesquisaMetas: "1.00",
+            dominio: "1.00",
+            participacao: "1.00",
+            desempenhoPapel: "0.00",
+          }))
+        );
+      }
+    });
+
+    // Reload the newly created evaluation
+    [existing] = await db.select().from(evaluations)
+      .where(and(eq(evaluations.sessionId, data.sessionId), eq(evaluations.evaluatorStudentId, data.evaluatorStudentId)))
+      .limit(1);
+    if (!existing) throw new Error("Falha ao criar avaliação");
+  }
 
   // Update only desempenhoPapel for each item
   for (const item of data.items) {
@@ -4509,4 +4547,35 @@ export async function getDashboardStatsByComponentAndSemester(componentId: numbe
     totalEvaluations: evalCount,
     totalClasses: componentClasses.length,
   };
+}
+
+// ─── Get previous desempenhoPapel score for Mesa in a closed session ───
+// Returns the desempenhoPapel value the evaluator previously gave to the Mesa student,
+// or null if no evaluation exists.
+export async function getPreviousMesaScore(sessionId: number, evaluatorStudentId: number, mesaStudentId: number): Promise<number | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  // Find the evaluation record for this evaluator in this session
+  const [evalRecord] = await db.select({ id: evaluations.id })
+    .from(evaluations)
+    .where(and(
+      eq(evaluations.sessionId, sessionId),
+      eq(evaluations.evaluatorStudentId, evaluatorStudentId),
+    ))
+    .limit(1);
+
+  if (!evalRecord) return null;
+
+  // Find the evaluation item for the Mesa student
+  const [item] = await db.select({ desempenhoPapel: evaluationItems.desempenhoPapel })
+    .from(evaluationItems)
+    .where(and(
+      eq(evaluationItems.evaluationId, evalRecord.id),
+      eq(evaluationItems.evaluatedStudentId, mesaStudentId),
+    ))
+    .limit(1);
+
+  if (!item) return null;
+  return Number(item.desempenhoPapel);
 }

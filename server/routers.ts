@@ -56,6 +56,7 @@ import {
   addBrainstormAttachment, removeBrainstormAttachment, getAttachmentsByItemId, updateBrainstormAttachmentTitle,
   updateTutorComments, getStudentsByComponentFromSession,
   updateDesempenhoPapel,
+  getPreviousMesaScore,
   addBoardSendHistory, getBoardSendHistory, getLastBoardSend,
   listApprovedProfessorsByComponent,
   listClassesByComponent, listSemestersByComponent,
@@ -1436,10 +1437,23 @@ export const appRouter = router({
       studentId: z.number(),
     })).query(async ({ input }) => {
       const openSessions = await getOpenSessionsForStudent(input.studentId);
-      // For each session, check if student already submitted
+      // For each session, check if student already submitted and if there's a Mesa to re-evaluate
       const sessionsWithStatus = await Promise.all(openSessions.map(async (s) => {
         const submitted = await hasStudentSubmitted(s.sessionId, input.studentId);
-        return { ...s, alreadySubmitted: submitted };
+        // For closed sessions, check if there's a Mesa student (other than the current student)
+        let mesaStudentId: number | null = null;
+        let hasMesaToReview = false;
+        if (s.sessionStatus === "closed") {
+          const sessionStudentsList = await getSessionStudents(s.sessionId);
+          const mesaStudent = sessionStudentsList.find(
+            st => st.role === "MESA" && !st.absent && st.studentId !== input.studentId
+          );
+          if (mesaStudent) {
+            mesaStudentId = mesaStudent.studentId;
+            hasMesaToReview = true;
+          }
+        }
+        return { ...s, alreadySubmitted: submitted, hasMesaToReview, mesaStudentId };
       }));
       return sessionsWithStatus;
     }),
@@ -1581,6 +1595,14 @@ export const appRouter = router({
       sessionId: z.number(),
     })).query(async ({ input }) => {
       return getSessionStudents(input.sessionId);
+    }),
+    getPreviousMesaScore: publicProcedure.input(z.object({
+      sessionId: z.number(),
+      evaluatorStudentId: z.number(),
+      mesaStudentId: z.number(),
+    })).query(async ({ input }) => {
+      const score = await getPreviousMesaScore(input.sessionId, input.evaluatorStudentId, input.mesaStudentId);
+      return { score };
     }),
     updateDesempenho: publicProcedure.input(z.object({
       sessionId: z.number(),
