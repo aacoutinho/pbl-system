@@ -423,6 +423,7 @@ function TutorialEvalContent() {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
       utils.tutorialEval.get.invalidate();
       utils.tutorialEval.getDraft.invalidate();
+      utils.tutorialEval.getStudentNotes.invalidate();
       utils.sessions.list.invalidate();
       utils.sessions.listWithPermissions.invalidate();
       utils.results.sessionFinal.invalidate();
@@ -434,34 +435,71 @@ function TutorialEvalContent() {
     onError: (e) => toast.error(e.message),
   });
 
+  // Helper: build notes payload for all session students (not just non-empty ones)
+  const buildAllNotesPayload = () => {
+    if (!sessionStudents) return [];
+    return sessionStudents.map((student: any) => {
+      const note = studentNotes[student.studentId] ?? {
+        studentId: student.studentId,
+        positivePoints: 0,
+        negativePoints: 0,
+        positiveTexts: [""],
+        negativeTexts: [""],
+        notes: "",
+      };
+      return {
+        studentId: student.studentId,
+        positivePoints: note.positivePoints,
+        negativePoints: note.negativePoints,
+        positiveTexts: note.positiveTexts ?? [],
+        negativeTexts: note.negativeTexts ?? [],
+        notes: note.notes || null,
+      };
+    });
+  };
+
   // Manual draft save
   const handleSaveDraft = () => {
     if (!selectedSessionId) { toast.error("Selecione uma sessão"); return; }
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     setDraftSaving(true);
-    saveDraftMutation.mutate({
-      sessionId: sessionIdNum,
-      ...scores,
-    }, {
-      onSuccess: () => {
-        toast.success("Rascunho salvo com sucesso!");
-      },
-    });
-    // Also save student notes
-    const notesArray = Object.values(studentNotes).filter(
-      n => n.positivePoints > 0 || n.negativePoints > 0 || n.notes.trim().length > 0 || (n.positiveTexts && n.positiveTexts.some(t => t.trim().length > 0)) || (n.negativeTexts && n.negativeTexts.some(t => t.trim().length > 0))
-    );
-    if (notesArray.length > 0) {
+    // Save student notes first, then save draft
+    const allNotes = buildAllNotesPayload();
+    if (allNotes.length > 0) {
       saveStudentNotesMutation.mutate({
         sessionId: sessionIdNum,
-        notes: notesArray.map(n => ({
-          studentId: n.studentId,
-          positivePoints: n.positivePoints,
-          negativePoints: n.negativePoints,
-          positiveTexts: n.positiveTexts ?? [],
-          negativeTexts: n.negativeTexts ?? [],
-          notes: n.notes || null,
-        })),
+        notes: allNotes,
+      }, {
+        onSuccess: () => {
+          saveDraftMutation.mutate({
+            sessionId: sessionIdNum,
+            ...scores,
+          }, {
+            onSuccess: () => {
+              toast.success("Rascunho salvo com sucesso!");
+            },
+          });
+        },
+        onError: () => {
+          // Still try to save draft even if notes fail
+          saveDraftMutation.mutate({
+            sessionId: sessionIdNum,
+            ...scores,
+          }, {
+            onSuccess: () => {
+              toast.success("Rascunho salvo (anotações não puderam ser salvas).");
+            },
+          });
+        },
+      });
+    } else {
+      saveDraftMutation.mutate({
+        sessionId: sessionIdNum,
+        ...scores,
+      }, {
+        onSuccess: () => {
+          toast.success("Rascunho salvo com sucesso!");
+        },
       });
     }
   };
@@ -473,27 +511,26 @@ function TutorialEvalContent() {
   const handleSubmit = () => {
     if (!selectedSessionId) { toast.error("Selecione uma sessão"); return; }
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-    // Save student notes before submitting
-    const notesArray = Object.values(studentNotes).filter(
-      n => n.positivePoints > 0 || n.negativePoints > 0 || n.notes.trim().length > 0 || (n.positiveTexts && n.positiveTexts.some(t => t.trim().length > 0)) || (n.negativeTexts && n.negativeTexts.some(t => t.trim().length > 0))
-    );
-    if (notesArray.length > 0) {
+    if (notesAutoSaveTimerRef.current) clearTimeout(notesAutoSaveTimerRef.current);
+    const doSubmit = () => {
+      submitMutation.mutate({
+        sessionId: sessionIdNum,
+        ...scores,
+      });
+    };
+    // Save student notes first, then submit — ensures notes are persisted before session closes
+    const allNotes = buildAllNotesPayload();
+    if (allNotes.length > 0) {
       saveStudentNotesMutation.mutate({
         sessionId: sessionIdNum,
-        notes: notesArray.map(n => ({
-          studentId: n.studentId,
-          positivePoints: n.positivePoints,
-          negativePoints: n.negativePoints,
-          positiveTexts: n.positiveTexts ?? [],
-          negativeTexts: n.negativeTexts ?? [],
-          notes: n.notes || null,
-        })),
+        notes: allNotes,
+      }, {
+        onSuccess: doSubmit,
+        onError: doSubmit, // submit even if notes fail
       });
+    } else {
+      doSubmit();
     }
-    submitMutation.mutate({
-      sessionId: sessionIdNum,
-      ...scores,
-    });
   };
 
   const isDataLoading = evalLoading || (canEvaluateSelected && draftLoading);
