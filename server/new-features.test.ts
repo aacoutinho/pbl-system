@@ -539,7 +539,7 @@ describe("Send Grade Emails", () => {
         tutorialGrade: 7.5,
       },
       peerAverage: 8.2,
-      finalGrade: 7.8,
+      desempenhoScore: 7.8,
       problemAverage: 7.5,
     });
     expect(html).toContain("João Silva");
@@ -575,7 +575,7 @@ describe("Send Grade Emails", () => {
         tutorialGrade: 5.0,
       },
       peerAverage: null,
-      finalGrade: null,
+      desempenhoScore: null,
       problemAverage: null,
     });
     expect(html).toContain("Pendente");
@@ -595,7 +595,7 @@ describe("Send Grade Emails", () => {
         organizacao: 1.0, cooperacao: 1.0, conteudo: 1.0, objetivo: 1.0, metas: 1.0, tutorialGrade: 10.0,
       },
       peerAverage: 9.0,
-      finalGrade: 9.5,
+      desempenhoScore: 9.5,
       problemAverage: 9.2,
     });
     expect(htmlHigh).toContain("#059669"); // green
@@ -611,7 +611,7 @@ describe("Send Grade Emails", () => {
         organizacao: 0.0, cooperacao: 0.0, conteudo: 0.0, objetivo: 0.0, metas: 0.0, tutorialGrade: 0.0,
       },
       peerAverage: 2.0,
-      finalGrade: 1.5,
+      desempenhoScore: 1.5,
       problemAverage: 1.8,
     });
     expect(htmlLow).toContain("#dc2626"); // red
@@ -630,7 +630,7 @@ describe("Send Grade Emails", () => {
         organizacao: 0.75, cooperacao: 0.5, conteudo: 0.75, objetivo: 1.0, metas: 0.5, tutorialGrade: 7.5,
       },
       peerAverage: 8.0,
-      finalGrade: 7.5,
+      desempenhoScore: 7.5,
       problemAverage: 7.0,
     });
     // Should NOT contain individual peer names or individual peer scores

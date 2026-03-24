@@ -1168,8 +1168,7 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
                 role: string;
                 peerScore: number;
                 tutorialScore?: number;
-                finalGrade: number;
-                finalScore?: number;
+                desempenhoScore: number;
                 absent: boolean;
                 hasSubmitted: boolean;
                 submittedAt: Date | null;
@@ -1202,7 +1201,7 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
                           <th className="text-center py-2 px-2 font-medium text-muted-foreground">Papel</th>
                           <th className="text-center py-2 px-2 font-medium text-muted-foreground">Nota Pares</th>
                           <th className="text-center py-2 px-2 font-medium text-muted-foreground">Nota Tutorial</th>
-                          <th className="text-center py-2 px-2 font-medium text-muted-foreground">Nota Final</th>
+                          <th className="text-center py-2 px-2 font-medium text-muted-foreground">Nota Desempenho</th>
                           <th className="text-center py-2 px-2 font-medium text-muted-foreground">Avaliou</th>
                         </tr>
                       </thead>
@@ -1290,7 +1289,7 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
                               {ev.absent ? (
                                 <span className="text-red-500 font-semibold">F</span>
                               ) : ev.sessionStatus === 'finished' || ev.sessionStatus === 'closed' ? (
-                                <span className="font-semibold text-blue-700">{(ev.finalScore ?? ev.finalGrade).toFixed(1)}</span>
+                                <span className="font-semibold text-blue-700">{(ev.desempenhoScore ?? ev.desempenhoScore).toFixed(1)}</span>
                               ) : (
                                 <span className="text-muted-foreground text-[10px]">Pendente</span>
                               )}

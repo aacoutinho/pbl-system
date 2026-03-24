@@ -202,28 +202,28 @@ describe("Student Transfer - Backend Logic", () => {
           studentName: "Ana Silva",
           studentEnrollment: "20211001",
           sessions: [
-            { sessionId: 1, label: "P1S1", peerScore: 7.5, finalGrade: 7.2, role: "COORDENADOR", absent: false },
-            { sessionId: 2, label: "P1S2", peerScore: 0, finalGrade: 0, role: "FALTOU", absent: true },
+            { sessionId: 1, label: "P1S1", peerScore: 7.5, desempenhoScore: 7.2, role: "COORDENADOR", absent: false },
+            { sessionId: 2, label: "P1S2", peerScore: 0, desempenhoScore: 0, role: "FALTOU", absent: true },
           ],
           totalSessions: 2,
           presentCount: 1,
           absentCount: 1,
           avgPeerScore: 7.5,
-          avgFinalGrade: 7.2,
+          mediaDesempenho: 7.2,
         },
         {
           studentId: 2,
           studentName: "Bruno Costa",
           studentEnrollment: "20211002",
           sessions: [
-            { sessionId: 1, label: "P1S1", peerScore: 6.8, finalGrade: 6.5, role: "MESA", absent: false },
-            { sessionId: 2, label: "P1S2", peerScore: 7.0, finalGrade: 6.8, role: "PARTICIPANTE", absent: false },
+            { sessionId: 1, label: "P1S1", peerScore: 6.8, desempenhoScore: 6.5, role: "MESA", absent: false },
+            { sessionId: 2, label: "P1S2", peerScore: 7.0, desempenhoScore: 6.8, role: "PARTICIPANTE", absent: false },
           ],
           totalSessions: 2,
           presentCount: 2,
           absentCount: 0,
           avgPeerScore: 6.9,
-          avgFinalGrade: 6.7,
+          mediaDesempenho: 6.7,
         },
       ]);
 
@@ -247,13 +247,13 @@ describe("Student Transfer - Backend Logic", () => {
           studentName: "Ana Silva",
           studentEnrollment: "20211001",
           sessions: [
-            { sessionId: 3, label: "P2S1", peerScore: 8.0, finalGrade: 7.8, role: "PARTICIPANTE", absent: false },
+            { sessionId: 3, label: "P2S1", peerScore: 8.0, desempenhoScore: 7.8, role: "PARTICIPANTE", absent: false },
           ],
           totalSessions: 1,
           presentCount: 1,
           absentCount: 0,
           avgPeerScore: 8.0,
-          avgFinalGrade: 7.8,
+          mediaDesempenho: 7.8,
         },
       ]);
 

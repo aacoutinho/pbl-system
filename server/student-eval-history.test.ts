@@ -82,7 +82,7 @@ describe("Student Evaluation History", () => {
         expect(item).toHaveProperty("componentCode");
         expect(item).toHaveProperty("componentName");
         expect(item).toHaveProperty("semester");
-        expect(item).toHaveProperty("finalGrade");
+        expect(item).toHaveProperty("desempenhoScore");
         expect(item).toHaveProperty("absent");
       }
     });

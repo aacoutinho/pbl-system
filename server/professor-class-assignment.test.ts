@@ -165,19 +165,19 @@ describe("finishSession without professor evaluation", () => {
     expect(tutorialGrade).toBe(10);
   });
 
-  it("provisional finalGrade equals 10.0 when all students have Excelente defaults and tutorialGrade=10", () => {
+  it("provisional desempenhoScore equals 10.0 when all students have Excelente defaults and tutorialGrade=10", () => {
     // 2 alunos presentes, ambos com peerScore=10, tutorialGrade=10
     // totalPoints = 10 * 2 = 20
     // proportion for each = 10/20 = 0.5
-    // finalGrade = 0.5 * 20 = 10.0
+    // desempenhoScore = 0.5 * 20 = 10.0
     const numPresent = 2;
     const peerScore = 10.0;
     const tutorialGrade = 10.0;
     const totalPoints = tutorialGrade * numPresent;
     const sumPeerScores = peerScore * numPresent;
     const proportion = peerScore / sumPeerScores;
-    const finalGrade = Math.round(proportion * totalPoints * 10) / 10;
-    expect(finalGrade).toBe(10.0);
+    const desempenhoScore = Math.round(proportion * totalPoints * 10) / 10;
+    expect(desempenhoScore).toBe(10.0);
   });
 
   it("sessions.finish route exists in appRouter", async () => {

@@ -112,10 +112,10 @@ export default function AdminStudentProfilePage() {
                   <XCircle className="h-3.5 w-3.5 text-red-500" />
                   Faltas: <strong className="text-foreground">{(comp as any).absences ?? 0}</strong>
                 </span>
-                {comp.finalAverage !== null && comp.finalAverage !== undefined && (
+                {comp.mediaDesempenho !== null && comp.mediaDesempenho !== undefined && (
                   <span className="flex items-center gap-1">
                     <Minus className="h-3.5 w-3.5 text-blue-600" />
-                    Média Final: <strong className="text-foreground">{gradeLabel(comp.finalAverage)}</strong>
+                    Média Desempenho: <strong className="text-foreground">{gradeLabel(comp.mediaDesempenho)}</strong>
                   </span>
                 )}
               </div>
@@ -130,7 +130,7 @@ export default function AdminStudentProfilePage() {
                       <th className="text-center py-2 px-2 font-medium">Papel</th>
                       <th className="text-center py-2 px-2 font-medium">Nota Pares</th>
                       <th className="text-center py-2 px-2 font-medium">Nota Tutorial</th>
-                      <th className="text-center py-2 px-2 font-medium">Nota Final</th>
+                      <th className="text-center py-2 px-2 font-medium">Nota Desempenho</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -157,7 +157,7 @@ export default function AdminStudentProfilePage() {
                           />
                         </td>
                         <td className="text-center py-2 px-2 font-semibold">
-                          <GradeCell value={s.finalScore} absent={s.absent} />
+                          <GradeCell value={s.desempenhoScore} absent={s.absent} />
                         </td>
                       </tr>
                     ))}

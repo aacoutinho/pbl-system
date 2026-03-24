@@ -16,7 +16,7 @@ import {
   calculateSessionResults, calculateProblemResults, getDashboardStats, getDashboardStatsByComponents,
   submitTutorialEvaluation, getTutorialEvaluation, calculateTutorialGrade,
   saveTutorialEvalDraft, getTutorialEvalDraft, deleteTutorialEvalDraft,
-  calculateFinalGrades, calculateProblemFinalGrades, getStudentConsolidatedReport,
+  calculateDesempenhoScores, calculateProblemDesempenhoScores, getStudentConsolidatedReport,
   generateAccessCode, getSessionByAccessCode, findStudentByEnrollmentInClass,
   approveUser, rejectUser, listPendingProfessors, listApprovedProfessors, deleteUser,
   addProfessorComponent, removeProfessorComponent, listProfessorComponents, listAllProfessorComponents,
@@ -2352,7 +2352,7 @@ export const appRouter = router({
       return getPeerGradesMatrix(input.sessionId, input.provisional ?? false);
     }),
     sessionFinal: protectedProcedure.input(z.object({ sessionId: z.number(), provisional: z.boolean().optional() })).query(async ({ input }) => {
-      return calculateFinalGrades(input.sessionId, input.provisional ?? false);
+      return calculateDesempenhoScores(input.sessionId, input.provisional ?? false);
     }),
     problem: approvedProcedure.input(z.object({ classId: z.number(), problemNumber: z.number() })).query(async ({ ctx, input }) => {
       const cls = await getClassById(input.classId);
@@ -2364,7 +2364,7 @@ export const appRouter = router({
       const cls = await getClassById(input.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       await assertComponentAccess(ctx.user.id, ctx.user.role, cls.componentId);
-      return calculateProblemFinalGrades(input.classId, input.problemNumber);
+      return calculateProblemDesempenhoScores(input.classId, input.problemNumber);
     }),
     sessionsForClass: approvedProcedure.input(z.object({ classId: z.number() })).query(async ({ ctx, input }) => {
       const cls = await getClassById(input.classId);
@@ -2391,9 +2391,9 @@ export const appRouter = router({
       for (const cls of classes) {
         const sessions = await listSessionsByClass(cls.id);
         const session = sessions.find(s => s.problemNumber === input.problemNumber && s.sessionNumber === input.sessionNumber);
-        if (!session) { results.push({ classCode: cls.classCode, classId: cls.id, sessionId: null, finalGrades: [] }); continue; }
-        const finalGrades = await calculateFinalGrades(session.id, session.status !== 'finished');
-        results.push({ classCode: cls.classCode, classId: cls.id, sessionId: session.id, finalGrades });
+        if (!session) { results.push({ classCode: cls.classCode, classId: cls.id, sessionId: null, desempenhoScores: [] }); continue; }
+        const desempenhoScores = await calculateDesempenhoScores(session.id, session.status !== 'finished');
+        results.push({ classCode: cls.classCode, classId: cls.id, sessionId: session.id, desempenhoScores });
       }
       return results;
     }),
@@ -2407,7 +2407,7 @@ export const appRouter = router({
       const classes = await listClassesByComponent(input.componentId, input.semester);
       const results = [];
       for (const cls of classes) {
-        const problemFinal = await calculateProblemFinalGrades(cls.id, input.problemNumber);
+        const problemFinal = await calculateProblemDesempenhoScores(cls.id, input.problemNumber);
         const sessions = await listSessionsByClass(cls.id);
         const problemSessions = sessions.filter(s => s.problemNumber === input.problemNumber).sort((a, b) => a.sessionNumber - b.sessionNumber);
         results.push({ classCode: cls.classCode, classId: cls.id, problemFinal, problemSessions });
@@ -2445,8 +2445,8 @@ export const appRouter = router({
       const tutorialEval = await getTutorialEvaluation(input.sessionId);
       if (!tutorialEval) throw new TRPCError({ code: "BAD_REQUEST", message: "A avaliação do tutorial precisa ser finalizada antes de enviar as notas." });
 
-      const finalGrades = await calculateFinalGrades(input.sessionId);
-      const problemFinalGrades = await calculateProblemFinalGrades(session.classId, session.problemNumber);
+      const desempenhoScores = await calculateDesempenhoScores(input.sessionId);
+      const problemFinalGrades = await calculateProblemDesempenhoScores(session.classId, session.problemNumber);
 
       const smtpOk = await isSmtpConfigured();
       if (!smtpOk) throw new TRPCError({ code: "BAD_REQUEST", message: "SMTP não configurado. Configure o servidor de e-mail primeiro." });
@@ -2455,7 +2455,7 @@ export const appRouter = router({
       let failed = 0;
       const errors: string[] = [];
 
-      for (const student of finalGrades) {
+      for (const student of desempenhoScores) {
         if (!student.studentEmail) {
           failed++;
           errors.push(`${student.studentName}: sem e-mail cadastrado`);
@@ -2463,7 +2463,7 @@ export const appRouter = router({
         }
 
         const problemData = problemFinalGrades.find(p => p.studentId === student.studentId);
-        const problemAvg = problemData ? problemData.finalAverage : null;
+        const problemAvg = problemData ? problemData.mediaDesempenho : null;
 
         const html = buildStudentGradeReportHtml({
           studentName: student.studentName,
@@ -2481,7 +2481,7 @@ export const appRouter = router({
             tutorialGrade: calculateTutorialGrade(tutorialEval),
           },
           peerAverage: student.peerScore > 0 ? student.peerScore : null,
-          finalGrade: student.finalGrade > 0 ? student.finalGrade : null,
+          desempenhoScore: student.desempenhoScore > 0 ? student.desempenhoScore : null,
           problemAverage: problemAvg,
         });
 
@@ -2489,7 +2489,7 @@ export const appRouter = router({
         const result = await sendEmail({
           to: student.studentEmail,
           subject,
-          text: `Relatório de Avaliação Tutorial - ${session.label}. Nota do Tutorial: ${calculateTutorialGrade(tutorialEval).toFixed(1)}/10. Média dos Pares: ${student.peerScore > 0 ? student.peerScore.toFixed(1) : 'Pendente'}. Nota Final: ${student.finalGrade > 0 ? student.finalGrade.toFixed(1) : 'Pendente'}.`,
+          text: `Relatório de Avaliação Tutorial - ${session.label}. Nota do Tutorial: ${calculateTutorialGrade(tutorialEval).toFixed(1)}/10. Média dos Pares: ${student.peerScore > 0 ? student.peerScore.toFixed(1) : 'Pendente'}. Nota Final: ${student.desempenhoScore > 0 ? student.desempenhoScore.toFixed(1) : 'Pendente'}.`,
           html,
         });
 
@@ -2505,10 +2505,10 @@ export const appRouter = router({
         actorUserId: ctx.user.id,
         action: "send_grade_emails",
         classId: session.classId,
-        details: JSON.stringify({ sessionId: input.sessionId, sent, failed, total: finalGrades.length }),
+        details: JSON.stringify({ sessionId: input.sessionId, sent, failed, total: desempenhoScores.length }),
       });
 
-      return { sent, failed, total: finalGrades.length, errors };
+      return { sent, failed, total: desempenhoScores.length, errors };
     }),
 
     // Dashboard: scoped by user's accessible components

@@ -1787,23 +1787,23 @@ export function calculateTutorialGrade(eval_: { organizacao: string; cooperacao:
 }
 
 // ─── Final grade calculation ───
-export interface FinalGradeResult {
+export interface DesempenhoScoreResult {
   studentId: number;
   studentName: string;
   studentEmail: string | null;
   studentEnrollment: string;
   role: string;
   peerScore: number;
-  finalGrade: number;
+  desempenhoScore: number;
   tutorialScore?: number; // nota do tutorial (calculateTutorialGrade), undefined se não avaliado
   absent: boolean;
   excluded: boolean; // true when student was removed from class before this session
   validEvaluations: number;
-  capped: boolean; // true when finalGrade was capped at 10.0
-  provisional?: boolean; // true when finalGrade is estimated (no tutorial eval yet)
+  capped: boolean; // true when desempenhoScore was capped at 10.0
+  provisional?: boolean; // true when desempenhoScore is estimated (no tutorial eval yet)
 }
 
-export async function calculateFinalGrades(sessionId: number, provisional = false): Promise<FinalGradeResult[]> {
+export async function calculateDesempenhoScores(sessionId: number, provisional = false): Promise<DesempenhoScoreResult[]> {
   // Para sessões fechadas (provisional=true), usar avaliações com defaults (Excelente) para alunos sem avaliação
   const peerResults = provisional
     ? await calculateSessionResultsWithDefaults(sessionId)
@@ -1812,7 +1812,7 @@ export async function calculateFinalGrades(sessionId: number, provisional = fals
 
   if (!tutorialEval) {
     if (!provisional) {
-      // Sem avaliação tutorial e sem modo provisório: retorna peerScore mas finalGrade=0
+      // Sem avaliação tutorial e sem modo provisório: retorna peerScore mas desempenhoScore=0
       return peerResults.map(r => ({
         studentId: r.studentId,
         studentName: r.studentName,
@@ -1820,7 +1820,7 @@ export async function calculateFinalGrades(sessionId: number, provisional = fals
         studentEnrollment: r.studentEnrollment,
         role: r.role,
         peerScore: Math.round(r.totalScore * 10) / 10,
-        finalGrade: 0,
+        desempenhoScore: 0,
         absent: r.absent,
         excluded: r.excluded,
         validEvaluations: r.validEvaluations,
@@ -1844,7 +1844,7 @@ export async function calculateFinalGrades(sessionId: number, provisional = fals
           studentEnrollment: r.studentEnrollment,
           role: r.role,
           peerScore: 0,
-          finalGrade: 0,
+          desempenhoScore: 0,
           absent: r.absent,
           excluded: r.excluded,
           validEvaluations: r.validEvaluations,
@@ -1853,7 +1853,7 @@ export async function calculateFinalGrades(sessionId: number, provisional = fals
         };
       }
       const proportion = sumPeerScoresProvisional > 0 ? r.totalScore / sumPeerScoresProvisional : 1 / Math.max(numPresentProvisional, 1);
-      const finalGrade = Math.min(10.0, Math.round(proportion * totalPointsProvisional * 10) / 10);
+      const desempenhoScore = Math.min(10.0, Math.round(proportion * totalPointsProvisional * 10) / 10);
       return {
         studentId: r.studentId,
         studentName: r.studentName,
@@ -1861,7 +1861,7 @@ export async function calculateFinalGrades(sessionId: number, provisional = fals
         studentEnrollment: r.studentEnrollment,
         role: r.role,
         peerScore: Math.round(r.totalScore * 10) / 10,
-        finalGrade,
+        desempenhoScore,
         absent: r.absent,
         excluded: r.excluded,
         validEvaluations: r.validEvaluations,
@@ -1887,7 +1887,7 @@ export async function calculateFinalGrades(sessionId: number, provisional = fals
         studentEnrollment: r.studentEnrollment,
         role: r.role,
         peerScore: 0,
-        finalGrade: 0,
+        desempenhoScore: 0,
         tutorialScore: tutorialScoreRounded,
         absent: r.absent,
         excluded: r.excluded,
@@ -1898,7 +1898,7 @@ export async function calculateFinalGrades(sessionId: number, provisional = fals
     }
 
     const proportion = r.totalScore / sumPeerScores;
-    const finalGrade = sumPeerScores > 0 ? Math.round(proportion * totalPoints * 10) / 10 : 0;
+    const desempenhoScore = sumPeerScores > 0 ? Math.round(proportion * totalPoints * 10) / 10 : 0;
 
     return {
       studentId: r.studentId,
@@ -1907,7 +1907,7 @@ export async function calculateFinalGrades(sessionId: number, provisional = fals
       studentEnrollment: r.studentEnrollment,
       role: r.role,
       peerScore: Math.round(r.totalScore * 10) / 10,
-      finalGrade,
+      desempenhoScore,
       tutorialScore: tutorialScoreRounded,
       absent: r.absent,
       excluded: r.excluded,
@@ -1968,11 +1968,11 @@ export async function getStudentConsolidatedReport(classId: number) {
 
   // Calculate final grades for each session
   // Use provisional=true for closed sessions (no tutorial eval yet)
-  const sessionResults: Record<number, { label: string; problemNumber: number; sessionNumber: number; status: string; grades: Record<number, { peerScore: number; finalGrade: number; role: string; absent: boolean; excluded: boolean; capped: boolean }> }> = {};
+  const sessionResults: Record<number, { label: string; problemNumber: number; sessionNumber: number; status: string; grades: Record<number, { peerScore: number; desempenhoScore: number; role: string; absent: boolean; excluded: boolean; capped: boolean }> }> = {};
 
   for (const sess of classSessions) {
     const isProvisional = sess.status === "closed";
-    const finalGrades = await calculateFinalGrades(sess.id, isProvisional);
+    const desempenhoScores = await calculateDesempenhoScores(sess.id, isProvisional);
     sessionResults[sess.id] = {
       label: sess.label,
       problemNumber: sess.problemNumber,
@@ -1980,10 +1980,10 @@ export async function getStudentConsolidatedReport(classId: number) {
       status: sess.status,
       grades: {},
     };
-    for (const g of finalGrades) {
+    for (const g of desempenhoScores) {
       sessionResults[sess.id].grades[g.studentId] = {
         peerScore: g.peerScore,
-        finalGrade: g.finalGrade,
+        desempenhoScore: g.desempenhoScore,
         role: g.role,
         absent: g.absent,
         excluded: g.excluded ?? false,
@@ -2010,7 +2010,7 @@ export async function getStudentConsolidatedReport(classId: number) {
         sessionNumber: sess.sessionNumber,
         status: sess.status,
         peerScore: 0,
-        finalGrade: 0,
+        desempenhoScore: 0,
         role: "EXCLUÍDO",
         absent: false,
         excluded: true,
@@ -2025,7 +2025,7 @@ export async function getStudentConsolidatedReport(classId: number) {
           sessionNumber: sess.sessionNumber,
           status: sess.status,
           peerScore: 0,
-          finalGrade: 0,
+          desempenhoScore: 0,
           role: "FALTOU",
           absent: true,
           excluded: false,
@@ -2040,7 +2040,7 @@ export async function getStudentConsolidatedReport(classId: number) {
         sessionNumber: sess.sessionNumber,
         status: sess.status,
         peerScore: grade.peerScore,
-        finalGrade: grade.finalGrade,
+        desempenhoScore: grade.desempenhoScore,
         role: grade.role,
         absent: grade.absent,
         excluded: grade.excluded,
@@ -2059,11 +2059,11 @@ export async function getStudentConsolidatedReport(classId: number) {
     const avgPeer = totalSessionCount > 0
       ? Math.round(presentSessions.reduce((sum, s) => sum + s.peerScore, 0) / totalSessionCount * 10) / 10
       : 0;
-    const rawAvgFinal = totalSessionCount > 0
-      ? Math.round(presentSessions.reduce((sum, s) => sum + s.finalGrade, 0) / totalSessionCount * 10) / 10
+    const rawMediaDesempenho = totalSessionCount > 0
+      ? Math.round(presentSessions.reduce((sum, s) => sum + s.desempenhoScore, 0) / totalSessionCount * 10) / 10
       : 0;
-    const avgFinalCapped = rawAvgFinal > 10.0;
-    const avgFinal = avgFinalCapped ? 10.0 : rawAvgFinal;
+    const mediaDesempenhoCapped = rawMediaDesempenho > 10.0;
+    const mediaDesempenho = mediaDesempenhoCapped ? 10.0 : rawMediaDesempenho;
 
     return {
       studentId: student.studentId,
@@ -2077,13 +2077,13 @@ export async function getStudentConsolidatedReport(classId: number) {
       excludedCount: excludedSessions.length,
       allExcluded,
       avgPeerScore: avgPeer,
-      avgFinalGrade: avgFinal,
-      avgFinalCapped,
+      mediaDesempenho: mediaDesempenho,
+      mediaDesempenhoCapped,
     };
   });
 }
 
-export async function calculateProblemFinalGrades(classId: number, problemNumber: number) {
+export async function calculateProblemDesempenhoScores(classId: number, problemNumber: number) {
   const db = await getDb();
   if (!db) return [];
   const problemSessions = await db.select().from(sessions)
@@ -2101,15 +2101,15 @@ export async function calculateProblemFinalGrades(classId: number, problemNumber
     allStudentMap[s.id] = { name: s.name, email: s.email, enrollment: s.enrollment };
   }
 
-  // Per-session final grades: map sessionId -> map studentId -> FinalGradeResult
+  // Per-session desempenho scores: map sessionId -> map studentId -> DesempenhoScoreResult
   // Use provisional=true for closed sessions (no tutorial eval yet)
-  const sessionFinalMap: Record<number, Record<number, FinalGradeResult>> = {};
+  const sessionDesempenhoMap: Record<number, Record<number, DesempenhoScoreResult>> = {};
   for (const sess of problemSessions) {
     const isProvisional = sess.status === "closed";
-    const results = await calculateFinalGrades(sess.id, isProvisional);
-    sessionFinalMap[sess.id] = {};
+    const results = await calculateDesempenhoScores(sess.id, isProvisional);
+    sessionDesempenhoMap[sess.id] = {};
     for (const r of results) {
-      sessionFinalMap[sess.id][r.studentId] = r;
+      sessionDesempenhoMap[sess.id][r.studentId] = r;
       if (!allStudentMap[r.studentId]) {
         allStudentMap[r.studentId] = { name: r.studentName, email: r.studentEmail, enrollment: r.studentEnrollment };
       }
@@ -2121,33 +2121,33 @@ export async function calculateProblemFinalGrades(classId: number, problemNumber
     const isCurrentlyInClass = currentClassStudentIds.has(studentId);
 
     const peerScores: (number | null)[] = [];
-    const finalGrades: (number | null)[] = [];
+    const desempenhoScores: (number | null)[] = [];
     const roles: string[] = [];
     const excludedFlags: boolean[] = [];
 
     for (const sess of problemSessions) {
-      const r = sessionFinalMap[sess.id]?.[studentId];
+      const r = sessionDesempenhoMap[sess.id]?.[studentId];
       if (!r) {
         if (!isCurrentlyInClass) {
           // Excluded from class and not in session
           peerScores.push(null);
-          finalGrades.push(null);
+          desempenhoScores.push(null);
           roles.push("EXCLUÍDO");
           excludedFlags.push(true);
         } else {
           peerScores.push(0);
-          finalGrades.push(0);
+          desempenhoScores.push(0);
           roles.push("FALTOU");
           excludedFlags.push(false);
         }
       } else if (r.excluded) {
         peerScores.push(null);
-        finalGrades.push(null);
+        desempenhoScores.push(null);
         roles.push("EXCLUÍDO");
         excludedFlags.push(true);
       } else {
         peerScores.push(r.peerScore);
-        finalGrades.push(r.finalGrade);
+        desempenhoScores.push(r.desempenhoScore);
         roles.push(r.role);
         excludedFlags.push(false);
       }
@@ -2156,12 +2156,12 @@ export async function calculateProblemFinalGrades(classId: number, problemNumber
     // Averages: sum of non-excluded scores divided by TOTAL sessions (excluded sessions count as 0)
     const totalSessions = problemSessions.length;
     const validPeer = peerScores.filter((s): s is number => s !== null);
-    const validFinal = finalGrades.filter((g): g is number => g !== null);
+    const validDesempenho = desempenhoScores.filter((g): g is number => g !== null);
     const peerAvg = totalSessions > 0 ? validPeer.reduce((a, b) => a + b, 0) / totalSessions : 0;
-    const rawFinalAvg = totalSessions > 0 ? validFinal.reduce((a, b) => a + b, 0) / totalSessions : 0;
-    const finalAvgRounded = Math.round(rawFinalAvg * 10) / 10;
-    const finalAverageCapped = finalAvgRounded > 10.0;
-    const finalAverage = finalAverageCapped ? 10.0 : finalAvgRounded;
+    const rawMediaDesempenho = totalSessions > 0 ? validDesempenho.reduce((a, b) => a + b, 0) / totalSessions : 0;
+    const mediaDesempenhoRounded = Math.round(rawMediaDesempenho * 10) / 10;
+    const mediaDesempenhoCapped = mediaDesempenhoRounded > 10.0;
+    const mediaDesempenho = mediaDesempenhoCapped ? 10.0 : mediaDesempenhoRounded;
 
     return {
       studentId,
@@ -2169,12 +2169,12 @@ export async function calculateProblemFinalGrades(classId: number, problemNumber
       studentEmail: data.email,
       studentEnrollment: data.enrollment,
       peerScores,   // null = excluded
-      finalGrades,  // null = excluded
+      desempenhoScores,  // null = excluded
       roles,
       excludedFlags,
       peerAverage: Math.round(peerAvg * 10) / 10,
-      finalAverage,
-      finalAverageCapped,
+      mediaDesempenho,
+      mediaDesempenhoCapped,
     };
   }).sort((a, b) => a.studentName.localeCompare(b.studentName));
 }
@@ -3704,7 +3704,7 @@ export async function getStudentEvaluationHistory(studentId: number) {
     const hasSubmitted = !!evalRecord;
 
     // Get the final grade for this student in this session (same calculation as professor results)
-    let finalGrade = 0;
+    let desempenhoScore = 0;
     let peerScore = 0;
     let tutorialScore: number | undefined = undefined;
     let role = "PARTICIPANTE";
@@ -3713,10 +3713,10 @@ export async function getStudentEvaluationHistory(studentId: number) {
     role = ss.role || "PARTICIPANTE";
 
     if (ss.sessionStatus === "finished" || ss.sessionStatus === "closed") {
-      const finalGrades = await calculateFinalGrades(ss.sessionId);
-      const studentGrade = finalGrades.find(g => g.studentId === studentId);
+      const desempenhoScores = await calculateDesempenhoScores(ss.sessionId);
+      const studentGrade = desempenhoScores.find(g => g.studentId === studentId);
       if (studentGrade) {
-        finalGrade = studentGrade.finalGrade;
+        desempenhoScore = studentGrade.desempenhoScore;
         peerScore = studentGrade.peerScore;
         tutorialScore = studentGrade.tutorialScore;
         role = studentGrade.role || ss.role || "PARTICIPANTE";
@@ -3739,9 +3739,9 @@ export async function getStudentEvaluationHistory(studentId: number) {
       role,
       peerScore: Math.round(peerScore * 10) / 10,
       tutorialScore: tutorialScore !== undefined ? Math.round(tutorialScore * 10) / 10 : undefined,
-      finalGrade: Math.round(finalGrade * 10) / 10,
+      desempenhoScore: Math.round(desempenhoScore * 10) / 10,
       // Aliases for frontend compatibility
-      finalScore: Math.round(finalGrade * 10) / 10,
+      finalScore: Math.round(desempenhoScore * 10) / 10,
       absent: isAbsent,
     };
   }));
@@ -3822,7 +3822,7 @@ export async function getStudentEvaluationHistory(studentId: number) {
     for (const s of comp.sessions) {
       if (!problemGrades.has(s.problemNumber)) problemGrades.set(s.problemNumber, []);
       if (!s.absent && (s.sessionStatus === 'finished' || s.sessionStatus === 'closed')) {
-        problemGrades.get(s.problemNumber)!.push(s.finalGrade);
+        problemGrades.get(s.problemNumber)!.push(s.desempenhoScore);
       }
     }
 

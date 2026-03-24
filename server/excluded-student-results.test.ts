@@ -333,7 +333,7 @@ describe("getStudentConsolidatedReport - excluded session logic", () => {
     isCurrentlyInClass: boolean,
     gradeRecord: {
       peerScore: number;
-      finalGrade: number;
+      desempenhoScore: number;
       role: string;
       absent: boolean;
       excluded: boolean;
@@ -342,12 +342,12 @@ describe("getStudentConsolidatedReport - excluded session logic", () => {
   ) {
     if (!gradeRecord) {
       if (!isCurrentlyInClass) {
-        return { ...sessBase, peerScore: 0, finalGrade: 0, role: "EXCLUÍDO", absent: false, excluded: true };
+        return { ...sessBase, peerScore: 0, desempenhoScore: 0, role: "EXCLUÍDO", absent: false, excluded: true };
       }
-      return { ...sessBase, peerScore: 0, finalGrade: 0, role: "FALTOU", absent: true, excluded: false };
+      return { ...sessBase, peerScore: 0, desempenhoScore: 0, role: "FALTOU", absent: true, excluded: false };
     }
     if (gradeRecord.excluded) {
-      return { ...sessBase, peerScore: 0, finalGrade: 0, role: "EXCLUÍDO", absent: false, excluded: true };
+      return { ...sessBase, peerScore: 0, desempenhoScore: 0, role: "EXCLUÍDO", absent: false, excluded: true };
     }
     return { ...sessBase, ...gradeRecord };
   }
@@ -369,19 +369,19 @@ describe("getStudentConsolidatedReport - excluded session logic", () => {
   });
 
   it("returns excluded=true when grade record has excluded=true", () => {
-    const grade = { peerScore: 0, finalGrade: 0, role: "EXCLUÍDO", absent: false, excluded: true };
+    const grade = { peerScore: 0, desempenhoScore: 0, role: "EXCLUÍDO", absent: false, excluded: true };
     const result = buildConsolidatedSession(false, grade, sessBase);
     expect(result.excluded).toBe(true);
     expect(result.role).toBe("EXCLUÍDO");
   });
 
   it("returns normal grade when student participated", () => {
-    const grade = { peerScore: 8.5, finalGrade: 9.2, role: "PARTICIPANTE", absent: false, excluded: false };
+    const grade = { peerScore: 8.5, desempenhoScore: 9.2, role: "PARTICIPANTE", absent: false, excluded: false };
     const result = buildConsolidatedSession(true, grade, sessBase);
     expect(result.excluded).toBe(false);
     expect(result.absent).toBe(false);
     expect(result.peerScore).toBe(8.5);
-    expect(result.finalGrade).toBe(9.2);
+    expect(result.desempenhoScore).toBe(9.2);
   });
 
   it("allExcluded flag is true when all sessions are excluded", () => {
@@ -406,15 +406,15 @@ describe("getStudentConsolidatedReport - excluded session logic", () => {
 
   it("average excludes sessions with excluded=true", () => {
     const sessionData = [
-      { peerScore: 8.0, finalGrade: 9.0, absent: false, excluded: false },
-      { peerScore: 0, finalGrade: 0, absent: false, excluded: true },
-      { peerScore: 6.0, finalGrade: 7.0, absent: false, excluded: true },
+      { peerScore: 8.0, desempenhoScore: 9.0, absent: false, excluded: false },
+      { peerScore: 0, desempenhoScore: 0, absent: false, excluded: true },
+      { peerScore: 6.0, desempenhoScore: 7.0, absent: false, excluded: true },
     ];
     const presentSessions = sessionData.filter((s) => !s.absent && !s.excluded);
     const avgFinal =
       presentSessions.length > 0
         ? Math.round(
-            (presentSessions.reduce((sum, s) => sum + s.finalGrade, 0) / presentSessions.length) * 10
+            (presentSessions.reduce((sum, s) => sum + s.desempenhoScore, 0) / presentSessions.length) * 10
           ) / 10
         : 0;
     // Only session 1 counts (sessions 2 and 3 are excluded)

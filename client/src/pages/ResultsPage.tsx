@@ -100,7 +100,7 @@ function ResultsContent() {
 
   // Final grades (with tutorial evaluation)
   // Use provisional=true for closed sessions (no tutorial eval yet) to show estimated grades
-  const { data: finalResults, isLoading: finalLoading } = trpc.results.sessionFinal.useQuery(
+  const { data: desempenhoResults, isLoading: desempenhoLoading } = trpc.results.sessionFinal.useQuery(
     { sessionId: parseInt(selectedSessionId), provisional: isSessionClosed },
     { enabled: !!selectedSessionId }
   );
@@ -125,7 +125,7 @@ function ResultsContent() {
   );
 
   // Problem-level results
-  const { data: problemFinalResults, isLoading: problemFinalLoading } = trpc.results.problemFinal.useQuery(
+  const { data: problemDesempenhoResults, isLoading: problemDesempenhoLoading } = trpc.results.problemFinal.useQuery(
     { classId: selectedClassId!, problemNumber: parseInt(selectedProblem) },
     { enabled: !!selectedProblem && !!selectedClassId }
   );
@@ -178,10 +178,10 @@ function ResultsContent() {
 
   // Export session results: tutor eval per item + peer avg + final grade
   const exportSessionResults = () => {
-    if (!finalResults) return;
+    if (!desempenhoResults) return;
     const csvSession = activeSessions?.find(s => s.id === parseInt(selectedSessionId));
     const sessionLabel = csvSession?.label || "sessao";
-    const presentCount = finalResults.filter(r => !r.absent && r.peerScore > 0).length;
+    const presentCount = desempenhoResults.filter(r => !r.absent && r.peerScore > 0).length;
 
     const lines: string[] = [];
 
@@ -223,10 +223,10 @@ function ResultsContent() {
     const isProvisional = isSessionClosed && !tutorialEval;
     lines.push("RESULTADOS DOS ALUNOS" + (isProvisional ? " (NOTAS PROVISÓRIAS)" : ""));
     if (isProvisional) lines.push("ATENÇÃO: Notas provisórias calculadas com tutorial máximo (10.0). Avalie o tutorial para confirmar.");
-    lines.push(`Aluno,Papel,${isProvisional ? "Nota Provisória" : "Nota Final"},Status`);
-    for (const r of finalResults) {
+    lines.push(`Aluno,Papel,${isProvisional ? "Nota Desempenho (Provisória)" : "Nota Desempenho"},Status`);
+    for (const r of desempenhoResults) {
       const status = r.absent ? "Faltou" : "Presente";
-      lines.push(`${escapeCSV(r.studentName)},${r.role},${r.finalGrade.toFixed(1)},${status}`);
+      lines.push(`${escapeCSV(r.studentName)},${r.role},${r.desempenhoScore.toFixed(1)},${status}`);
     }
 
     // Brainstorm board section
@@ -255,7 +255,7 @@ function ResultsContent() {
 
   // Export problem results: all sessions summary
   const exportProblemResults = () => {
-    if (!problemFinalResults) return;
+    if (!problemDesempenhoResults) return;
     const sessionsForProblem = activeSessions?.filter(s => s.problemNumber === parseInt(selectedProblem)).sort((a, b) => a.sessionNumber - b.sessionNumber) ?? [];
 
     const lines: string[] = [];
@@ -274,16 +274,16 @@ function ResultsContent() {
       const label = s.status === "closed" ? `S${s.sessionNumber} (P)` : `S${s.sessionNumber}`;
       headers.push(label);
     }
-    headers.push("Média Final");
+    headers.push("Média Desempenho");
     lines.push(headers.join(","));
 
     // Data rows
-    for (const r of problemFinalResults) {
+    for (const r of problemDesempenhoResults) {
       const row = [escapeCSV(r.studentName)];
       for (let idx = 0; idx < sessionsForProblem.length; idx++) {
-        row.push((r.finalGrades[idx] ?? 0).toFixed(1));
+        row.push((r.desempenhoScores[idx] ?? 0).toFixed(1));
       }
-      row.push(r.finalAverage.toFixed(1));
+      row.push(r.mediaDesempenho.toFixed(1));
       lines.push(row.join(","));
     }
 
@@ -292,7 +292,7 @@ function ResultsContent() {
 
   // ─── PDF Export helpers ───
   const exportSessionPDF = async () => {
-    if (!finalResults) return;
+    if (!desempenhoResults) return;
     const { jsPDF } = await import('jspdf');
     const autoTable = (await import('jspdf-autotable')).default;
     const pdfSession = activeSessions?.find(s => s.id === parseInt(selectedSessionId));
@@ -327,8 +327,8 @@ function ResultsContent() {
     doc.text('Resultados dos Alunos', 14, y + 4);
     autoTable(doc, {
       startY: y + 7,
-      head: [['Aluno', 'Papel', 'Nota Final', 'Status']],
-      body: finalResults.map(r => [r.studentName, r.role, r.finalGrade.toFixed(1), r.absent ? 'Faltou' : 'Presente']),
+      head: [['Aluno', 'Papel', 'Nota Desempenho', 'Status']],
+      body: desempenhoResults.map(r => [r.studentName, r.role, r.desempenhoScore.toFixed(1), r.absent ? 'Faltou' : 'Presente']),
       styles: { fontSize: 8 },
       headStyles: { fillColor: [59, 130, 246] },
       margin: { left: 14, right: 14 },
@@ -341,7 +341,7 @@ function ResultsContent() {
   };
 
   const exportProblemPDF = async () => {
-    if (!problemFinalResults) return;
+    if (!problemDesempenhoResults) return;
     const { jsPDF } = await import('jspdf');
     const autoTable = (await import('jspdf-autotable')).default;
     const sessionsForProblem = activeSessions?.filter(s => s.problemNumber === parseInt(selectedProblem)).sort((a, b) => a.sessionNumber - b.sessionNumber) ?? [];
@@ -350,11 +350,11 @@ function ResultsContent() {
     doc.text(`Resultados - Problema ${selectedProblem}`, 14, 18);
     doc.setFontSize(9);
     doc.text(`Componente: ${selectedComponentFullLabel || ''} | Turma: ${selectedClassCode || ''} | Semestre: ${selectedSemester || ''}`, 14, 26);
-    const headers = ['Aluno', ...sessionsForProblem.map(s => `S${s.sessionNumber}`), 'Média Final'];
-    const body = problemFinalResults.map(r => [
+    const headers = ['Aluno', ...sessionsForProblem.map(s => `S${s.sessionNumber}`), 'Média Desempenho'];
+    const body = problemDesempenhoResults.map(r => [
       r.studentName,
-      ...sessionsForProblem.map((_, i) => (r.finalGrades[i] ?? 0).toFixed(1)),
-      r.finalAverage.toFixed(1),
+      ...sessionsForProblem.map((_, i) => (r.desempenhoScores[i] ?? 0).toFixed(1)),
+      r.mediaDesempenho.toFixed(1),
     ]);
     autoTable(doc, {
       startY: 32,
@@ -392,14 +392,14 @@ function ResultsContent() {
         doc.text(`Turma ${cls.classCode} — P${pdfSession.problemNumber}S${pdfSession.sessionNumber}`, 14, 18);
         doc.setFontSize(9);
         doc.text(`Componente: ${selectedComponentFullLabel || ''} | Semestre: ${selectedSemester || ''}`, 14, 26);
-        if (cls.finalGrades.length === 0) {
+        if (cls.desempenhoScores.length === 0) {
           doc.setFontSize(10);
           doc.text('Sessão não encontrada para esta turma.', 14, 36);
         } else {
           autoTable(doc, {
             startY: 32,
-            head: [['Matrícula', 'Papel', 'Nota Final', 'Status']],
-            body: cls.finalGrades.map((r: any) => [r.studentEnrollment || r.studentName, r.role, r.finalGrade.toFixed(1), r.absent ? 'Faltou' : 'Presente']),
+            head: [['Matrícula', 'Papel', 'Nota Desempenho', 'Status']],
+            body: cls.desempenhoScores.map((r: any) => [r.studentEnrollment || r.studentName, r.role, r.desempenhoScore.toFixed(1), r.absent ? 'Faltou' : 'Presente']),
             styles: { fontSize: 8 },
             headStyles: { fillColor: [59, 130, 246] },
             margin: { left: 14, right: 14 },
@@ -434,11 +434,11 @@ function ResultsContent() {
         doc.text(`Turma ${cls.classCode} — Problema ${selectedProblem}`, 14, 18);
         doc.setFontSize(9);
         doc.text(`Componente: ${selectedComponentFullLabel || ''} | Semestre: ${selectedSemester || ''}`, 14, 26);
-        const headers = ['Matrícula', ...cls.problemSessions.map((s: any) => `S${s.sessionNumber}`), 'Média Final'];
+        const headers = ['Matrícula', ...cls.problemSessions.map((s: any) => `S${s.sessionNumber}`), 'Média Desempenho'];
         const body = cls.problemFinal.map((r: any) => [
           r.studentEnrollment || r.studentName,
-          ...cls.problemSessions.map((_: any, i: number) => (r.finalGrades[i] ?? 0).toFixed(1)),
-          r.finalAverage.toFixed(1),
+          ...cls.problemSessions.map((_: any, i: number) => (r.desempenhoScores[i] ?? 0).toFixed(1)),
+          r.mediaDesempenho.toFixed(1),
         ]);
         autoTable(doc, {
           startY: 32,
@@ -489,7 +489,7 @@ function ResultsContent() {
           pSessions.forEach((s: any) => colHeaders.push(`P${s.problemNumber}S${s.sessionNumber}`));
           colHeaders.push(`MP${pNum}`);
         }
-        colHeaders.push('Faltas', 'Média Final');
+        colHeaders.push('Faltas', 'Média Desempenho');
         const body = cls.report.map((student: any, idx: number) => {
           const row: string[] = [String(idx + 1), student.studentEnrollment];
           for (const pNum of pNums) {
@@ -500,14 +500,14 @@ function ResultsContent() {
               if (!sd) { row.push('—'); return; }
               if (sd.excluded) { row.push('E'); return; }
               if (sd.absent) { row.push('F'); return; }
-              row.push(sd.finalGrade.toFixed(1));
+              row.push(sd.desempenhoScore.toFixed(1));
             });
             const totalCount = pSessions.length;
-            const presentSum = student.sessions.filter((s: any) => s.problemNumber === pNum && !s.absent && !s.excluded).reduce((sum: number, s: any) => sum + s.finalGrade, 0);
+            const presentSum = student.sessions.filter((s: any) => s.problemNumber === pNum && !s.absent && !s.excluded).reduce((sum: number, s: any) => sum + s.desempenhoScore, 0);
             const avg = totalCount > 0 ? Math.min(10, Math.round(presentSum / totalCount * 10) / 10) : 0;
             row.push(avg.toFixed(1));
           }
-          row.push(String(student.absentCount), student.avgFinalGrade.toFixed(1));
+          row.push(String(student.absentCount), student.mediaDesempenho.toFixed(1));
           return row;
         });
         autoTable(doc, {
@@ -563,7 +563,7 @@ function ResultsContent() {
                 </SelectContent>
               </Select>
             </div>
-            {finalResults && finalResults.length > 0 && (
+            {desempenhoResults && desempenhoResults.length > 0 && (
               <div className="flex gap-2 flex-wrap">
                 <Button variant="outline" size="sm" onClick={exportSessionResults}>
                   <FileSpreadsheet className="h-4 w-4 mr-2" />Exportar CSV
@@ -706,8 +706,8 @@ function ResultsContent() {
                       </table>
                     </div>
                     <div className="mt-3 pt-3 border-t border-blue-200 text-xs text-blue-700 flex gap-6">
-                      <span>Alunos presentes: <strong>{finalResults?.filter(r => !r.absent && r.peerScore > 0).length ?? 0}</strong></span>
-                      <span>Pontuação total: <strong>{((tutorialEval.tutorialGrade) * (finalResults?.filter(r => !r.absent && r.peerScore > 0).length ?? 0)).toFixed(1)}</strong></span>
+                      <span>Alunos presentes: <strong>{desempenhoResults?.filter(r => !r.absent && r.peerScore > 0).length ?? 0}</strong></span>
+                      <span>Pontuação total: <strong>{((tutorialEval.tutorialGrade) * (desempenhoResults?.filter(r => !r.absent && r.peerScore > 0).length ?? 0)).toFixed(1)}</strong></span>
                     </div>
                   </CardContent>
                 </Card>
@@ -849,12 +849,12 @@ function ResultsContent() {
                 </CardContent>
               </Card>
 
-              {/* ─── Notas Finais da Sessão ─── */}
+              {/* ─── Notas de Desempenho da Sessão ─── */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
                     <BarChart3 className="h-5 w-5" />
-                    Notas Finais da Sessão
+                    Notas de Desempenho da Sessão
                   </CardTitle>
                   <CardDescription>
                     {tutorialEval
@@ -865,9 +865,9 @@ function ResultsContent() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {finalLoading ? (
+                  {desempenhoLoading ? (
                     <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}</div>
-                  ) : !finalResults || finalResults.length === 0 ? (
+                  ) : !desempenhoResults || desempenhoResults.length === 0 ? (
                     <p className="text-center py-8 text-muted-foreground">Nenhuma avaliação encontrada para esta sessão.</p>
                   ) : (() => {
                     return (
@@ -880,12 +880,12 @@ function ResultsContent() {
                             <th className="pb-3 pr-4 font-semibold">Aluno</th>
                             <th className="pb-3 pr-4 font-semibold">Papel</th>
                             <th className="pb-3 pr-4 font-semibold text-center">Média Pares</th>
-                            {(tutorialEval || isSessionClosed) && <th className="pb-3 pr-4 font-semibold text-center">{isSessionClosed && !tutorialEval ? "Nota Provisória" : "Nota Final"}</th>}
+                            {(tutorialEval || isSessionClosed) && <th className="pb-3 pr-4 font-semibold text-center">{isSessionClosed && !tutorialEval ? "Nota Desempenho (Provisória)" : "Nota Desempenho"}</th>}
                             <th className="pb-3 font-semibold text-center">Status</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {finalResults.map((r, i) => (
+                          {desempenhoResults.map((r, i) => (
                             <tr key={r.studentId} className={`border-b last:border-0 transition-colors ${r.absent ? "bg-red-50/60 hover:bg-red-50" : "hover:bg-accent/20"}`}>
                               <td className="py-3 pr-4">
                                 <span className="text-muted-foreground">{i + 1}</span>
@@ -906,8 +906,8 @@ function ResultsContent() {
                               </td>
                               {(tutorialEval || isSessionClosed) && (
                                 <td className="py-3 pr-4 text-center">
-                                  <span className={`font-medium inline-flex items-center gap-1 ${r.absent ? "text-muted-foreground" : r.finalGrade >= 8 ? "text-emerald-600" : r.finalGrade >= 5 ? "text-amber-600" : "text-red-600"}`}>
-                                    {r.finalGrade.toFixed(1)}
+                                  <span className={`font-medium inline-flex items-center gap-1 ${r.absent ? "text-muted-foreground" : r.desempenhoScore >= 8 ? "text-emerald-600" : r.desempenhoScore >= 5 ? "text-amber-600" : "text-red-600"}`}>
+                                    {r.desempenhoScore.toFixed(1)}
                                     {(r as { provisional?: boolean }).provisional && (
                                       <TooltipProvider>
                                         <Tooltip>
@@ -976,7 +976,7 @@ function ResultsContent() {
                 </SelectContent>
               </Select>
             </div>
-            {problemFinalResults && problemFinalResults.length > 0 && (
+            {problemDesempenhoResults && problemDesempenhoResults.length > 0 && (
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={exportProblemResults}>
                   <FileSpreadsheet className="h-4 w-4 mr-2" />Exportar CSV
@@ -996,16 +996,16 @@ function ResultsContent() {
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <BarChart3 className="h-5 w-5" />
-                  Notas Finais do Problema {selectedProblem}
+                  Notas de Desempenho do Problema {selectedProblem}
                 </CardTitle>
                 <CardDescription>
                   Média das notas finais de desempenho em todas as sessões do problema.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {problemFinalLoading ? (
+                {problemDesempenhoLoading ? (
                   <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}</div>
-                ) : !problemFinalResults || problemFinalResults.length === 0 ? (
+                ) : !problemDesempenhoResults || problemDesempenhoResults.length === 0 ? (
                   <p className="text-center py-8 text-muted-foreground">Nenhum resultado encontrado para este problema.</p>
                 ) : (
                   <div className="overflow-x-auto">
@@ -1025,14 +1025,14 @@ function ResultsContent() {
                               </div>
                             </th>
                           ))}
-                          <th className="pb-3 pr-2 font-semibold text-center">Média Final</th>
+                          <th className="pb-3 pr-2 font-semibold text-center">Média Desempenho</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {problemFinalResults.map((r, i) => (
+                        {problemDesempenhoResults.map((r, i) => (
                           <tr key={r.studentId} className={`border-b last:border-0 transition-colors ${
                             (r as any).excludedFlags?.some(Boolean) ? "bg-orange-50/30 hover:bg-orange-50/50" :
-                            r.finalAverage === 0 && r.peerAverage === 0 ? "bg-red-50/60 hover:bg-red-50" : "hover:bg-accent/20"
+                            r.mediaDesempenho === 0 && r.peerAverage === 0 ? "bg-red-50/60 hover:bg-red-50" : "hover:bg-accent/20"
                           }`}>
                             <td className="py-3 pr-4">
                               <span className="text-muted-foreground">{i + 1}</span>
@@ -1050,15 +1050,15 @@ function ResultsContent() {
                                 )}
                               </div>
                             </td>
-                            {r.finalGrades.map((finalGrade, idx) => {
+                            {r.desempenhoScores.map((desempenhoScore, idx) => {
                               const isExcluded = (r as any).excludedFlags?.[idx] === true;
                               return (
                                 <td key={idx} className="py-3 pr-2 text-center">
                                   {isExcluded ? (
                                     <span className="text-muted-foreground/40">—</span>
                                   ) : (
-                                    <span className={finalGrade === 0 ? "text-muted-foreground" : "text-sm font-medium"}>
-                                      {(finalGrade as number)?.toFixed(1) ?? "0.0"}
+                                    <span className={desempenhoScore === 0 ? "text-muted-foreground" : "text-sm font-medium"}>
+                                      {(desempenhoScore as number)?.toFixed(1) ?? "0.0"}
                                     </span>
                                   )}
                                 </td>
@@ -1069,8 +1069,8 @@ function ResultsContent() {
                                 <span className="text-muted-foreground/40">—</span>
                               ) : (
                                 <span className="inline-flex items-center gap-1">
-                                  <span className={`font-bold ${r.finalAverage >= 8 ? "text-emerald-600" : r.finalAverage >= 5 ? "text-amber-600" : "text-red-600"}`}>
-                                    {r.finalAverage.toFixed(1)}
+                                  <span className={`font-bold ${r.mediaDesempenho >= 8 ? "text-emerald-600" : r.mediaDesempenho >= 5 ? "text-amber-600" : "text-red-600"}`}>
+                                    {r.mediaDesempenho.toFixed(1)}
                                   </span>
                                   {(r as any).finalAverageCapped && (
                                     <span title="Nota arredondada para 10.0" className="text-amber-500 cursor-help" style={{fontSize: '0.75rem'}}>★</span>
@@ -1344,7 +1344,7 @@ function ConsolidatedStudentReport({ classId, componentLabel, classCode, semeste
       const abbr = `P${s.problemNumber}S${s.sessionNumber}`;
       return s.status === "closed" ? `${abbr} (P)` : abbr;
     });
-    const header = ["Matrícula", "Aluno", ...sessionHeaders, "Presenças", "Faltas", "Média Final"];
+    const header = ["Matrícula", "Aluno", ...sessionHeaders, "Presenças", "Faltas", "Média Desempenho"];
     const extraLines: string[] = [];
     if (hasProvisionalSessions) {
       extraLines.push("ATENÇÃO: Colunas marcadas com (P) contêm notas provisórias (sessão fechada aguardando avaliação do tutorial).");
@@ -1353,10 +1353,10 @@ function ConsolidatedStudentReport({ classId, componentLabel, classCode, semeste
     const rows = report.map(r => [
       escapeCSV(r.studentEnrollment),
       escapeCSV(r.studentName),
-      ...r.sessions.map(s => s.finalGrade.toFixed(1)),
+      ...r.sessions.map(s => s.desempenhoScore.toFixed(1)),
       r.presentCount,
       r.absentCount,
-      r.avgFinalGrade.toFixed(1),
+      r.mediaDesempenho.toFixed(1),
     ]);
     const csv = [...extraLines, header.join(","), ...rows.map(r => r.join(","))].join("\n");
     downloadCSV(csv, `relatorio_consolidado_turma_${classId}.csv`);
@@ -1394,7 +1394,7 @@ function ConsolidatedStudentReport({ classId, componentLabel, classCode, semeste
     const pStudentSessions = studentSessions.filter(s => s.problemNumber === pNum);
     const totalCount = allPSessions.length;
     if (totalCount === 0) return null;
-    const presentSum = pStudentSessions.filter(s => !s.absent && !(s as any).excluded).reduce((sum, s) => sum + s.finalGrade, 0);
+    const presentSum = pStudentSessions.filter(s => !s.absent && !(s as any).excluded).reduce((sum, s) => sum + s.desempenhoScore, 0);
     const raw = Math.round(presentSum / totalCount * 10) / 10;
     return raw > 10 ? 10 : raw;
   };
@@ -1427,7 +1427,7 @@ function ConsolidatedStudentReport({ classId, componentLabel, classCode, semeste
               pSessions.forEach((s: any) => colHeaders.push(`P${s.problemNumber}S${s.sessionNumber}`));
               colHeaders.push(`MP${pNum}`);
             }
-            colHeaders.push('Presenças', 'Faltas', 'Média Final');
+            colHeaders.push('Presenças', 'Faltas', 'Média Desempenho');
             const body = report.map((student: any, idx: number) => {
               const row: string[] = [String(idx + 1), student.studentEnrollment, student.studentName];
               for (const pNum of pNums) {
@@ -1438,14 +1438,14 @@ function ConsolidatedStudentReport({ classId, componentLabel, classCode, semeste
                   if (!sd) { row.push('—'); return; }
                   if (sd.excluded) { row.push('E'); return; }
                   if (sd.absent) { row.push('F'); return; }
-                  row.push(sd.finalGrade.toFixed(1));
+                  row.push(sd.desempenhoScore.toFixed(1));
                 });
                 const totalCount = pSessions.length;
-                const presentSum = student.sessions.filter((s: any) => s.problemNumber === pNum && !s.absent && !s.excluded).reduce((sum: number, s: any) => sum + s.finalGrade, 0);
+                const presentSum = student.sessions.filter((s: any) => s.problemNumber === pNum && !s.absent && !s.excluded).reduce((sum: number, s: any) => sum + s.desempenhoScore, 0);
                 const avg = totalCount > 0 ? Math.min(10, Math.round(presentSum / totalCount * 10) / 10) : 0;
                 row.push(avg.toFixed(1));
               }
-              row.push(String(student.presentCount), String(student.absentCount), student.avgFinalGrade.toFixed(1));
+              row.push(String(student.presentCount), String(student.absentCount), student.mediaDesempenho.toFixed(1));
               return row;
             });
             const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
@@ -1504,7 +1504,7 @@ function ConsolidatedStudentReport({ classId, componentLabel, classCode, semeste
                     </div>
                   </th>
                   <th className="py-3 px-2 font-semibold text-center bg-amber-50/50">
-                    <span className="text-xs font-bold">Média Final</span>
+                    <span className="text-xs font-bold">Média Desempenho</span>
                   </th>
                 </tr>
               </thead>
@@ -1571,9 +1571,9 @@ function ConsolidatedStudentReport({ classId, componentLabel, classCode, semeste
                           ) : (
                             <div className="flex flex-col items-center gap-0.5">
                               <span className={`text-xs font-medium ${
-                                s.finalGrade >= 8 ? "text-emerald-600" : s.finalGrade >= 5 ? "text-amber-600" : s.finalGrade > 0 ? "text-red-600" : "text-muted-foreground"
+                                s.desempenhoScore >= 8 ? "text-emerald-600" : s.desempenhoScore >= 5 ? "text-amber-600" : s.desempenhoScore > 0 ? "text-red-600" : "text-muted-foreground"
                               }`}>
-                                {s.finalGrade > 0 ? s.finalGrade.toFixed(1) : "—"}
+                                {s.desempenhoScore > 0 ? s.desempenhoScore.toFixed(1) : "—"}
                               </span>
                               <span className="text-[9px] text-muted-foreground">{s.role.substring(0, 4)}</span>
                             </div>
@@ -1596,11 +1596,11 @@ function ConsolidatedStudentReport({ classId, componentLabel, classCode, semeste
                       ) : (
                         <span className="inline-flex items-center justify-center gap-1">
                           <span className={`font-bold ${
-                            student.avgFinalGrade >= 8 ? "text-emerald-600" : student.avgFinalGrade >= 5 ? "text-amber-600" : student.avgFinalGrade > 0 ? "text-red-600" : "text-muted-foreground"
+                            student.mediaDesempenho >= 8 ? "text-emerald-600" : student.mediaDesempenho >= 5 ? "text-amber-600" : student.mediaDesempenho > 0 ? "text-red-600" : "text-muted-foreground"
                           }`}>
-                            {student.avgFinalGrade > 0 ? student.avgFinalGrade.toFixed(1) : "—"}
+                            {student.mediaDesempenho > 0 ? student.mediaDesempenho.toFixed(1) : "—"}
                           </span>
-                          {(student as any).avgFinalCapped && (
+                          {(student as any).mediaDesempenhoCapped && (
                             <span title="Nota arredondada para 10.0" className="text-amber-500 cursor-help" style={{fontSize: '0.75rem'}}>★</span>
                           )}
                         </span>

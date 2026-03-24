@@ -526,7 +526,7 @@ export function buildStudentGradeReportHtml(data: {
     tutorialGrade: number;
   };
   peerAverage: number | null;
-  finalGrade: number | null;
+  desempenhoScore: number | null;
   problemAverage: number | null;
 }): string {
   const gradeColor = (v: number) => v >= 7 ? "#059669" : v >= 5 ? "#d97706" : "#dc2626";
@@ -548,7 +548,7 @@ export function buildStudentGradeReportHtml(data: {
 
   const tutorialGrade = data.tutorialCriteria.tutorialGrade;
   const peerText = data.peerAverage !== null ? data.peerAverage.toFixed(1) : "Pendente";
-  const finalText = data.finalGrade !== null ? data.finalGrade.toFixed(1) : "Pendente";
+  const finalText = data.desempenhoScore !== null ? data.desempenhoScore.toFixed(1) : "Pendente";
   const problemText = data.problemAverage !== null ? data.problemAverage.toFixed(1) : "Pendente";
 
   return `
@@ -591,7 +591,7 @@ export function buildStudentGradeReportHtml(data: {
             </tr>
             <tr>
               <td style="padding: 6px 0; font-size: 14px; color: #374151;">Nota Final</td>
-              <td style="padding: 6px 0; font-size: 18px; font-weight: 700; text-align: right; color: ${data.finalGrade !== null ? gradeColor(data.finalGrade) : '#6b7280'};">${finalText}</td>
+              <td style="padding: 6px 0; font-size: 18px; font-weight: 700; text-align: right; color: ${data.desempenhoScore !== null ? gradeColor(data.desempenhoScore) : '#6b7280'};">${finalText}</td>
             </tr>
 
           </table>

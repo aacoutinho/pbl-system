@@ -73,17 +73,17 @@ describe("Final Grade - Proportional Distribution Logic", () => {
     const totalPoints = tutorialGrade * numPresent; // 24
     const sumPeerScores = peerScores.reduce((a, b) => a + b, 0); // 26
 
-    const finalGrades = peerScores.map(score => {
+    const desempenhoScores = peerScores.map(score => {
       const proportion = score / sumPeerScores;
       return Math.round(proportion * totalPoints * 10) / 10;
     });
 
     // Student 1: (8/26) × 24 = 7.384... → 7.4
-    expect(finalGrades[0]).toBe(7.4);
+    expect(desempenhoScores[0]).toBe(7.4);
     // Student 2: (9/26) × 24 = 8.307... → 8.3
-    expect(finalGrades[1]).toBe(8.3);
+    expect(desempenhoScores[1]).toBe(8.3);
     // Student 3: (9/26) × 24 = 8.307... → 8.3
-    expect(finalGrades[2]).toBe(8.3);
+    expect(desempenhoScores[2]).toBe(8.3);
   });
 
   it("handles perfect tutorial grade (10) with equal peer scores", () => {
@@ -93,15 +93,15 @@ describe("Final Grade - Proportional Distribution Logic", () => {
     const totalPoints = tutorialGrade * numPresent; // 30
     const sumPeerScores = 30;
 
-    const finalGrades = peerScores.map(score => {
+    const desempenhoScores = peerScores.map(score => {
       const proportion = score / sumPeerScores;
       return Math.round(proportion * totalPoints * 10) / 10;
     });
 
     // Each: (10/30) × 30 = 10
-    expect(finalGrades[0]).toBe(10);
-    expect(finalGrades[1]).toBe(10);
-    expect(finalGrades[2]).toBe(10);
+    expect(desempenhoScores[0]).toBe(10);
+    expect(desempenhoScores[1]).toBe(10);
+    expect(desempenhoScores[2]).toBe(10);
   });
 
   it("gives 0 to absent students", () => {
@@ -118,14 +118,14 @@ describe("Final Grade - Proportional Distribution Logic", () => {
     const totalPoints = tutorialGrade * numPresent; // 10
     const sumPeerScores = 20;
 
-    const finalGrades = peerScores.map(score => {
+    const desempenhoScores = peerScores.map(score => {
       const proportion = score / sumPeerScores;
       return Math.round(proportion * totalPoints * 10) / 10;
     });
 
     // Each: (10/20) × 10 = 5
-    expect(finalGrades[0]).toBe(5);
-    expect(finalGrades[1]).toBe(5);
+    expect(desempenhoScores[0]).toBe(5);
+    expect(desempenhoScores[1]).toBe(5);
   });
 
   it("handles uneven peer scores with proportional distribution", () => {
@@ -135,15 +135,15 @@ describe("Final Grade - Proportional Distribution Logic", () => {
     const totalPoints = tutorialGrade * numPresent; // 18
     const sumPeerScores = 15;
 
-    const finalGrades = peerScores.map(score => {
+    const desempenhoScores = peerScores.map(score => {
       const proportion = score / sumPeerScores;
       return Math.round(proportion * totalPoints * 10) / 10;
     });
 
     // Student 1: (10/15) × 18 = 12.0 → 12.0
-    expect(finalGrades[0]).toBe(12);
+    expect(desempenhoScores[0]).toBe(12);
     // Student 2: (5/15) × 18 = 6.0
-    expect(finalGrades[1]).toBe(6);
+    expect(desempenhoScores[1]).toBe(6);
   });
 
   it("rounds to one decimal place", () => {
@@ -153,16 +153,16 @@ describe("Final Grade - Proportional Distribution Logic", () => {
     const totalPoints = tutorialGrade * numPresent; // 21
     const sumPeerScores = 24;
 
-    const finalGrades = peerScores.map(score => {
+    const desempenhoScores = peerScores.map(score => {
       const proportion = score / sumPeerScores;
       return Math.round(proportion * totalPoints * 10) / 10;
     });
 
     // Student 1: (7/24) × 21 = 6.125 → 6.1
-    expect(finalGrades[0]).toBe(6.1);
+    expect(desempenhoScores[0]).toBe(6.1);
     // Student 2: (8/24) × 21 = 7.0 → 7.0
-    expect(finalGrades[1]).toBe(7);
+    expect(desempenhoScores[1]).toBe(7);
     // Student 3: (9/24) × 21 = 7.875 → 7.9
-    expect(finalGrades[2]).toBe(7.9);
+    expect(desempenhoScores[2]).toBe(7.9);
   });
 });
