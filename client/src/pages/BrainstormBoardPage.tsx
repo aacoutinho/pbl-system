@@ -9,7 +9,7 @@ import {
   Plus, Trash2, ArrowLeft, Lightbulb, BookOpen, HelpCircle, Target,
   ArrowRightLeft, Link2, ImageIcon, Video, Camera, X, ExternalLink,
   ChevronDown, ChevronUp, Info, FileText, Upload, Play, Paperclip, Pencil, Check,
-  Send, Download, Clock, History
+  Send, Download, Clock, History, Save, CheckCircle2
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle
@@ -201,6 +201,7 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
   const [showSendConfirm, setShowSendConfirm] = useState(false);
   const [showSendHistory, setShowSendHistory] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [savedDraft, setSavedDraft] = useState(false);
   const tutorCommentsSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const updateTutorCommentsMutation = trpc.brainstorm.updateTutorComments.useMutation({
@@ -240,6 +241,26 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
     tutorCommentsSaveTimeout.current = setTimeout(() => {
       updateTutorCommentsMutation.mutate({ sessionId, comments: value });
     }, 1000);
+  };
+
+  const handleSaveDraft = () => {
+    if (!hasBoard) return;
+    // Flush any pending tutor comments save immediately
+    if (tutorCommentsSaveTimeout.current) {
+      clearTimeout(tutorCommentsSaveTimeout.current);
+      tutorCommentsSaveTimeout.current = null;
+    }
+    updateTutorCommentsMutation.mutate(
+      { sessionId, comments: tutorComments },
+      {
+        onSuccess: () => {
+          setSavedDraft(true);
+          toast.success("Rascunho salvo com sucesso!");
+          setTimeout(() => setSavedDraft(false), 3000);
+        },
+        onError: (err) => toast.error(err.message),
+      }
+    );
   };
 
   const handleSendBoardEmail = () => {
@@ -1117,6 +1138,20 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
 
       {/* Action Buttons */}
       <div className="max-w-[1600px] mx-auto mt-4 mb-6 flex flex-wrap justify-center gap-3">
+        {canEdit && (
+          <Button
+            onClick={handleSaveDraft}
+            disabled={!hasBoard || updateTutorCommentsMutation.isPending}
+            variant="outline"
+            className={`gap-2 transition-colors ${savedDraft ? 'border-emerald-500 text-emerald-700 bg-emerald-50' : ''}`}
+          >
+            {savedDraft ? (
+              <><CheckCircle2 className="h-4 w-4 text-emerald-600" /> Rascunho Salvo</>
+            ) : (
+              <><Save className="h-4 w-4" /> Salvar Rascunho</>
+            )}
+          </Button>
+        )}
         <Button
           onClick={handleSendBoardEmail}
           disabled={!hasBoard}

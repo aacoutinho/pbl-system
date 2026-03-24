@@ -64,11 +64,34 @@ interface SelectedSession {
   studentRole?: string;
 }
 
+// ─── Student session persistence (8 hours) ───
+const STUDENT_SESSION_KEY = "student_auth_session";
+const STUDENT_SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8 hours
+function loadStudentSession(): AuthenticatedData | null {
+  try {
+    const raw = localStorage.getItem(STUDENT_SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { data: AuthenticatedData; expiresAt: number };
+    if (Date.now() > parsed.expiresAt) {
+      localStorage.removeItem(STUDENT_SESSION_KEY);
+      return null;
+    }
+    return parsed.data;
+  } catch { return null; }
+}
+function saveStudentSession(data: AuthenticatedData) {
+  localStorage.setItem(STUDENT_SESSION_KEY, JSON.stringify({ data, expiresAt: Date.now() + STUDENT_SESSION_TTL_MS }));
+}
+function clearStudentSession() {
+  localStorage.removeItem(STUDENT_SESSION_KEY);
+}
+
 export default function StudentAccessPage() {
-  const [step, setStep] = useState<Step>("login");
+  const savedSession = loadStudentSession();
+  const [step, setStep] = useState<Step>(savedSession ? "dashboard" : "login");
   const [enrollment, setEnrollment] = useState("");
   const [loginData, setLoginData] = useState<LoginData | null>(null);
-  const [authData, setAuthData] = useState<AuthenticatedData | null>(null);
+  const [authData, setAuthData] = useState<AuthenticatedData | null>(savedSession);
   const [selectedSession, setSelectedSession] = useState<SelectedSession | null>(null);
   const [brainstormSession, setBrainstormSession] = useState<{ sessionId: number; sessionLabel: string; canEdit: boolean } | null>(null);
   const [pendingBrainstormSessionId, setPendingBrainstormSessionId] = useState<number | null>(() => {
@@ -119,6 +142,7 @@ export default function StudentAccessPage() {
   const verifyLoginCodeMutation = trpc.studentAccess.verifyLoginCode.useMutation({
     onSuccess: (data) => {
       setAuthData(data);
+      saveStudentSession(data);
       toast.success("Acesso autorizado!");
       setStep("dashboard");
     },
@@ -137,6 +161,7 @@ export default function StudentAccessPage() {
   };
 
   const handleLogout = () => {
+    clearStudentSession();
     setStep("login");
     setLoginData(null);
     setAuthData(null);
@@ -146,6 +171,7 @@ export default function StudentAccessPage() {
 
   const handleProfileSetupComplete = (data: AuthenticatedData) => {
     setAuthData(data);
+    saveStudentSession(data);
     setStep("dashboard");
   };
 
@@ -266,11 +292,16 @@ export default function StudentAccessPage() {
           currentEmail={authData.studentEmail || ""}
           currentPhotoUrl={authData.studentPhotoUrl || null}
           onComplete={(email, photoUrl) => {
-            setAuthData(prev => prev ? {
-              ...prev,
-              studentEmail: email || prev.studentEmail,
-              studentPhotoUrl: photoUrl || prev.studentPhotoUrl,
-            } : prev);
+            setAuthData(prev => {
+              if (!prev) return prev;
+              const updated = {
+                ...prev,
+                studentEmail: email || prev.studentEmail,
+                studentPhotoUrl: photoUrl || prev.studentPhotoUrl,
+              };
+              saveStudentSession(updated);
+              return updated;
+            });
             setStep("dashboard");
           }}
           onBack={() => setStep("dashboard")}

@@ -57,6 +57,7 @@ import {
   updateTutorComments, getStudentsByComponentFromSession,
   updateDesempenhoPapel,
   getPreviousMesaScore,
+  markStudentAbsentAfterClose,
   addBoardSendHistory, getBoardSendHistory, getLastBoardSend,
   listApprovedProfessorsByComponent,
   listClassesByComponent, listSemestersByComponent,
@@ -1158,6 +1159,21 @@ export const appRouter = router({
       await updateSessionAssignments(input.sessionId, input.studentAssignments);
       await createAuditLog({ action: "session.updateAssignments", actorUserId: ctx.user.id, details: `Papéis atualizados na sessão ${session.label}` });
       return { success: true };
+    }),
+    // Mark a present student as absent after session is closed (present→absent only)
+    markAbsentAfterClose: approvedProcedure.input(z.object({
+      sessionId: z.number(),
+      studentId: z.number(),
+    })).mutation(async ({ ctx, input }) => {
+      const session = await getSessionById(input.sessionId);
+      if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
+      if (session.status !== "closed") throw new TRPCError({ code: "FORBIDDEN", message: "Esta ação só é permitida em sessões fechadas" });
+      const cls = await getClassById(session.classId);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertClassManager(ctx.user.id, ctx.user.role, cls);
+      const result = await markStudentAbsentAfterClose(input.sessionId, input.studentId);
+      await createAuditLog({ action: "session.markAbsentAfterClose", actorUserId: ctx.user.id, details: `Aluno ${input.studentId} marcado como ausente na sessão fechada ${session.label}` });
+      return result;
     }),
     updateProblemTitle: approvedProcedure.input(z.object({
       classId: z.number(),

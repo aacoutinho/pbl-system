@@ -791,3 +791,7 @@
 - [x] finished (Encerrada): nenhuma avaliação pode ser alterada — correto em backend; corrigido no DirectEvalPage (link e-mail não tratava finished)
 - [x] DirectEvalPage: adicionado tratamento de finished ("Sessão Encerrada") e initiated ("Sessão em Andamento")
 - [x] accessByToken: removido bloqueio de finished/initiated para que o frontend possa exibir mensagem adequada
+- [ ] Corrigir casas decimais da nota no perfil do aluno (exibir 1 casa decimal: 9.2 em vez de 9.20)
+- [ ] Adicionar botão Salvar Rascunho no quadro de brainstorm
+- [ ] Permitir professor marcar aluno de presente→faltou após sessão fechada (não o inverso)
+- [ ] Implementar sessão persistente para alunos (token com expiração, sem necessidade de novo código)

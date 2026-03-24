@@ -4657,3 +4657,27 @@ export async function getPreviousMesaScore(sessionId: number, evaluatorStudentId
   if (!item) return null;
   return Number(item.desempenhoPapel);
 }
+
+// ─── Mark student as absent after session is closed (present→absent only) ───
+// Only allows marking a currently-present student as absent.
+// Does NOT allow marking an absent student as present (faltou→presente is blocked).
+export async function markStudentAbsentAfterClose(sessionId: number, studentId: number): Promise<{ updated: boolean }> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [existing] = await db.select({ absent: sessionStudents.absent })
+    .from(sessionStudents)
+    .where(and(
+      eq(sessionStudents.sessionId, sessionId),
+      eq(sessionStudents.studentId, studentId),
+    ))
+    .limit(1);
+  if (!existing) throw new Error("Aluno não encontrado nesta sessão");
+  if (existing.absent) throw new Error("Este aluno já está marcado como ausente");
+  await db.update(sessionStudents)
+    .set({ absent: true })
+    .where(and(
+      eq(sessionStudents.sessionId, sessionId),
+      eq(sessionStudents.studentId, studentId),
+    ));
+  return { updated: true };
+}

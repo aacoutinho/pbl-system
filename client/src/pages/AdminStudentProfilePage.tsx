@@ -10,7 +10,7 @@ import { ArrowLeft, GraduationCap, BookOpen, CheckCircle2, XCircle, Minus } from
 
 function gradeLabel(val: number | null | undefined): string {
   if (val === null || val === undefined) return "–";
-  return val.toFixed(2);
+  return val.toFixed(1);
 }
 
 function GradeCell({ value, absent, pending, showZeroWhenAbsent }: { value: number | null | undefined; absent?: boolean; pending?: boolean; showZeroWhenAbsent?: boolean }) {

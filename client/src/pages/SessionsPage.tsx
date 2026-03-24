@@ -705,7 +705,20 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onFini
     onError: (e: { message: string }) => toast.error(e.message),
   });
 
-
+  // Mark absent after close
+  const [showMarkAbsentDialog, setShowMarkAbsentDialog] = useState(false);
+  const { data: closedSessionStudents } = trpc.sessions.getStudents.useQuery(
+    { sessionId: session.id },
+    { enabled: showMarkAbsentDialog }
+  );
+  const markAbsentAfterCloseMutation = trpc.sessions.markAbsentAfterClose.useMutation({
+    onSuccess: () => {
+      utils.sessions.getStudents.invalidate({ sessionId: session.id });
+      utils.sessions.submissionStatus.invalidate({ sessionId: session.id });
+      toast.success("Aluno marcado como ausente.");
+    },
+    onError: (e: { message: string }) => toast.error(e.message),
+  });
 
   const handleAllowReevaluation = (studentId: number) => {
     allowReevalMutation.mutate({ sessionId: session.id, studentId });
@@ -839,6 +852,60 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onFini
                   <p className="p-4 text-sm text-muted-foreground text-center">Nenhum aluno nesta sessão.</p>
                 )}
               </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* Mark absent after close button — only for closed sessions */}
+        {canManage && session.status === "closed" && (
+          <Dialog open={showMarkAbsentDialog} onOpenChange={setShowMarkAbsentDialog}>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="icon" title="Marcar aluno como faltou (sessão fechada)">
+                <Pencil className="h-4 w-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Marcar Falta — Sessão Fechada</DialogTitle>
+                <DialogDescription>
+                  {session.label} — Marque alunos presentes como faltou. Esta ação não pode ser desfeita.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="border rounded-lg max-h-80 overflow-y-auto divide-y">
+                {closedSessionStudents?.map((s: any) => (
+                  <div key={s.studentId} className={`px-3 py-2.5 flex items-center gap-3 transition-colors ${s.absent ? 'bg-muted/30 opacity-60' : 'bg-background'}`}>
+                    <StudentPhotoAvatar
+                      photoUrl={s.studentPhotoUrl}
+                      studentName={s.studentName}
+                      size="sm"
+                      className={s.absent ? 'opacity-50' : ''}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{s.studentName}</p>
+                      <p className="text-xs text-muted-foreground truncate">{s.studentEnrollment}</p>
+                    </div>
+                    {s.absent ? (
+                      <Badge variant="outline" className="text-xs text-red-600 shrink-0">Faltou</Badge>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-7 text-red-600 border-red-200 hover:bg-red-50 shrink-0"
+                        onClick={() => markAbsentAfterCloseMutation.mutate({ sessionId: session.id, studentId: s.studentId })}
+                        disabled={markAbsentAfterCloseMutation.isPending}
+                      >
+                        Marcar Falta
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                {(!closedSessionStudents || closedSessionStudents.length === 0) && (
+                  <p className="p-4 text-sm text-muted-foreground text-center">Nenhum aluno nesta sessão.</p>
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowMarkAbsentDialog(false)}>Fechar</Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         )}
