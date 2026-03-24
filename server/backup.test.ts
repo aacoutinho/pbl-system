@@ -32,6 +32,7 @@ describe("Backup data structure", () => {
 });
 
 // ─── Test backup table list ───
+// The system currently has 25 tables as defined in drizzle/schema.ts and BACKUP_TABLES in db.ts
 describe("Backup table coverage", () => {
   const EXPECTED_TABLES = [
     "users",
@@ -53,10 +54,16 @@ describe("Backup table coverage", () => {
     "auditLogs",
     "notifications",
     "contactTickets",
+    "professorStudentNotes",
+    "sessionAccessTokens",
+    "brainstormBoards",
+    "brainstormItems",
+    "brainstormItemAttachments",
+    "brainstormBoardSendHistory",
   ];
 
-  it("backup includes all 19 expected tables", () => {
-    expect(EXPECTED_TABLES).toHaveLength(19);
+  it("backup includes all 25 expected tables", () => {
+    expect(EXPECTED_TABLES).toHaveLength(25);
   });
 
   it("all table names are unique", () => {
@@ -100,10 +107,26 @@ describe("Backup table coverage", () => {
   it("includes tutorial evaluation table", () => {
     expect(EXPECTED_TABLES).toContain("tutorialEvaluations");
   });
+
+  it("includes professor student notes table", () => {
+    expect(EXPECTED_TABLES).toContain("professorStudentNotes");
+  });
+
+  it("includes session access tokens table", () => {
+    expect(EXPECTED_TABLES).toContain("sessionAccessTokens");
+  });
+
+  it("includes all brainstorm-related tables", () => {
+    expect(EXPECTED_TABLES).toContain("brainstormBoards");
+    expect(EXPECTED_TABLES).toContain("brainstormItems");
+    expect(EXPECTED_TABLES).toContain("brainstormItemAttachments");
+    expect(EXPECTED_TABLES).toContain("brainstormBoardSendHistory");
+  });
 });
 
 // ─── Test import order (parents before children) ───
 describe("Import order validation", () => {
+  // Full 25-table list in correct dependency order (parents before children)
   const IMPORT_ORDER = [
     "users",
     "components",
@@ -124,7 +147,17 @@ describe("Import order validation", () => {
     "auditLogs",
     "notifications",
     "contactTickets",
+    "professorStudentNotes",
+    "sessionAccessTokens",
+    "brainstormBoards",
+    "brainstormItems",
+    "brainstormItemAttachments",
+    "brainstormBoardSendHistory",
   ];
+
+  it("import order has all 25 tables", () => {
+    expect(IMPORT_ORDER).toHaveLength(25);
+  });
 
   it("users are imported before professorComponents", () => {
     const usersIdx = IMPORT_ORDER.indexOf("users");
@@ -196,6 +229,42 @@ describe("Import order validation", () => {
     const usersIdx = IMPORT_ORDER.indexOf("users");
     const prcIdx = IMPORT_ORDER.indexOf("passwordResetCodes");
     expect(usersIdx).toBeLessThan(prcIdx);
+  });
+
+  it("sessions are imported before professorStudentNotes", () => {
+    const sessIdx = IMPORT_ORDER.indexOf("sessions");
+    const notesIdx = IMPORT_ORDER.indexOf("professorStudentNotes");
+    expect(sessIdx).toBeLessThan(notesIdx);
+  });
+
+  it("sessions are imported before sessionAccessTokens", () => {
+    const sessIdx = IMPORT_ORDER.indexOf("sessions");
+    const tokIdx = IMPORT_ORDER.indexOf("sessionAccessTokens");
+    expect(sessIdx).toBeLessThan(tokIdx);
+  });
+
+  it("sessions are imported before brainstormBoards", () => {
+    const sessIdx = IMPORT_ORDER.indexOf("sessions");
+    const bbIdx = IMPORT_ORDER.indexOf("brainstormBoards");
+    expect(sessIdx).toBeLessThan(bbIdx);
+  });
+
+  it("brainstormBoards are imported before brainstormItems", () => {
+    const bbIdx = IMPORT_ORDER.indexOf("brainstormBoards");
+    const biIdx = IMPORT_ORDER.indexOf("brainstormItems");
+    expect(bbIdx).toBeLessThan(biIdx);
+  });
+
+  it("brainstormItems are imported before brainstormItemAttachments", () => {
+    const biIdx = IMPORT_ORDER.indexOf("brainstormItems");
+    const biaIdx = IMPORT_ORDER.indexOf("brainstormItemAttachments");
+    expect(biIdx).toBeLessThan(biaIdx);
+  });
+
+  it("sessions are imported before brainstormBoardSendHistory", () => {
+    const sessIdx = IMPORT_ORDER.indexOf("sessions");
+    const histIdx = IMPORT_ORDER.indexOf("brainstormBoardSendHistory");
+    expect(sessIdx).toBeLessThan(histIdx);
   });
 });
 
@@ -271,12 +340,22 @@ describe("Clear order validation", () => {
     "auditLogs",
     "notifications",
     "contactTickets",
+    "professorStudentNotes",
+    "sessionAccessTokens",
+    "brainstormBoards",
+    "brainstormItems",
+    "brainstormItemAttachments",
+    "brainstormBoardSendHistory",
   ];
 
   const CLEAR_ORDER = [...IMPORT_ORDER].reverse();
 
+  it("clear order has all 25 tables", () => {
+    expect(CLEAR_ORDER).toHaveLength(25);
+  });
+
   it("clear order is the reverse of import order", () => {
-    expect(CLEAR_ORDER[0]).toBe("contactTickets");
+    expect(CLEAR_ORDER[0]).toBe("brainstormBoardSendHistory");
     expect(CLEAR_ORDER[CLEAR_ORDER.length - 1]).toBe("users");
   });
 
@@ -327,10 +406,41 @@ describe("Clear order validation", () => {
     const usersIdx = CLEAR_ORDER.indexOf("users");
     expect(evcIdx).toBeLessThan(usersIdx);
   });
+
+  it("brainstormItemAttachments are cleared before brainstormItems", () => {
+    const biaIdx = CLEAR_ORDER.indexOf("brainstormItemAttachments");
+    const biIdx = CLEAR_ORDER.indexOf("brainstormItems");
+    expect(biaIdx).toBeLessThan(biIdx);
+  });
+
+  it("brainstormItems are cleared before brainstormBoards", () => {
+    const biIdx = CLEAR_ORDER.indexOf("brainstormItems");
+    const bbIdx = CLEAR_ORDER.indexOf("brainstormBoards");
+    expect(biIdx).toBeLessThan(bbIdx);
+  });
+
+  it("brainstormBoards are cleared before sessions", () => {
+    const bbIdx = CLEAR_ORDER.indexOf("brainstormBoards");
+    const sessIdx = CLEAR_ORDER.indexOf("sessions");
+    expect(bbIdx).toBeLessThan(sessIdx);
+  });
+
+  it("professorStudentNotes are cleared before sessions", () => {
+    const notesIdx = CLEAR_ORDER.indexOf("professorStudentNotes");
+    const sessIdx = CLEAR_ORDER.indexOf("sessions");
+    expect(notesIdx).toBeLessThan(sessIdx);
+  });
+
+  it("sessionAccessTokens are cleared before sessions", () => {
+    const tokIdx = CLEAR_ORDER.indexOf("sessionAccessTokens");
+    const sessIdx = CLEAR_ORDER.indexOf("sessions");
+    expect(tokIdx).toBeLessThan(sessIdx);
+  });
 });
 
 // ─── Test table label mapping ───
 describe("Table label mapping", () => {
+  // Matches TABLE_LABELS in BackupPage.tsx (frontend)
   const TABLE_LABELS: Record<string, string> = {
     users: "Usuários",
     components: "Componentes",
@@ -355,10 +465,12 @@ describe("Table label mapping", () => {
     sessionAccessTokens: "Tokens de Acesso por Sessão",
     brainstormBoards: "Quadros de Brainstorming",
     brainstormItems: "Itens de Brainstorming",
+    brainstormItemAttachments: "Anexos de Brainstorming",
+    brainstormBoardSendHistory: "Histórico de Envio de Brainstorming",
   };
 
-  it("has labels for all 23 backup tables", () => {
-    expect(Object.keys(TABLE_LABELS)).toHaveLength(23);
+  it("has labels for all 25 backup tables", () => {
+    expect(Object.keys(TABLE_LABELS)).toHaveLength(25);
   });
 
   it("all labels are non-empty strings in Portuguese", () => {
@@ -386,6 +498,14 @@ describe("Table label mapping", () => {
 
   it("passwordResetCodes table is labeled correctly", () => {
     expect(TABLE_LABELS.passwordResetCodes).toBe("Códigos de Recuperação de Senha");
+  });
+
+  it("brainstormItemAttachments table is labeled correctly", () => {
+    expect(TABLE_LABELS.brainstormItemAttachments).toBe("Anexos de Brainstorming");
+  });
+
+  it("brainstormBoardSendHistory table is labeled correctly", () => {
+    expect(TABLE_LABELS.brainstormBoardSendHistory).toBe("Histórico de Envio de Brainstorming");
   });
 });
 
@@ -421,11 +541,11 @@ describe("Backup audit log entries", () => {
   it("database_export action includes exportedAt and tableCount", () => {
     const details = JSON.stringify({
       exportedAt: "2025-06-15T10:30:00.000Z",
-      tableCount: 19,
+      tableCount: 25,
     });
     const parsed = JSON.parse(details);
     expect(parsed.exportedAt).toBeDefined();
-    expect(parsed.tableCount).toBe(19);
+    expect(parsed.tableCount).toBe(25);
   });
 
   it("database_import action includes import details", () => {
@@ -433,14 +553,14 @@ describe("Backup audit log entries", () => {
       importedAt: "2025-06-15T11:00:00.000Z",
       originalExportedAt: "2025-06-15T10:30:00.000Z",
       clearFirst: true,
-      tablesImported: 15,
+      tablesImported: 25,
       rowsImported: 450,
     });
     const parsed = JSON.parse(details);
     expect(parsed.importedAt).toBeDefined();
     expect(parsed.originalExportedAt).toBeDefined();
     expect(parsed.clearFirst).toBe(true);
-    expect(parsed.tablesImported).toBe(15);
+    expect(parsed.tablesImported).toBe(25);
     expect(parsed.rowsImported).toBe(450);
   });
 
@@ -476,23 +596,27 @@ describe("Backup JSON serialization", () => {
     expect(restored.tables.components).toEqual(original.tables.components);
   });
 
-  it("handles decimal values in evaluation items", () => {
+  it("handles decimal values in evaluation items (schema fields: pontualidade, pesquisaMetas, dominio, participacao, desempenhoPapel)", () => {
+    // Fields match drizzle/schema.ts evaluationItems table
     const evalItem = {
       id: 1,
       evaluationId: 1,
       evaluatedStudentId: 2,
       role: "PARTICIPANTE",
       absent: false,
-      atuacao: "7.5",
-      pontualidade: "8.0",
-      dominio: "6.5",
-      metas: "9.0",
-      participacao: "7.0",
+      pontualidade: "1.00",
+      pesquisaMetas: "0.75",  // column: pesquisa_metas
+      dominio: "0.50",
+      participacao: "0.75",
+      desempenhoPapel: "0.25",  // column: desempenho_papel
     };
     const json = JSON.stringify(evalItem);
     const restored = JSON.parse(json);
-    expect(restored.atuacao).toBe("7.5");
-    expect(restored.pontualidade).toBe("8.0");
+    expect(restored.pontualidade).toBe("1.00");
+    expect(restored.pesquisaMetas).toBe("0.75");
+    expect(restored.dominio).toBe("0.50");
+    expect(restored.participacao).toBe("0.75");
+    expect(restored.desempenhoPapel).toBe("0.25");
   });
 
   it("handles null values in optional fields", () => {
@@ -539,6 +663,61 @@ describe("Backup JSON serialization", () => {
     expect(restored.sessionId).toBe(5);
     expect(restored.professorUserId).toBe(2);
   });
+
+  it("handles brainstormItemAttachments serialization", () => {
+    const attachment = {
+      id: 1,
+      itemId: 2,
+      url: "https://s3.example.com/diagram.png",
+      type: "image",
+      title: "Diagrama de arquitetura",
+      sortOrder: 0,
+      createdAt: "2026-03-01T00:00:00.000Z",
+    };
+    const json = JSON.stringify(attachment);
+    const restored = JSON.parse(json);
+    expect(restored.url).toBe("https://s3.example.com/diagram.png");
+    expect(restored.type).toBe("image");
+    expect(restored.itemId).toBe(2);
+  });
+
+  it("handles brainstormBoardSendHistory serialization", () => {
+    const history = {
+      id: 1,
+      sessionId: 1,
+      sentByName: "Prof. Admin",
+      sentByRole: "prof",
+      recipientCount: 3,
+      failCount: 0,
+      sentAt: "2026-03-01T10:00:00.000Z",
+    };
+    const json = JSON.stringify(history);
+    const restored = JSON.parse(json);
+    expect(restored.sentByName).toBe("Prof. Admin");
+    expect(restored.recipientCount).toBe(3);
+    expect(restored.failCount).toBe(0);
+  });
+
+  it("handles professorStudentNotes with JSON array fields", () => {
+    const note = {
+      id: 1,
+      sessionId: 1,
+      studentId: 1,
+      professorUserId: 1,
+      positivePoints: 3,
+      negativePoints: 1,
+      positiveTexts: ["Boa participação", "Pesquisa completa", "Liderança"],
+      negativeTexts: ["Atraso"],
+      notes: "Bom desempenho geral",
+      updatedAt: "2026-03-01T00:00:00.000Z",
+    };
+    const json = JSON.stringify(note);
+    const restored = JSON.parse(json);
+    expect(Array.isArray(restored.positiveTexts)).toBe(true);
+    expect(restored.positiveTexts).toHaveLength(3);
+    expect(restored.negativeTexts).toHaveLength(1);
+    expect(restored.positiveTexts[0]).toBe("Boa participação");
+  });
 });
 
 // ─── Test batch import logic ───
@@ -581,7 +760,7 @@ describe("Batch import logic", () => {
 // ─── Test rebuild database ───
 describe("Rebuild database", () => {
   it("rebuild result has success and tablesCreated fields", () => {
-    const result = { success: true, tablesCreated: 19 };
+    const result = { success: true, tablesCreated: 25 };
     expect(result.success).toBe(true);
     expect(result.tablesCreated).toBeGreaterThan(0);
   });
@@ -589,11 +768,11 @@ describe("Rebuild database", () => {
   it("rebuild audit log entry includes rebuiltAt and tablesCreated", () => {
     const details = JSON.stringify({
       rebuiltAt: "2025-06-15T12:00:00.000Z",
-      tablesCreated: 19,
+      tablesCreated: 25,
     });
     const parsed = JSON.parse(details);
     expect(parsed.rebuiltAt).toBeDefined();
-    expect(parsed.tablesCreated).toBe(19);
+    expect(parsed.tablesCreated).toBe(25);
   });
 
   it("rebuild confirmation requires exact text RECONSTRUIR", () => {
@@ -637,6 +816,7 @@ describe("Backup file naming", () => {
 });
 
 // ─── Test schema-backup alignment ───
+// Both SCHEMA_TABLES and BACKUP_TABLES must have exactly 25 tables
 describe("Schema-backup alignment", () => {
   const SCHEMA_TABLES = [
     "users",
@@ -662,6 +842,8 @@ describe("Schema-backup alignment", () => {
     "sessionAccessTokens",
     "brainstormBoards",
     "brainstormItems",
+    "brainstormItemAttachments",
+    "brainstormBoardSendHistory",
   ];
 
   const BACKUP_TABLES = [
@@ -688,11 +870,13 @@ describe("Schema-backup alignment", () => {
     "sessionAccessTokens",
     "brainstormBoards",
     "brainstormItems",
+    "brainstormItemAttachments",
+    "brainstormBoardSendHistory",
   ];
 
-  it("schema and backup have the same number of tables (23)", () => {
-    expect(SCHEMA_TABLES).toHaveLength(23);
-    expect(BACKUP_TABLES).toHaveLength(23);
+  it("schema and backup have the same number of tables (25)", () => {
+    expect(SCHEMA_TABLES).toHaveLength(25);
+    expect(BACKUP_TABLES).toHaveLength(25);
   });
 
   it("every schema table is included in backup", () => {
