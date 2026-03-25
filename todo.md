@@ -809,3 +809,5 @@
 - [x] Investigar e corrigir definitivamente: critérios de avaliação e anotações de alunos não persistem ao clicar Salvar Rascunho — causa raiz: race condition com canEvaluateSelected, corrigido com padrão loadKey (sessionId + canEvaluateSelected)
 ## Bug Salvamento Rascunho - Backend (Mar 2026)
 - [x] Investigar e corrigir: valores alterados nos critérios não são persistidos no banco ao salvar rascunho — causa raiz: stale closure em handleSaveDraft/handleSubmit usava scores/studentNotes do closure em vez de scoresRef.current/studentNotesRef.current
+## Bug Salvamento Rascunho - Investigação com Logs (Mar 2026)
+- [x] Identificar causa raiz: admin bloqueado de salvar rascunho (403 Forbidden) — removido bloqueio em saveDraft, saveStudentNotes e submit para role admin

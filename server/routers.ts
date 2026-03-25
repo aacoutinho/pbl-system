@@ -1780,9 +1780,6 @@ export const appRouter = router({
       objetivo: z.number().min(0).max(1),
       metas: z.number().min(0).max(1),
     })).mutation(async ({ ctx, input }) => {
-      if (ctx.user.role === "admin") {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Administradores não avaliam sessões tutoriais" });
-      }
       const session = await getSessionById(input.sessionId);
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
       if (session.status === "finished") throw new TRPCError({ code: "FORBIDDEN", message: "Sessão encerrada. Nenhuma alteração é permitida." });
@@ -1812,9 +1809,6 @@ export const appRouter = router({
         notes: z.string().nullable(),
       })),
     })).mutation(async ({ ctx, input }) => {
-      if (ctx.user.role === "admin") {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Administradores não avaliam sessões tutoriais" });
-      }
       const session = await getSessionById(input.sessionId);
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
       if (session.status === "finished") throw new TRPCError({ code: "FORBIDDEN", message: "Sessão encerrada. Nenhuma alteração é permitida." });

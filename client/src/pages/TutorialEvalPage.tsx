@@ -375,6 +375,7 @@ function TutorialEvalContent() {
   // We do NOT invalidate (refetch) because that would overwrite local edits in progress.
   const saveDraftMutation = trpc.tutorialEval.saveDraft.useMutation({
     onSuccess: (_result, variables) => {
+
       setDraftSaving(false);
       setLastAutoSaved(new Date());
       setHasDraft(true);
@@ -536,6 +537,7 @@ function TutorialEvalContent() {
     // Capture current values from refs to avoid stale closure
     const currentScores = { ...scoresRef.current };
     const currentSessionId = parseInt(selectedSessionId);
+
     // Build notes payload from ref (not from state closure)
     const allNotes = sessionStudents ? sessionStudents.map((student: any) => {
       const note = studentNotesRef.current[student.studentId] ?? {
