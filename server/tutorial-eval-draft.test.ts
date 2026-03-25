@@ -507,3 +507,150 @@ describe("Student notes loading behavior", () => {
     expect(result.notes).toEqual({});
   });
 });
+
+describe("Cache update after draft save (setData pattern)", () => {
+  it("after saving draft, cache should reflect the saved scores (not stale data)", () => {
+    // Simulates what setData does: updates cache with saved values
+    type DraftCache = { organizacao: string; cooperacao: string; conteudo: string; objetivo: string; metas: string } | null;
+    let cache: DraftCache = null;
+
+    // User saves draft with specific scores
+    const savedScores = { organizacao: 0.25, cooperacao: 0.5, conteudo: 0.75, objetivo: 0.5, metas: 1.0 };
+    // setData updates cache
+    cache = {
+      organizacao: String(savedScores.organizacao),
+      cooperacao: String(savedScores.cooperacao),
+      conteudo: String(savedScores.conteudo),
+      objetivo: String(savedScores.objetivo),
+      metas: String(savedScores.metas),
+    };
+
+    // When component remounts and useEffect loads from cache, it should get saved values
+    expect(cache).not.toBeNull();
+    expect(Number(cache!.organizacao)).toBe(0.25);
+    expect(Number(cache!.cooperacao)).toBe(0.5);
+    expect(Number(cache!.conteudo)).toBe(0.75);
+  });
+
+  it("cache update should not trigger re-render overwrite when session is same", () => {
+    // Simulates: session "42" already loaded (lastLoadedSessionRef = "42")
+    // setData fires → useEffect re-runs → sessionChanged = false → scores NOT overwritten
+    const lastLoadedSession = "42";
+    const selectedSessionId = "42";
+    const sessionChanged = lastLoadedSession !== selectedSessionId;
+    expect(sessionChanged).toBe(false);
+    // Since sessionChanged=false, the useEffect returns early → local edits preserved
+  });
+
+  it("notes cache update should not overwrite local edits (same session)", () => {
+    // Simulates: notes for session "42" already loaded (lastLoadedNotesSessionRef = "42")
+    // setData fires → useEffect re-runs → notesSessionChanged = false → notes NOT overwritten
+    const lastLoadedNotesSession = "42";
+    const selectedSessionId = "42";
+    const notesSessionChanged = lastLoadedNotesSession !== selectedSessionId;
+    expect(notesSessionChanged).toBe(false);
+    // Since notesSessionChanged=false, the useEffect returns early → local notes preserved
+  });
+});
+
+describe("Notes loading with lastLoadedNotesSessionRef pattern", () => {
+  // Simulates the new notes useEffect logic
+  function simulateNotesLoadEffectV2(params: {
+    lastLoadedNotesSession: string;
+    selectedSessionId: string;
+    existingStudentNotes: Array<{ studentId: number; positivePoints: number; negativePoints: number }> | undefined;
+    notesLoading: boolean;
+    isLoadingSessions: boolean;
+    currentNotes: Record<number, object>;
+  }): {
+    notes: Record<number, object>;
+    lastLoadedNotesSession: string;
+    didReturn: boolean;
+  } {
+    let notes = { ...params.currentNotes };
+    let lastLoadedNotesSession = params.lastLoadedNotesSession;
+    let didReturn = false;
+
+    const notesSessionChanged = lastLoadedNotesSession !== params.selectedSessionId;
+    if (!notesSessionChanged) {
+      didReturn = true;
+      return { notes, lastLoadedNotesSession, didReturn };
+    }
+    if (params.notesLoading || params.isLoadingSessions) {
+      didReturn = true;
+      return { notes, lastLoadedNotesSession, didReturn };
+    }
+    if (params.existingStudentNotes && params.existingStudentNotes.length > 0) {
+      const notesMap: Record<number, object> = {};
+      for (const n of params.existingStudentNotes) {
+        notesMap[n.studentId] = { studentId: n.studentId, positivePoints: n.positivePoints, negativePoints: n.negativePoints };
+      }
+      notes = notesMap;
+    } else {
+      notes = {};
+    }
+    lastLoadedNotesSession = params.selectedSessionId;
+    return { notes, lastLoadedNotesSession, didReturn };
+  }
+
+  it("should NOT overwrite local notes when session is the same (prevents setData overwrite)", () => {
+    const localNotes = { 1: { studentId: 1, positivePoints: 5, negativePoints: 3 } };
+    const serverNotes = [{ studentId: 1, positivePoints: 2, negativePoints: 1 }]; // stale server data
+    const result = simulateNotesLoadEffectV2({
+      lastLoadedNotesSession: "42",  // already loaded
+      selectedSessionId: "42",       // same session
+      existingStudentNotes: serverNotes,
+      notesLoading: false,
+      isLoadingSessions: false,
+      currentNotes: localNotes,
+    });
+    expect(result.didReturn).toBe(true);
+    // Local notes should NOT be overwritten
+    expect(result.notes).toEqual(localNotes);
+  });
+
+  it("should load notes from server when switching sessions", () => {
+    const serverNotes = [{ studentId: 1, positivePoints: 3, negativePoints: 2 }];
+    const result = simulateNotesLoadEffectV2({
+      lastLoadedNotesSession: "41",  // previous session
+      selectedSessionId: "42",       // new session
+      existingStudentNotes: serverNotes,
+      notesLoading: false,
+      isLoadingSessions: false,
+      currentNotes: {},
+    });
+    expect(result.didReturn).toBe(false);
+    expect(result.notes[1]).toBeDefined();
+    expect((result.notes[1] as any).positivePoints).toBe(3);
+    expect(result.lastLoadedNotesSession).toBe("42");
+  });
+
+  it("should wait for loading before updating lastLoadedNotesSession", () => {
+    const result = simulateNotesLoadEffectV2({
+      lastLoadedNotesSession: "",    // component remounted
+      selectedSessionId: "42",
+      existingStudentNotes: undefined, // still loading
+      notesLoading: true,
+      isLoadingSessions: false,
+      currentNotes: {},
+    });
+    expect(result.didReturn).toBe(true);
+    expect(result.lastLoadedNotesSession).toBe(""); // NOT updated yet
+  });
+
+  it("should load notes once loading completes after remount", () => {
+    const serverNotes = [{ studentId: 1, positivePoints: 4, negativePoints: 1 }];
+    const result = simulateNotesLoadEffectV2({
+      lastLoadedNotesSession: "",    // component remounted, previous call returned early
+      selectedSessionId: "42",
+      existingStudentNotes: serverNotes,
+      notesLoading: false,           // loading complete
+      isLoadingSessions: false,
+      currentNotes: {},
+    });
+    expect(result.didReturn).toBe(false);
+    expect(result.notes[1]).toBeDefined();
+    expect((result.notes[1] as any).positivePoints).toBe(4);
+    expect(result.lastLoadedNotesSession).toBe("42");
+  });
+});

@@ -800,3 +800,6 @@
 - [x] Corrigir carregamento de anotações de alunos: useEffect não limpava notas quando existingStudentNotes era undefined (loading), evitando perda de dados ao remontar
 - [x] Adicionar verificação de isLoadingSessions no useEffect para evitar execução prematura antes das permissões serem carregadas
 - [x] Testes: 9 novos testes para comportamento de lastLoadedSessionRef e carregamento de notas (974 testes passando)
+## Bug Salvamento Rascunho Avaliação Tutorial (Mar 2026)
+- [x] Corrigir: critérios de avaliação (organizacao, cooperacao, conteudo, objetivo, metas) não são salvos corretamente no rascunho
+- [x] Corrigir: pontos positivos/negativos dos alunos não são salvos corretamente no rascunho

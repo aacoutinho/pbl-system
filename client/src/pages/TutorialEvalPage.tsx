@@ -253,7 +253,7 @@ function TutorialEvalContent() {
   );
 
   // Existing professor notes for this session
-  const { data: existingStudentNotes } = trpc.tutorialEval.getStudentNotes.useQuery(
+  const { data: existingStudentNotes, isLoading: notesLoading } = trpc.tutorialEval.getStudentNotes.useQuery(
     { sessionId: sessionIdNum },
     { enabled: !!selectedSessionId && canEvaluateSelected }
   );
@@ -276,6 +276,8 @@ function TutorialEvalContent() {
   // when tRPC refetches data for the same session
   const lastLoadedSessionRef = useRef<string>("");
   const hasUserEditedRef = useRef(false);
+  // Track which session's notes were last loaded (same pattern as lastLoadedSessionRef)
+  const lastLoadedNotesSessionRef = useRef<string>("");
 
   // Load existing evaluation or draft ONLY when session changes
   // NOTE: We only mark the session as "loaded" once the data has actually arrived
@@ -330,11 +332,16 @@ function TutorialEvalContent() {
     // If same session and user has edited, do NOT overwrite local scores
   }, [existingEval, existingDraft, selectedSessionId, evalLoading, draftLoading, isLoadingSessions]);
 
-  // Load existing student notes
-  // Only clear notes when existingStudentNotes is explicitly empty (not undefined/loading)
+  // Load existing student notes ONLY when session changes (same pattern as scores useEffect)
+  // This prevents background refetches from overwriting local edits
   useEffect(() => {
-    if (existingStudentNotes === undefined) {
-      // Still loading — do not clear existing notes
+    const notesSessionChanged = lastLoadedNotesSessionRef.current !== selectedSessionId;
+    if (!notesSessionChanged) {
+      // Same session — do NOT overwrite local edits with cache data
+      return;
+    }
+    // Wait until data has loaded
+    if (notesLoading || isLoadingSessions) {
       return;
     }
     if (existingStudentNotes && existingStudentNotes.length > 0) {
@@ -353,17 +360,34 @@ function TutorialEvalContent() {
     } else {
       setStudentNotes({});
     }
-  }, [existingStudentNotes, selectedSessionId]);
+    lastLoadedNotesSessionRef.current = selectedSessionId;
+  }, [existingStudentNotes, selectedSessionId, notesLoading, isLoadingSessions]);
 
   // Draft save mutation
-  // IMPORTANT: Do NOT invalidate getDraft on auto-save success.
-  // Invalidating causes the useEffect to re-run and overwrite the local scores
-  // with stale server data, causing the "last button deselecting" bug.
+  // After saving, update the tRPC cache directly with setData so that:
+  // 1. The cache reflects the saved values (not stale data)
+  // 2. When the component remounts, the useEffect loads the correct saved values
+  // We do NOT invalidate (refetch) because that would overwrite local edits in progress.
   const saveDraftMutation = trpc.tutorialEval.saveDraft.useMutation({
-    onSuccess: () => {
+    onSuccess: (_result, variables) => {
       setDraftSaving(false);
       setLastAutoSaved(new Date());
       setHasDraft(true);
+      // Update cache with the saved values so remount loads correct data
+      utils.tutorialEval.getDraft.setData(
+        { sessionId: variables.sessionId },
+        (old) => ({
+          id: (old as any)?.id ?? 0,
+          sessionId: variables.sessionId,
+          professorUserId: (old as any)?.professorUserId ?? 0,
+          organizacao: String(variables.organizacao),
+          cooperacao: String(variables.cooperacao),
+          conteudo: String(variables.conteudo),
+          objetivo: String(variables.objetivo),
+          metas: String(variables.metas),
+          savedAt: new Date(),
+        })
+      );
     },
     onError: () => {
       setDraftSaving(false);
@@ -371,8 +395,28 @@ function TutorialEvalContent() {
   });
 
   // Student notes save mutation
-  // IMPORTANT: Do NOT invalidate on auto-save to prevent overwriting local state
-  const saveStudentNotesMutation = trpc.tutorialEval.saveStudentNotes.useMutation({});
+  // After saving, update the tRPC cache directly with setData so remount loads correct data.
+  // We do NOT invalidate (refetch) to prevent overwriting local state in progress.
+  const saveStudentNotesMutation = trpc.tutorialEval.saveStudentNotes.useMutation({
+    onSuccess: (_result, variables) => {
+      // Update the getStudentNotes cache with the saved values
+      utils.tutorialEval.getStudentNotes.setData(
+        { sessionId: variables.sessionId },
+        () => variables.notes.map(n => ({
+          id: 0,
+          sessionId: variables.sessionId,
+          studentId: n.studentId,
+          professorUserId: 0,
+          positivePoints: n.positivePoints,
+          negativePoints: n.negativePoints,
+          positiveTexts: n.positiveTexts ?? null,
+          negativeTexts: n.negativeTexts ?? null,
+          notes: n.notes ?? null,
+          updatedAt: new Date(),
+        }))
+      );
+    },
+  });
 
   // Auto-save debounced (2 seconds after last change)
   const triggerAutoSave = useCallback(() => {
