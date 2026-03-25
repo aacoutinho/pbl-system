@@ -805,3 +805,5 @@
 - [x] Corrigir: pontos positivos/negativos dos alunos não são salvos corretamente no rascunho
 ## Renomeação de Folha (Mar 2026)
 - [x] Renomear folha "Resultados" para "Desempenho" na navegação
+## Bug Salvamento Rascunho - Investigação Profunda (Mar 2026)
+- [x] Investigar e corrigir definitivamente: critérios de avaliação e anotações de alunos não persistem ao clicar Salvar Rascunho — causa raiz: race condition com canEvaluateSelected, corrigido com padrão loadKey (sessionId + canEvaluateSelected)

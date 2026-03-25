@@ -279,16 +279,21 @@ function TutorialEvalContent() {
   // Track which session's notes were last loaded (same pattern as lastLoadedSessionRef)
   const lastLoadedNotesSessionRef = useRef<string>("");
 
-  // Load existing evaluation or draft ONLY when session changes
-  // NOTE: We only mark the session as "loaded" once the data has actually arrived
-  // (not during loading). This prevents the race condition where:
-  // 1. Component remounts → lastLoadedSessionRef resets to ""
-  // 2. useEffect fires with existingDraft=undefined (still loading) → sessionChanged=true → sets DEFAULT_SCORES
-  // 3. lastLoadedSessionRef is updated to selectedSessionId
-  // 4. existingDraft arrives → useEffect fires again → sessionChanged=false → draft is NEVER loaded
+  // Load existing evaluation or draft when session changes.
+  // Key insight: we track a "load key" that combines sessionId + canEvaluateSelected.
+  // This ensures we wait for canEvaluateSelected to be definitively determined before
+  // loading defaults, preventing the race condition where:
+  // 1. Component mounts/remounts → canEvaluateSelected=false (sessions still loading)
+  // 2. useEffect fires → loads DEFAULT_SCORES → marks session as "loaded"
+  // 3. canEvaluateSelected becomes true → getDraft query enabled → draft loads
+  // 4. useEffect fires again → sessionChanged=false → draft NEVER applied
+  //
+  // By including canEvaluateSelected in the load key, step 3 triggers a new load.
+  const loadKey = `${selectedSessionId}:${canEvaluateSelected}`;
+
   useEffect(() => {
-    const sessionChanged = lastLoadedSessionRef.current !== selectedSessionId;
-    
+    const keyChanged = lastLoadedSessionRef.current !== loadKey;
+
     if (existingEval) {
       // Always load finalized evaluations (read-only state)
       setScores({
@@ -300,14 +305,13 @@ function TutorialEvalContent() {
       });
       setHasDraft(false);
       hasUserEditedRef.current = false;
-      if (sessionChanged) {
+      if (keyChanged) {
         setLastAutoSaved(null);
-        lastLoadedSessionRef.current = selectedSessionId;
+        lastLoadedSessionRef.current = loadKey;
       }
-    } else if (sessionChanged) {
-      // Only load draft/defaults when switching to a different session
-      // Wait until data has loaded (not undefined from loading state)
-      // Also wait for sessions to load so canEvaluateSelected is accurate
+    } else if (keyChanged) {
+      // Only load draft/defaults when key changes (session or permission changes)
+      // Wait until all data has loaded so we have accurate canEvaluateSelected + draft data
       if (evalLoading || draftLoading || isLoadingSessions) {
         // Data still loading — do not update ref yet, wait for data to arrive
         return;
@@ -327,17 +331,18 @@ function TutorialEvalContent() {
       }
       hasUserEditedRef.current = false;
       setLastAutoSaved(null);
-      lastLoadedSessionRef.current = selectedSessionId;
+      lastLoadedSessionRef.current = loadKey;
     }
-    // If same session and user has edited, do NOT overwrite local scores
-  }, [existingEval, existingDraft, selectedSessionId, evalLoading, draftLoading, isLoadingSessions]);
+    // If same key (session + permission unchanged) and user has edited, do NOT overwrite local scores
+  }, [existingEval, existingDraft, loadKey, evalLoading, draftLoading, isLoadingSessions]);
 
-  // Load existing student notes ONLY when session changes (same pattern as scores useEffect)
-  // This prevents background refetches from overwriting local edits
+  // Load existing student notes ONLY when loadKey changes (same pattern as scores useEffect)
+  // Using loadKey (sessionId + canEvaluateSelected) prevents the race condition where
+  // notes are loaded before canEvaluateSelected is determined, causing stale data.
   useEffect(() => {
-    const notesSessionChanged = lastLoadedNotesSessionRef.current !== selectedSessionId;
-    if (!notesSessionChanged) {
-      // Same session — do NOT overwrite local edits with cache data
+    const notesKeyChanged = lastLoadedNotesSessionRef.current !== loadKey;
+    if (!notesKeyChanged) {
+      // Same key — do NOT overwrite local edits with cache data
       return;
     }
     // Wait until data has loaded
@@ -360,8 +365,8 @@ function TutorialEvalContent() {
     } else {
       setStudentNotes({});
     }
-    lastLoadedNotesSessionRef.current = selectedSessionId;
-  }, [existingStudentNotes, selectedSessionId, notesLoading, isLoadingSessions]);
+    lastLoadedNotesSessionRef.current = loadKey;
+  }, [existingStudentNotes, loadKey, notesLoading, isLoadingSessions]);
 
   // Draft save mutation
   // After saving, update the tRPC cache directly with setData so that:

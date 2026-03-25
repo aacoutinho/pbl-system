@@ -654,3 +654,183 @@ describe("Notes loading with lastLoadedNotesSessionRef pattern", () => {
     expect(result.lastLoadedNotesSession).toBe("42");
   });
 });
+
+describe("loadKey pattern (sessionId + canEvaluateSelected)", () => {
+  // Simulates the new useEffect logic with loadKey
+  function simulateLoadEffect(params: {
+    lastLoadKey: string;
+    selectedSessionId: string;
+    canEvaluateSelected: boolean;
+    existingEval: { organizacao: string; cooperacao: string; conteudo: string; objetivo: string; metas: string } | null;
+    existingDraft: { organizacao: string; cooperacao: string; conteudo: string; objetivo: string; metas: string } | null;
+    evalLoading: boolean;
+    draftLoading: boolean;
+    isLoadingSessions: boolean;
+  }): {
+    scores: Record<string, number>;
+    lastLoadKey: string;
+    didReturn: boolean;
+    hasDraft: boolean;
+  } {
+    const DEFAULT_SCORES = { organizacao: 1.0, cooperacao: 1.0, conteudo: 1.0, objetivo: 1.0, metas: 1.0 };
+    let scores = { ...DEFAULT_SCORES };
+    let lastLoadKey = params.lastLoadKey;
+    let didReturn = false;
+    let hasDraft = false;
+
+    const loadKey = `${params.selectedSessionId}:${params.canEvaluateSelected}`;
+    const keyChanged = lastLoadKey !== loadKey;
+
+    if (params.existingEval) {
+      scores = {
+        organizacao: Number(params.existingEval.organizacao),
+        cooperacao: Number(params.existingEval.cooperacao),
+        conteudo: Number(params.existingEval.conteudo),
+        objetivo: Number(params.existingEval.objetivo),
+        metas: Number(params.existingEval.metas),
+      };
+      hasDraft = false;
+      if (keyChanged) lastLoadKey = loadKey;
+    } else if (keyChanged) {
+      if (params.evalLoading || params.draftLoading || params.isLoadingSessions) {
+        didReturn = true;
+        return { scores, lastLoadKey, didReturn, hasDraft };
+      }
+      if (params.existingDraft) {
+        scores = {
+          organizacao: Number(params.existingDraft.organizacao),
+          cooperacao: Number(params.existingDraft.cooperacao),
+          conteudo: Number(params.existingDraft.conteudo),
+          objetivo: Number(params.existingDraft.objetivo),
+          metas: Number(params.existingDraft.metas),
+        };
+        hasDraft = true;
+      } else {
+        scores = { ...DEFAULT_SCORES };
+        hasDraft = false;
+      }
+      lastLoadKey = loadKey;
+    }
+
+    return { scores, lastLoadKey, didReturn, hasDraft };
+  }
+
+  it("should NOT load draft when sessions are still loading (canEvaluateSelected=false)", () => {
+    // Race condition: sessions loading → canEvaluateSelected=false → getDraft disabled
+    const result = simulateLoadEffect({
+      lastLoadKey: "",
+      selectedSessionId: "42",
+      canEvaluateSelected: false,  // sessions still loading
+      existingEval: null,
+      existingDraft: null,
+      evalLoading: false,
+      draftLoading: false,
+      isLoadingSessions: true,  // sessions loading
+    });
+    expect(result.didReturn).toBe(true);
+    expect(result.lastLoadKey).toBe("");  // NOT updated
+  });
+
+  it("should load DEFAULT_SCORES when canEvaluateSelected=false and sessions loaded (no permission)", () => {
+    // User has no permission to evaluate — load defaults
+    const result = simulateLoadEffect({
+      lastLoadKey: "",
+      selectedSessionId: "42",
+      canEvaluateSelected: false,  // no permission
+      existingEval: null,
+      existingDraft: null,
+      evalLoading: false,
+      draftLoading: false,
+      isLoadingSessions: false,  // sessions loaded
+    });
+    expect(result.didReturn).toBe(false);
+    expect(result.scores.organizacao).toBe(1.0);  // DEFAULT
+    expect(result.lastLoadKey).toBe("42:false");
+  });
+
+  it("should load draft when canEvaluateSelected transitions from false to true", () => {
+    // Step 1: sessions loading → canEvaluateSelected=false → returns early
+    const step1 = simulateLoadEffect({
+      lastLoadKey: "",
+      selectedSessionId: "42",
+      canEvaluateSelected: false,
+      existingEval: null,
+      existingDraft: null,
+      evalLoading: false,
+      draftLoading: false,
+      isLoadingSessions: true,
+    });
+    expect(step1.didReturn).toBe(true);
+    expect(step1.lastLoadKey).toBe("");
+
+    // Step 2: sessions loaded → canEvaluateSelected=true → draft loads
+    const draft = { organizacao: "0.25", cooperacao: "0.5", conteudo: "0.75", objetivo: "0.5", metas: "1.0" };
+    const step2 = simulateLoadEffect({
+      lastLoadKey: step1.lastLoadKey,  // still ""
+      selectedSessionId: "42",
+      canEvaluateSelected: true,  // now true
+      existingEval: null,
+      existingDraft: draft,
+      evalLoading: false,
+      draftLoading: false,
+      isLoadingSessions: false,
+    });
+    expect(step2.didReturn).toBe(false);
+    expect(step2.scores.organizacao).toBe(0.25);  // draft loaded!
+    expect(step2.scores.cooperacao).toBe(0.5);
+    expect(step2.hasDraft).toBe(true);
+    expect(step2.lastLoadKey).toBe("42:true");
+  });
+
+  it("should NOT overwrite local edits when loadKey is unchanged after setData", () => {
+    // After setData updates cache, useEffect fires but loadKey is same → no overwrite
+    const draft = { organizacao: "0.25", cooperacao: "0.5", conteudo: "0.75", objetivo: "0.5", metas: "1.0" };
+    const result = simulateLoadEffect({
+      lastLoadKey: "42:true",  // already loaded
+      selectedSessionId: "42",
+      canEvaluateSelected: true,
+      existingEval: null,
+      existingDraft: draft,  // cache updated by setData
+      evalLoading: false,
+      draftLoading: false,
+      isLoadingSessions: false,
+    });
+    // keyChanged = false → neither block executes → local scores preserved
+    expect(result.didReturn).toBe(false);
+    expect(result.lastLoadKey).toBe("42:true");  // unchanged
+    // scores not modified (function returns with original DEFAULT_SCORES since no block ran)
+  });
+
+  it("should reload draft when switching sessions", () => {
+    const draft = { organizacao: "0.5", cooperacao: "0.75", conteudo: "0.5", objetivo: "0.25", metas: "0.75" };
+    const result = simulateLoadEffect({
+      lastLoadKey: "41:true",  // previous session
+      selectedSessionId: "42",  // new session
+      canEvaluateSelected: true,
+      existingEval: null,
+      existingDraft: draft,
+      evalLoading: false,
+      draftLoading: false,
+      isLoadingSessions: false,
+    });
+    expect(result.didReturn).toBe(false);
+    expect(result.scores.organizacao).toBe(0.5);
+    expect(result.hasDraft).toBe(true);
+    expect(result.lastLoadKey).toBe("42:true");
+  });
+
+  it("should wait for draftLoading even when canEvaluateSelected=true", () => {
+    const result = simulateLoadEffect({
+      lastLoadKey: "",
+      selectedSessionId: "42",
+      canEvaluateSelected: true,
+      existingEval: null,
+      existingDraft: null,  // still fetching
+      evalLoading: false,
+      draftLoading: true,  // loading
+      isLoadingSessions: false,
+    });
+    expect(result.didReturn).toBe(true);
+    expect(result.lastLoadKey).toBe("");  // NOT updated
+  });
+});
