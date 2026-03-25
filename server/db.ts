@@ -2996,6 +2996,19 @@ export async function getPeerGradesMatrix(sessionId: number, provisional = false
 
     const isAbsent = absentStudents.has(s.studentId) || s.markedAbsentByProfessor;
 
+    // If student is marked absent by professor, return 0.0 for all grades
+    if (isAbsent) {
+      return {
+        serial: serialMap.get(s.studentId) || 0,
+        studentId: s.studentId,
+        studentName: s.studentName,
+        studentEnrollment: s.studentEnrollment,
+        peerGrades: [],
+        peerAverage: 0,
+        absent: true,
+      };
+    }
+
     // Get individual grades from each evaluator (excluding self-evaluation)
     const peerGrades: PeerGradeDetail[] = [];
     for (const evaluator of evaluators) {

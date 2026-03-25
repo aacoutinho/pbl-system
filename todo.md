@@ -811,3 +811,7 @@
 - [x] Investigar e corrigir: valores alterados nos critérios não são persistidos no banco ao salvar rascunho — causa raiz: stale closure em handleSaveDraft/handleSubmit usava scores/studentNotes do closure em vez de scoresRef.current/studentNotesRef.current
 ## Bug Salvamento Rascunho - Investigação com Logs (Mar 2026)
 - [x] Identificar causa raiz: admin bloqueado de salvar rascunho (403 Forbidden) — removido bloqueio em saveDraft, saveStudentNotes e submit para role admin
+
+## Bugs Mar 2026 - Sessão Fechada e Notas Faltosos
+- [x] Bug 1: Professor/admin não consegue editar "Anotações do Tutor" no Quadro de Brainstorming com sessão fechada — corrigido: BrainstormBoardPage sobrescrevia canEditProp com isMesa quando studentId=0
+- [x] Bug 2: Notas de aluno faltoso devem aparecer como 0.0 na tabela de avaliação dos pares — corrigido no backend (getPeerGradesMatrix) e frontend (ResultsPage)

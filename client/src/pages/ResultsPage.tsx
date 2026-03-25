@@ -775,10 +775,10 @@ function ResultsContent() {
                                   )}
                                 </td>
                                 {peerMatrix.evaluators.map(ev => {
-                                  if (row.absent && row.peerGrades.length === 0) {
+                                  if (row.absent) {
                                     return (
                                       <td key={ev.studentId} className="py-2.5 px-1 text-center">
-                                        <span className="text-red-400 italic font-medium">F</span>
+                                        <span className="text-red-400 font-medium">0.0</span>
                                       </td>
                                     );
                                   }
@@ -825,7 +825,7 @@ function ResultsContent() {
                                 })}
                                 <td className="py-2.5 pl-2 text-center">
                                   {row.absent ? (
-                                    <span className="text-red-400 italic font-medium">F</span>
+                                    <span className="text-red-400 font-medium">0.0</span>
                                   ) : (
                                     <span className={`font-bold ${
                                       row.peerAverage >= 8 ? "text-emerald-600" :
@@ -842,7 +842,7 @@ function ResultsContent() {
                         </table>
                       </div>
                       <div className="mt-4 pt-3 border-t text-xs text-muted-foreground space-y-1">
-                        <p><strong>Legenda:</strong> A1, A2, ... = Número do aluno (passe o mouse para ver o nome). <strong>—</strong> = Autoavaliação (excluída). <strong>F</strong> = Faltou. <strong>-</strong> = Sem avaliação. <Wand2 className="inline h-3 w-3 mx-0.5" /> = Não enviou (autopreenchida).</p>
+                        <p><strong>Legenda:</strong> A1, A2, ... = Número do aluno (passe o mouse para ver o nome). <strong>—</strong> = Autoavaliação (excluída). <strong>0.0</strong> = Faltou. <strong>-</strong> = Sem avaliação. <Wand2 className="inline h-3 w-3 mx-0.5" /> = Não enviou (autopreenchida).</p>
                       </div>
                     </TooltipProvider>
                   )}

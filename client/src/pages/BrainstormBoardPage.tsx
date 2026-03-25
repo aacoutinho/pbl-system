@@ -157,11 +157,14 @@ export default function BrainstormBoardPage({ sessionId, studentId, sessionLabel
   const isMesa = studentEntry?.role === "MESA" && !studentEntry?.absent;
   // sessionStatus comes from boardData once loaded (getBrainstormBoardWithItems returns it)
   const resolvedSessionStatus = (boardData as any)?.sessionStatus ?? null;
-  // canEdit: Mesa can edit unless session is finished.
-  // Fall back to canEditProp while data is still loading.
-  const canEdit = (sessionStudentsData && resolvedSessionStatus)
-    ? (isMesa && resolvedSessionStatus !== "finished")
-    : canEditProp;
+  // canEdit logic:
+  // - If studentId=0 → professor/admin access → always use canEditProp (true)
+  // - If studentId>0 → student access → Mesa can edit unless session is finished
+  const canEdit = !studentId
+    ? canEditProp
+    : (sessionStudentsData && resolvedSessionStatus)
+      ? (isMesa && resolvedSessionStatus !== "finished")
+      : canEditProp;
 
   const initBoard = useCallback(() => {
     if (canEdit && !hasBoard) {
