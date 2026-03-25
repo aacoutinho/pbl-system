@@ -815,3 +815,6 @@
 ## Bugs Mar 2026 - Sessão Fechada e Notas Faltosos
 - [x] Bug 1: Professor/admin não consegue editar "Anotações do Tutor" no Quadro de Brainstorming com sessão fechada — corrigido: BrainstormBoardPage sobrescrevia canEditProp com isMesa quando studentId=0
 - [x] Bug 2: Notas de aluno faltoso devem aparecer como 0.0 na tabela de avaliação dos pares — corrigido no backend (getPeerGradesMatrix) e frontend (ResultsPage)
+
+## Verificação Backup/Restauração (Mar 2026)
+- [x] Verificar compatibilidade das funcionalidades de Backup e Restauração com o esquema atual do banco — todas as 25 tabelas presentes, ordem FK correta, sem incompatibilidades

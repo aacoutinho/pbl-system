@@ -1,0 +1,114 @@
+{
+  "query": "SELECT TABLE_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute SELECT TABLE_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME;",
+  "rows": [
+    {
+      "TABLE_NAME": "__drizzle_migrations",
+      "TABLE_ROWS": "36"
+    },
+    {
+      "TABLE_NAME": "audit_logs",
+      "TABLE_ROWS": "51"
+    },
+    {
+      "TABLE_NAME": "brainstorm_board_send_history",
+      "TABLE_ROWS": "6"
+    },
+    {
+      "TABLE_NAME": "brainstorm_boards",
+      "TABLE_ROWS": "13"
+    },
+    {
+      "TABLE_NAME": "brainstorm_item_attachments",
+      "TABLE_ROWS": "4"
+    },
+    {
+      "TABLE_NAME": "brainstorm_items",
+      "TABLE_ROWS": "122"
+    },
+    {
+      "TABLE_NAME": "class_eval_permissions",
+      "TABLE_ROWS": "1"
+    },
+    {
+      "TABLE_NAME": "class_students",
+      "TABLE_ROWS": "40"
+    },
+    {
+      "TABLE_NAME": "classes",
+      "TABLE_ROWS": "4"
+    },
+    {
+      "TABLE_NAME": "components",
+      "TABLE_ROWS": "8"
+    },
+    {
+      "TABLE_NAME": "contact_tickets",
+      "TABLE_ROWS": "0"
+    },
+    {
+      "TABLE_NAME": "email_verification_codes",
+      "TABLE_ROWS": "601"
+    },
+    {
+      "TABLE_NAME": "evaluation_items",
+      "TABLE_ROWS": "782"
+    },
+    {
+      "TABLE_NAME": "evaluations",
+      "TABLE_ROWS": "96"
+    },
+    {
+      "TABLE_NAME": "notifications",
+      "TABLE_ROWS": "17"
+    },
+    {
+      "TABLE_NAME": "password_reset_codes",
+      "TABLE_ROWS": "2"
+    },
+    {
+      "TABLE_NAME": "professor_components",
+      "TABLE_ROWS": "4"
+    },
+    {
+      "TABLE_NAME": "professor_student_notes",
+      "TABLE_ROWS": "14"
+    },
+    {
+      "TABLE_NAME": "session_access_tokens",
+      "TABLE_ROWS": "257"
+    },
+    {
+      "TABLE_NAME": "session_students",
+      "TABLE_ROWS": "114"
+    },
+    {
+      "TABLE_NAME": "sessions",
+      "TABLE_ROWS": "12"
+    },
+    {
+      "TABLE_NAME": "smtp_config",
+      "TABLE_ROWS": "1"
+    },
+    {
+      "TABLE_NAME": "students",
+      "TABLE_ROWS": "40"
+    },
+    {
+      "TABLE_NAME": "tutorial_eval_drafts",
+      "TABLE_ROWS": "1"
+    },
+    {
+      "TABLE_NAME": "tutorial_evaluations",
+      "TABLE_ROWS": "10"
+    },
+    {
+      "TABLE_NAME": "users",
+      "TABLE_ROWS": "5"
+    }
+  ],
+  "messages": [],
+  "stdout": "TABLE_NAME\tTABLE_ROWS\n__drizzle_migrations\t36\naudit_logs\t51\nbrainstorm_board_send_history\t6\nbrainstorm_boards\t13\nbrainstorm_item_attachments\t4\nbrainstorm_items\t122\nclass_eval_permissions\t1\nclass_students\t40\nclasses\t4\ncomponents\t8\ncontact_tickets\t0\nemail_verification_codes\t601\nevaluation_items\t782\nevaluations\t96\nnotifications\t17\npassword_reset_codes\t2\nprofessor_components\t4\nprofessor_student_notes\t14\nsession_access_tokens\t257\nsession_students\t114\nsessions\t12\nsmtp_config\t1\nstudents\t40\ntutorial_eval_drafts\t1\ntutorial_evaluations\t10\nusers\t5\n",
+  "stderr": "",
+  "execution_time_ms": 384
+}

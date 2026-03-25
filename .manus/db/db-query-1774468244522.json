@@ -1,0 +1,34 @@
+{
+  "query": "SELECT TABLE_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME LIMIT 26 OFFSET 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute SELECT TABLE_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME LIMIT 26 OFFSET 20;",
+  "rows": [
+    {
+      "TABLE_NAME": "sessions",
+      "TABLE_ROWS": "12"
+    },
+    {
+      "TABLE_NAME": "smtp_config",
+      "TABLE_ROWS": "1"
+    },
+    {
+      "TABLE_NAME": "students",
+      "TABLE_ROWS": "40"
+    },
+    {
+      "TABLE_NAME": "tutorial_eval_drafts",
+      "TABLE_ROWS": "1"
+    },
+    {
+      "TABLE_NAME": "tutorial_evaluations",
+      "TABLE_ROWS": "10"
+    },
+    {
+      "TABLE_NAME": "users",
+      "TABLE_ROWS": "5"
+    }
+  ],
+  "messages": [],
+  "stdout": "TABLE_NAME\tTABLE_ROWS\nsessions\t12\nsmtp_config\t1\nstudents\t40\ntutorial_eval_drafts\t1\ntutorial_evaluations\t10\nusers\t5\n",
+  "stderr": "",
+  "execution_time_ms": 371
+}

@@ -1,0 +1,290 @@
+{
+  "query": "SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('session_students', 'tutorial_eval_drafts', 'professor_student_notes', 'brainstorm_boards', 'brainstorm_items') ORDER BY TABLE_NAME, ORDINAL_POSITION;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('session_students', 'tutorial_eval_drafts', 'professor_student_notes', 'brainstorm_boards', 'brainstorm_items') ORDER BY TABLE_NAME, ORDINAL_POSITION;",
+  "rows": [
+    {
+      "TABLE_NAME": "brainstorm_boards",
+      "COLUMN_NAME": "id",
+      "DATA_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL"
+    },
+    {
+      "TABLE_NAME": "brainstorm_boards",
+      "COLUMN_NAME": "sessionId",
+      "DATA_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL"
+    },
+    {
+      "TABLE_NAME": "brainstorm_boards",
+      "COLUMN_NAME": "mesaStudentId",
+      "DATA_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL"
+    },
+    {
+      "TABLE_NAME": "brainstorm_boards",
+      "COLUMN_NAME": "createdAt",
+      "DATA_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP"
+    },
+    {
+      "TABLE_NAME": "brainstorm_boards",
+      "COLUMN_NAME": "updatedAt",
+      "DATA_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP"
+    },
+    {
+      "TABLE_NAME": "brainstorm_boards",
+      "COLUMN_NAME": "tutorComments",
+      "DATA_TYPE": "text",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL"
+    },
+    {
+      "TABLE_NAME": "brainstorm_items",
+      "COLUMN_NAME": "id",
+      "DATA_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL"
+    },
+    {
+      "TABLE_NAME": "brainstorm_items",
+      "COLUMN_NAME": "boardId",
+      "DATA_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL"
+    },
+    {
+      "TABLE_NAME": "brainstorm_items",
+      "COLUMN_NAME": "section",
+      "DATA_TYPE": "enum",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL"
+    },
+    {
+      "TABLE_NAME": "brainstorm_items",
+      "COLUMN_NAME": "content",
+      "DATA_TYPE": "text",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL"
+    },
+    {
+      "TABLE_NAME": "brainstorm_items",
+      "COLUMN_NAME": "status",
+      "DATA_TYPE": "varchar",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "default"
+    },
+    {
+      "TABLE_NAME": "brainstorm_items",
+      "COLUMN_NAME": "attachmentUrl",
+      "DATA_TYPE": "varchar",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL"
+    },
+    {
+      "TABLE_NAME": "brainstorm_items",
+      "COLUMN_NAME": "attachmentType",
+      "DATA_TYPE": "enum",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL"
+    },
+    {
+      "TABLE_NAME": "brainstorm_items",
+      "COLUMN_NAME": "sortOrder",
+      "DATA_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0"
+    },
+    {
+      "TABLE_NAME": "brainstorm_items",
+      "COLUMN_NAME": "createdAt",
+      "DATA_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP"
+    },
+    {
+      "TABLE_NAME": "brainstorm_items",
+      "COLUMN_NAME": "updatedAt",
+      "DATA_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP"
+    },
+    {
+      "TABLE_NAME": "professor_student_notes",
+      "COLUMN_NAME": "id",
+      "DATA_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL"
+    },
+    {
+      "TABLE_NAME": "professor_student_notes",
+      "COLUMN_NAME": "sessionId",
+      "DATA_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL"
+    },
+    {
+      "TABLE_NAME": "professor_student_notes",
+      "COLUMN_NAME": "studentId",
+      "DATA_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL"
+    },
+    {
+      "TABLE_NAME": "professor_student_notes",
+      "COLUMN_NAME": "professorUserId",
+      "DATA_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL"
+    },
+    {
+      "TABLE_NAME": "professor_student_notes",
+      "COLUMN_NAME": "positivePoints",
+      "DATA_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0"
+    },
+    {
+      "TABLE_NAME": "professor_student_notes",
+      "COLUMN_NAME": "negativePoints",
+      "DATA_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0"
+    },
+    {
+      "TABLE_NAME": "professor_student_notes",
+      "COLUMN_NAME": "notes",
+      "DATA_TYPE": "text",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL"
+    },
+    {
+      "TABLE_NAME": "professor_student_notes",
+      "COLUMN_NAME": "updatedAt",
+      "DATA_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP"
+    },
+    {
+      "TABLE_NAME": "professor_student_notes",
+      "COLUMN_NAME": "positiveTexts",
+      "DATA_TYPE": "json",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL"
+    },
+    {
+      "TABLE_NAME": "professor_student_notes",
+      "COLUMN_NAME": "negativeTexts",
+      "DATA_TYPE": "json",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL"
+    },
+    {
+      "TABLE_NAME": "session_students",
+      "COLUMN_NAME": "id",
+      "DATA_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL"
+    },
+    {
+      "TABLE_NAME": "session_students",
+      "COLUMN_NAME": "sessionId",
+      "DATA_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL"
+    },
+    {
+      "TABLE_NAME": "session_students",
+      "COLUMN_NAME": "studentId",
+      "DATA_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL"
+    },
+    {
+      "TABLE_NAME": "session_students",
+      "COLUMN_NAME": "role",
+      "DATA_TYPE": "enum",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "PARTICIPANTE"
+    },
+    {
+      "TABLE_NAME": "session_students",
+      "COLUMN_NAME": "absent",
+      "DATA_TYPE": "tinyint",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0"
+    },
+    {
+      "TABLE_NAME": "tutorial_eval_drafts",
+      "COLUMN_NAME": "id",
+      "DATA_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL"
+    },
+    {
+      "TABLE_NAME": "tutorial_eval_drafts",
+      "COLUMN_NAME": "sessionId",
+      "DATA_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL"
+    },
+    {
+      "TABLE_NAME": "tutorial_eval_drafts",
+      "COLUMN_NAME": "professorUserId",
+      "DATA_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL"
+    },
+    {
+      "TABLE_NAME": "tutorial_eval_drafts",
+      "COLUMN_NAME": "organizacao",
+      "DATA_TYPE": "decimal",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0"
+    },
+    {
+      "TABLE_NAME": "tutorial_eval_drafts",
+      "COLUMN_NAME": "cooperacao",
+      "DATA_TYPE": "decimal",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0"
+    },
+    {
+      "TABLE_NAME": "tutorial_eval_drafts",
+      "COLUMN_NAME": "conteudo",
+      "DATA_TYPE": "decimal",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0"
+    },
+    {
+      "TABLE_NAME": "tutorial_eval_drafts",
+      "COLUMN_NAME": "objetivo",
+      "DATA_TYPE": "decimal",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0"
+    },
+    {
+      "TABLE_NAME": "tutorial_eval_drafts",
+      "COLUMN_NAME": "metas",
+      "DATA_TYPE": "decimal",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0"
+    },
+    {
+      "TABLE_NAME": "tutorial_eval_drafts",
+      "COLUMN_NAME": "savedAt",
+      "DATA_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP"
+    }
+  ],
+  "messages": [],
+  "stdout": "TABLE_NAME\tCOLUMN_NAME\tDATA_TYPE\tIS_NULLABLE\tCOLUMN_DEFAULT\nbrainstorm_boards\tid\tint\tNO\tNULL\nbrainstorm_boards\tsessionId\tint\tNO\tNULL\nbrainstorm_boards\tmesaStudentId\tint\tNO\tNULL\nbrainstorm_boards\tcreatedAt\ttimestamp\tNO\tCURRENT_TIMESTAMP\nbrainstorm_boards\tupdatedAt\ttimestamp\tNO\tCURRENT_TIMESTAMP\nbrainstorm_boards\ttutorComments\ttext\tYES\tNULL\nbrainstorm_items\tid\tint\tNO\tNULL\nbrainstorm_items\tboardId\tint\tNO\tNULL\nbrainstorm_items\tsection\tenum\tNO\tNULL\nbrainstorm_items\tcontent\ttext\tNO\tNULL\nbrainstorm_items\tstatus\tvarchar\tNO\tdefault\nbrainstorm_items\tattachmentUrl\tvarchar\tYES\tNULL\nbrainstorm_items\tattachmentType\tenum\tYES\tNULL\nbrainstorm_items\tsortOrder\tint\tNO\t0\nbrainstorm_items\tcreatedAt\ttimestamp\tNO\tCURRENT_TIMESTAMP\nbrainstorm_items\tupdatedAt\ttimestamp\tNO\tCURRENT_TIMESTAMP\nprofessor_student_notes\tid\tint\tNO\tNULL\nprofessor_student_notes\tsessionId\tint\tNO\tNULL\nprofessor_student_notes\tstudentId\tint\tNO\tNULL\nprofessor_student_notes\tprofessorUserId\tint\tNO\tNULL\nprofessor_student_notes\tpositivePoints\tint\tNO\t0\nprofessor_student_notes\tnegativePoints\tint\tNO\t0\nprofessor_student_notes\tnotes\ttext\tYES\tNULL\nprofessor_student_notes\tupdatedAt\ttimestamp\tNO\tCURRENT_TIMESTAMP\nprofessor_student_notes\tpositiveTexts\tjson\tYES\tNULL\nprofessor_student_notes\tnegativeTexts\tjson\tYES\tNULL\nsession_students\tid\tint\tNO\tNULL\nsession_students\tsessionId\tint\tNO\tNULL\nsession_students\tstudentId\tint\tNO\tNULL\nsession_students\trole\tenum\tNO\tPARTICIPANTE\nsession_students\tabsent\ttinyint\tNO\t0\ntutorial_eval_drafts\tid\tint\tNO\tNULL\ntutorial_eval_drafts\tsessionId\tint\tNO\tNULL\ntutorial_eval_drafts\tprofessorUserId\tint\tNO\tNULL\ntutorial_eval_drafts\torganizacao\tdecimal\tNO\t0\ntutorial_eval_drafts\tcooperacao\tdecimal\tNO\t0\ntutorial_eval_drafts\tconteudo\tdecimal\tNO\t0\ntutorial_eval_drafts\tobjetivo\tdecimal\tNO\t0\ntutorial_eval_drafts\tmetas\tdecimal\tNO\t0\ntutorial_eval_drafts\tsavedAt\ttimestamp\tNO\tCURRENT_TIMESTAMP\n",
+  "stderr": "",
+  "execution_time_ms": 340
+}
