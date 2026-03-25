@@ -526,21 +526,44 @@ function TutorialEvalContent() {
   };
 
   // Manual draft save
+  // IMPORTANT: Use scoresRef.current and studentNotesRef.current (not scores/studentNotes from closure)
+  // to always get the latest values at the time of the click, avoiding stale closure bugs.
   const handleSaveDraft = () => {
     if (!selectedSessionId) { toast.error("Selecione uma sessão"); return; }
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    if (notesAutoSaveTimerRef.current) clearTimeout(notesAutoSaveTimerRef.current);
     setDraftSaving(true);
-    // Save student notes first, then save draft
-    const allNotes = buildAllNotesPayload();
+    // Capture current values from refs to avoid stale closure
+    const currentScores = { ...scoresRef.current };
+    const currentSessionId = parseInt(selectedSessionId);
+    // Build notes payload from ref (not from state closure)
+    const allNotes = sessionStudents ? sessionStudents.map((student: any) => {
+      const note = studentNotesRef.current[student.studentId] ?? {
+        studentId: student.studentId,
+        positivePoints: 0,
+        negativePoints: 0,
+        positiveTexts: [""],
+        negativeTexts: [""],
+        notes: "",
+      };
+      return {
+        studentId: student.studentId,
+        positivePoints: note.positivePoints,
+        negativePoints: note.negativePoints,
+        positiveTexts: note.positiveTexts ?? [],
+        negativeTexts: note.negativeTexts ?? [],
+        notes: note.notes || null,
+      };
+    }) : [];
     if (allNotes.length > 0) {
       saveStudentNotesMutation.mutate({
-        sessionId: sessionIdNum,
+        sessionId: currentSessionId,
         notes: allNotes,
       }, {
         onSuccess: () => {
           saveDraftMutation.mutate({
-            sessionId: sessionIdNum,
-            ...scores,
+            sessionId: currentSessionId,
+            ...currentScores,
           }, {
             onSuccess: () => {
               toast.success("Rascunho salvo com sucesso!");
@@ -550,8 +573,8 @@ function TutorialEvalContent() {
         onError: () => {
           // Still try to save draft even if notes fail
           saveDraftMutation.mutate({
-            sessionId: sessionIdNum,
-            ...scores,
+            sessionId: currentSessionId,
+            ...currentScores,
           }, {
             onSuccess: () => {
               toast.success("Rascunho salvo (anotações não puderam ser salvas).");
@@ -561,8 +584,8 @@ function TutorialEvalContent() {
       });
     } else {
       saveDraftMutation.mutate({
-        sessionId: sessionIdNum,
-        ...scores,
+        sessionId: currentSessionId,
+        ...currentScores,
       }, {
         onSuccess: () => {
           toast.success("Rascunho salvo com sucesso!");
@@ -579,17 +602,37 @@ function TutorialEvalContent() {
     if (!selectedSessionId) { toast.error("Selecione uma sessão"); return; }
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     if (notesAutoSaveTimerRef.current) clearTimeout(notesAutoSaveTimerRef.current);
+    // Capture current values from refs to avoid stale closure
+    const currentScores = { ...scoresRef.current };
+    const currentSessionId = parseInt(selectedSessionId);
     const doSubmit = () => {
       submitMutation.mutate({
-        sessionId: sessionIdNum,
-        ...scores,
+        sessionId: currentSessionId,
+        ...currentScores,
       });
     };
     // Save student notes first, then submit — ensures notes are persisted before session closes
-    const allNotes = buildAllNotesPayload();
+    const allNotes = sessionStudents ? sessionStudents.map((student: any) => {
+      const note = studentNotesRef.current[student.studentId] ?? {
+        studentId: student.studentId,
+        positivePoints: 0,
+        negativePoints: 0,
+        positiveTexts: [""],
+        negativeTexts: [""],
+        notes: "",
+      };
+      return {
+        studentId: student.studentId,
+        positivePoints: note.positivePoints,
+        negativePoints: note.negativePoints,
+        positiveTexts: note.positiveTexts ?? [],
+        negativeTexts: note.negativeTexts ?? [],
+        notes: note.notes || null,
+      };
+    }) : [];
     if (allNotes.length > 0) {
       saveStudentNotesMutation.mutate({
-        sessionId: sessionIdNum,
+        sessionId: currentSessionId,
         notes: allNotes,
       }, {
         onSuccess: doSubmit,

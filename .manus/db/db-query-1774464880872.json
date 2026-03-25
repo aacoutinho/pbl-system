@@ -1,0 +1,27 @@
+{
+  "query": "\nSELECT s.id as session_id, s.status, s.problemNumber, s.sessionNumber, \n       c.classCode,\n       ted.id as draft_id, ted.organizacao, ted.cooperacao, ted.conteudo, ted.objetivo, ted.metas, ted.savedAt,\n       te.id as eval_id, te.organizacao as eval_org, te.cooperacao as eval_coop\nFROM sessions s\nJOIN classes c ON s.classId = c.id\nLEFT JOIN tutorial_eval_drafts ted ON ted.sessionId = s.id\nLEFT JOIN tutorial_evaluations te ON te.sessionId = s.id\nWHERE c.classCode = 'TP03' AND s.problemNumber = 1 AND s.sessionNumber = 3\nLIMIT 5;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute \nSELECT s.id as session_id, s.status, s.problemNumber, s.sessionNumber, \n       c.classCode,\n       ted.id as draft_id, ted.organizacao, ted.cooperacao, ted.conteudo, ted.objetivo, ted.metas, ted.savedAt,\n       te.id as eval_id, te.organizacao as eval_org, te.cooperacao as eval_coop\nFROM sessions s\nJOIN classes c ON s.classId = c.id\nLEFT JOIN tutorial_eval_drafts ted ON ted.sessionId = s.id\nLEFT JOIN tutorial_evaluations te ON te.sessionId = s.id\nWHERE c.classCode = 'TP03' AND s.problemNumber = 1 AND s.sessionNumber = 3\nLIMIT 5;\n",
+  "rows": [
+    {
+      "session_id": "720003",
+      "status": "closed",
+      "problemNumber": "1",
+      "sessionNumber": "3",
+      "classCode": "TP03",
+      "draft_id": "150002",
+      "organizacao": "0.75",
+      "cooperacao": "1.00",
+      "conteudo": "1.00",
+      "objetivo": "0.75",
+      "metas": "0.75",
+      "savedAt": "2026-03-24 20:08:25",
+      "eval_id": "NULL",
+      "eval_org": "NULL",
+      "eval_coop": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "session_id\tstatus\tproblemNumber\tsessionNumber\tclassCode\tdraft_id\torganizacao\tcooperacao\tconteudo\tobjetivo\tmetas\tsavedAt\teval_id\teval_org\teval_coop\n720003\tclosed\t1\t3\tTP03\t150002\t0.75\t1.00\t1.00\t0.75\t0.75\t2026-03-24 20:08:25\tNULL\tNULL\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 368
+}
