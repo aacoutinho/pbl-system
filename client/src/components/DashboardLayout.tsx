@@ -41,7 +41,7 @@ const baseMenuItems = [
   { icon: BookOpen, label: "Turmas", path: "/classes" },
   { icon: Users, label: "Alunos", path: "/students" },
   { icon: ClipboardList, label: "Sessões", path: "/sessions" },
-  { icon: BarChart3, label: "Resultados", path: "/results" },
+  { icon: BarChart3, label: "Desempenho", path: "/results" },
   { icon: UserCheck, label: "Professores", path: "/professors" },
 ];
 

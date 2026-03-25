@@ -803,3 +803,5 @@
 ## Bug Salvamento Rascunho Avaliação Tutorial (Mar 2026)
 - [x] Corrigir: critérios de avaliação (organizacao, cooperacao, conteudo, objetivo, metas) não são salvos corretamente no rascunho
 - [x] Corrigir: pontos positivos/negativos dos alunos não são salvos corretamente no rascunho
+## Renomeação de Folha (Mar 2026)
+- [x] Renomear folha "Resultados" para "Desempenho" na navegação

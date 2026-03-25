@@ -530,7 +530,7 @@ function ResultsContent() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Resultados"
+        title="Desempenho"
         componentLabel={selectedComponentFullLabel}
         semester={selectedSemester}
         classCode={selectedClassCode}
