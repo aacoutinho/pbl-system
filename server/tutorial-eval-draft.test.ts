@@ -263,3 +263,247 @@ describe("Updated session state transitions for draft support", () => {
     expect(allowedTransitions["finished"]).toContain("open");
   });
 });
+
+describe("Draft loading on component remount (lastLoadedSessionRef behavior)", () => {
+  // Simulates the logic in TutorialEvalPage useEffect for loading draft/eval
+  function simulateDraftLoadEffect(params: {
+    lastLoadedSession: string;
+    selectedSessionId: string;
+    existingEval: object | null;
+    existingDraft: { organizacao: number; cooperacao: number; conteudo: number; objetivo: number; metas: number } | null;
+    evalLoading: boolean;
+    draftLoading: boolean;
+    isLoadingSessions: boolean;
+    currentScores: Record<string, number>;
+  }): {
+    scores: Record<string, number>;
+    hasDraft: boolean;
+    lastLoadedSession: string;
+    didReturn: boolean;
+  } {
+    const DEFAULT_SCORES = { organizacao: 1.0, cooperacao: 1.0, conteudo: 1.0, objetivo: 1.0, metas: 1.0 };
+    let scores = { ...params.currentScores };
+    let hasDraft = false;
+    let lastLoadedSession = params.lastLoadedSession;
+    let didReturn = false;
+
+    const sessionChanged = lastLoadedSession !== params.selectedSessionId;
+
+    if (params.existingEval) {
+      // Always load finalized evaluations
+      scores = { organizacao: 0.5, cooperacao: 0.5, conteudo: 0.5, objetivo: 0.5, metas: 0.5 }; // from eval
+      hasDraft = false;
+      if (sessionChanged) {
+        lastLoadedSession = params.selectedSessionId;
+      }
+    } else if (sessionChanged) {
+      // Wait until data has loaded
+      if (params.evalLoading || params.draftLoading || params.isLoadingSessions) {
+        didReturn = true;
+        return { scores, hasDraft, lastLoadedSession, didReturn };
+      }
+      if (params.existingDraft) {
+        scores = { ...params.existingDraft };
+        hasDraft = true;
+      } else {
+        scores = { ...DEFAULT_SCORES };
+        hasDraft = false;
+      }
+      lastLoadedSession = params.selectedSessionId;
+    }
+
+    return { scores, hasDraft, lastLoadedSession, didReturn };
+  }
+
+  it("should NOT update lastLoadedSession when data is still loading (prevents race condition)", () => {
+    // Simulates: component remounts, data still loading
+    const result = simulateDraftLoadEffect({
+      lastLoadedSession: "",       // reset on remount
+      selectedSessionId: "42",
+      existingEval: null,
+      existingDraft: null,         // undefined/null because still loading
+      evalLoading: true,           // still loading
+      draftLoading: true,          // still loading
+      isLoadingSessions: false,
+      currentScores: { organizacao: 1.0, cooperacao: 1.0, conteudo: 1.0, objetivo: 1.0, metas: 1.0 },
+    });
+
+    expect(result.didReturn).toBe(true);
+    // lastLoadedSession should NOT be updated yet
+    expect(result.lastLoadedSession).toBe("");
+  });
+
+  it("should load draft scores when data arrives after loading completes", () => {
+    // Simulates: data has arrived (evalLoading=false, draftLoading=false)
+    // lastLoadedSession still "" because previous call returned early
+    const draftScores = { organizacao: 0.25, cooperacao: 0.5, conteudo: 0.75, objetivo: 0.5, metas: 1.0 };
+    const result = simulateDraftLoadEffect({
+      lastLoadedSession: "",       // still "" because previous call returned early
+      selectedSessionId: "42",
+      existingEval: null,
+      existingDraft: draftScores,
+      evalLoading: false,          // loading complete
+      draftLoading: false,         // loading complete
+      isLoadingSessions: false,
+      currentScores: { organizacao: 1.0, cooperacao: 1.0, conteudo: 1.0, objetivo: 1.0, metas: 1.0 },
+    });
+
+    expect(result.didReturn).toBe(false);
+    expect(result.hasDraft).toBe(true);
+    expect(result.scores.organizacao).toBe(0.25);
+    expect(result.scores.cooperacao).toBe(0.5);
+    expect(result.scores.conteudo).toBe(0.75);
+    // lastLoadedSession should now be updated
+    expect(result.lastLoadedSession).toBe("42");
+  });
+
+  it("should NOT overwrite draft scores on subsequent renders (same session, data unchanged)", () => {
+    // Simulates: component already loaded, user has edited scores
+    const userEditedScores = { organizacao: 0.25, cooperacao: 0.25, conteudo: 0.25, objetivo: 0.25, metas: 0.25 };
+    const draftScores = { organizacao: 0.75, cooperacao: 0.75, conteudo: 0.75, objetivo: 0.75, metas: 0.75 };
+    const result = simulateDraftLoadEffect({
+      lastLoadedSession: "42",     // already loaded
+      selectedSessionId: "42",     // same session
+      existingEval: null,
+      existingDraft: draftScores,
+      evalLoading: false,
+      draftLoading: false,
+      isLoadingSessions: false,
+      currentScores: userEditedScores,
+    });
+
+    expect(result.didReturn).toBe(false);
+    // Scores should NOT be overwritten (sessionChanged=false)
+    expect(result.scores).toEqual(userEditedScores);
+  });
+
+  it("should load draft when switching to a different session", () => {
+    const draftScores = { organizacao: 0.5, cooperacao: 0.5, conteudo: 0.5, objetivo: 0.5, metas: 0.5 };
+    const result = simulateDraftLoadEffect({
+      lastLoadedSession: "41",     // previously loaded session 41
+      selectedSessionId: "42",     // switched to session 42
+      existingEval: null,
+      existingDraft: draftScores,
+      evalLoading: false,
+      draftLoading: false,
+      isLoadingSessions: false,
+      currentScores: { organizacao: 1.0, cooperacao: 1.0, conteudo: 1.0, objetivo: 1.0, metas: 1.0 },
+    });
+
+    expect(result.didReturn).toBe(false);
+    expect(result.hasDraft).toBe(true);
+    expect(result.scores).toEqual(draftScores);
+    expect(result.lastLoadedSession).toBe("42");
+  });
+
+  it("should reset to DEFAULT_SCORES when no draft exists for new session", () => {
+    const DEFAULT_SCORES = { organizacao: 1.0, cooperacao: 1.0, conteudo: 1.0, objetivo: 1.0, metas: 1.0 };
+    const result = simulateDraftLoadEffect({
+      lastLoadedSession: "",
+      selectedSessionId: "42",
+      existingEval: null,
+      existingDraft: null,         // no draft
+      evalLoading: false,
+      draftLoading: false,
+      isLoadingSessions: false,
+      currentScores: { organizacao: 0.5, cooperacao: 0.5, conteudo: 0.5, objetivo: 0.5, metas: 0.5 },
+    });
+
+    expect(result.didReturn).toBe(false);
+    expect(result.hasDraft).toBe(false);
+    expect(result.scores).toEqual(DEFAULT_SCORES);
+  });
+
+  it("should NOT update lastLoadedSession when sessions are still loading", () => {
+    const result = simulateDraftLoadEffect({
+      lastLoadedSession: "",
+      selectedSessionId: "42",
+      existingEval: null,
+      existingDraft: null,
+      evalLoading: false,
+      draftLoading: false,
+      isLoadingSessions: true,     // sessions still loading
+      currentScores: { organizacao: 1.0, cooperacao: 1.0, conteudo: 1.0, objetivo: 1.0, metas: 1.0 },
+    });
+
+    expect(result.didReturn).toBe(true);
+    expect(result.lastLoadedSession).toBe("");
+  });
+});
+
+describe("Student notes loading behavior", () => {
+  // Simulates the logic in TutorialEvalPage useEffect for loading student notes
+  function simulateNotesLoadEffect(params: {
+    existingStudentNotes: Array<{ studentId: number; positivePoints: number; negativePoints: number; positiveTexts: string[] | null; negativeTexts: string[] | null; notes: string | null }> | undefined;
+    currentNotes: Record<number, object>;
+  }): {
+    notes: Record<number, object>;
+    didReturn: boolean;
+  } {
+    let notes = { ...params.currentNotes };
+    let didReturn = false;
+
+    if (params.existingStudentNotes === undefined) {
+      // Still loading — do not clear existing notes
+      didReturn = true;
+      return { notes, didReturn };
+    }
+
+    if (params.existingStudentNotes && params.existingStudentNotes.length > 0) {
+      const notesMap: Record<number, object> = {};
+      for (const n of params.existingStudentNotes) {
+        notesMap[n.studentId] = {
+          studentId: n.studentId,
+          positivePoints: n.positivePoints,
+          negativePoints: n.negativePoints,
+          positiveTexts: n.positiveTexts ?? Array(10).fill(""),
+          negativeTexts: n.negativeTexts ?? Array(10).fill(""),
+          notes: n.notes ?? "",
+        };
+      }
+      notes = notesMap;
+    } else {
+      notes = {};
+    }
+
+    return { notes, didReturn };
+  }
+
+  it("should NOT clear notes when existingStudentNotes is undefined (still loading)", () => {
+    const existingNotes = { 1: { studentId: 1, positivePoints: 2, negativePoints: 1, positiveTexts: ["bom"], negativeTexts: [], notes: "" } };
+    const result = simulateNotesLoadEffect({
+      existingStudentNotes: undefined,  // still loading
+      currentNotes: existingNotes,
+    });
+
+    expect(result.didReturn).toBe(true);
+    // Notes should NOT be cleared
+    expect(result.notes).toEqual(existingNotes);
+  });
+
+  it("should load notes when existingStudentNotes arrives with data", () => {
+    const serverNotes = [
+      { studentId: 1, positivePoints: 3, negativePoints: 2, positiveTexts: ["excelente"], negativeTexts: ["precisa melhorar"], notes: "observação" },
+    ];
+    const result = simulateNotesLoadEffect({
+      existingStudentNotes: serverNotes,
+      currentNotes: {},
+    });
+
+    expect(result.didReturn).toBe(false);
+    expect(result.notes[1]).toBeDefined();
+    expect((result.notes[1] as any).positivePoints).toBe(3);
+    expect((result.notes[1] as any).negativePoints).toBe(2);
+  });
+
+  it("should clear notes when existingStudentNotes is empty array (no notes in DB)", () => {
+    const existingNotes = { 1: { studentId: 1, positivePoints: 2, negativePoints: 1, positiveTexts: [], negativeTexts: [], notes: "" } };
+    const result = simulateNotesLoadEffect({
+      existingStudentNotes: [],  // empty array (not undefined)
+      currentNotes: existingNotes,
+    });
+
+    expect(result.didReturn).toBe(false);
+    expect(result.notes).toEqual({});
+  });
+});

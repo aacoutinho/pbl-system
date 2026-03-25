@@ -795,3 +795,8 @@
 - [ ] Adicionar botão Salvar Rascunho no quadro de brainstorm
 - [ ] Permitir professor marcar aluno de presente→faltou após sessão fechada (não o inverso)
 - [ ] Implementar sessão persistente para alunos (token com expiração, sem necessidade de novo código)
+## Bug Rascunho Avaliação Tutorial (Mar 2026)
+- [x] Corrigir carregamento de conceitos (scores) do rascunho ao remontar TutorialEvalPage: lastLoadedSessionRef não era atualizado durante loading, causando race condition onde draft nunca era carregado após navegação
+- [x] Corrigir carregamento de anotações de alunos: useEffect não limpava notas quando existingStudentNotes era undefined (loading), evitando perda de dados ao remontar
+- [x] Adicionar verificação de isLoadingSessions no useEffect para evitar execução prematura antes das permissões serem carregadas
+- [x] Testes: 9 novos testes para comportamento de lastLoadedSessionRef e carregamento de notas (974 testes passando)

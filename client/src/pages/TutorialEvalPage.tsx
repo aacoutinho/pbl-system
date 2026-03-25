@@ -278,6 +278,12 @@ function TutorialEvalContent() {
   const hasUserEditedRef = useRef(false);
 
   // Load existing evaluation or draft ONLY when session changes
+  // NOTE: We only mark the session as "loaded" once the data has actually arrived
+  // (not during loading). This prevents the race condition where:
+  // 1. Component remounts → lastLoadedSessionRef resets to ""
+  // 2. useEffect fires with existingDraft=undefined (still loading) → sessionChanged=true → sets DEFAULT_SCORES
+  // 3. lastLoadedSessionRef is updated to selectedSessionId
+  // 4. existingDraft arrives → useEffect fires again → sessionChanged=false → draft is NEVER loaded
   useEffect(() => {
     const sessionChanged = lastLoadedSessionRef.current !== selectedSessionId;
     
@@ -292,8 +298,18 @@ function TutorialEvalContent() {
       });
       setHasDraft(false);
       hasUserEditedRef.current = false;
+      if (sessionChanged) {
+        setLastAutoSaved(null);
+        lastLoadedSessionRef.current = selectedSessionId;
+      }
     } else if (sessionChanged) {
       // Only load draft/defaults when switching to a different session
+      // Wait until data has loaded (not undefined from loading state)
+      // Also wait for sessions to load so canEvaluateSelected is accurate
+      if (evalLoading || draftLoading || isLoadingSessions) {
+        // Data still loading — do not update ref yet, wait for data to arrive
+        return;
+      }
       if (existingDraft) {
         setScores({
           organizacao: Number(existingDraft.organizacao),
@@ -308,17 +324,19 @@ function TutorialEvalContent() {
         setHasDraft(false);
       }
       hasUserEditedRef.current = false;
-    }
-    // If same session and user has edited, do NOT overwrite local scores
-    
-    if (sessionChanged) {
       setLastAutoSaved(null);
       lastLoadedSessionRef.current = selectedSessionId;
     }
-  }, [existingEval, existingDraft, selectedSessionId]);
+    // If same session and user has edited, do NOT overwrite local scores
+  }, [existingEval, existingDraft, selectedSessionId, evalLoading, draftLoading, isLoadingSessions]);
 
   // Load existing student notes
+  // Only clear notes when existingStudentNotes is explicitly empty (not undefined/loading)
   useEffect(() => {
+    if (existingStudentNotes === undefined) {
+      // Still loading — do not clear existing notes
+      return;
+    }
     if (existingStudentNotes && existingStudentNotes.length > 0) {
       const notesMap: Record<number, StudentNote> = {};
       for (const n of existingStudentNotes) {
