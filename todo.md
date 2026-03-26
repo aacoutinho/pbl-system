@@ -818,3 +818,6 @@
 
 ## Verificação Backup/Restauração (Mar 2026)
 - [x] Verificar compatibilidade das funcionalidades de Backup e Restauração com o esquema atual do banco — todas as 25 tabelas presentes, ordem FK correta, sem incompatibilidades
+
+## Slider e Campo Numérico nos Critérios de Avaliação (Mar 2026)
+- [x] Adicionar slider deslizante (precisão 0.1) e campo de texto X.X para cada critério na TutorialEvalPage, sincronizados com os botões de conceito

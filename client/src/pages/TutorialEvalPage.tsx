@@ -1033,6 +1033,30 @@ function TutorialEvalContent() {
   );
 }
 
+// Snap points for concept buttons (0, 0.25, 0.5, 0.75, 1.0)
+const SNAP_POINTS = [0, 0.25, 0.5, 0.75, 1.0];
+
+// Convert internal fraction (0-1) to display grade (0.0-10.0)
+function fractionToGrade(v: number): string {
+  return (Math.round(v * 100) / 10).toFixed(1);
+}
+
+// Convert display grade string to internal fraction
+function gradeToFraction(s: string): number | null {
+  const n = parseFloat(s);
+  if (isNaN(n) || n < 0 || n > 10) return null;
+  return Math.round(n * 10) / 100;
+}
+
+// Get track fill color based on value
+function getTrackColor(v: number): string {
+  if (v <= 0) return "#ef4444";
+  if (v <= 0.25) return "#f97316";
+  if (v <= 0.5) return "#f59e0b";
+  if (v <= 0.75) return "#65a30d";
+  return "#059669";
+}
+
 function CriterionSelector({ label, weight, gender, description, value, onChange }: {
   label: string;
   weight: number;
@@ -1042,6 +1066,50 @@ function CriterionSelector({ label, weight, gender, description, value, onChange
   onChange: (v: number) => void;
 }) {
   const labels = gender === "masc" ? LABELS_MASC : LABELS;
+  const [inputText, setInputText] = useState(() => fractionToGrade(value));
+  const [inputFocused, setInputFocused] = useState(false);
+
+  // Sync inputText when value changes externally (e.g. from button click or load)
+  useEffect(() => {
+    if (!inputFocused) {
+      setInputText(fractionToGrade(value));
+    }
+  }, [value, inputFocused]);
+
+  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = parseFloat(e.target.value);
+    // round to 1 decimal of fraction = 0.1 steps
+    const snapped = Math.round(raw * 10) / 10;
+    onChange(snapped);
+    setInputText(fractionToGrade(snapped));
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputText(e.target.value);
+  };
+
+  const handleInputBlur = () => {
+    setInputFocused(false);
+    const frac = gradeToFraction(inputText);
+    if (frac !== null) {
+      // clamp to 0-1
+      const clamped = Math.min(1, Math.max(0, frac));
+      onChange(clamped);
+      setInputText(fractionToGrade(clamped));
+    } else {
+      // revert to current value
+      setInputText(fractionToGrade(value));
+    }
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      (e.target as HTMLInputElement).blur();
+    }
+  };
+
+  const trackColor = getTrackColor(value);
+  const fillPct = value * 100;
 
   return (
     <div className="space-y-3">
@@ -1058,6 +1126,8 @@ function CriterionSelector({ label, weight, gender, description, value, onChange
         </Tooltip>
       </div>
       <p className="text-sm text-muted-foreground">{description}</p>
+
+      {/* Concept buttons */}
       <div className="flex gap-2 flex-wrap">
         {labels.map((opt) => {
           const gradeColor = opt.value <= 0 ? "border-red-400 hover:bg-red-50" 
@@ -1088,6 +1158,100 @@ function CriterionSelector({ label, weight, gender, description, value, onChange
           );
         })}
       </div>
+
+      {/* Slider + numeric input row */}
+      <div className="flex items-center gap-3 pt-1">
+        {/* Slider container */}
+        <div className="relative flex-1">
+          {/* Concept snap markers */}
+          <div className="relative w-full mb-1">
+            {SNAP_POINTS.map((pt) => (
+              <div
+                key={pt}
+                className="absolute flex flex-col items-center"
+                style={{ left: `${pt * 100}%`, transform: "translateX(-50%)" }}
+              >
+                <div className="w-px h-2 bg-border" />
+              </div>
+            ))}
+          </div>
+
+          {/* Custom styled range input */}
+          <div className="relative h-2 rounded-full bg-muted overflow-visible">
+            {/* Filled track */}
+            <div
+              className="absolute top-0 left-0 h-full rounded-full transition-all duration-100"
+              style={{ width: `${fillPct}%`, backgroundColor: trackColor }}
+            />
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.1}
+              value={value}
+              onChange={handleSliderChange}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              style={{ margin: 0 }}
+            />
+            {/* Thumb */}
+            <div
+              className="absolute top-1/2 -translate-y-1/2 w-5 h-5 rounded-full border-2 border-white shadow-md transition-all duration-100 pointer-events-none"
+              style={{
+                left: `${fillPct}%`,
+                transform: `translateX(-50%) translateY(-50%)`,
+                backgroundColor: trackColor,
+              }}
+            />
+          </div>
+
+          {/* Concept labels below snap points */}
+          <div className="relative w-full mt-2">
+            {labels.map((opt) => (
+              <div
+                key={opt.value}
+                className="absolute flex flex-col items-center"
+                style={{ left: `${opt.value * 100}%`, transform: "translateX(-50%)" }}
+              >
+                <span
+                  className={cn(
+                    "text-[10px] whitespace-nowrap transition-colors",
+                    Math.abs(value - opt.value) < 0.01
+                      ? "font-bold"
+                      : "text-muted-foreground"
+                  )}
+                  style={{
+                    color: Math.abs(value - opt.value) < 0.01 ? trackColor : undefined,
+                  }}
+                >
+                  {opt.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Numeric input */}
+        <div className="flex items-center gap-1 shrink-0">
+          <input
+            type="text"
+            inputMode="decimal"
+            value={inputText}
+            onChange={handleInputChange}
+            onFocus={() => setInputFocused(true)}
+            onBlur={handleInputBlur}
+            onKeyDown={handleInputKeyDown}
+            className={cn(
+              "w-16 text-center text-base font-bold rounded-md border px-2 py-1 transition-colors",
+              "focus:outline-none focus:ring-2 focus:ring-ring",
+              "bg-background"
+            )}
+            style={{ color: trackColor, borderColor: trackColor }}
+          />
+          <span className="text-xs text-muted-foreground">/10</span>
+        </div>
+      </div>
+      {/* Spacer for label row below slider */}
+      <div className="h-5" />
     </div>
   );
 }
