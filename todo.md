@@ -843,3 +843,6 @@
 
 ## Barra Slider no Formulário de Avaliação dos Pares (Mar 2026)
 - [x] Aplicar barra slider 0–10 (igual ao CriterionSelector do Tutorial) no formulário de avaliação dos pares dos alunos
+
+## Prévia do Formulário de Avaliação dos Pares (Mar 2026)
+- [x] Atualizar prévia do formulário de avaliação dos pares para ser idêntica e funcional (CriteriaSlider interativo, igual ao formulário dos alunos)

@@ -1,43 +1,310 @@
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { HelpCircle, Send, Eye } from "lucide-react";
+import { HelpCircle, Send, Eye, RotateCcw, CheckCircle2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-const SCORE_LABELS_FEM: Record<string, string> = {
-  "0.00": "Nenhuma",
-  "0.25": "Fraca",
-  "0.50": "Razoável",
-  "0.75": "Boa",
-  "1.00": "Excelente",
-};
+// ─── CriteriaSlider (idêntico ao do StudentAccessPage) ───
 
-const SCORE_LABELS_MASC: Record<string, string> = {
-  "0.00": "Nenhum",
-  "0.25": "Fraco",
-  "0.50": "Razoável",
-  "0.75": "Bom",
-  "1.00": "Excelente",
-};
+const CS_SNAP_POINTS = [0, 0.25, 0.5, 0.75, 1.0];
 
-// Penalidade: 0 = sem penalidade (Excelente), 1 = penalidade máxima (Nenhum)
-const PENALTY_LABELS: Record<string, string> = {
-  "0.00": "Excelente",
-  "0.25": "Bom",
-  "0.50": "Razoável",
-  "0.75": "Fraco",
-  "1.00": "Nenhum",
-};
+const CS_LABELS_FEM = [
+  { label: "Nenhuma", value: 0 },
+  { label: "Fraca", value: 0.25 },
+  { label: "Razoável", value: 0.5 },
+  { label: "Boa", value: 0.75 },
+  { label: "Excelente", value: 1.0 },
+] as const;
 
-function getScoreLabel(value: number, gender: "fem" | "masc" = "fem", penalty?: boolean): string {
-  if (penalty) return PENALTY_LABELS[value.toFixed(2)] ?? value.toFixed(2);
-  const labels = gender === "masc" ? SCORE_LABELS_MASC : SCORE_LABELS_FEM;
-  return labels[value.toFixed(2)] ?? value.toFixed(2);
+const CS_LABELS_MASC = [
+  { label: "Nenhum", value: 0 },
+  { label: "Fraco", value: 0.25 },
+  { label: "Razoável", value: 0.5 },
+  { label: "Bom", value: 0.75 },
+  { label: "Excelente", value: 1.0 },
+] as const;
+
+const CS_LABELS_PENALTY = [
+  { label: "Nenhum", value: 1.0 },
+  { label: "Fraco", value: 0.75 },
+  { label: "Razoável", value: 0.5 },
+  { label: "Bom", value: 0.25 },
+  { label: "Excelente", value: 0.0 },
+] as const;
+
+function csGetTrackColor(v: number): string {
+  if (v <= 0) return "#ef4444";
+  if (v <= 0.25) return "#f97316";
+  if (v <= 0.5) return "#f59e0b";
+  if (v <= 0.75) return "#65a30d";
+  return "#059669";
 }
+
+function csPenaltyTrackColor(v: number): string {
+  if (v >= 1) return "#ef4444";
+  if (v >= 0.75) return "#f97316";
+  if (v >= 0.5) return "#f59e0b";
+  if (v >= 0.25) return "#65a30d";
+  return "#059669";
+}
+
+function csFractionToDisplay(v: number): string {
+  return (Math.round(v * 100) / 10).toFixed(1);
+}
+
+function csDisplayToFraction(s: string): number | null {
+  const n = parseFloat(s);
+  if (isNaN(n) || n < 0 || n > 10) return null;
+  return Math.round((n / 10) * 100) / 100;
+}
+
+function CriteriaSlider({ label, sublabel, tooltip, value, onChange, penalty, gender = "masc" }: {
+  label: string;
+  sublabel?: string;
+  tooltip?: string;
+  value: number;
+  onChange: (v: number) => void;
+  penalty?: boolean;
+  gender?: "fem" | "masc";
+}) {
+  const sliderFrac = penalty ? 1 - value : value;
+  const trackColor = penalty ? csPenaltyTrackColor(value) : csGetTrackColor(value);
+  const fillPct = sliderFrac * 100;
+
+  const [inputText, setInputText] = useState(() => csFractionToDisplay(sliderFrac));
+  const [inputFocused, setInputFocused] = useState(false);
+
+  useEffect(() => {
+    if (!inputFocused) {
+      setInputText(csFractionToDisplay(sliderFrac));
+    }
+  }, [sliderFrac, inputFocused]);
+
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = parseFloat(e.target.value);
+    const snapped = Math.round(raw * 10) / 100;
+    const newValue = penalty ? 1 - snapped : snapped;
+    onChange(newValue);
+    setInputText(csFractionToDisplay(snapped));
+  };
+
+  const handleTrackClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!trackRef.current) return;
+    const rect = trackRef.current.getBoundingClientRect();
+    const raw = (e.clientX - rect.left) / rect.width;
+    const clamped = Math.min(1, Math.max(0, raw));
+    const snapped = Math.round(clamped * 10) / 10;
+    const newValue = penalty ? 1 - snapped : snapped;
+    onChange(newValue);
+    setInputText(csFractionToDisplay(snapped));
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputText(e.target.value);
+  };
+
+  const handleInputBlur = () => {
+    setInputFocused(false);
+    const frac = csDisplayToFraction(inputText);
+    if (frac !== null) {
+      const clamped = Math.min(1, Math.max(0, frac));
+      const newValue = penalty ? 1 - clamped : clamped;
+      onChange(newValue);
+      setInputText(csFractionToDisplay(clamped));
+    } else {
+      setInputText(csFractionToDisplay(sliderFrac));
+    }
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+  };
+
+  const conceptLabels = penalty ? CS_LABELS_PENALTY : (gender === "masc" ? CS_LABELS_MASC : CS_LABELS_FEM);
+  const getConceptSliderPos = (conceptValue: number) => penalty ? 1 - conceptValue : conceptValue;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Label className="text-sm font-semibold">{label}</Label>
+        {tooltip && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <HelpCircle className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-sm text-xs">
+              <div className="space-y-1">
+                {tooltip.includes("|") ? tooltip.split(" | ").map((line, i) => {
+                  const [concept, ...rest] = line.split(": ");
+                  return rest.length > 0 ? (
+                    <p key={i}><strong className="text-foreground">{concept}:</strong> {rest.join(": ")}</p>
+                  ) : (
+                    <p key={i}>{line}</p>
+                  );
+                }) : <p>{tooltip}</p>}
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        )}
+        {sublabel && <span className="text-xs text-muted-foreground">({sublabel})</span>}
+      </div>
+
+      <div className="flex items-center gap-3 pt-1">
+        <div className="relative flex-1">
+          <div
+            ref={trackRef}
+            className="relative h-6 flex items-center cursor-pointer"
+            onClick={handleTrackClick}
+          >
+            <div className="absolute inset-y-0 left-0 right-0 my-auto h-2 rounded-full bg-muted" />
+            <div
+              className="absolute left-0 my-auto h-2 rounded-full transition-all duration-100"
+              style={{ width: `${fillPct}%`, top: 0, bottom: 0, margin: 'auto', backgroundColor: trackColor }}
+            />
+            {Array.from({ length: 101 }, (_, i) => Math.round(i) / 100).map((tick) => {
+              const isConcept = CS_SNAP_POINTS.includes(tick);
+              const isActive = Math.abs(sliderFrac - tick) < 0.005;
+              return (
+                <div
+                  key={tick}
+                  className="absolute pointer-events-none"
+                  style={{
+                    left: `${tick * 100}%`,
+                    top: '50%',
+                    transform: 'translateX(-50%) translateY(-50%)',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: isConcept ? '6px' : '3px',
+                      height: isConcept ? '14px' : '8px',
+                      borderRadius: '2px',
+                      backgroundColor: isActive ? 'white' : isConcept ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.15)',
+                      opacity: isActive ? 0 : 1,
+                    }}
+                  />
+                </div>
+              );
+            })}
+            <input
+              type="range"
+              min={0}
+              max={10}
+              step={0.1}
+              value={sliderFrac * 10}
+              onChange={handleSliderChange}
+              onClick={(e) => e.stopPropagation()}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              style={{ margin: 0 }}
+            />
+            <div
+              className="absolute w-5 h-5 rounded-full border-2 border-white shadow-md transition-all duration-100 pointer-events-none"
+              style={{
+                left: `${fillPct}%`,
+                top: '50%',
+                transform: 'translateX(-50%) translateY(-50%)',
+                backgroundColor: trackColor,
+              }}
+            />
+          </div>
+
+          <div className="relative w-full mt-2">
+            {conceptLabels.map((opt, idx) => {
+              const sliderPos = getConceptSliderPos(opt.value);
+              const isActive = Math.abs(sliderFrac - sliderPos) < 0.01;
+              const labelColor = penalty ? csPenaltyTrackColor(opt.value) : csGetTrackColor(opt.value);
+              const isFirst = idx === 0;
+              const isLast = idx === conceptLabels.length - 1;
+              const transformX = isFirst ? "0%" : isLast ? "-100%" : "-50%";
+              return (
+                <div
+                  key={opt.value}
+                  className="absolute flex flex-col items-center"
+                  style={{ left: `${sliderPos * 100}%`, transform: `translateX(${transformX})` }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onChange(opt.value);
+                      setInputText(csFractionToDisplay(sliderPos));
+                    }}
+                    className={cn(
+                      "text-[11px] whitespace-nowrap transition-all rounded px-1 py-0.5",
+                      "focus:outline-none focus:ring-1 focus:ring-ring",
+                      isActive ? "font-bold" : "text-muted-foreground hover:font-semibold"
+                    )}
+                    style={{ color: isActive ? labelColor : undefined }}
+                    title={`Definir como ${opt.label}`}
+                  >
+                    {opt.label}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1 shrink-0">
+          <input
+            type="text"
+            inputMode="decimal"
+            value={inputText}
+            onChange={handleInputChange}
+            onFocus={() => setInputFocused(true)}
+            onBlur={handleInputBlur}
+            onKeyDown={handleInputKeyDown}
+            className={cn(
+              "w-16 text-center text-base font-bold rounded-md border px-2 py-1 transition-colors",
+              "focus:outline-none focus:ring-2 focus:ring-ring",
+              "bg-background"
+            )}
+            style={{ color: trackColor, borderColor: trackColor }}
+          />
+          <span className="text-xs text-muted-foreground">/10</span>
+        </div>
+      </div>
+      <div className="h-5" />
+    </div>
+  );
+}
+
+// ─── Dados fictícios e tipos ───
+
+interface DemoPeer {
+  studentId: number;
+  studentName: string;
+  role: "COORDENADOR" | "MESA" | "QUADRO" | "PARTICIPANTE";
+}
+
+interface PeerEval {
+  pontualidade: number;
+  pesquisaMetas: number;
+  dominio: number;
+  participacao: number;
+  desempenhoPapel: number;
+}
+
+const demoPeers: DemoPeer[] = [
+  { studentId: 1, studentName: "Ana Clara Souza", role: "COORDENADOR" },
+  { studentId: 2, studentName: "Bruno Oliveira", role: "MESA" },
+  { studentId: 3, studentName: "Carlos Eduardo Lima", role: "QUADRO" },
+  { studentId: 4, studentName: "Diana Santos", role: "PARTICIPANTE" },
+];
+
+const defaultEval = (): PeerEval => ({
+  pontualidade: 1,
+  pesquisaMetas: 1,
+  dominio: 1,
+  participacao: 1,
+  desempenhoPapel: 0,
+});
 
 const roleLabels: Record<string, string> = {
   COORDENADOR: "Coordenador",
@@ -53,102 +320,54 @@ const roleBadgeColors: Record<string, string> = {
   PARTICIPANTE: "bg-gray-100 text-gray-700 border-gray-300",
 };
 
-function PreviewCriteriaSlider({ label, sublabel, tooltip, value, penalty, gender = "fem" }: {
-  label: string;
-  sublabel?: string;
-  tooltip?: string;
-  value: number;
-  penalty?: boolean;
-  gender?: "fem" | "masc";
-}) {
-  // Para penalidade: 0=Excelente (sem penalidade), 1=Nenhum (penalidade máxima)
-  // Slider exibido invertido: Nenhum à esquerda, Excelente à direita
-  const sliderValue = penalty ? 1 - value : value;
-  const color = penalty
-    ? (value === 0 ? "text-emerald-600" : value <= 0.25 ? "text-lime-600" : value <= 0.5 ? "text-amber-500" : value <= 0.75 ? "text-orange-600" : "text-red-600")
-    : (value >= 0.75 ? "text-emerald-600" : value >= 0.5 ? "text-amber-600" : "text-red-600");
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1">
-          <Label className="text-sm">{label}</Label>
-          {tooltip && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <HelpCircle className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-sm text-xs">
-                <div className="space-y-1">
-                  {tooltip.includes("|") ? tooltip.split(" | ").map((line, i) => {
-                    const [concept, ...rest] = line.split(": ");
-                    return rest.length > 0 ? (
-                      <p key={i}><strong>{concept}:</strong> {rest.join(": ")}</p>
-                    ) : (
-                      <p key={i}><em>{line}</em></p>
-                    );
-                  }) : <p>{tooltip}</p>}
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          )}
-          {sublabel && <span className="text-xs text-muted-foreground ml-1">({sublabel})</span>}
-        </div>
-        <span className={`text-sm font-bold ${color}`}>{getScoreLabel(value, penalty ? "masc" : gender, penalty)}</span>
-      </div>
-      <Slider
-        min={0}
-        max={1}
-        step={0.25}
-        value={[sliderValue]}
-        disabled
-        className="w-full opacity-70"
-      />
-      <div className="flex justify-between text-xs font-medium">
-        {penalty ? (
-          <>
-            <span className="text-red-600">Nenhum</span>
-            <span className="text-orange-600">Fraco</span>
-            <span className="text-amber-500">Razoável</span>
-            <span className="text-lime-600">Bom</span>
-            <span className="text-emerald-600">Excelente</span>
-          </>
-        ) : gender === "masc" ? (
-          <>
-            <span className="text-red-600">Nenhum</span>
-            <span className="text-orange-500">Fraco</span>
-            <span className="text-amber-500">Razoável</span>
-            <span className="text-lime-600">Bom</span>
-            <span className="text-emerald-600">Excelente</span>
-          </>
-        ) : (
-          <>
-            <span className="text-red-600">Nenhuma</span>
-            <span className="text-orange-500">Fraca</span>
-            <span className="text-amber-500">Razoável</span>
-            <span className="text-lime-600">Boa</span>
-            <span className="text-emerald-600">Excelente</span>
-          </>
-        )}
-      </div>
-    </div>
-  );
+function calcScore(ev: PeerEval, hasRolePenalty: boolean): number {
+  return ev.pontualidade * 1 + ev.pesquisaMetas * 3 + ev.dominio * 3 + ev.participacao * 3
+    - (hasRolePenalty ? ev.desempenhoPapel * 1 : 0);
 }
 
-// Dados fictícios dos colegas para a prévia
-const demoPeers = [
-  { studentId: 1, studentName: "Ana Clara Souza", role: "COORDENADOR", photoUrl: null },
-  { studentId: 2, studentName: "Bruno Oliveira", role: "MESA", photoUrl: null },
-  { studentId: 3, studentName: "Carlos Eduardo Lima", role: "QUADRO", photoUrl: null },
-  { studentId: 4, studentName: "Diana Santos", role: "PARTICIPANTE", photoUrl: null },
-];
+// ─── Diálogo de Prévia ───
 
 /**
  * Diálogo de prévia do formulário de avaliação dos alunos.
- * Mostra exatamente como o formulário aparece para os alunos, com dados fictícios.
- * Reflete o formulário atual: papel definido pelo professor (não editável), sem seleção de falta,
- * "Desempenho" apenas para Coordenador/Mesa/Quadro.
+ * Totalmente funcional: sliders interativos, campo numérico, conceitos clicáveis.
+ * Idêntico ao formulário preenchido pelos alunos.
  */
 export function EvaluationPreviewDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const [evaluations, setEvaluations] = useState<Record<number, PeerEval>>(() => {
+    const init: Record<number, PeerEval> = {};
+    demoPeers.forEach(p => { init[p.studentId] = defaultEval(); });
+    return init;
+  });
+  const [submitted, setSubmitted] = useState(false);
+
+  // Reset when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setTimeout(() => {
+        setEvaluations(() => {
+          const init: Record<number, PeerEval> = {};
+          demoPeers.forEach(p => { init[p.studentId] = defaultEval(); });
+          return init;
+        });
+        setSubmitted(false);
+      }, 300);
+    }
+  }, [open]);
+
+  const updateEval = (studentId: number, field: keyof PeerEval, value: number) => {
+    setEvaluations(prev => ({
+      ...prev,
+      [studentId]: { ...prev[studentId], [field]: value },
+    }));
+  };
+
+  const handleReset = () => {
+    const init: Record<number, PeerEval> = {};
+    demoPeers.forEach(p => { init[p.studentId] = defaultEval(); });
+    setEvaluations(init);
+    setSubmitted(false);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -158,131 +377,181 @@ export function EvaluationPreviewDialog({ open, onOpenChange }: { open: boolean;
             Prévia do Formulário de Avaliação
           </DialogTitle>
           <DialogDescription>
-            Visualização de como o formulário de avaliação entre pares aparece para os alunos.
-            Os controles estão desabilitados — esta é apenas uma prévia.
+            Simulação interativa do formulário de avaliação entre pares. Os controles estão totalmente funcionais — experimente mover os sliders.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 mt-2">
-          {/* Header info */}
-          <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 space-y-2">
-            <p className="text-sm text-blue-800">
-              <strong>Exemplo:</strong> O aluno vê este formulário para cada colega presente na sessão.
-              O papel de cada colega é definido pelo professor ao criar a sessão.
-              O critério "Desempenho" aparece apenas para Coordenador, Mesa e Quadro.
+        {submitted ? (
+          <div className="py-12 flex flex-col items-center gap-4 text-center">
+            <CheckCircle2 className="h-16 w-16 text-emerald-500" />
+            <h2 className="text-xl font-bold">Avaliação Enviada (Simulação)</h2>
+            <p className="text-muted-foreground max-w-sm">
+              Na versão real, os dados seriam enviados ao servidor e registrados. Esta é apenas uma prévia.
             </p>
-            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-              <strong>Importante:</strong> O preenchimento deste formulário é um requisito obrigatório para obtenção da nota de desempenho da sessão tutorial do componente. Avalie de forma objetiva e imparcial, baseando-se apenas nas contribuições e discussões ocorridas durante a sessão tutorial.
-            </p>
-          </div>
-
-          {/* Summary bar */}
-          <Card className="bg-primary/5 border-primary/20">
-            <CardContent className="pt-4 pb-4">
-              <div className="flex items-center justify-between text-sm">
-                <span>Avaliando <strong>{demoPeers.length}</strong> colegas</span>
-                <div className="flex gap-2">
-                  {demoPeers.map(p => (
-                    <Badge key={p.studentId} variant="outline" className={`text-xs ${roleBadgeColors[p.role]}`}>
-                      {roleLabels[p.role]}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Demo student cards */}
-          {demoPeers.map((peer) => {
-            const hasRolePenalty = ["COORDENADOR", "MESA", "QUADRO"].includes(peer.role);
-            const demoScore = 1 * 1 + 1 * 3 + 1 * 3 + 1 * 3; // 10.0 sem penalidade
-            return (
-              <Card key={peer.studentId}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center border-2 border-muted shrink-0">
-                        <span className="text-sm font-medium text-muted-foreground">
-                          {peer.studentName.charAt(0)}
-                        </span>
-                      </div>
-                      <div>
-                        <CardTitle className="text-base">{peer.studentName}</CardTitle>
-                        <Badge variant="outline" className={`text-xs mt-1 ${roleBadgeColors[peer.role]}`}>
-                          {roleLabels[peer.role]}
-                        </Badge>
-                      </div>
-                    </div>
-                    <Badge variant="outline" className="text-lg font-bold px-3 py-1 border-emerald-300 text-emerald-700">
-                      {demoScore.toFixed(1)}
-                    </Badge>
-                  </div>
-                </CardHeader>
-
-                <CardContent className="space-y-4">
-                  <Separator />
-
-                  <TooltipProvider>
-                    <div className="space-y-4">
-                      <PreviewCriteriaSlider
-                        label="Pontualidade"
-                        sublabel="Peso 1"
-                        tooltip="Excelente: Estava presente desde o início do tutorial, cumprindo integralmente o horário. | Boa: Chegou com até 10 minutos de atraso. | Razoável: Chegou com atraso considerável, mas antes da primeira hora. | Fraca: Chegou até 1h10 depois do início. | Nenhuma: Chegou após 1h10 do início."
-                        value={1}
-                        gender="fem"
-                      />
-                      <PreviewCriteriaSlider
-                        label="Pesquisa / Metas"
-                        sublabel="Peso 3"
-                        tooltip="Excelente: Cumpriu todas as metas e/ou realizou tarefas extras. | Boa: Realizou a pesquisa e cumpriu a maior parte das metas. | Razoável: Cumpriu parcialmente ou pesquisou de forma superficial. | Fraca: Resultados insuficientes ou pesquisas irrelevantes. | Nenhuma: Não realizou pesquisas nem cumpriu metas."
-                        value={1}
-                        gender="fem"
-                      />
-                      <PreviewCriteriaSlider
-                        label="Domínio do Assunto"
-                        sublabel="Peso 3"
-                        tooltip="Excelente: Trouxe novos conceitos e/ou corrigiu equívocos com clareza. | Bom: Compreendeu a maioria dos pontos e aplicou conceitos com segurança. | Razoável: Conhecimento básico, dificuldade para explicar ideias. | Fraco: Citou termos, mas não soube explicá-los. | Nenhum: Apenas ouvinte, sem demonstrar conhecimento."
-                        value={1}
-                        gender="masc"
-                      />
-                      <PreviewCriteriaSlider
-                        label="Participação"
-                        sublabel="Peso 3"
-                        tooltip="Excelente: Participou ativamente, estimulou o debate e aprofundou a discussão. | Boa: Contribuiu frequentemente, ouviu colegas e fez perguntas pertinentes. | Razoável: Participou pontualmente ou só quando solicitado. | Fraca: Contribuiu minimamente, dispersou atenção. | Nenhuma: Silêncio absoluto ou total desinteresse."
-                        value={1}
-                        gender="fem"
-                      />
-                      {hasRolePenalty && (
-                        <PreviewCriteriaSlider
-                          label="Desempenho no Papel"
-                          sublabel="Penalidade: até -1"
-                          tooltip={`Esta nota é subtraída da pontuação total (penalidade de até -1 ponto) e avalia o cumprimento das funções do papel atribuído. | Excelente: Cumpriu todas as funções da forma esperada. | Bom: Executou a maior parte das funções, mas falhou em pontos isolados. | Razoável: Tentou executar a função, mas deixou de realizar metade das tarefas. | Fraco: Realizou apenas tarefas mínimas ou superficiais. | Nenhum: Não cumpriu as funções essenciais de sua responsabilidade.`}
-                          value={0}
-                          penalty
-                        />
-                      )}
-                    </div>
-                  </TooltipProvider>
-                </CardContent>
-              </Card>
-            );
-          })}
-
-          {/* Disabled submit button */}
-          <div className="flex justify-end">
-            <Button size="lg" disabled className="shadow-md opacity-50">
-              <Send className="h-4 w-4 mr-2" />
-              Enviar Avaliação
+            <Button variant="outline" onClick={handleReset}>
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Reiniciar Prévia
             </Button>
           </div>
+        ) : (
+          <div className="space-y-4 mt-2">
+            {/* Header info */}
+            <div className="space-y-2">
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight">Sessão Tutorial — Exemplo</h1>
+                <p className="text-muted-foreground">
+                  Olá, <strong>Estudante Exemplo</strong>. Avalie o desempenho dos seus colegas.
+                </p>
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mt-2">
+                  <strong>Importante:</strong> O preenchimento deste formulário é um requisito obrigatório para obtenção da nota de desempenho da sessão tutorial do componente. Avalie de forma objetiva e imparcial, baseando-se apenas nas contribuições e discussões ocorridas durante a sessão tutorial.
+                </p>
+              </div>
+            </div>
 
-          {/* Explanation */}
-          <div className="p-3 rounded-lg bg-muted/50 border text-xs text-muted-foreground space-y-1">
-            <p><strong>Nota máxima possível:</strong> 10.0 pontos (Pontualidade ×1 + Pesquisa/Metas ×3 + Domínio ×3 + Participação ×3)</p>
-            <p><strong>Fórmula:</strong> Nota = (Pontualidade × 1) + (Pesquisa/Metas × 3) + (Domínio × 3) + (Participação × 3) − (Penalidade Papel × 1)</p>
-            <p><strong>Penalidade de Papel:</strong> Aplica-se apenas a Coordenador, Mesa e Quadro. Participantes não recebem penalidade.</p>
+            {/* Profile info card */}
+            <Card className="border-blue-200 bg-blue-50/50">
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center border-2 border-blue-300 shrink-0">
+                    <span className="text-sm font-medium text-blue-800">E</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">estudante@ecomp.uefs.br</p>
+                    <p className="text-xs text-muted-foreground">TEC502 - TP01 (2026.1)</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Summary bar */}
+            <Card className="bg-primary/5 border-primary/20">
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-center justify-between text-sm">
+                  <span>Avaliando <strong>{demoPeers.length}</strong> colegas</span>
+                  <div className="flex gap-2 flex-wrap">
+                    {demoPeers.filter(p => p.role !== "PARTICIPANTE").map(p => (
+                      <Badge key={p.role} variant="outline" className={`text-xs ${roleBadgeColors[p.role]}`}>
+                        {roleLabels[p.role]}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Peer cards — fully interactive */}
+            {demoPeers.map((peer) => {
+              const ev = evaluations[peer.studentId];
+              if (!ev) return null;
+              const hasRolePenalty = ["COORDENADOR", "MESA", "QUADRO"].includes(peer.role);
+              const totalScore = calcScore(ev, hasRolePenalty);
+
+              return (
+                <Card key={peer.studentId} className="transition-all">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center border-2 border-muted shrink-0">
+                          <span className="text-sm font-medium text-muted-foreground">
+                            {peer.studentName.charAt(0)}
+                          </span>
+                        </div>
+                        <div>
+                          <CardTitle className="text-base">{peer.studentName}</CardTitle>
+                          <Badge
+                            variant={peer.role === "PARTICIPANTE" ? "secondary" : "default"}
+                            className="text-xs mt-1"
+                          >
+                            {roleLabels[peer.role]}
+                          </Badge>
+                        </div>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={`text-lg font-bold px-3 py-1 ${
+                          totalScore >= 8 ? "border-emerald-300 text-emerald-700"
+                          : totalScore >= 5 ? "border-amber-300 text-amber-700"
+                          : "border-red-300 text-red-700"
+                        }`}
+                      >
+                        {totalScore.toFixed(1)}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="space-y-4">
+                    <Separator />
+                    <TooltipProvider>
+                      <div className="space-y-4">
+                        <CriteriaSlider
+                          label="Pontualidade"
+                          sublabel="Peso 1"
+                          tooltip="Excelente: Estava presente desde o início do tutorial, cumprindo integralmente o horário. | Boa: Chegou com até 10 minutos de atraso em relação ao início do tutorial. | Razoável: Chegou com atraso considerável, mas antes da primeira hora. | Fraca: Chegou até uma hora e 10 minutos depois do início do tutorial. | Nenhuma: Chegou após uma hora e 10 minutos do início do tutorial."
+                          value={ev.pontualidade}
+                          onChange={(v) => updateEval(peer.studentId, "pontualidade", v)}
+                          gender="fem"
+                        />
+                        <CriteriaSlider
+                          label="Pesquisa / Metas"
+                          sublabel="Peso 3"
+                          tooltip="Excelente: Cumpriu todas as metas e pesquisas propostas e/ou realizou tarefas extras não solicitadas. | Boa: Realizou a pesquisa e cumpriu a maior parte das metas propostas de forma satisfatória. | Razoável: Cumpriu as metas apenas parcialmente ou realizou a pesquisa de forma superficial/insuficiente. | Fraca: Entregou resultados insuficientes para o grupo ou trouxe pesquisas irrelevantes para os objetivos do tutorial. | Nenhuma: Não realizou as pesquisas solicitadas nem cumpriu qualquer uma das metas estabelecidas."
+                          value={ev.pesquisaMetas}
+                          onChange={(v) => updateEval(peer.studentId, "pesquisaMetas", v)}
+                          gender="fem"
+                        />
+                        <CriteriaSlider
+                          label="Domínio do Assunto"
+                          sublabel="Peso 3"
+                          tooltip="Excelente: Trouxe novos conceitos e/ou corrigiu com clareza equívocos apresentados pelo grupo. | Bom: Compreendeu a maioria dos pontos e aplicou os conceitos discutidos com segurança. | Razoável: Demonstrou conhecimento básico, mas apresentou dificuldade para explicar ou fundamentar suas ideias. | Fraco: Citou conceitos novos ou termos da área, porém não soube explicá-los ou aplicá-los corretamente. | Nenhum: Atuou apenas como ouvinte e não demonstrou qualquer conhecimento sobre o tema proposto."
+                          value={ev.dominio}
+                          onChange={(v) => updateEval(peer.studentId, "dominio", v)}
+                          gender="masc"
+                        />
+                        <CriteriaSlider
+                          label="Participação"
+                          sublabel="Peso 3"
+                          tooltip="Excelente: Participou ativamente, estimulou o debate construtivo e contribuiu para o aprofundamento da discussão. | Boa: Contribuiu com as discussões de forma frequente, ouviu os colegas e fez perguntas pertinentes. | Razoável: Participou de forma pontual ou apenas quando solicitado, com poucas contribuições voluntárias. | Fraca: Contribuiu minimamente com o grupo e, em alguns momentos, dispersou a atenção ou atrapalhou o fluxo. | Nenhuma: Permaneceu em silêncio absoluto ou demonstrou total desinteresse pelas atividades e pelo grupo."
+                          value={ev.participacao}
+                          onChange={(v) => updateEval(peer.studentId, "participacao", v)}
+                          gender="fem"
+                        />
+                        {hasRolePenalty && (
+                          <CriteriaSlider
+                            label="Desempenho no Papel"
+                            sublabel="Penalidade: até -1"
+                            tooltip="Esta nota tem peso negativo porque trata de comportamentos já esperados durante o tutorial. | Excelente: Cumpriu todas as funções da forma esperada (ex: coordenador seguiu a pauta e gerenciou o tempo; quadro anotou os pontos principais com clareza; mesa registrou todos os dados e publicou prontamente). | Bom: Executou a maior parte das funções, mas falhou em pontos isolados. | Razoável: Tentou executar a função, mas deixou de realizar metade das tarefas. | Fraco: Realizou apenas tarefas mínimas ou superficiais, demonstrando desinteresse. | Nenhum: Não cumpriu as funções essenciais de sua responsabilidade."
+                            value={ev.desempenhoPapel}
+                            onChange={(v) => updateEval(peer.studentId, "desempenhoPapel", v)}
+                            penalty
+                          />
+                        )}
+                      </div>
+                    </TooltipProvider>
+                  </CardContent>
+                </Card>
+              );
+            })}
+
+            {/* Submit + Reset buttons */}
+            <div className="flex items-center justify-between pb-8">
+              <Button variant="ghost" size="sm" onClick={handleReset} className="text-muted-foreground">
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Reiniciar valores
+              </Button>
+              <Button size="lg" onClick={() => setSubmitted(true)} className="shadow-md">
+                <Send className="h-4 w-4 mr-2" />
+                Enviar Avaliação
+              </Button>
+            </div>
+
+            {/* Formula explanation */}
+            <div className="p-3 rounded-lg bg-muted/50 border text-xs text-muted-foreground space-y-1">
+              <p><strong>Nota máxima possível:</strong> 10.0 pontos (Pontualidade ×1 + Pesquisa/Metas ×3 + Domínio ×3 + Participação ×3)</p>
+              <p><strong>Fórmula:</strong> Nota = (Pontualidade × 1) + (Pesquisa/Metas × 3) + (Domínio × 3) + (Participação × 3) − (Penalidade Papel × 1)</p>
+              <p><strong>Penalidade de Papel:</strong> Aplica-se apenas a Coordenador, Mesa e Quadro. Participantes não recebem penalidade.</p>
+            </div>
           </div>
-        </div>
+        )}
       </DialogContent>
     </Dialog>
   );
