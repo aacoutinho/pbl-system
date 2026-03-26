@@ -840,3 +840,6 @@
 
 ## Refatoração Barra 0–10 (Mar 2026)
 - [x] Barra vai de 0 a 10 em décimos (0.1), conceitos em 0/2.5/5/7.5/10, campo numérico 0.0–10.0
+
+## Barra Slider no Formulário de Avaliação dos Pares (Mar 2026)
+- [x] Aplicar barra slider 0–10 (igual ao CriterionSelector do Tutorial) no formulário de avaliação dos pares dos alunos

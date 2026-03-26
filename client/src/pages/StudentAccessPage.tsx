@@ -5,13 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { LogIn, Send, CheckCircle2, AlertTriangle, ArrowLeft, BookOpen, HelpCircle, Camera, Mail, ShieldCheck, Upload, ClipboardList, Clock, GraduationCap, User, History, Users, KeyRound, RefreshCw, LogOut, Edit, Lightbulb } from "lucide-react";
 import BrainstormBoardPage from "./BrainstormBoardPage";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useMemo, useRef, useEffect } from "react";
+import { cn } from "@/lib/utils";
 import { resizeImageToSquare, base64SizeKB } from "@/lib/resizeImage";
 import { StudentPhotoAvatar } from "@/components/StudentPhotoModal";
 
@@ -1554,107 +1554,299 @@ function EvaluationForm({ studentInfo, sessionInfo, studentEmail, studentPhotoUr
 }
 
 // ─── Criteria Slider Component ───
-const SCORE_LABELS_FEM: Record<string, string> = {
-  "0.00": "Nenhuma",
-  "0.25": "Fraca",
-  "0.50": "Razoável",
-  "0.75": "Boa",
-  "1.00": "Excelente",
-};
+// Snap points (internal fraction 0–1): Nenhuma=0, Fraca=0.25, Razoável=0.5, Boa=0.75, Excelente=1.0
+const CS_SNAP_POINTS = [0, 0.25, 0.5, 0.75, 1.0];
 
-const SCORE_LABELS_MASC: Record<string, string> = {
-  "0.00": "Nenhum",
-  "0.25": "Fraco",
-  "0.50": "Razoável",
-  "0.75": "Bom",
-  "1.00": "Excelente",
-};
+const CS_LABELS_FEM = [
+  { label: "Nenhuma", value: 0 },
+  { label: "Fraca", value: 0.25 },
+  { label: "Razoável", value: 0.5 },
+  { label: "Boa", value: 0.75 },
+  { label: "Excelente", value: 1.0 },
+] as const;
 
-// Penalidade: 0 = sem penalidade (Excelente), 1 = penalidade máxima (Nenhum)
-const PENALTY_LABELS: Record<string, string> = {
-  "0.00": "Excelente",
-  "0.25": "Bom",
-  "0.50": "Razoável",
-  "0.75": "Fraco",
-  "1.00": "Nenhum",
-};
+const CS_LABELS_MASC = [
+  { label: "Nenhum", value: 0 },
+  { label: "Fraco", value: 0.25 },
+  { label: "Razoável", value: 0.5 },
+  { label: "Bom", value: 0.75 },
+  { label: "Excelente", value: 1.0 },
+] as const;
 
-function getScoreLabel(value: number, gender: "fem" | "masc" = "fem", penalty?: boolean): string {
-  if (penalty) return PENALTY_LABELS[value.toFixed(2)] ?? value.toFixed(2);
-  const labels = gender === "masc" ? SCORE_LABELS_MASC : SCORE_LABELS_FEM;
-  return labels[value.toFixed(2)] ?? value.toFixed(2);
+// Penalidade: 0=sem penalidade (Excelente), 1=penalidade máxima (Nenhum)
+// Exibido invertido: Nenhum à esquerda, Excelente à direita
+const CS_LABELS_PENALTY = [
+  { label: "Nenhum", value: 1.0 },
+  { label: "Fraco", value: 0.75 },
+  { label: "Razoável", value: 0.5 },
+  { label: "Bom", value: 0.25 },
+  { label: "Excelente", value: 0.0 },
+] as const;
+
+function csGetTrackColor(v: number): string {
+  if (v <= 0) return "#ef4444";
+  if (v <= 0.25) return "#f97316";
+  if (v <= 0.5) return "#f59e0b";
+  if (v <= 0.75) return "#65a30d";
+  return "#059669";
 }
 
-function CriteriaSlider({ label, sublabel, tooltip, value, onChange, penalty, gender = "masc" }: { label: string; sublabel?: string; tooltip?: string; value: number; onChange: (v: number) => void; penalty?: boolean; gender?: "fem" | "masc" }) {
-  // Para penalidade: 0=Excelente (sem penalidade), 1=Nenhum (penalidade máxima)
-  // O slider é exibido invertido: Nenhum à esquerda, Excelente à direita
-  const sliderValue = penalty ? 1 - value : value;
-  const color = penalty
-    ? (value === 0 ? "text-emerald-600" : value <= 0.25 ? "text-lime-600" : value <= 0.5 ? "text-amber-500" : value <= 0.75 ? "text-orange-600" : "text-red-600")
-    : (value >= 0.75 ? "text-emerald-600" : value >= 0.5 ? "text-amber-600" : "text-red-600");
+// For penalty: color is based on how bad the penalty is (value=0 → no penalty → green)
+function csPenaltyTrackColor(v: number): string {
+  if (v >= 1) return "#ef4444";
+  if (v >= 0.75) return "#f97316";
+  if (v >= 0.5) return "#f59e0b";
+  if (v >= 0.25) return "#65a30d";
+  return "#059669";
+}
+
+function csGetLabel(value: number, gender: "fem" | "masc", penalty?: boolean): string {
+  if (penalty) {
+    const match = CS_LABELS_PENALTY.find(l => Math.abs(l.value - value) < 0.01);
+    return match?.label ?? value.toFixed(2);
+  }
+  const labels = gender === "masc" ? CS_LABELS_MASC : CS_LABELS_FEM;
+  const match = labels.find(l => Math.abs(l.value - value) < 0.01);
+  return match?.label ?? value.toFixed(2);
+}
+
+function csFractionToDisplay(v: number): string {
+  return (Math.round(v * 100) / 10).toFixed(1);
+}
+
+function csDisplayToFraction(s: string): number | null {
+  const n = parseFloat(s);
+  if (isNaN(n) || n < 0 || n > 10) return null;
+  return Math.round((n / 10) * 100) / 100;
+}
+
+function CriteriaSlider({ label, sublabel, tooltip, value, onChange, penalty, gender = "masc" }: {
+  label: string;
+  sublabel?: string;
+  tooltip?: string;
+  value: number;
+  onChange: (v: number) => void;
+  penalty?: boolean;
+  gender?: "fem" | "masc";
+}) {
+  // For penalty: slider shows inverted (0=Excelente on right, 1=Nenhum on left)
+  // sliderFrac: the fraction used for slider position (0=left, 1=right)
+  const sliderFrac = penalty ? 1 - value : value;
+  const trackColor = penalty ? csPenaltyTrackColor(value) : csGetTrackColor(value);
+  const fillPct = sliderFrac * 100;
+
+  const [inputText, setInputText] = useState(() => csFractionToDisplay(sliderFrac));
+  const [inputFocused, setInputFocused] = useState(false);
+
+  useEffect(() => {
+    if (!inputFocused) {
+      setInputText(csFractionToDisplay(sliderFrac));
+    }
+  }, [sliderFrac, inputFocused]);
+
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = parseFloat(e.target.value);
+    const snapped = Math.round(raw * 10) / 100;
+    const newValue = penalty ? 1 - snapped : snapped;
+    onChange(newValue);
+    setInputText(csFractionToDisplay(snapped));
+  };
+
+  const handleTrackClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!trackRef.current) return;
+    const rect = trackRef.current.getBoundingClientRect();
+    const raw = (e.clientX - rect.left) / rect.width;
+    const clamped = Math.min(1, Math.max(0, raw));
+    const snapped = Math.round(clamped * 10) / 10;
+    const newValue = penalty ? 1 - snapped : snapped;
+    onChange(newValue);
+    setInputText(csFractionToDisplay(snapped));
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputText(e.target.value);
+  };
+
+  const handleInputBlur = () => {
+    setInputFocused(false);
+    const frac = csDisplayToFraction(inputText);
+    if (frac !== null) {
+      const clamped = Math.min(1, Math.max(0, frac));
+      const newValue = penalty ? 1 - clamped : clamped;
+      onChange(newValue);
+      setInputText(csFractionToDisplay(clamped));
+    } else {
+      setInputText(csFractionToDisplay(sliderFrac));
+    }
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+  };
+
+  // Labels for concept buttons
+  const conceptLabels = penalty ? CS_LABELS_PENALTY : (gender === "masc" ? CS_LABELS_MASC : CS_LABELS_FEM);
+  // For penalty, the slider position of each concept is (1 - value)
+  const getConceptSliderPos = (conceptValue: number) => penalty ? 1 - conceptValue : conceptValue;
+
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1">
-          <Label className="text-sm">{label}</Label>
-          {tooltip && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <HelpCircle className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-sm text-xs">
-                <div className="space-y-1">
-                  {tooltip.includes("|") ? tooltip.split(" | ").map((line, i) => {
-                    const [concept, ...rest] = line.split(": ");
-                    return rest.length > 0 ? (
-                      <p key={i}><strong className="text-foreground">{concept}:</strong> {rest.join(": ")}</p>
-                    ) : (
-                      <p key={i}>{line}</p>
-                    );
-                  }) : <p>{tooltip}</p>}
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          )}
-          {sublabel && <span className="text-xs text-muted-foreground ml-1">({sublabel})</span>}
-        </div>
-        <span className={`text-sm font-bold ${color}`}>{getScoreLabel(value, gender, penalty)}</span>
-      </div>
-      <Slider
-        min={0}
-        max={1}
-        step={0.25}
-        value={[sliderValue]}
-        onValueChange={([v]) => onChange(penalty ? 1 - v : v)}
-        className="w-full"
-      />
-      <div className="flex justify-between text-xs font-medium">
-        {penalty ? (
-          <>
-            <span className="text-red-600">Nenhum</span>
-            <span className="text-orange-600">Fraco</span>
-            <span className="text-amber-500">Razoável</span>
-            <span className="text-lime-600">Bom</span>
-            <span className="text-emerald-600">Excelente</span>
-          </>
-        ) : gender === "masc" ? (
-          <>
-            <span className="text-red-600">Nenhum</span>
-            <span className="text-orange-500">Fraco</span>
-            <span className="text-amber-500">Razoável</span>
-            <span className="text-lime-600">Bom</span>
-            <span className="text-emerald-600">Excelente</span>
-          </>
-        ) : (
-          <>
-            <span className="text-red-600">Nenhuma</span>
-            <span className="text-orange-500">Fraca</span>
-            <span className="text-amber-500">Razoável</span>
-            <span className="text-lime-600">Boa</span>
-            <span className="text-emerald-600">Excelente</span>
-          </>
+    <div className="space-y-3">
+      {/* Header: label + tooltip + sublabel */}
+      <div className="flex items-center gap-2">
+        <Label className="text-sm font-semibold">{label}</Label>
+        {tooltip && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <HelpCircle className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-sm text-xs">
+              <div className="space-y-1">
+                {tooltip.includes("|") ? tooltip.split(" | ").map((line, i) => {
+                  const [concept, ...rest] = line.split(": ");
+                  return rest.length > 0 ? (
+                    <p key={i}><strong className="text-foreground">{concept}:</strong> {rest.join(": ")}</p>
+                  ) : (
+                    <p key={i}>{line}</p>
+                  );
+                }) : <p>{tooltip}</p>}
+              </div>
+            </TooltipContent>
+          </Tooltip>
         )}
+        {sublabel && <span className="text-xs text-muted-foreground">({sublabel})</span>}
       </div>
+
+      {/* Slider + numeric input row */}
+      <div className="flex items-center gap-3 pt-1">
+        {/* Slider container */}
+        <div className="relative flex-1">
+          <div
+            ref={trackRef}
+            className="relative h-6 flex items-center cursor-pointer"
+            onClick={handleTrackClick}
+          >
+            {/* Track background */}
+            <div className="absolute inset-y-0 left-0 right-0 my-auto h-2 rounded-full bg-muted" />
+            {/* Filled track */}
+            <div
+              className="absolute left-0 my-auto h-2 rounded-full transition-all duration-100"
+              style={{ width: `${fillPct}%`, top: 0, bottom: 0, margin: 'auto', backgroundColor: trackColor }}
+            />
+            {/* Tick marks for every tenth */}
+            {Array.from({ length: 101 }, (_, i) => Math.round(i) / 100).map((tick) => {
+              const isConcept = CS_SNAP_POINTS.includes(tick);
+              const isActive = Math.abs(sliderFrac - tick) < 0.005;
+              return (
+                <div
+                  key={tick}
+                  className="absolute pointer-events-none"
+                  style={{
+                    left: `${tick * 100}%`,
+                    top: '50%',
+                    transform: 'translateX(-50%) translateY(-50%)',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: isConcept ? '6px' : '3px',
+                      height: isConcept ? '14px' : '8px',
+                      borderRadius: '2px',
+                      backgroundColor: isActive
+                        ? 'white'
+                        : isConcept
+                        ? 'rgba(0,0,0,0.25)'
+                        : 'rgba(0,0,0,0.15)',
+                      opacity: isActive ? 0 : 1,
+                    }}
+                  />
+                </div>
+              );
+            })}
+            {/* Invisible range input for drag */}
+            <input
+              type="range"
+              min={0}
+              max={10}
+              step={0.1}
+              value={sliderFrac * 10}
+              onChange={handleSliderChange}
+              onClick={(e) => e.stopPropagation()}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              style={{ margin: 0 }}
+            />
+            {/* Thumb */}
+            <div
+              className="absolute w-5 h-5 rounded-full border-2 border-white shadow-md transition-all duration-100 pointer-events-none"
+              style={{
+                left: `${fillPct}%`,
+                top: '50%',
+                transform: 'translateX(-50%) translateY(-50%)',
+                backgroundColor: trackColor,
+              }}
+            />
+          </div>
+
+          {/* Concept labels below snap points — clickable */}
+          <div className="relative w-full mt-2">
+            {conceptLabels.map((opt, idx) => {
+              const sliderPos = getConceptSliderPos(opt.value);
+              const isActive = Math.abs(sliderFrac - sliderPos) < 0.01;
+              const labelColor = penalty ? csPenaltyTrackColor(opt.value) : csGetTrackColor(opt.value);
+              const isFirst = idx === 0;
+              const isLast = idx === conceptLabels.length - 1;
+              const transformX = isFirst ? "0%" : isLast ? "-100%" : "-50%";
+              return (
+                <div
+                  key={opt.value}
+                  className="absolute flex flex-col items-center"
+                  style={{ left: `${sliderPos * 100}%`, transform: `translateX(${transformX})` }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onChange(opt.value);
+                      setInputText(csFractionToDisplay(sliderPos));
+                    }}
+                    className={cn(
+                      "text-[11px] whitespace-nowrap transition-all rounded px-1 py-0.5",
+                      "focus:outline-none focus:ring-1 focus:ring-ring",
+                      isActive ? "font-bold" : "text-muted-foreground hover:font-semibold"
+                    )}
+                    style={{ color: isActive ? labelColor : undefined }}
+                    title={`Definir como ${opt.label}`}
+                  >
+                    {opt.label}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Numeric input — 0.0 to 10.0 scale */}
+        <div className="flex items-center gap-1 shrink-0">
+          <input
+            type="text"
+            inputMode="decimal"
+            value={inputText}
+            onChange={handleInputChange}
+            onFocus={() => setInputFocused(true)}
+            onBlur={handleInputBlur}
+            onKeyDown={handleInputKeyDown}
+            className={cn(
+              "w-16 text-center text-base font-bold rounded-md border px-2 py-1 transition-colors",
+              "focus:outline-none focus:ring-2 focus:ring-ring",
+              "bg-background"
+            )}
+            style={{ color: trackColor, borderColor: trackColor }}
+          />
+          <span className="text-xs text-muted-foreground">/10</span>
+        </div>
+      </div>
+      {/* Spacer for label row below slider */}
+      <div className="h-5" />
     </div>
   );
 }
@@ -1663,7 +1855,6 @@ function CriteriaSlider({ label, sublabel, tooltip, value, onChange, penalty, ge
 const penaltyLabelsInline: Record<number, string> = {
   0: "Excelente", 0.25: "Bom", 0.5: "Razoável", 0.75: "Fraco", 1: "Nenhum",
 };
-const penaltySliderOptionsInline = [1, 0.75, 0.5, 0.25, 0];
 
 function DesempenhoPapelFormInline({ studentInfo, sessionInfo, alreadySubmitted, onBack }: {
   studentInfo: { studentId: number; studentName: string; sessionId: number; sessionLabel: string; classId: number };
@@ -1850,28 +2041,14 @@ function DesempenhoPapelFormInline({ studentInfo, sessionInfo, alreadySubmitted,
                   )}
                 </div>
               )}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Label className="text-sm font-medium">Desempenho no Papel</Label>
-                    <span className="text-[10px] text-muted-foreground">(Penalidade: até -1)</span>
-                  </div>
-                  <Badge variant="outline" className={`text-xs font-medium ${val > 0 ? "border-red-300 text-red-700" : "border-emerald-300 text-emerald-700"}`}>
-                    {penaltyLabelsInline[val] ?? `${val}`}
-                  </Badge>
-                </div>
-                <Slider
-                  value={[penaltySliderOptionsInline.indexOf(val)]}
-                  min={0}
-                  max={4}
-                  step={1}
-                  onValueChange={([idx]) => setDesempenhos(prev => ({ ...prev, [peer.studentId]: penaltySliderOptionsInline[idx] }))}
-                  className="w-full"
-                />
-                <div className="flex justify-between text-[10px] text-muted-foreground px-1">
-                  {penaltySliderOptionsInline.map(g => <span key={g}>{penaltyLabelsInline[g]}</span>)}
-                </div>
-              </div>
+              <CriteriaSlider
+                label="Desempenho no Papel"
+                sublabel="Penalidade: até -1"
+                tooltip="Esta nota tem peso negativo porque trata de comportamentos já esperados durante o tutorial. | Excelente: Cumpriu todas as funções da forma esperada (ex: coordenador seguiu a pauta e gerenciou o tempo; quadro anotou os pontos principais com clareza; mesa registrou todos os dados e publicou prontamente). | Bom: Executou a maior parte das funções, mas falhou em pontos isolados. | Razoável: Tentou executar a função, mas deixou de realizar metade das tarefas. | Fraco: Realizou apenas tarefas mínimas ou superficiais, demonstrando desinteresse. | Nenhum: Não cumpriu as funções essenciais de sua responsabilidade."
+                value={val}
+                onChange={(v) => setDesempenhos(prev => ({ ...prev, [peer.studentId]: v }))}
+                penalty
+              />
             </CardContent>
           </Card>
         );
