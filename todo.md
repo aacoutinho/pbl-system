@@ -824,3 +824,7 @@
 
 ## Refatoração CriterionSelector (Mar 2026)
 - [x] Remover botões de conceito e tornar rótulos da barra clicáveis para mover o slider
+
+## Ajustes CriterionSelector (Mar 2026)
+- [x] Corrigir alinhamento dos rótulos nas pontas da barra (Nenhuma/Excelente não tocam na borda)
+- [x] Campo numérico exibe nota ponderada (valor × peso, ex: 0.0 a 30.0 para peso 3)

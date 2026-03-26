@@ -1036,16 +1036,17 @@ function TutorialEvalContent() {
 // Snap points for concept buttons (0, 0.25, 0.5, 0.75, 1.0)
 const SNAP_POINTS = [0, 0.25, 0.5, 0.75, 1.0];
 
-// Convert internal fraction (0-1) to display grade (0.0-10.0)
-function fractionToGrade(v: number): string {
-  return (Math.round(v * 100) / 10).toFixed(1);
+// Convert internal fraction (0-1) to weighted display grade (0.0 to weight*10)
+function fractionToGrade(v: number, weight: number = 1): string {
+  return (Math.round(v * weight * 100) / 10).toFixed(1);
 }
 
-// Convert display grade string to internal fraction
-function gradeToFraction(s: string): number | null {
+// Convert weighted display grade string to internal fraction
+function gradeToFraction(s: string, weight: number = 1): number | null {
   const n = parseFloat(s);
-  if (isNaN(n) || n < 0 || n > 10) return null;
-  return Math.round(n * 10) / 100;
+  const maxGrade = weight * 10;
+  if (isNaN(n) || n < 0 || n > maxGrade) return null;
+  return Math.round((n / maxGrade) * 10) / 10;
 }
 
 // Get track fill color based on value
@@ -1066,22 +1067,21 @@ function CriterionSelector({ label, weight, gender, description, value, onChange
   onChange: (v: number) => void;
 }) {
   const labels = gender === "masc" ? LABELS_MASC : LABELS;
-  const [inputText, setInputText] = useState(() => fractionToGrade(value));
+  const [inputText, setInputText] = useState(() => fractionToGrade(value, weight));
   const [inputFocused, setInputFocused] = useState(false);
 
-  // Sync inputText when value changes externally (e.g. from button click or load)
+  // Sync inputText when value changes externally (e.g. from label click or load)
   useEffect(() => {
     if (!inputFocused) {
-      setInputText(fractionToGrade(value));
+      setInputText(fractionToGrade(value, weight));
     }
-  }, [value, inputFocused]);
+  }, [value, weight, inputFocused]);
 
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = parseFloat(e.target.value);
-    // round to 1 decimal of fraction = 0.1 steps
     const snapped = Math.round(raw * 10) / 10;
     onChange(snapped);
-    setInputText(fractionToGrade(snapped));
+    setInputText(fractionToGrade(snapped, weight));
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1090,15 +1090,13 @@ function CriterionSelector({ label, weight, gender, description, value, onChange
 
   const handleInputBlur = () => {
     setInputFocused(false);
-    const frac = gradeToFraction(inputText);
+    const frac = gradeToFraction(inputText, weight);
     if (frac !== null) {
-      // clamp to 0-1
       const clamped = Math.min(1, Math.max(0, frac));
       onChange(clamped);
-      setInputText(fractionToGrade(clamped));
+      setInputText(fractionToGrade(clamped, weight));
     } else {
-      // revert to current value
-      setInputText(fractionToGrade(value));
+      setInputText(fractionToGrade(value, weight));
     }
   };
 
@@ -1174,14 +1172,18 @@ function CriterionSelector({ label, weight, gender, description, value, onChange
 
           {/* Concept labels below snap points — clickable */}
           <div className="relative w-full mt-2">
-            {labels.map((opt) => {
+            {labels.map((opt, idx) => {
               const isActive = Math.abs(value - opt.value) < 0.01;
               const labelColor = getTrackColor(opt.value);
+              // First label: align left edge to track start; last label: align right edge to track end
+              const isFirst = idx === 0;
+              const isLast = idx === labels.length - 1;
+              const transformX = isFirst ? "0%" : isLast ? "-100%" : "-50%";
               return (
                 <div
                   key={opt.value}
                   className="absolute flex flex-col items-center"
-                  style={{ left: `${opt.value * 100}%`, transform: "translateX(-50%)" }}
+                  style={{ left: `${opt.value * 100}%`, transform: `translateX(${transformX})` }}
                 >
                   <button
                     type="button"
@@ -1193,9 +1195,7 @@ function CriterionSelector({ label, weight, gender, description, value, onChange
                         ? "font-bold"
                         : "text-muted-foreground hover:font-semibold"
                     )}
-                    style={{
-                      color: isActive ? labelColor : undefined,
-                    }}
+                    style={{ color: isActive ? labelColor : undefined }}
                     title={`Definir como ${opt.label}`}
                   >
                     {opt.label}
@@ -1206,7 +1206,7 @@ function CriterionSelector({ label, weight, gender, description, value, onChange
           </div>
         </div>
 
-        {/* Numeric input */}
+        {/* Numeric input — weighted scale */}
         <div className="flex items-center gap-1 shrink-0">
           <input
             type="text"
@@ -1223,7 +1223,7 @@ function CriterionSelector({ label, weight, gender, description, value, onChange
             )}
             style={{ color: trackColor, borderColor: trackColor }}
           />
-          <span className="text-xs text-muted-foreground">/10</span>
+          <span className="text-xs text-muted-foreground">/{weight * 10}</span>
         </div>
       </div>
       {/* Spacer for label row below slider */}
