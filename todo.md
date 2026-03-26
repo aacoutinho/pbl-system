@@ -828,3 +828,6 @@
 ## Ajustes CriterionSelector (Mar 2026)
 - [x] Corrigir alinhamento dos rótulos nas pontas da barra (Nenhuma/Excelente não tocam na borda)
 - [x] Campo numérico exibe nota ponderada (valor × peso, ex: 0.0 a 30.0 para peso 3)
+
+## Correção Campo Numérico CriterionSelector (Mar 2026)
+- [x] Campo numérico exibe nota na escala 0.0 a peso (ex: 0.0 a 3.0 para peso 3, não 0.0 a 30.0)

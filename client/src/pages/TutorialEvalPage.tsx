@@ -1036,17 +1036,16 @@ function TutorialEvalContent() {
 // Snap points for concept buttons (0, 0.25, 0.5, 0.75, 1.0)
 const SNAP_POINTS = [0, 0.25, 0.5, 0.75, 1.0];
 
-// Convert internal fraction (0-1) to weighted display grade (0.0 to weight*10)
+// Convert internal fraction (0-1) to weighted display grade (0.0 to weight)
 function fractionToGrade(v: number, weight: number = 1): string {
-  return (Math.round(v * weight * 100) / 10).toFixed(1);
+  return (Math.round(v * weight * 10) / 10).toFixed(1);
 }
 
 // Convert weighted display grade string to internal fraction
 function gradeToFraction(s: string, weight: number = 1): number | null {
   const n = parseFloat(s);
-  const maxGrade = weight * 10;
-  if (isNaN(n) || n < 0 || n > maxGrade) return null;
-  return Math.round((n / maxGrade) * 10) / 10;
+  if (isNaN(n) || n < 0 || n > weight) return null;
+  return Math.round((n / weight) * 10) / 10;
 }
 
 // Get track fill color based on value
@@ -1223,7 +1222,7 @@ function CriterionSelector({ label, weight, gender, description, value, onChange
             )}
             style={{ color: trackColor, borderColor: trackColor }}
           />
-          <span className="text-xs text-muted-foreground">/{weight * 10}</span>
+          <span className="text-xs text-muted-foreground">/{weight}</span>
         </div>
       </div>
       {/* Spacer for label row below slider */}
