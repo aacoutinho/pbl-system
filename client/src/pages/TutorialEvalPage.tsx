@@ -1033,22 +1033,23 @@ function TutorialEvalContent() {
   );
 }
 
-// Snap points for concept buttons (0, 0.25, 0.5, 0.75, 1.0)
+// Internal fraction snap points for concepts: Nenhuma=0, Fraca=0.25, Razoável=0.5, Boa=0.75, Excelente=1.0
 const SNAP_POINTS = [0, 0.25, 0.5, 0.75, 1.0];
 
-// Convert internal fraction (0-1) to weighted display grade (0.0 to weight)
-function fractionToGrade(v: number, weight: number = 1): string {
-  return (Math.round(v * weight * 10) / 10).toFixed(1);
+// Display scale: 0 to 10 (fraction * 10)
+// The slider internally works with fractions (0-1); display shows 0.0-10.0
+function fractionToDisplay(v: number): string {
+  return (Math.round(v * 100) / 10).toFixed(1);
 }
 
-// Convert weighted display grade string to internal fraction
-function gradeToFraction(s: string, weight: number = 1): number | null {
+// Convert display string (0.0-10.0) to internal fraction
+function displayToFraction(s: string): number | null {
   const n = parseFloat(s);
-  if (isNaN(n) || n < 0 || n > weight) return null;
-  return Math.round((n / weight) * 10) / 10;
+  if (isNaN(n) || n < 0 || n > 10) return null;
+  return Math.round((n / 10) * 100) / 100;
 }
 
-// Get track fill color based on value
+// Get track fill color based on fraction value (0-1)
 function getTrackColor(v: number): string {
   if (v <= 0) return "#ef4444";
   if (v <= 0.25) return "#f97316";
@@ -1066,21 +1067,22 @@ function CriterionSelector({ label, weight, gender, description, value, onChange
   onChange: (v: number) => void;
 }) {
   const labels = gender === "masc" ? LABELS_MASC : LABELS;
-  const [inputText, setInputText] = useState(() => fractionToGrade(value, weight));
+  const [inputText, setInputText] = useState(() => fractionToDisplay(value));
   const [inputFocused, setInputFocused] = useState(false);
 
   // Sync inputText when value changes externally (e.g. from label click or load)
   useEffect(() => {
     if (!inputFocused) {
-      setInputText(fractionToGrade(value, weight));
+      setInputText(fractionToDisplay(value));
     }
-  }, [value, weight, inputFocused]);
+  }, [value, inputFocused]);
 
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = parseFloat(e.target.value);
-    const snapped = Math.round(raw * 10) / 10;
+    // slider min=0 max=10 step=0.1 — convert to fraction
+    const snapped = Math.round(raw * 10) / 100;
     onChange(snapped);
-    setInputText(fractionToGrade(snapped, weight));
+    setInputText(fractionToDisplay(snapped));
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1089,13 +1091,13 @@ function CriterionSelector({ label, weight, gender, description, value, onChange
 
   const handleInputBlur = () => {
     setInputFocused(false);
-    const frac = gradeToFraction(inputText, weight);
+    const frac = displayToFraction(inputText);
     if (frac !== null) {
       const clamped = Math.min(1, Math.max(0, frac));
       onChange(clamped);
-      setInputText(fractionToGrade(clamped, weight));
+      setInputText(fractionToDisplay(clamped));
     } else {
-      setInputText(fractionToGrade(value, weight));
+      setInputText(fractionToDisplay(value));
     }
   };
 
@@ -1116,7 +1118,7 @@ function CriterionSelector({ label, weight, gender, description, value, onChange
     const clamped = Math.min(1, Math.max(0, raw));
     const snapped = Math.round(clamped * 10) / 10;
     onChange(snapped);
-    setInputText(fractionToGrade(snapped, weight));
+    setInputText(fractionToDisplay(snapped));
   };
 
   return (
@@ -1152,8 +1154,8 @@ function CriterionSelector({ label, weight, gender, description, value, onChange
               className="absolute left-0 my-auto h-2 rounded-full transition-all duration-100"
               style={{ width: `${fillPct}%`, top: 0, bottom: 0, margin: 'auto', backgroundColor: trackColor }}
             />
-            {/* Tick marks for every tenth (0.0 to 1.0) */}
-            {Array.from({ length: 11 }, (_, i) => i / 10).map((tick) => {
+            {/* Tick marks for every tenth (0.0 to 10.0 in display, 0.0 to 1.0 internally) */}
+            {Array.from({ length: 101 }, (_, i) => Math.round(i) / 100).map((tick) => {
               const isConcept = SNAP_POINTS.includes(tick);
               const isActive = Math.abs(value - tick) < 0.005;
               return (
@@ -1186,9 +1188,9 @@ function CriterionSelector({ label, weight, gender, description, value, onChange
             <input
               type="range"
               min={0}
-              max={1}
+              max={10}
               step={0.1}
-              value={value}
+              value={value * 10}
               onChange={handleSliderChange}
               onClick={(e) => e.stopPropagation()}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
@@ -1259,7 +1261,7 @@ function CriterionSelector({ label, weight, gender, description, value, onChange
             )}
             style={{ color: trackColor, borderColor: trackColor }}
           />
-          <span className="text-xs text-muted-foreground">/{weight}</span>
+          <span className="text-xs text-muted-foreground">/10</span>
         </div>
       </div>
       {/* Spacer for label row below slider */}

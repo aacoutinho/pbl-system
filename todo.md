@@ -837,3 +837,6 @@
 
 ## Ticks de Décimos na Barra Slider (Mar 2026)
 - [x] Adicionar marcações de pontos para cada décimo na barra do slider (pontos de conceito maiores)
+
+## Refatoração Barra 0–10 (Mar 2026)
+- [x] Barra vai de 0 a 10 em décimos (0.1), conceitos em 0/2.5/5/7.5/10, campo numérico 0.0–10.0
