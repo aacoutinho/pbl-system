@@ -1139,23 +1139,10 @@ function CriterionSelector({ label, weight, gender, description, value, onChange
       <div className="flex items-center gap-3 pt-1">
         {/* Slider container */}
         <div className="relative flex-1">
-          {/* Concept snap markers */}
-          <div className="relative w-full mb-1">
-            {SNAP_POINTS.map((pt) => (
-              <div
-                key={pt}
-                className="absolute flex flex-col items-center"
-                style={{ left: `${pt * 100}%`, transform: "translateX(-50%)" }}
-              >
-                <div className="w-px h-2 bg-border" />
-              </div>
-            ))}
-          </div>
-
-          {/* Custom styled range input */}
+          {/* Custom styled range input + ticks */}
           <div
             ref={trackRef}
-            className="relative h-4 flex items-center cursor-pointer"
+            className="relative h-6 flex items-center cursor-pointer"
             onClick={handleTrackClick}
           >
             {/* Track background */}
@@ -1165,6 +1152,36 @@ function CriterionSelector({ label, weight, gender, description, value, onChange
               className="absolute left-0 my-auto h-2 rounded-full transition-all duration-100"
               style={{ width: `${fillPct}%`, top: 0, bottom: 0, margin: 'auto', backgroundColor: trackColor }}
             />
+            {/* Tick marks for every tenth (0.0 to 1.0) */}
+            {Array.from({ length: 11 }, (_, i) => i / 10).map((tick) => {
+              const isConcept = SNAP_POINTS.includes(tick);
+              const isActive = Math.abs(value - tick) < 0.005;
+              return (
+                <div
+                  key={tick}
+                  className="absolute pointer-events-none"
+                  style={{
+                    left: `${tick * 100}%`,
+                    top: '50%',
+                    transform: 'translateX(-50%) translateY(-50%)',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: isConcept ? '6px' : '3px',
+                      height: isConcept ? '14px' : '8px',
+                      borderRadius: '2px',
+                      backgroundColor: isActive
+                        ? 'white'
+                        : isConcept
+                        ? 'rgba(0,0,0,0.25)'
+                        : 'rgba(0,0,0,0.15)',
+                      opacity: isActive ? 0 : 1,
+                    }}
+                  />
+                </div>
+              );
+            })}
             {/* Invisible range input for drag support */}
             <input
               type="range"

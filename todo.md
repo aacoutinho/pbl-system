@@ -834,3 +834,6 @@
 
 ## Interação Barra Slider (Mar 2026)
 - [x] Clique direto na barra move o círculo para o ponto clicado; círculo centralizado na barra
+
+## Ticks de Décimos na Barra Slider (Mar 2026)
+- [x] Adicionar marcações de pontos para cada décimo na barra do slider (pontos de conceito maiores)
