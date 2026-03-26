@@ -831,3 +831,6 @@
 
 ## Correção Campo Numérico CriterionSelector (Mar 2026)
 - [x] Campo numérico exibe nota na escala 0.0 a peso (ex: 0.0 a 3.0 para peso 3, não 0.0 a 30.0)
+
+## Interação Barra Slider (Mar 2026)
+- [x] Clique direto na barra move o círculo para o ponto clicado; círculo centralizado na barra

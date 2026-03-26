@@ -1105,8 +1105,19 @@ function CriterionSelector({ label, weight, gender, description, value, onChange
     }
   };
 
+  const trackRef = useRef<HTMLDivElement>(null);
   const trackColor = getTrackColor(value);
   const fillPct = value * 100;
+
+  const handleTrackClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!trackRef.current) return;
+    const rect = trackRef.current.getBoundingClientRect();
+    const raw = (e.clientX - rect.left) / rect.width;
+    const clamped = Math.min(1, Math.max(0, raw));
+    const snapped = Math.round(clamped * 10) / 10;
+    onChange(snapped);
+    setInputText(fractionToGrade(snapped, weight));
+  };
 
   return (
     <div className="space-y-3">
@@ -1142,12 +1153,19 @@ function CriterionSelector({ label, weight, gender, description, value, onChange
           </div>
 
           {/* Custom styled range input */}
-          <div className="relative h-2 rounded-full bg-muted overflow-visible">
+          <div
+            ref={trackRef}
+            className="relative h-4 flex items-center cursor-pointer"
+            onClick={handleTrackClick}
+          >
+            {/* Track background */}
+            <div className="absolute inset-y-0 left-0 right-0 my-auto h-2 rounded-full bg-muted" />
             {/* Filled track */}
             <div
-              className="absolute top-0 left-0 h-full rounded-full transition-all duration-100"
-              style={{ width: `${fillPct}%`, backgroundColor: trackColor }}
+              className="absolute left-0 my-auto h-2 rounded-full transition-all duration-100"
+              style={{ width: `${fillPct}%`, top: 0, bottom: 0, margin: 'auto', backgroundColor: trackColor }}
             />
+            {/* Invisible range input for drag support */}
             <input
               type="range"
               min={0}
@@ -1155,15 +1173,17 @@ function CriterionSelector({ label, weight, gender, description, value, onChange
               step={0.1}
               value={value}
               onChange={handleSliderChange}
+              onClick={(e) => e.stopPropagation()}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               style={{ margin: 0 }}
             />
-            {/* Thumb */}
+            {/* Thumb — centered on track */}
             <div
-              className="absolute top-1/2 -translate-y-1/2 w-5 h-5 rounded-full border-2 border-white shadow-md transition-all duration-100 pointer-events-none"
+              className="absolute w-5 h-5 rounded-full border-2 border-white shadow-md transition-all duration-100 pointer-events-none"
               style={{
                 left: `${fillPct}%`,
-                transform: `translateX(-50%) translateY(-50%)`,
+                top: '50%',
+                transform: 'translateX(-50%) translateY(-50%)',
                 backgroundColor: trackColor,
               }}
             />
