@@ -1127,38 +1127,6 @@ function CriterionSelector({ label, weight, gender, description, value, onChange
       </div>
       <p className="text-sm text-muted-foreground">{description}</p>
 
-      {/* Concept buttons */}
-      <div className="flex gap-2 flex-wrap">
-        {labels.map((opt) => {
-          const gradeColor = opt.value <= 0 ? "border-red-400 hover:bg-red-50" 
-            : opt.value <= 0.25 ? "border-orange-400 hover:bg-orange-50" 
-            : opt.value <= 0.5 ? "border-amber-400 hover:bg-amber-50" 
-            : opt.value <= 0.75 ? "border-lime-400 hover:bg-lime-50" 
-            : "border-emerald-400 hover:bg-emerald-50";
-          const selectedColor = opt.value <= 0 ? "bg-red-500 text-white border-red-500" 
-            : opt.value <= 0.25 ? "bg-orange-500 text-white border-orange-500" 
-            : opt.value <= 0.5 ? "bg-amber-500 text-white border-amber-500" 
-            : opt.value <= 0.75 ? "bg-lime-600 text-white border-lime-600" 
-            : "bg-emerald-600 text-white border-emerald-600";
-          return (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => onChange(opt.value)}
-              className={cn(
-                "px-4 py-2 rounded-lg text-sm font-medium border transition-all",
-                "hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
-                Math.abs(value - opt.value) < 0.01
-                  ? `${selectedColor} shadow-sm`
-                  : `bg-background text-foreground ${gradeColor}`
-              )}
-            >
-              {opt.label}
-            </button>
-          );
-        })}
-      </div>
-
       {/* Slider + numeric input row */}
       <div className="flex items-center gap-3 pt-1">
         {/* Slider container */}
@@ -1204,29 +1172,37 @@ function CriterionSelector({ label, weight, gender, description, value, onChange
             />
           </div>
 
-          {/* Concept labels below snap points */}
+          {/* Concept labels below snap points — clickable */}
           <div className="relative w-full mt-2">
-            {labels.map((opt) => (
-              <div
-                key={opt.value}
-                className="absolute flex flex-col items-center"
-                style={{ left: `${opt.value * 100}%`, transform: "translateX(-50%)" }}
-              >
-                <span
-                  className={cn(
-                    "text-[10px] whitespace-nowrap transition-colors",
-                    Math.abs(value - opt.value) < 0.01
-                      ? "font-bold"
-                      : "text-muted-foreground"
-                  )}
-                  style={{
-                    color: Math.abs(value - opt.value) < 0.01 ? trackColor : undefined,
-                  }}
+            {labels.map((opt) => {
+              const isActive = Math.abs(value - opt.value) < 0.01;
+              const labelColor = getTrackColor(opt.value);
+              return (
+                <div
+                  key={opt.value}
+                  className="absolute flex flex-col items-center"
+                  style={{ left: `${opt.value * 100}%`, transform: "translateX(-50%)" }}
                 >
-                  {opt.label}
-                </span>
-              </div>
-            ))}
+                  <button
+                    type="button"
+                    onClick={() => onChange(opt.value)}
+                    className={cn(
+                      "text-[11px] whitespace-nowrap transition-all rounded px-1 py-0.5",
+                      "focus:outline-none focus:ring-1 focus:ring-ring",
+                      isActive
+                        ? "font-bold"
+                        : "text-muted-foreground hover:font-semibold"
+                    )}
+                    style={{
+                      color: isActive ? labelColor : undefined,
+                    }}
+                    title={`Definir como ${opt.label}`}
+                  >
+                    {opt.label}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
 

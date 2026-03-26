@@ -821,3 +821,6 @@
 
 ## Slider e Campo Numérico nos Critérios de Avaliação (Mar 2026)
 - [x] Adicionar slider deslizante (precisão 0.1) e campo de texto X.X para cada critério na TutorialEvalPage, sincronizados com os botões de conceito
+
+## Refatoração CriterionSelector (Mar 2026)
+- [x] Remover botões de conceito e tornar rótulos da barra clicáveis para mover o slider
