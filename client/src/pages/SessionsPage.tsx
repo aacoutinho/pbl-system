@@ -875,7 +875,7 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onFini
               <DialogHeader>
                 <DialogTitle>Marcar Falta — Sessão Fechada</DialogTitle>
                 <DialogDescription>
-                  {session.label} — Marque alunos presentes como faltou. Esta ação não pode ser desfeita.
+                  {session.label} — Marque alunos presentes como faltou ou justifique sua falta para substituir a nota ausente pela média das outras sessões presentes do aluno no mesmo problema. Ao marcar o aluno com faltou, a ação não pode ser desfeita, mas a justificativa pode ser desfeita enquanto a sessão estiver fechada.
                 </DialogDescription>
               </DialogHeader>
               <div className="border rounded-lg max-h-80 overflow-y-auto divide-y">
