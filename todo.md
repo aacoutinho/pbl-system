@@ -852,3 +852,6 @@
 
 ## Correção da Fórmula no Rodapé da Prévia (Mar 2026)
 - [x] Verificar fórmula real e corrigir texto do rodapé para refletir os pesos corretos na escala 0–10
+
+## Contraste do Tooltip de Ajuda (Mar 2026)
+- [x] Corrigir contraste do tooltip de ajuda nos sliders do formulário de avaliação dos pares (fundo preto com texto escuro ilegível)
