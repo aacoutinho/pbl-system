@@ -906,9 +906,21 @@ function ResultsContent() {
                               </td>
                               {(tutorialEval || isSessionClosed) && (
                                 <td className="py-3 pr-4 text-center">
-                                  <span className={`font-medium inline-flex items-center gap-1 ${r.absent ? "text-muted-foreground" : r.desempenhoScore >= 8 ? "text-emerald-600" : r.desempenhoScore >= 5 ? "text-amber-600" : "text-red-600"}`}>
+                                  <span className={`font-medium inline-flex items-center gap-1 ${r.absent && !(r as any).justifiedAbsent ? "text-muted-foreground" : (r as any).justifiedAbsent ? "text-amber-600" : r.desempenhoScore >= 8 ? "text-emerald-600" : r.desempenhoScore >= 5 ? "text-amber-600" : "text-red-600"}`}>
                                     {r.desempenhoScore.toFixed(1)}
-                                    {(r as { provisional?: boolean }).provisional && (
+                                    {(r as any).justifiedAbsent && (
+                                      <TooltipProvider>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <span className="text-amber-500 cursor-help font-bold text-base leading-none">≈</span>
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            <p>Nota substituída — falta justificada. Valor calculado pela média das outras sessões do aluno no mesmo problema.</p>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+                                    )}
+                                    {(r as { provisional?: boolean }).provisional && !(r as any).justifiedAbsent && (
                                       <TooltipProvider>
                                         <Tooltip>
                                           <TooltipTrigger asChild>
@@ -937,9 +949,16 @@ function ResultsContent() {
                               )}
                               <td className="py-3 text-center">
                                 {r.absent ? (
-                                  <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200">
-                                    <UserX className="h-3 w-3 mr-1" />Faltou
-                                  </Badge>
+                                  <div className="inline-flex flex-col items-center gap-1">
+                                    <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200">
+                                      <UserX className="h-3 w-3 mr-1" />Faltou
+                                    </Badge>
+                                    {(r as any).justifiedAbsent && (
+                                      <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[10px] px-1.5 py-0">
+                                        Justificada
+                                      </Badge>
+                                    )}
+                                  </div>
                                 ) : (
                                   <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200">
                                     Presente

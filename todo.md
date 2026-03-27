@@ -889,3 +889,7 @@
 - [x] Contagem separada de faltas justificadas no resumo de frequência do perfil do aluno ("X faltas (Y justificadas)")
 - [x] Exibir nota substituída visualmente com ícone ≈ na linha da sessão justificada (professor e aluno)
 - [x] Garantir que desfazer a justificativa reverte a nota para 0.0 automaticamente (já funciona — validado)
+
+## Ícone ≈ e Legenda nas Tabelas (Mar 2026)
+- [x] Exibir ícone ≈ na página de Resultados para notas substituídas por falta justificada
+- [x] Adicionar legenda de símbolos nas tabelas de sessões (professor e aluno)
