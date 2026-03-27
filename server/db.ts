@@ -1888,7 +1888,8 @@ export async function calculateDesempenhoScores(sessionId: number, provisional =
         role: r.role,
         peerScore: 0,
         desempenhoScore: 0,
-        tutorialScore: tutorialScoreRounded,
+        // Absent students get 0 for tutorial score; students with totalScore=0 (no peer evals) still see the tutorial grade
+        tutorialScore: r.absent ? 0 : tutorialScoreRounded,
         absent: r.absent,
         excluded: r.excluded,
         validEvaluations: r.validEvaluations,

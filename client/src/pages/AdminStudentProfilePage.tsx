@@ -14,8 +14,7 @@ function gradeLabel(val: number | null | undefined): string {
 }
 
 function GradeCell({ value, absent, pending, showZeroWhenAbsent }: { value: number | null | undefined; absent?: boolean; pending?: boolean; showZeroWhenAbsent?: boolean }) {
-  if (absent && !showZeroWhenAbsent) return <span className="text-red-500 font-medium">F</span>;
-  if (absent && showZeroWhenAbsent) return <span className="text-muted-foreground font-medium">0.0</span>;
+  if (absent) return <span className="text-muted-foreground font-medium">0.0</span>;
   if (pending) return (
     <span className="inline-flex items-center gap-1 text-amber-600 text-[10px]" title="Avaliação tutorial ainda não realizada pelo professor">
       ⏳ Pendente
@@ -137,10 +136,15 @@ export default function AdminStudentProfilePage() {
                   <tbody>
                     {comp.sessions.map((s: any) => (
                       <tr key={s.sessionId} className="border-b last:border-0 hover:bg-muted/30">
-                        <td className="py-2 pr-4 font-medium">{s.sessionLabel}</td>
+                        <td className="py-2 pr-4 font-medium">
+                          <span>{s.sessionLabel}</span>
+                          {s.absent && (
+                            <Badge variant="outline" className="ml-2 text-red-600 border-red-200 text-[10px] px-1 py-0">Faltou</Badge>
+                          )}
+                        </td>
                         <td className="text-center py-2 px-2">
                           {s.absent ? (
-                            <Badge variant="outline" className="text-red-600 border-red-200 text-xs">Faltou</Badge>
+                            <span className="text-muted-foreground">—</span>
                           ) : s.role ? (
                             <Badge variant="outline" className="text-xs">{s.role}</Badge>
                           ) : (

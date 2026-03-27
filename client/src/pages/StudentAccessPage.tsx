@@ -1246,7 +1246,12 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
                             ev.absent ? 'bg-red-50/40' : ''
                           }`}>
                             <td className="py-2 px-3">
-                              <p className="font-medium">{ev.sessionLabel}</p>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <p className="font-medium">{ev.sessionLabel}</p>
+                                {ev.absent && (
+                                  <Badge variant="outline" className="text-red-600 border-red-200 text-[9px] px-1 py-0">Faltou</Badge>
+                                )}
+                              </div>
                               <Badge variant={ev.sessionStatus === 'finished' ? 'secondary' : 'outline'} className="text-[9px] px-1 py-0 mt-0.5">
                                 {ev.sessionStatus === 'finished' ? 'Encerrada' : ev.sessionStatus === 'closed' ? 'Fechada' : ev.sessionStatus === 'open' ? 'Em Avaliação' : 'Ativa'}
                               </Badge>
@@ -1296,7 +1301,7 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
                             </td>
                             <td className="py-2 px-2 text-center">
                               {ev.absent ? (
-                                <span className="text-red-500 font-semibold">F</span>
+                                <span className="text-muted-foreground font-medium">0.0</span>
                               ) : (ev.sessionStatus === 'finished' || ev.sessionStatus === 'closed') && ev.peerScore > 0 ? (
                                 <span className="text-slate-700">{ev.peerScore.toFixed(1)}</span>
                               ) : (
@@ -1305,7 +1310,7 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
                             </td>
                             <td className="py-2 px-2 text-center">
                               {ev.absent ? (
-                                <span className="text-red-500 font-semibold">F</span>
+                                <span className="text-muted-foreground font-medium">0.0</span>
                               ) : ev.sessionStatus === 'finished' && ev.tutorialScore !== undefined ? (
                                 <span className="text-slate-700">{ev.tutorialScore.toFixed(1)}</span>
                               ) : ev.sessionStatus === 'closed' ? (

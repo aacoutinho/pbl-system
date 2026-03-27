@@ -861,3 +861,9 @@
 
 ## Anotações por Aluno Presente (Mar 2026)
 - [x] Filtrar área de anotações para exibir apenas alunos presentes e renomear para "Anotações por Aluno Presente na Sessão"
+
+## Nota Tutorial para Alunos Ausentes (Mar 2026)
+- [x] Corrigir Nota Tutorial para exibir 0.0 quando o aluno faltou (perfil do professor e visão do aluno)
+
+## Indicador de Ausência no Perfil do Aluno (Mar 2026)
+- [x] Adicionar badge/indicador "Faltou" na linha da sessão no perfil do aluno (visão professor e visão aluno)
