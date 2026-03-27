@@ -1,0 +1,9 @@
+{
+  "query": "\nSELECT s.id AS student_id, s.name, ss.sessionId AS session_id, ss.absent, ss.role,\n       ses.problemNumber AS problem_number, ses.sessionNumber AS session_number, ses.status\nFROM students s\nJOIN session_students ss ON ss.studentId = s.id\nJOIN sessions ses ON ses.id = ss.sessionId\nWHERE s.name LIKE '%Luana%'\nORDER BY ses.problemNumber, ses.sessionNumber;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute \nSELECT s.id AS student_id, s.name, ss.sessionId AS session_id, ss.absent, ss.role,\n       ses.problemNumber AS problem_number, ses.sessionNumber AS session_number, ses.status\nFROM students s\nJOIN session_students ss ON ss.studentId = s.id\nJOIN sessions ses ON ses.id = ss.sessionId\nWHERE s.name LIKE '%Luana%'\nORDER BY ses.problemNumber, ses.sessionNumber;\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 359
+}

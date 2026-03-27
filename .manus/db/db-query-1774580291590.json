@@ -1,0 +1,34 @@
+{
+  "query": "\nSELECT ss.sessionId, ss.absent, ss.role,\n       ses.problemNumber, ses.sessionNumber, ses.status\nFROM session_students ss\nJOIN sessions ses ON ses.id = ss.sessionId\nWHERE ss.studentId = 300027\nORDER BY ses.problemNumber, ses.sessionNumber;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute \nSELECT ss.sessionId, ss.absent, ss.role,\n       ses.problemNumber, ses.sessionNumber, ses.status\nFROM session_students ss\nJOIN sessions ses ON ses.id = ss.sessionId\nWHERE ss.studentId = 300027\nORDER BY ses.problemNumber, ses.sessionNumber;\n",
+  "rows": [
+    {
+      "sessionId": "660005",
+      "absent": "0",
+      "role": "QUADRO",
+      "problemNumber": "1",
+      "sessionNumber": "1",
+      "status": "finished"
+    },
+    {
+      "sessionId": "690006",
+      "absent": "0",
+      "role": "PARTICIPANTE",
+      "problemNumber": "1",
+      "sessionNumber": "2",
+      "status": "finished"
+    },
+    {
+      "sessionId": "720002",
+      "absent": "1",
+      "role": "PARTICIPANTE",
+      "problemNumber": "1",
+      "sessionNumber": "3",
+      "status": "closed"
+    }
+  ],
+  "messages": [],
+  "stdout": "sessionId\tabsent\trole\tproblemNumber\tsessionNumber\tstatus\n660005\t0\tQUADRO\t1\t1\tfinished\n690006\t0\tPARTICIPANTE\t1\t2\tfinished\n720002\t1\tPARTICIPANTE\t1\t3\tclosed\n",
+  "stderr": "",
+  "execution_time_ms": 378
+}

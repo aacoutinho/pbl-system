@@ -1324,6 +1324,9 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
 
   const results: SessionResult[] = [];
   for (const s of sessionStudentsList) {
+    // Primary source of truth: absent flag from session_students (set by professor)
+    const markedAbsentByProfessor = s.absent;
+
     const itemsForStudent = filteredItems.filter(i => {
       const evaluatorId = evalToEvaluator.get(i.evaluationId);
       return i.evaluatedStudentId === s.studentId && evaluatorId !== s.studentId;
@@ -1331,7 +1334,9 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
 
     const absentCount = itemsForStudent.filter(i => i.absent).length;
     const presentCount = itemsForStudent.filter(i => !i.absent).length;
-    const isAbsent = itemsForStudent.length > 0 && absentCount > presentCount;
+    const isAbsentByPeers = itemsForStudent.length > 0 && absentCount > presentCount;
+    // Student is absent if professor marked them absent OR peers majority voted absent
+    const isAbsent = markedAbsentByProfessor || isAbsentByPeers;
 
     if (isAbsent || itemsForStudent.length === 0) {
       results.push({

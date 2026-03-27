@@ -1,0 +1,130 @@
+{
+  "query": "SELECT id, name FROM students LIMIT 30;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute SELECT id, name FROM students LIMIT 30;",
+  "rows": [
+    {
+      "id": "300001",
+      "name": "ADSON VICTOR DE SOUZA ALVES"
+    },
+    {
+      "id": "300002",
+      "name": "EMANUEL LUCAS TELLES BASTOS SENA"
+    },
+    {
+      "id": "300003",
+      "name": "FILIPE CARVALHO MATOS GALVÃO"
+    },
+    {
+      "id": "300004",
+      "name": "ILSON MARINHO DA COSTA NETO"
+    },
+    {
+      "id": "300005",
+      "name": "JOAO VICTOR DA COSTA CERQUEIRA"
+    },
+    {
+      "id": "300006",
+      "name": "JULIA SANTANA DE OLIVEIRA"
+    },
+    {
+      "id": "300007",
+      "name": "LEVI NOGUEIRA VASCONCELOS"
+    },
+    {
+      "id": "300008",
+      "name": "LUIS FELIPE PEREIRA DE CARVALHO"
+    },
+    {
+      "id": "300009",
+      "name": "MARIA JOSÉ  RAMOS NETA"
+    },
+    {
+      "id": "300010",
+      "name": "NATHAN DE JESUS DOS SANTOS"
+    },
+    {
+      "id": "300011",
+      "name": "CAROLINE SANTOS DE JESUS"
+    },
+    {
+      "id": "300012",
+      "name": "CLEIDSON RAMOS DE CARVALHO"
+    },
+    {
+      "id": "300013",
+      "name": "DAVI MEDEIROS ROCHA"
+    },
+    {
+      "id": "300014",
+      "name": "FELIPE DA SILVA FERREIRA"
+    },
+    {
+      "id": "300015",
+      "name": "GERSON FERREIRA DOS ANJOS NETO"
+    },
+    {
+      "id": "300016",
+      "name": "JEFFERSON MATEUS NASCIMENTO DOS SANTOS"
+    },
+    {
+      "id": "300017",
+      "name": "LUIS FELIPE CARNEIRO PIMENTEL"
+    },
+    {
+      "id": "300018",
+      "name": "NYCOLAS DE LIMA OLIVEIRA SILVA"
+    },
+    {
+      "id": "300019",
+      "name": "UEMERSON VIRGEN DE JESUS"
+    },
+    {
+      "id": "300020",
+      "name": "WALACE DE JESUS VENAS"
+    },
+    {
+      "id": "300021",
+      "name": "DAVI LIMA BALLEIRO"
+    },
+    {
+      "id": "300022",
+      "name": "ENZO CAUA DA SILVA BARBOSA"
+    },
+    {
+      "id": "300023",
+      "name": "JAMILE LETÍCIA CARNEIRO DA SILVA"
+    },
+    {
+      "id": "300024",
+      "name": "JULIA GONCALVES OLIVEIRA"
+    },
+    {
+      "id": "300025",
+      "name": "LEONARDO CALDAS PALMA"
+    },
+    {
+      "id": "300026",
+      "name": "LUAN RODRIGUES ARAÚJO"
+    },
+    {
+      "id": "300027",
+      "name": "LUANA PEDREIRA OLIVEIRA"
+    },
+    {
+      "id": "300028",
+      "name": "LUCAS ROCHA DE CARVALHO BRITO"
+    },
+    {
+      "id": "300029",
+      "name": "WELTON DOS SANTOS CERQUEIRA"
+    },
+    {
+      "id": "300030",
+      "name": "YASMIN CORDEIRO DE SOUZA MEIRA"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\n300001\tADSON VICTOR DE SOUZA ALVES\n300002\tEMANUEL LUCAS TELLES BASTOS SENA\n300003\tFILIPE CARVALHO MATOS GALVÃO\n300004\tILSON MARINHO DA COSTA NETO\n300005\tJOAO VICTOR DA COSTA CERQUEIRA\n300006\tJULIA SANTANA DE OLIVEIRA\n300007\tLEVI NOGUEIRA VASCONCELOS\n300008\tLUIS FELIPE PEREIRA DE CARVALHO\n300009\tMARIA JOSÉ  RAMOS NETA\n300010\tNATHAN DE JESUS DOS SANTOS\n300011\tCAROLINE SANTOS DE JESUS\n300012\tCLEIDSON RAMOS DE CARVALHO\n300013\tDAVI MEDEIROS ROCHA\n300014\tFELIPE DA SILVA FERREIRA\n300015\tGERSON FERREIRA DOS ANJOS NETO\n300016\tJEFFERSON MATEUS NASCIMENTO DOS SANTOS\n300017\tLUIS FELIPE CARNEIRO PIMENTEL\n300018\tNYCOLAS DE LIMA OLIVEIRA SILVA\n300019\tUEMERSON VIRGEN DE JESUS\n300020\tWALACE DE JESUS VENAS\n300021\tDAVI LIMA BALLEIRO\n300022\tENZO CAUA DA SILVA BARBOSA\n300023\tJAMILE LETÍCIA CARNEIRO DA SILVA\n300024\tJULIA GONCALVES OLIVEIRA\n300025\tLEONARDO CALDAS PALMA\n300026\tLUAN RODRIGUES ARAÚJO\n300027\tLUANA PEDREIRA OLIVEIRA\n300028\tLUCAS ROCHA DE CARVALHO BRITO\n300029\tWELTON DOS SANTOS CERQUEIRA\n300030\tYASMIN CORDEIRO DE SOUZA MEIRA\n",
+  "stderr": "",
+  "execution_time_ms": 359
+}

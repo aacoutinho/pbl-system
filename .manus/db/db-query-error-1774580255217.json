@@ -1,0 +1,8 @@
+{
+  "query": "\nSELECT s.id AS student_id, s.name, ss.session_id, ss.absent, ss.role,\n       ses.problem_number, ses.session_number, ses.status\nFROM students s\nJOIN session_students ss ON ss.student_id = s.id\nJOIN sessions ses ON ses.id = ss.session_id\nWHERE s.name LIKE '%Luana%'\nORDER BY ses.problem_number, ses.session_number;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute \nSELECT s.id AS student_id, s.name, ss.session_id, ss.absent, ss.role,\n       ses.problem_number, ses.session_number, ses.status\nFROM students s\nJOIN session_students ss ON ss.student_id = s.id\nJOIN sessions ses ON ses.id = ss.session_id\nWHERE s.name LIKE '%Luana%'\nORDER BY ses.problem_number, ses.session_number;\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 2: Unknown column 'ss.student_id' in 'on clause'"
+  ]
+}

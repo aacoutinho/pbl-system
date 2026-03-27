@@ -1,0 +1,9 @@
+{
+  "query": "\nSELECT ei.evaluatedStudentId, COUNT(*) as count\nFROM evaluation_items ei\nJOIN evaluations e ON e.id = ei.evaluationId\nWHERE e.sessionId = 720002 AND ei.evaluatedStudentId = 300027\nGROUP BY ei.evaluatedStudentId;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute \nSELECT ei.evaluatedStudentId, COUNT(*) as count\nFROM evaluation_items ei\nJOIN evaluations e ON e.id = ei.evaluationId\nWHERE e.sessionId = 720002 AND ei.evaluatedStudentId = 300027\nGROUP BY ei.evaluatedStudentId;\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 344
+}

@@ -867,3 +867,6 @@
 
 ## Indicador de Ausência no Perfil do Aluno (Mar 2026)
 - [x] Adicionar badge/indicador "Faltou" na linha da sessão no perfil do aluno (visão professor e visão aluno)
+
+## Nota Tutorial Luana (Mar 2026)
+- [x] Diagnosticar e corrigir Nota Tutorial 9.0 e ausência de badge Faltou no perfil da Luana (sessão 3, problema 1)

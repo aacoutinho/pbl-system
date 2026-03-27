@@ -1,0 +1,38 @@
+{
+  "query": "SELECT id, name FROM students WHERE name LIKE 'LU%' OR name LIKE 'Lu%' LIMIT 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute SELECT id, name FROM students WHERE name LIKE 'LU%' OR name LIKE 'Lu%' LIMIT 20;",
+  "rows": [
+    {
+      "id": "300008",
+      "name": "LUIS FELIPE PEREIRA DE CARVALHO"
+    },
+    {
+      "id": "300017",
+      "name": "LUIS FELIPE CARNEIRO PIMENTEL"
+    },
+    {
+      "id": "300026",
+      "name": "LUAN RODRIGUES ARAÚJO"
+    },
+    {
+      "id": "300027",
+      "name": "LUANA PEDREIRA OLIVEIRA"
+    },
+    {
+      "id": "300028",
+      "name": "LUCAS ROCHA DE CARVALHO BRITO"
+    },
+    {
+      "id": "300039",
+      "name": "LUCAS GUERRA DE ARAUJO"
+    },
+    {
+      "id": "300040",
+      "name": "LUCAS OLIVEIRA DA SILVA"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\n300008\tLUIS FELIPE PEREIRA DE CARVALHO\n300017\tLUIS FELIPE CARNEIRO PIMENTEL\n300026\tLUAN RODRIGUES ARAÚJO\n300027\tLUANA PEDREIRA OLIVEIRA\n300028\tLUCAS ROCHA DE CARVALHO BRITO\n300039\tLUCAS GUERRA DE ARAUJO\n300040\tLUCAS OLIVEIRA DA SILVA\n",
+  "stderr": "",
+  "execution_time_ms": 346
+}
