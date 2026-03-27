@@ -1,0 +1,8 @@
+{
+  "query": "\nSELECT c.id, c.code, c.semester, comp.code as component_code\nFROM classes c\nJOIN components comp ON c.componentId = comp.id\nWHERE comp.code = 'TEC502' AND c.semester = '2026.1' AND c.code = 'TP01'\nLIMIT 5;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute \nSELECT c.id, c.code, c.semester, comp.code as component_code\nFROM classes c\nJOIN components comp ON c.componentId = comp.id\nWHERE comp.code = 'TEC502' AND c.semester = '2026.1' AND c.code = 'TP01'\nLIMIT 5;\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 2: Unknown column 'c.code' in 'where clause'"
+  ]
+}

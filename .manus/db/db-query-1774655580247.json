@@ -1,0 +1,16 @@
+{
+  "query": "\nSELECT c.id, c.classCode, c.semester, comp.code as component_code\nFROM classes c\nJOIN components comp ON c.componentId = comp.id\nWHERE comp.code = 'TEC502' AND c.semester = '2026.1' AND c.classCode = 'TP01'\nLIMIT 5;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute \nSELECT c.id, c.classCode, c.semester, comp.code as component_code\nFROM classes c\nJOIN components comp ON c.componentId = comp.id\nWHERE comp.code = 'TEC502' AND c.semester = '2026.1' AND c.classCode = 'TP01'\nLIMIT 5;\n",
+  "rows": [
+    {
+      "id": "60001",
+      "classCode": "TP01",
+      "semester": "2026.1",
+      "component_code": "TEC502"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tclassCode\tsemester\tcomponent_code\n60001\tTP01\t2026.1\tTEC502\n",
+  "stderr": "",
+  "execution_time_ms": 355
+}

@@ -1,0 +1,73 @@
+{
+  "query": "\nSELECT ss.studentId, s.name, ss.absent, ss.justifiedAbsent, ss.role\nFROM session_students ss\nJOIN students s ON ss.studentId = s.id\nWHERE ss.sessionId = 660005\nORDER BY s.name;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute \nSELECT ss.studentId, s.name, ss.absent, ss.justifiedAbsent, ss.role\nFROM session_students ss\nJOIN students s ON ss.studentId = s.id\nWHERE ss.sessionId = 660005\nORDER BY s.name;\n",
+  "rows": [
+    {
+      "studentId": "300012",
+      "name": "CLEIDSON RAMOS DE CARVALHO",
+      "absent": "0",
+      "justifiedAbsent": "0",
+      "role": "COORDENADOR"
+    },
+    {
+      "studentId": "300013",
+      "name": "DAVI MEDEIROS ROCHA",
+      "absent": "0",
+      "justifiedAbsent": "0",
+      "role": "PARTICIPANTE"
+    },
+    {
+      "studentId": "300014",
+      "name": "FELIPE DA SILVA FERREIRA",
+      "absent": "0",
+      "justifiedAbsent": "0",
+      "role": "PARTICIPANTE"
+    },
+    {
+      "studentId": "300016",
+      "name": "JEFFERSON MATEUS NASCIMENTO DOS SANTOS",
+      "absent": "0",
+      "justifiedAbsent": "0",
+      "role": "MESA"
+    },
+    {
+      "studentId": "300027",
+      "name": "LUANA PEDREIRA OLIVEIRA",
+      "absent": "0",
+      "justifiedAbsent": "0",
+      "role": "QUADRO"
+    },
+    {
+      "studentId": "300017",
+      "name": "LUIS FELIPE CARNEIRO PIMENTEL",
+      "absent": "0",
+      "justifiedAbsent": "0",
+      "role": "PARTICIPANTE"
+    },
+    {
+      "studentId": "300018",
+      "name": "NYCOLAS DE LIMA OLIVEIRA SILVA",
+      "absent": "0",
+      "justifiedAbsent": "0",
+      "role": "PARTICIPANTE"
+    },
+    {
+      "studentId": "300019",
+      "name": "UEMERSON VIRGEN DE JESUS",
+      "absent": "0",
+      "justifiedAbsent": "0",
+      "role": "PARTICIPANTE"
+    },
+    {
+      "studentId": "300020",
+      "name": "WALACE DE JESUS VENAS",
+      "absent": "0",
+      "justifiedAbsent": "0",
+      "role": "PARTICIPANTE"
+    }
+  ],
+  "messages": [],
+  "stdout": "studentId\tname\tabsent\tjustifiedAbsent\trole\n300012\tCLEIDSON RAMOS DE CARVALHO\t0\t0\tCOORDENADOR\n300013\tDAVI MEDEIROS ROCHA\t0\t0\tPARTICIPANTE\n300014\tFELIPE DA SILVA FERREIRA\t0\t0\tPARTICIPANTE\n300016\tJEFFERSON MATEUS NASCIMENTO DOS SANTOS\t0\t0\tMESA\n300027\tLUANA PEDREIRA OLIVEIRA\t0\t0\tQUADRO\n300017\tLUIS FELIPE CARNEIRO PIMENTEL\t0\t0\tPARTICIPANTE\n300018\tNYCOLAS DE LIMA OLIVEIRA SILVA\t0\t0\tPARTICIPANTE\n300019\tUEMERSON VIRGEN DE JESUS\t0\t0\tPARTICIPANTE\n300020\tWALACE DE JESUS VENAS\t0\t0\tPARTICIPANTE\n",
+  "stderr": "",
+  "execution_time_ms": 354
+}

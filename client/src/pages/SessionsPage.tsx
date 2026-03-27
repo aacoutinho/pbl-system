@@ -166,6 +166,19 @@ function SessionsContent() {
     return `Problema ${pn} - Sessão ${autoSessionNumber}${titlePart}`;
   }, [problemNum, problemTitle, autoSessionNumber]);
 
+  const selectAll = useCallback(() => {
+    const allPresent = selectedStudents.length === (studentsList?.length ?? 0);
+    setAssignments(prev => {
+      const updated = { ...prev };
+      (studentsList ?? []).forEach(s => {
+        // Toggle: if all present, mark all absent; if any absent, mark all present
+        updated[s.id] = { ...updated[s.id], absent: !allPresent, selected: true };
+        if (!allPresent) updated[s.id].role = "PARTICIPANTE";
+      });
+      return updated;
+    });
+  }, [selectedStudents, studentsList]);
+
   if (!selectedComponentId) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
@@ -245,20 +258,6 @@ function SessionsContent() {
       setAssignments(prev => ({ ...prev, [id]: { ...prev[id], role } }));
     }
   };
-
-
-  const selectAll = useCallback(() => {
-    const allPresent = selectedStudents.length === (studentsList?.length ?? 0);
-    setAssignments(prev => {
-      const updated = { ...prev };
-      (studentsList ?? []).forEach(s => {
-        // Toggle: if all present, mark all absent; if any absent, mark all present
-        updated[s.id] = { ...updated[s.id], absent: !allPresent, selected: true };
-        if (!allPresent) updated[s.id].role = "PARTICIPANTE";
-      });
-      return updated;
-    });
-  }, [selectedStudents, studentsList]);
 
   return (
     <div className="space-y-6">

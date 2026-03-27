@@ -893,4 +893,4 @@
 - [x] Incluir data da sessão nos relatórios PDF/CSV gerados (exportSessionPDF, exportProblemPDF, exportAllClasses*, ConsolidatedStudentReport)
 - [x] Passar campo closedAt/createdAt da sessão na procedure sessions.list para o frontend
 - [x] Incluir data da sessão no cabeçalho da aba de resultados por sessão na interface web
-- [x] Bug: diálogo "Marcar falta" em sessões encerradas não exibe a lista de alunos da turma
+- [x] Bug: diálogo "Marcar falta" em sessões encerradas não exibe a lista de alunos da turma (corrigido: hook useCallback estava após early returns, causando crash de hooks do React)

@@ -1,0 +1,31 @@
+{
+  "query": "\nSELECT s.id, s.label, s.status,\n  (SELECT COUNT(*) FROM session_students ss WHERE ss.sessionId = s.id) as session_students_count,\n  (SELECT COUNT(*) FROM class_students cs WHERE cs.classId = s.classId) as class_students_count\nFROM sessions s\nWHERE s.classId = 60001 AND s.status IN ('closed','finished')\nORDER BY s.id;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute \nSELECT s.id, s.label, s.status,\n  (SELECT COUNT(*) FROM session_students ss WHERE ss.sessionId = s.id) as session_students_count,\n  (SELECT COUNT(*) FROM class_students cs WHERE cs.classId = s.classId) as class_students_count\nFROM sessions s\nWHERE s.classId = 60001 AND s.status IN ('closed','finished')\nORDER BY s.id;\n",
+  "rows": [
+    {
+      "id": "660005",
+      "label": "Problema 1 - Sessão 1",
+      "status": "finished",
+      "session_students_count": "9",
+      "class_students_count": "10"
+    },
+    {
+      "id": "690006",
+      "label": "Problema 1 - Sessão 2",
+      "status": "finished",
+      "session_students_count": "7",
+      "class_students_count": "10"
+    },
+    {
+      "id": "720002",
+      "label": "Problema 1 - Sessão 3",
+      "status": "closed",
+      "session_students_count": "10",
+      "class_students_count": "10"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tlabel\tstatus\tsession_students_count\tclass_students_count\n660005\tProblema 1 - Sessão 1\tfinished\t9\t10\n690006\tProblema 1 - Sessão 2\tfinished\t7\t10\n720002\tProblema 1 - Sessão 3\tclosed\t10\t10\n",
+  "stderr": "",
+  "execution_time_ms": 352
+}

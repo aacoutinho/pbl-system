@@ -1,0 +1,25 @@
+{
+  "query": "SELECT id, label, status FROM sessions WHERE classId = 60001 LIMIT 5;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute SELECT id, label, status FROM sessions WHERE classId = 60001 LIMIT 5;\n",
+  "rows": [
+    {
+      "id": "660005",
+      "label": "Problema 1 - Sessão 1",
+      "status": "finished"
+    },
+    {
+      "id": "690006",
+      "label": "Problema 1 - Sessão 2",
+      "status": "finished"
+    },
+    {
+      "id": "720002",
+      "label": "Problema 1 - Sessão 3",
+      "status": "closed"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tlabel\tstatus\n660005\tProblema 1 - Sessão 1\tfinished\n690006\tProblema 1 - Sessão 2\tfinished\n720002\tProblema 1 - Sessão 3\tclosed\n",
+  "stderr": "",
+  "execution_time_ms": 372
+}

@@ -1,0 +1,15 @@
+{
+  "query": "\n-- Buscar o componente TEC502\nSELECT id, code, name FROM components WHERE code = 'TEC502' LIMIT 5;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute \n-- Buscar o componente TEC502\nSELECT id, code, name FROM components WHERE code = 'TEC502' LIMIT 5;\n",
+  "rows": [
+    {
+      "id": "1",
+      "code": "TEC502",
+      "name": "Concorrência e Conectividade"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tcode\tname\n1\tTEC502\tConcorrência e Conectividade\n",
+  "stderr": "",
+  "execution_time_ms": 416
+}

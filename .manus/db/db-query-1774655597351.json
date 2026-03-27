@@ -1,0 +1,14 @@
+{
+  "query": "\nSELECT s.id, s.name\nFROM class_students cs\nJOIN students s ON cs.studentId = s.id\nWHERE cs.classId = 60001\n  AND s.id NOT IN (SELECT studentId FROM session_students WHERE sessionId = 660005)\nORDER BY s.name;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute \nSELECT s.id, s.name\nFROM class_students cs\nJOIN students s ON cs.studentId = s.id\nWHERE cs.classId = 60001\n  AND s.id NOT IN (SELECT studentId FROM session_students WHERE sessionId = 660005)\nORDER BY s.name;\n",
+  "rows": [
+    {
+      "id": "300015",
+      "name": "GERSON FERREIRA DOS ANJOS NETO"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\n300015\tGERSON FERREIRA DOS ANJOS NETO\n",
+  "stderr": "",
+  "execution_time_ms": 373
+}
