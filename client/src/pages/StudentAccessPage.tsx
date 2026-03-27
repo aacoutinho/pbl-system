@@ -64,9 +64,10 @@ interface SelectedSession {
   studentRole?: string;
 }
 
-// ─── Student session persistence (3 hours) ───
+// ─── Student session persistence ───
 const STUDENT_SESSION_KEY = "student_auth_session";
-const STUDENT_SESSION_TTL_MS = 3 * 60 * 60 * 1000; // 3 hours
+const STUDENT_SESSION_TTL_3H = 3 * 60 * 60 * 1000;   // 3 hours (default)
+const STUDENT_SESSION_TTL_24H = 24 * 60 * 60 * 1000; // 24 hours (remember me)
 function loadStudentSession(): AuthenticatedData | null {
   try {
     const raw = localStorage.getItem(STUDENT_SESSION_KEY);
@@ -79,8 +80,9 @@ function loadStudentSession(): AuthenticatedData | null {
     return parsed.data;
   } catch { return null; }
 }
-function saveStudentSession(data: AuthenticatedData) {
-  localStorage.setItem(STUDENT_SESSION_KEY, JSON.stringify({ data, expiresAt: Date.now() + STUDENT_SESSION_TTL_MS }));
+function saveStudentSession(data: AuthenticatedData, rememberMe = false) {
+  const ttl = rememberMe ? STUDENT_SESSION_TTL_24H : STUDENT_SESSION_TTL_3H;
+  localStorage.setItem(STUDENT_SESSION_KEY, JSON.stringify({ data, expiresAt: Date.now() + ttl, rememberMe }));
 }
 function clearStudentSession() {
   localStorage.removeItem(STUDENT_SESSION_KEY);
@@ -92,6 +94,7 @@ export default function StudentAccessPage() {
   const [enrollment, setEnrollment] = useState("");
   const [loginData, setLoginData] = useState<LoginData | null>(null);
   const [authData, setAuthData] = useState<AuthenticatedData | null>(savedSession);
+  const [rememberMe, setRememberMe] = useState(false);
   const [selectedSession, setSelectedSession] = useState<SelectedSession | null>(null);
   const [brainstormSession, setBrainstormSession] = useState<{ sessionId: number; sessionLabel: string; canEdit: boolean } | null>(null);
   const [pendingBrainstormSessionId, setPendingBrainstormSessionId] = useState<number | null>(() => {
@@ -142,7 +145,7 @@ export default function StudentAccessPage() {
   const verifyLoginCodeMutation = trpc.studentAccess.verifyLoginCode.useMutation({
     onSuccess: (data) => {
       setAuthData(data);
-      saveStudentSession(data);
+      saveStudentSession(data, rememberMe);
       toast.success("Acesso autorizado!");
       setStep("dashboard");
     },
@@ -171,7 +174,7 @@ export default function StudentAccessPage() {
 
   const handleProfileSetupComplete = (data: AuthenticatedData) => {
     setAuthData(data);
-    saveStudentSession(data);
+    saveStudentSession(data, rememberMe);
     setStep("dashboard");
   };
 
@@ -217,6 +220,18 @@ export default function StudentAccessPage() {
                 autoFocus
               />
             </div>
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="checkbox"
+                id="rememberMe"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 accent-primary cursor-pointer"
+              />
+              <Label htmlFor="rememberMe" className="text-sm text-muted-foreground cursor-pointer select-none">
+                Manter acesso por 24 horas neste computador
+              </Label>
+            </div>
             <Button
               className="w-full"
               size="lg"
@@ -230,6 +245,9 @@ export default function StudentAccessPage() {
                 </>
               )}
             </Button>
+            <p className="text-center text-xs text-muted-foreground">
+              Sem a opção marcada, o acesso expira automaticamente em <strong>3 horas</strong>.
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -299,7 +317,7 @@ export default function StudentAccessPage() {
                 studentEmail: email || prev.studentEmail,
                 studentPhotoUrl: photoUrl || prev.studentPhotoUrl,
               };
-              saveStudentSession(updated);
+              saveStudentSession(updated, rememberMe);
               return updated;
             });
             setStep("dashboard");

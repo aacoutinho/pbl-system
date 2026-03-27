@@ -870,3 +870,7 @@
 
 ## Nota Tutorial Luana (Mar 2026)
 - [x] Diagnosticar e corrigir Nota Tutorial 9.0 e ausência de badge Faltou no perfil da Luana (sessão 3, problema 1)
+
+## Expiração de Sessão do Aluno (Mar 2026)
+- [x] Alterar expiração padrão da sessão do aluno para 3 horas
+- [x] Adicionar opção "Lembrar por 24 horas" na tela de login do aluno
