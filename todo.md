@@ -892,3 +892,4 @@
 - [x] Exibir data de realização da sessão na folha de Sessões (SessionsPage) — usar closedAt quando disponível, senão createdAt
 - [x] Incluir data da sessão nos relatórios PDF/CSV gerados (exportSessionPDF, exportProblemPDF, exportAllClasses*, ConsolidatedStudentReport)
 - [x] Passar campo closedAt/createdAt da sessão na procedure sessions.list para o frontend
+- [x] Incluir data da sessão no cabeçalho da aba de resultados por sessão na interface web
