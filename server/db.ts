@@ -877,6 +877,7 @@ export async function getSessionStudents(sessionId: number) {
     studentPhotoUrl: students.photoUrl,
     role: sessionStudents.role,
     absent: sessionStudents.absent,
+    justifiedAbsent: sessionStudents.justifiedAbsent,
   })
     .from(sessionStudents)
     .innerJoin(students, eq(sessionStudents.studentId, students.id))
@@ -1215,6 +1216,7 @@ export interface SessionResult {
   totalScore: number;
   validEvaluations: number;
   absent: boolean;
+  justifiedAbsent?: boolean; // true when absence was justified by professor
   excluded: boolean; // true when student was removed from class before this session
 }
 
@@ -1285,6 +1287,10 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
   const absentStudentIds = new Set(
     sessionStudentsList.filter(s => s.absent).map(s => s.studentId)
   );
+  // Build map of justifiedAbsent by studentId
+  const justifiedAbsentMap = new Map<number, boolean>(
+    sessionStudentsList.map(s => [s.studentId, s.justifiedAbsent ?? false])
+  );
 
   // Filter out evaluations FROM absent evaluators
   // If a student was marked absent but had already submitted an evaluation, exclude it
@@ -1348,6 +1354,7 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
         totalScore: 0,
         validEvaluations: 0,
         absent: isAbsent,
+        justifiedAbsent: isAbsent ? (justifiedAbsentMap.get(s.studentId) ?? false) : false,
         excluded: false,
       });
       continue;
@@ -1362,16 +1369,17 @@ export async function calculateSessionResults(sessionId: number): Promise<Sessio
     const avg = validItems.length > 0 ? sumScores / validItems.length : 0;
 
     results.push({
-      studentId: s.studentId,
-      studentName: s.studentName,
-      studentEmail: s.studentEmail,
-      studentEnrollment: s.studentEnrollment,
-      role: assignedRoles[s.studentId] || "PARTICIPANTE",
-      totalScore: Math.round(avg * 100) / 100,
-      validEvaluations: validItems.length,
-      absent: false,
-      excluded: false,
-    });
+        studentId: s.studentId,
+        studentName: s.studentName,
+        studentEmail: s.studentEmail,
+        studentEnrollment: s.studentEnrollment,
+        role: assignedRoles[s.studentId] || "PARTICIPANTE",
+        totalScore: Math.round(avg * 100) / 100,
+        validEvaluations: validItems.length,
+        absent: false,
+        justifiedAbsent: false,
+        excluded: false,
+      });
   }
 
   // Add absent students (class students not in session) with zero
@@ -1802,6 +1810,7 @@ export interface DesempenhoScoreResult {
   desempenhoScore: number;
   tutorialScore?: number; // nota do tutorial (calculateTutorialGrade), undefined se não avaliado
   absent: boolean;
+  justifiedAbsent?: boolean; // true when absence was justified by professor
   excluded: boolean; // true when student was removed from class before this session
   validEvaluations: number;
   capped: boolean; // true when desempenhoScore was capped at 10.0
@@ -1896,6 +1905,7 @@ export async function calculateDesempenhoScores(sessionId: number, provisional =
         // Absent students get 0 for tutorial score; students with totalScore=0 (no peer evals) still see the tutorial grade
         tutorialScore: r.absent ? 0 : tutorialScoreRounded,
         absent: r.absent,
+        justifiedAbsent: r.justifiedAbsent ?? false,
         excluded: r.excluded,
         validEvaluations: r.validEvaluations,
         capped: false,
@@ -1916,6 +1926,7 @@ export async function calculateDesempenhoScores(sessionId: number, provisional =
       desempenhoScore,
       tutorialScore: tutorialScoreRounded,
       absent: r.absent,
+      justifiedAbsent: r.justifiedAbsent ?? false,
       excluded: r.excluded,
       validEvaluations: r.validEvaluations,
       capped: false, // capping only applies at problem level
@@ -2130,6 +2141,7 @@ export async function calculateProblemDesempenhoScores(classId: number, problemN
     const desempenhoScores: (number | null)[] = [];
     const roles: string[] = [];
     const excludedFlags: boolean[] = [];
+    const justifiedAbsentFlags: boolean[] = [];
 
     for (const sess of problemSessions) {
       const r = sessionDesempenhoMap[sess.id]?.[studentId];
@@ -2140,29 +2152,46 @@ export async function calculateProblemDesempenhoScores(classId: number, problemN
           desempenhoScores.push(null);
           roles.push("EXCLUÍDO");
           excludedFlags.push(true);
+          justifiedAbsentFlags.push(false);
         } else {
           peerScores.push(0);
           desempenhoScores.push(0);
           roles.push("FALTOU");
           excludedFlags.push(false);
+          justifiedAbsentFlags.push(false);
         }
       } else if (r.excluded) {
         peerScores.push(null);
         desempenhoScores.push(null);
         roles.push("EXCLUÍDO");
         excludedFlags.push(true);
+        justifiedAbsentFlags.push(false);
       } else {
         peerScores.push(r.peerScore);
         desempenhoScores.push(r.desempenhoScore);
         roles.push(r.role);
         excludedFlags.push(false);
+        justifiedAbsentFlags.push(r.justifiedAbsent ?? false);
       }
     }
 
+    // For justified absences: replace the score with the average of the other present sessions
+    // First compute the average of non-absent, non-excluded, non-justified sessions
+    const presentDesempenhoScores = desempenhoScores
+      .filter((g, i): g is number => g !== null && !excludedFlags[i] && !justifiedAbsentFlags[i] && (peerScores[i] ?? 0) > 0);
+    const presentAvgForJustified = presentDesempenhoScores.length > 0
+      ? presentDesempenhoScores.reduce((a, b) => a + b, 0) / presentDesempenhoScores.length
+      : 0;
+    // Replace justified absent scores with the present average (or 0 if no other sessions)
+    const adjustedDesempenhoScores = desempenhoScores.map((g, i) => {
+      if (justifiedAbsentFlags[i] && !excludedFlags[i]) return presentAvgForJustified;
+      return g;
+    });
+
     // Averages: sum of non-excluded scores divided by TOTAL sessions (excluded sessions count as 0)
     const totalSessions = problemSessions.length;
-    const validPeer = peerScores.filter((s): s is number => s !== null);
-    const validDesempenho = desempenhoScores.filter((g): g is number => g !== null);
+    const validPeer = peerScores.filter((s, i): s is number => s !== null && !excludedFlags[i]);
+    const validDesempenho = adjustedDesempenhoScores.filter((g, i): g is number => g !== null && !excludedFlags[i]);
     const peerAvg = totalSessions > 0 ? validPeer.reduce((a, b) => a + b, 0) / totalSessions : 0;
     const rawMediaDesempenho = totalSessions > 0 ? validDesempenho.reduce((a, b) => a + b, 0) / totalSessions : 0;
     const mediaDesempenhoRounded = Math.round(rawMediaDesempenho * 10) / 10;
@@ -3809,6 +3838,7 @@ export async function getStudentEvaluationHistory(studentId: number) {
     // Use the actual role from sessionStudents for all session states
     role = ss.role || "PARTICIPANTE";
 
+    let isJustifiedAbsent = false;
     if (ss.sessionStatus === "finished" || ss.sessionStatus === "closed") {
       const desempenhoScores = await calculateDesempenhoScores(ss.sessionId);
       const studentGrade = desempenhoScores.find(g => g.studentId === studentId);
@@ -3818,6 +3848,7 @@ export async function getStudentEvaluationHistory(studentId: number) {
         tutorialScore = studentGrade.tutorialScore;
         role = studentGrade.role || ss.role || "PARTICIPANTE";
         isAbsent = studentGrade.absent;
+        isJustifiedAbsent = studentGrade.justifiedAbsent ?? false;
       }
     }
 
@@ -3840,6 +3871,7 @@ export async function getStudentEvaluationHistory(studentId: number) {
       // Aliases for frontend compatibility
       finalScore: Math.round(desempenhoScore * 10) / 10,
       absent: isAbsent,
+      justifiedAbsent: isJustifiedAbsent,
     };
   }));
 
@@ -3915,11 +3947,17 @@ export async function getStudentEvaluationHistory(studentId: number) {
     }
 
     // Build grades map from sessions the student actually participated in
-    const problemGrades = new Map<number, number[]>();
+    // For justified absences: replace score with average of other present sessions in the same problem
+    const problemGrades = new Map<number, { score: number; justified: boolean }[]>();
     for (const s of comp.sessions) {
       if (!problemGrades.has(s.problemNumber)) problemGrades.set(s.problemNumber, []);
-      if (!s.absent && (s.sessionStatus === 'finished' || s.sessionStatus === 'closed')) {
-        problemGrades.get(s.problemNumber)!.push(s.desempenhoScore);
+      if (s.sessionStatus === 'finished' || s.sessionStatus === 'closed') {
+        if (!s.absent) {
+          problemGrades.get(s.problemNumber)!.push({ score: s.desempenhoScore, justified: false });
+        } else if ((s as any).justifiedAbsent) {
+          // Placeholder for justified absence - will be replaced with average
+          problemGrades.get(s.problemNumber)!.push({ score: -1, justified: true });
+        }
       }
     }
 
@@ -3927,9 +3965,16 @@ export async function getStudentEvaluationHistory(studentId: number) {
     comp.problemAverages = Array.from(totalSessionsPerProblem.entries())
       .sort(([a], [b]) => a - b)
       .map(([problemNumber, { count: totalCount, title }]) => {
-        const grades = problemGrades.get(problemNumber) ?? [];
+        const entries = problemGrades.get(problemNumber) ?? [];
+        // Compute average of present (non-justified) sessions
+        const presentScores = entries.filter(e => !e.justified).map(e => e.score);
+        const presentAvg = presentScores.length > 0
+          ? presentScores.reduce((a, b) => a + b, 0) / presentScores.length
+          : 0;
+        // Replace justified absence placeholders with present average
+        const adjustedScores = entries.map(e => e.justified ? presentAvg : e.score);
         // Denominator = total sessions for this problem in the class
-        const rawAvg = totalCount > 0 ? (grades.reduce((a, b) => a + b, 0) / totalCount) : 0;
+        const rawAvg = totalCount > 0 ? (adjustedScores.reduce((a, b) => a + b, 0) / totalCount) : 0;
         const cappedAvg = Math.min(rawAvg, 10);
         const average = Math.round(cappedAvg * 10) / 10;
         const capped = rawAvg > 10;
@@ -4694,6 +4739,28 @@ export async function markStudentAbsentAfterClose(sessionId: number, studentId: 
   if (existing.absent) throw new Error("Este aluno já está marcado como ausente");
   await db.update(sessionStudents)
     .set({ absent: true })
+    .where(and(
+      eq(sessionStudents.sessionId, sessionId),
+      eq(sessionStudents.studentId, studentId),
+    ));
+  return { updated: true };
+}
+
+// ─── Justified absence helpers ───
+export async function setJustifiedAbsent(sessionId: number, studentId: number, justified: boolean): Promise<{ updated: boolean }> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [existing] = await db.select({ absent: sessionStudents.absent, justifiedAbsent: sessionStudents.justifiedAbsent })
+    .from(sessionStudents)
+    .where(and(
+      eq(sessionStudents.sessionId, sessionId),
+      eq(sessionStudents.studentId, studentId),
+    ))
+    .limit(1);
+  if (!existing) throw new Error("Aluno não encontrado nesta sessão");
+  if (!existing.absent) throw new Error("Aluno não está marcado como ausente");
+  await db.update(sessionStudents)
+    .set({ justifiedAbsent: justified })
     .where(and(
       eq(sessionStudents.sessionId, sessionId),
       eq(sessionStudents.studentId, studentId),

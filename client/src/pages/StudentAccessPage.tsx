@@ -1269,6 +1269,9 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
                                 {ev.absent && (
                                   <Badge variant="outline" className="text-red-600 border-red-200 text-[9px] px-1 py-0">Faltou</Badge>
                                 )}
+                                {ev.absent && (ev as any).justifiedAbsent && (
+                                  <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50 text-[9px] px-1 py-0">Justificada</Badge>
+                                )}
                               </div>
                               <Badge variant={ev.sessionStatus === 'finished' ? 'secondary' : 'outline'} className="text-[9px] px-1 py-0 mt-0.5">
                                 {ev.sessionStatus === 'finished' ? 'Encerrada' : ev.sessionStatus === 'closed' ? 'Fechada' : ev.sessionStatus === 'open' ? 'Em Avaliação' : 'Ativa'}

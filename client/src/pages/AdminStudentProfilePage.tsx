@@ -141,6 +141,9 @@ export default function AdminStudentProfilePage() {
                           {s.absent && (
                             <Badge variant="outline" className="ml-2 text-red-600 border-red-200 text-[10px] px-1 py-0">Faltou</Badge>
                           )}
+                          {s.absent && s.justifiedAbsent && (
+                            <Badge variant="outline" className="ml-1 text-amber-700 border-amber-300 bg-amber-50 text-[10px] px-1 py-0">Justificada</Badge>
+                          )}
                         </td>
                         <td className="text-center py-2 px-2">
                           {s.absent ? (

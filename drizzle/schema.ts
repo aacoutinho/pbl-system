@@ -111,6 +111,7 @@ export const sessionStudents = mysqlTable("session_students", {
   studentId: int("studentId").notNull(),
   role: mysqlEnum("role", ["COORDENADOR", "MESA", "QUADRO", "PARTICIPANTE"]).default("PARTICIPANTE").notNull(),
   absent: boolean("absent").default(false).notNull(),
+  justifiedAbsent: boolean("justifiedAbsent").default(false).notNull(), // Falta justificada pelo professor
 }, (table) => [
   unique("uq_session_student").on(table.sessionId, table.studentId),
 ]);

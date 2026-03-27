@@ -58,6 +58,7 @@ import {
   updateDesempenhoPapel,
   getPreviousMesaScore,
   markStudentAbsentAfterClose,
+  setJustifiedAbsent,
   addBoardSendHistory, getBoardSendHistory, getLastBoardSend,
   listApprovedProfessorsByComponent,
   listClassesByComponent, listSemestersByComponent,
@@ -1173,6 +1174,21 @@ export const appRouter = router({
       await assertClassManager(ctx.user.id, ctx.user.role, cls);
       const result = await markStudentAbsentAfterClose(input.sessionId, input.studentId);
       await createAuditLog({ action: "session.markAbsentAfterClose", actorUserId: ctx.user.id, details: `Aluno ${input.studentId} marcado como ausente na sessão fechada ${session.label}` });
+      return result;
+    }),
+    setJustifiedAbsent: approvedProcedure.input(z.object({
+      sessionId: z.number(),
+      studentId: z.number(),
+      justified: z.boolean(),
+    })).mutation(async ({ ctx, input }) => {
+      const session = await getSessionById(input.sessionId);
+      if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
+      const cls = await getClassById(session.classId);
+      if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
+      await assertClassManager(ctx.user.id, ctx.user.role, cls);
+      const result = await setJustifiedAbsent(input.sessionId, input.studentId, input.justified);
+      const action = input.justified ? "justificada" : "não justificada";
+      await createAuditLog({ action: "session.setJustifiedAbsent", actorUserId: ctx.user.id, details: `Falta do aluno ${input.studentId} marcada como ${action} na sessão ${session.label}` });
       return result;
     }),
     updateProblemTitle: approvedProcedure.input(z.object({

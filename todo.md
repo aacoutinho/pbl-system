@@ -874,3 +874,9 @@
 ## Expiração de Sessão do Aluno (Mar 2026)
 - [x] Alterar expiração padrão da sessão do aluno para 3 horas
 - [x] Adicionar opção "Lembrar por 24 horas" na tela de login do aluno
+
+## Falta Justificada (Mar 2026)
+- [x] Adicionar campo justifiedAbsent no schema session_students e migrar banco
+- [x] UI para marcar falta justificada na página de avaliação e no perfil do aluno
+- [x] Lógica de substituição de nota: média das outras sessões do problema quando justificada
+- [x] Exibir indicador visual "Falta Justificada" no perfil do aluno (professor e aluno)

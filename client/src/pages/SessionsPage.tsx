@@ -719,6 +719,13 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onFini
     },
     onError: (e: { message: string }) => toast.error(e.message),
   });
+  const setJustifiedAbsentMutation = trpc.sessions.setJustifiedAbsent.useMutation({
+    onSuccess: (_data, variables) => {
+      utils.sessions.getStudents.invalidate({ sessionId: session.id });
+      toast.success(variables.justified ? "Falta marcada como justificada." : "Justificativa removida.");
+    },
+    onError: (e: { message: string }) => toast.error(e.message),
+  });
 
   const handleAllowReevaluation = (studentId: number) => {
     allowReevalMutation.mutate({ sessionId: session.id, studentId });
@@ -885,7 +892,20 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onFini
                       <p className="text-xs text-muted-foreground truncate">{s.studentEnrollment}</p>
                     </div>
                     {s.absent ? (
-                      <Badge variant="outline" className="text-xs text-red-600 shrink-0">Faltou</Badge>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <Badge variant="outline" className="text-xs text-red-600">Faltou</Badge>
+                        <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                          <Checkbox
+                            checked={!!s.justifiedAbsent}
+                            onCheckedChange={(checked) =>
+                              setJustifiedAbsentMutation.mutate({ sessionId: session.id, studentId: s.studentId, justified: !!checked })
+                            }
+                            disabled={setJustifiedAbsentMutation.isPending}
+                            className="h-3.5 w-3.5"
+                          />
+                          <span className="text-xs text-amber-700 font-medium">Justificada</span>
+                        </label>
+                      </div>
                     ) : (
                       <Button
                         variant="outline"
