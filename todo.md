@@ -855,3 +855,6 @@
 
 ## Contraste do Tooltip de Ajuda (Mar 2026)
 - [x] Corrigir contraste do tooltip de ajuda nos sliders do formulário de avaliação dos pares (fundo preto com texto escuro ilegível)
+
+## Responsividade dos Conceitos no Slider (Mar 2026)
+- [x] Reduzir fonte dos conceitos (Nenhum/Fraco/Razoável/Bom/Excelente) nos sliders do formulário dos alunos para melhor exibição em celular

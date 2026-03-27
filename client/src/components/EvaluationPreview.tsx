@@ -236,7 +236,7 @@ function CriteriaSlider({ label, sublabel, tooltip, value, onChange, penalty, ge
                       setInputText(csFractionToDisplay(sliderPos));
                     }}
                     className={cn(
-                      "text-[11px] whitespace-nowrap transition-all rounded px-1 py-0.5",
+                      "text-[9px] sm:text-[11px] whitespace-nowrap transition-all rounded px-0.5 py-0.5 sm:px-1",
                       "focus:outline-none focus:ring-1 focus:ring-ring",
                       isActive ? "font-bold" : "text-muted-foreground hover:font-semibold"
                     )}
