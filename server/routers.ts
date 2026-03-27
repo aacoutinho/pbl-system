@@ -59,6 +59,7 @@ import {
   getPreviousMesaScore,
   markStudentAbsentAfterClose,
   setJustifiedAbsent,
+  getSessionStudentsWithFallback,
   addBoardSendHistory, getBoardSendHistory, getLastBoardSend,
   listApprovedProfessorsByComponent,
   listClassesByComponent, listSemestersByComponent,
@@ -1040,7 +1041,7 @@ export const appRouter = router({
       return newSession;
     }),
     getStudents: protectedProcedure.input(z.object({ sessionId: z.number() })).query(async ({ input }) => {
-      return getSessionStudents(input.sessionId);
+      return getSessionStudentsWithFallback(input.sessionId);
     }),
     // Close/Open/Delete: admin, coordinator of component, or prof who created the class
     close: approvedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {

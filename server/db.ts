@@ -4738,7 +4738,18 @@ export async function markStudentAbsentAfterClose(sessionId: number, studentId: 
       eq(sessionStudents.studentId, studentId),
     ))
     .limit(1);
-  if (!existing) throw new Error("Aluno não encontrado nesta sessão");
+  if (!existing) {
+    // Student has no session_students record (session created before this feature).
+    // Insert a new record marking them as absent.
+    await db.insert(sessionStudents).values({
+      sessionId,
+      studentId,
+      role: "PARTICIPANTE",
+      absent: true,
+      justifiedAbsent: false,
+    });
+    return { updated: true };
+  }
   if (existing.absent) throw new Error("Este aluno já está marcado como ausente");
   await db.update(sessionStudents)
     .set({ absent: true })
@@ -4760,7 +4771,7 @@ export async function setJustifiedAbsent(sessionId: number, studentId: number, j
       eq(sessionStudents.studentId, studentId),
     ))
     .limit(1);
-  if (!existing) throw new Error("Aluno não encontrado nesta sessão");
+  if (!existing) throw new Error("Aluno não encontrado nesta sessão. Marque a falta primeiro.");
   if (!existing.absent) throw new Error("Aluno não está marcado como ausente");
   await db.update(sessionStudents)
     .set({ justifiedAbsent: justified })
@@ -4769,4 +4780,40 @@ export async function setJustifiedAbsent(sessionId: number, studentId: number, j
       eq(sessionStudents.studentId, studentId),
     ));
   return { updated: true };
+}
+
+// ─── Session students with fallback to class students ───
+// Used by the "Marcar falta" dialog for sessions that were created before
+// the session_students feature existed (no records in session_students).
+export async function getSessionStudentsWithFallback(sessionId: number): Promise<Array<{
+  studentId: number;
+  studentName: string;
+  studentEmail: string | null;
+  studentEnrollment: string | null;
+  studentPhotoUrl: string | null;
+  role: string;
+  absent: boolean;
+  justifiedAbsent: boolean;
+}>> {
+  const sessionStudentsList = await getSessionStudents(sessionId);
+
+  // If there are session_students records, return them directly
+  if (sessionStudentsList.length > 0) {
+    return sessionStudentsList;
+  }
+
+  // Fallback: return all students in the class, treating all as present
+  const session = await getSessionById(sessionId);
+  if (!session) return [];
+  const classStudentsList = await listStudentsByClass(session.classId);
+  return classStudentsList.map(s => ({
+    studentId: s.id,
+    studentName: s.name,
+    studentEmail: s.email,
+    studentEnrollment: s.enrollment,
+    studentPhotoUrl: s.photoUrl,
+    role: "PARTICIPANTE",
+    absent: false,
+    justifiedAbsent: false,
+  }));
 }
