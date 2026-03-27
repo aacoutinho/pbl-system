@@ -863,19 +863,19 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onFini
           </Dialog>
         )}
 
-        {/* Mark absent after close button — only for closed sessions */}
-        {canManage && session.status === "closed" && (
+        {/* Mark absent after close button — for closed and finished sessions */}
+        {canManage && (session.status === "closed" || session.status === "finished") && (
           <Dialog open={showMarkAbsentDialog} onOpenChange={setShowMarkAbsentDialog}>
             <DialogTrigger asChild>
-              <Button variant="ghost" size="icon" title="Marcar aluno como faltou (sessão fechada)">
+              <Button variant="ghost" size="icon" title="Marcar falta / justificativa">
                 <Pencil className="h-4 w-4" />
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-lg">
               <DialogHeader>
-                <DialogTitle>Marcar Falta — Sessão Fechada</DialogTitle>
+                <DialogTitle>Marcar Falta — Sessão {session.status === "finished" ? "Encerrada" : "Fechada"}</DialogTitle>
                 <DialogDescription>
-                  {session.label} — Marque alunos presentes como faltou ou justifique sua falta para substituir a nota ausente pela média das outras sessões presentes do aluno no mesmo problema. Ao marcar o aluno com faltou, a ação não pode ser desfeita, mas a justificativa pode ser desfeita enquanto a sessão estiver fechada.
+                  {session.label} — Marque alunos presentes como faltou ou justifique sua falta para substituir a nota ausente pela média das outras sessões presentes do aluno no mesmo problema. Ao marcar o aluno com faltou, a ação não pode ser desfeita, mas a justificativa pode ser marcada ou desmarcada a qualquer momento enquanto a sessão estiver fechada ou encerrada.
                 </DialogDescription>
               </DialogHeader>
               <div className="border rounded-lg max-h-80 overflow-y-auto divide-y">

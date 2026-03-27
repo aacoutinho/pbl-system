@@ -880,3 +880,6 @@
 - [x] UI para marcar falta justificada na página de avaliação e no perfil do aluno
 - [x] Lógica de substituição de nota: média das outras sessões do problema quando justificada
 - [x] Exibir indicador visual "Falta Justificada" no perfil do aluno (professor e aluno)
+
+## Falta e Justificativa em Sessões Encerradas (Mar 2026)
+- [x] Permitir marcar falta e justificativa também em sessões encerradas (finished), além de fechadas (closed)

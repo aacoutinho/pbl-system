@@ -1168,7 +1168,7 @@ export const appRouter = router({
     })).mutation(async ({ ctx, input }) => {
       const session = await getSessionById(input.sessionId);
       if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Sessão não encontrada" });
-      if (session.status !== "closed") throw new TRPCError({ code: "FORBIDDEN", message: "Esta ação só é permitida em sessões fechadas" });
+      if (session.status !== "closed" && session.status !== "finished") throw new TRPCError({ code: "FORBIDDEN", message: "Esta ação só é permitida em sessões fechadas ou encerradas" });
       const cls = await getClassById(session.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       await assertClassManager(ctx.user.id, ctx.user.role, cls);
@@ -1186,7 +1186,7 @@ export const appRouter = router({
       const cls = await getClassById(session.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       await assertClassManager(ctx.user.id, ctx.user.role, cls);
-      if (session.status !== "closed") throw new TRPCError({ code: "BAD_REQUEST", message: "A justificativa só pode ser alterada enquanto a sessão estiver fechada." });
+      if (session.status !== "closed" && session.status !== "finished") throw new TRPCError({ code: "BAD_REQUEST", message: "A justificativa só pode ser alterada em sessões fechadas ou encerradas." });
       const result = await setJustifiedAbsent(input.sessionId, input.studentId, input.justified);
       const action = input.justified ? "justificada" : "não justificada";
       await createAuditLog({ action: "session.setJustifiedAbsent", actorUserId: ctx.user.id, details: `Falta do aluno ${input.studentId} marcada como ${action} na sessão ${session.label}` });
