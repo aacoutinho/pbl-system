@@ -858,3 +858,6 @@
 
 ## Responsividade dos Conceitos no Slider (Mar 2026)
 - [x] Reduzir fonte dos conceitos (Nenhum/Fraco/Razoável/Bom/Excelente) nos sliders do formulário dos alunos para melhor exibição em celular
+
+## Anotações por Aluno Presente (Mar 2026)
+- [x] Filtrar área de anotações para exibir apenas alunos presentes e renomear para "Anotações por Aluno Presente na Sessão"

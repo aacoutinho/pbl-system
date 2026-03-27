@@ -855,21 +855,21 @@ function TutorialEvalContent() {
             </Card>
 
             {/* Per-student notes card */}
-            {sessionStudents && sessionStudents.length > 0 && (
+            {sessionStudents && sessionStudents.filter((s: any) => !s.absent).length > 0 && (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
                     <User className="h-5 w-5" />
-                    Anotações por Aluno
+                    Anotações por Aluno Presente na Sessão
                   </CardTitle>
                   <CardDescription>
-                    Registre pontos positivos e negativos de cada aluno durante o tutorial.
+                    Registre pontos positivos e negativos de cada aluno presente durante o tutorial.
                     As anotações são salvas automaticamente.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {sessionStudents.map((student: any) => {
+                    {sessionStudents.filter((student: any) => !student.absent).map((student: any) => {
                       const note = studentNotes[student.studentId] ?? { studentId: student.studentId, positivePoints: 0, negativePoints: 0, positiveTexts: [""], negativeTexts: [""], notes: "" };
                       return (
                         <div key={student.studentId} className="p-4 rounded-lg border bg-card">
