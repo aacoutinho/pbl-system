@@ -846,3 +846,6 @@
 
 ## Prévia do Formulário de Avaliação dos Pares (Mar 2026)
 - [x] Atualizar prévia do formulário de avaliação dos pares para ser idêntica e funcional (CriteriaSlider interativo, igual ao formulário dos alunos)
+
+## Rodapé do Formulário de Avaliação dos Pares (Mar 2026)
+- [x] Redesenhar o rodapé (nota máxima, fórmula, penalidade) para ficar visualmente consistente com o design do formulário

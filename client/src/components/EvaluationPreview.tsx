@@ -6,7 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { HelpCircle, Send, Eye, RotateCcw, CheckCircle2 } from "lucide-react";
+import { HelpCircle, Send, Eye, RotateCcw, CheckCircle2, Calculator, AlertTriangle, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ─── CriteriaSlider (idêntico ao do StudentAccessPage) ───
@@ -544,12 +544,71 @@ export function EvaluationPreviewDialog({ open, onOpenChange }: { open: boolean;
               </Button>
             </div>
 
-            {/* Formula explanation */}
-            <div className="p-3 rounded-lg bg-muted/50 border text-xs text-muted-foreground space-y-1">
-              <p><strong>Nota máxima possível:</strong> 10.0 pontos (Pontualidade ×1 + Pesquisa/Metas ×3 + Domínio ×3 + Participação ×3)</p>
-              <p><strong>Fórmula:</strong> Nota = (Pontualidade × 1) + (Pesquisa/Metas × 3) + (Domínio × 3) + (Participação × 3) − (Penalidade Papel × 1)</p>
-              <p><strong>Penalidade de Papel:</strong> Aplica-se apenas a Coordenador, Mesa e Quadro. Participantes não recebem penalidade.</p>
-            </div>
+            {/* Formula explanation — redesigned */}
+            <Card className="border-border/60 bg-muted/30">
+              <CardHeader className="pb-3 pt-4">
+                <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground">
+                  <Calculator className="h-4 w-4" />
+                  Como a nota é calculada
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 pb-4">
+                {/* Criteria weights */}
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wide">Critérios e pesos</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { label: "Pontualidade", weight: 1, color: "bg-sky-100 text-sky-800 border-sky-300" },
+                      { label: "Pesquisa / Metas", weight: 3, color: "bg-violet-100 text-violet-800 border-violet-300" },
+                      { label: "Domínio do Assunto", weight: 3, color: "bg-violet-100 text-violet-800 border-violet-300" },
+                      { label: "Participação", weight: 3, color: "bg-violet-100 text-violet-800 border-violet-300" },
+                    ].map(({ label, weight, color }) => (
+                      <div key={label} className="flex items-center justify-between rounded-md border bg-background px-3 py-2">
+                        <span className="text-xs text-foreground">{label}</span>
+                        <Badge variant="outline" className={`text-xs font-bold ${color}`}>×{weight}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Formula */}
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wide">Fórmula</p>
+                  <div className="rounded-md bg-background border px-3 py-2.5 font-mono text-xs leading-relaxed text-foreground/80">
+                    <span className="font-bold text-emerald-700">Nota</span>
+                    {" = "}
+                    <span className="text-sky-700">(Pontualidade × 1)</span>
+                    {" + "}
+                    <span className="text-violet-700">(Pesquisa × 3)</span>
+                    {" + "}
+                    <span className="text-violet-700">(Domínio × 3)</span>
+                    {" + "}
+                    <span className="text-violet-700">(Participação × 3)</span>
+                    {" − "}
+                    <span className="text-orange-600">(Desempenho Papel × 1)</span>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-md bg-emerald-50 border border-emerald-200 px-3 py-2">
+                    <Trophy className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span className="text-xs text-emerald-800">
+                      <strong>Nota máxima:</strong> 10.0 pontos — quando todos os critérios recebem <em>Excelente</em>
+                    </span>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Penalty note */}
+                <div className="flex items-start gap-2 rounded-md bg-orange-50 border border-orange-200 px-3 py-2.5">
+                  <AlertTriangle className="h-4 w-4 text-orange-500 shrink-0 mt-0.5" />
+                  <div className="text-xs text-orange-800 space-y-0.5">
+                    <p className="font-semibold">Penalidade de Papel</p>
+                    <p>Aplica-se apenas a <strong>Coordenador</strong>, <strong>Mesa</strong> e <strong>Quadro</strong>. Participantes não recebem penalidade.</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
       </DialogContent>
