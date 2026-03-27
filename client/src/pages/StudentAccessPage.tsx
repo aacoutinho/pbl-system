@@ -1232,9 +1232,13 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
                     <p className="text-xs text-muted-foreground">{comp.classCode} &bull; {comp.semester}</p>
                     {(() => {
                       const absences = comp.sessions.filter(s => s.absent).length;
+                      const justifiedAbsences = comp.sessions.filter(s => s.absent && (s as any).justifiedAbsent).length;
                       return absences > 0 ? (
-                        <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                        <p className="text-xs text-red-600 mt-1 flex items-center gap-1 flex-wrap">
                           <span>✗</span> Faltas: <strong>{absences}</strong>
+                          {justifiedAbsences > 0 && (
+                            <span className="text-amber-600 font-medium">({justifiedAbsences} justificada{justifiedAbsences > 1 ? 's' : ''})</span>
+                          )}
                         </p>
                       ) : null;
                     })()}
@@ -1343,8 +1347,12 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
                               )}
                             </td>
                             <td className="py-2 px-2 text-center">
-                              {ev.absent ? (
+                              {ev.absent && !(ev as any).justifiedAbsent ? (
                                 <span className="text-muted-foreground font-semibold">0.0</span>
+                              ) : ev.absent && (ev as any).justifiedAbsent ? (
+                                <span className="inline-flex items-center gap-0.5 text-amber-700 font-semibold" title="Nota substituída pela média das outras sessões do problema (falta justificada)">
+                                  ≈ {(ev.desempenhoScore ?? 0).toFixed(1)}
+                                </span>
                               ) : ev.sessionStatus === 'finished' || ev.sessionStatus === 'closed' ? (
                                 <span className="font-semibold text-blue-700">{(ev.desempenhoScore ?? ev.desempenhoScore).toFixed(1)}</span>
                               ) : (

@@ -13,8 +13,13 @@ function gradeLabel(val: number | null | undefined): string {
   return val.toFixed(1);
 }
 
-function GradeCell({ value, absent, pending, showZeroWhenAbsent }: { value: number | null | undefined; absent?: boolean; pending?: boolean; showZeroWhenAbsent?: boolean }) {
-  if (absent) return <span className="text-muted-foreground font-medium">0.0</span>;
+function GradeCell({ value, absent, pending, showZeroWhenAbsent, justified }: { value: number | null | undefined; absent?: boolean; pending?: boolean; showZeroWhenAbsent?: boolean; justified?: boolean }) {
+  if (absent && !justified) return <span className="text-muted-foreground font-medium">0.0</span>;
+  if (absent && justified) return (
+    <span className="inline-flex items-center gap-1 text-amber-700 font-medium" title="Nota substituída pela média das outras sessões do problema (falta justificada)">
+      ≈ {gradeLabel(value)}
+    </span>
+  );
   if (pending) return (
     <span className="inline-flex items-center gap-1 text-amber-600 text-[10px]" title="Avaliação tutorial ainda não realizada pelo professor">
       ⏳ Pendente
@@ -111,6 +116,9 @@ export default function AdminStudentProfilePage() {
                 <span className="flex items-center gap-1">
                   <XCircle className="h-3.5 w-3.5 text-red-500" />
                   Faltas: <strong className="text-foreground">{(comp as any).absences ?? 0}</strong>
+                  {((comp as any).justifiedAbsences ?? 0) > 0 && (
+                    <span className="text-amber-600 font-medium">({(comp as any).justifiedAbsences} justificada{(comp as any).justifiedAbsences > 1 ? 's' : ''})</span>
+                  )}
                 </span>
                 {comp.mediaDesempenho !== null && comp.mediaDesempenho !== undefined && (
                   <span className="flex items-center gap-1">
@@ -165,7 +173,7 @@ export default function AdminStudentProfilePage() {
                           />
                         </td>
                         <td className="text-center py-2 px-2 font-semibold">
-                          <GradeCell value={s.desempenhoScore} absent={s.absent} showZeroWhenAbsent />
+                          <GradeCell value={s.desempenhoScore} absent={s.absent} showZeroWhenAbsent justified={s.absent && s.justifiedAbsent} />
                         </td>
                       </tr>
                     ))}

@@ -883,3 +883,9 @@
 
 ## Falta e Justificativa em Sessões Encerradas (Mar 2026)
 - [x] Permitir marcar falta e justificativa também em sessões encerradas (finished), além de fechadas (closed)
+
+## Melhorias na Falta Justificada (Mar 2026)
+- [x] Notificar aluno via e-mail quando falta é justificada (nota substituída pela média do problema)
+- [x] Contagem separada de faltas justificadas no resumo de frequência do perfil do aluno ("X faltas (Y justificadas)")
+- [x] Exibir nota substituída visualmente com ícone ≈ na linha da sessão justificada (professor e aluno)
+- [x] Garantir que desfazer a justificativa reverte a nota para 0.0 automaticamente (já funciona — validado)

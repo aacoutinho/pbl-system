@@ -3982,9 +3982,11 @@ export async function getStudentEvaluationHistory(studentId: number) {
       });
   }
 
-  // Calculate absences per component
+  // Calculate absences per component (total and justified separately)
   for (const comp of Array.from(componentMap.values())) {
-    (comp as any).absences = comp.sessions.filter((s: any) => s.absent).length;
+    const absentSessions = comp.sessions.filter((s: any) => s.absent);
+    (comp as any).absences = absentSessions.length;
+    (comp as any).justifiedAbsences = absentSessions.filter((s: any) => s.justifiedAbsent).length;
   }
 
   return {
@@ -3996,6 +3998,7 @@ export async function getStudentEvaluationHistory(studentId: number) {
       semester: string;
       sessions: typeof history;
       absences: number;
+      justifiedAbsences: number;
       problemAverages: { problemNumber: number; problemTitle: string; average: number; sessionCount: number; capped: boolean }[];
     }>,
   };

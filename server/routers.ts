@@ -66,7 +66,7 @@ import {
   getDashboardStatsByComponentAndSemester,
 } from "./db";
 import { storagePut } from "./storage";
-import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml, buildContactTicketEmailHtml, buildSessionOpenedEmailHtml, buildStudentGradeReportHtml, buildBrainstormNotificationEmailHtml, buildBrainstormBoardEmailHtml, buildProfessorInviteEmailHtml, buildBrainstormViewerEmailHtml } from "./email";
+import { sendEmail, testSmtpConnection, generateResetCode, buildResetEmailHtml, buildVerificationEmailHtml, buildComponentApprovalEmailHtml, buildComponentRejectionEmailHtml, buildNewRequestEmailHtml, buildEvalPermissionGrantedEmailHtml, buildContactTicketEmailHtml, buildSessionOpenedEmailHtml, buildStudentGradeReportHtml, buildBrainstormNotificationEmailHtml, buildBrainstormBoardEmailHtml, buildProfessorInviteEmailHtml, buildBrainstormViewerEmailHtml, buildJustifiedAbsenceEmailHtml } from "./email";
 
 /**
  * Normaliza o semestre para o formato ANO.SEMESTRE (ex: 2026.1, 2026.2).
@@ -1190,6 +1190,52 @@ export const appRouter = router({
       const result = await setJustifiedAbsent(input.sessionId, input.studentId, input.justified);
       const action = input.justified ? "justificada" : "não justificada";
       await createAuditLog({ action: "session.setJustifiedAbsent", actorUserId: ctx.user.id, details: `Falta do aluno ${input.studentId} marcada como ${action} na sessão ${session.label}` });
+
+      // Send e-mail notification to student when absence is justified
+      if (input.justified) {
+        try {
+          const student = await getStudentById(input.studentId);
+          const component = await getComponentById(cls.componentId);
+          if (student?.email && component) {
+            // Calculate the replaced score (average of other present sessions in the same problem)
+            let replacedScore: number | null = null;
+            try {
+              const problemScores = await calculateProblemDesempenhoScores(session.classId, session.problemNumber);
+              const studentData = problemScores.find(p => p.studentId === input.studentId);
+              if (studentData) {
+                // Find the session index for this session
+                const allClassSessions = await listSessionsByClass(session.classId);
+                const problemSessions = allClassSessions
+                  .filter(s => s.problemNumber === session.problemNumber)
+                  .sort((a, b) => a.sessionNumber - b.sessionNumber);
+                const sessionIdx = problemSessions.findIndex(s => s.id === session.id);
+                if (sessionIdx >= 0 && studentData.desempenhoScores[sessionIdx] !== null) {
+                  replacedScore = studentData.desempenhoScores[sessionIdx];
+                }
+              }
+            } catch (e) {
+              console.error("[setJustifiedAbsent] Error calculating replaced score:", e);
+            }
+            const html = buildJustifiedAbsenceEmailHtml({
+              studentName: student.name,
+              componentCode: component.code,
+              componentName: component.name,
+              className: cls.classCode,
+              sessionLabel: session.label,
+              replacedScore,
+            });
+            sendEmail({
+              to: student.email,
+              subject: `Falta Justificada — ${session.label} (${component.code})`,
+              text: `Olá ${student.name}, sua falta na sessão ${session.label} foi registrada como justificada. ${replacedScore !== null ? `Sua nota foi substituída pela média das outras sessões: ${replacedScore.toFixed(1)}.` : ''}`,
+              html,
+            }).catch(err => console.error(`[Email] Failed to send justified absence email to ${student.email}:`, err));
+          }
+        } catch (e) {
+          console.error("[setJustifiedAbsent] Error sending email:", e);
+        }
+      }
+
       return result;
     }),
     updateProblemTitle: approvedProcedure.input(z.object({

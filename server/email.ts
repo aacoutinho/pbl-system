@@ -727,3 +727,53 @@ export function buildProfessorInviteEmailHtml(data: {
     </div>
   `;
 }
+
+export function buildJustifiedAbsenceEmailHtml(data: {
+  studentName: string;
+  componentCode: string;
+  componentName: string;
+  className: string;
+  sessionLabel: string;
+  replacedScore: number | null;
+}): string {
+  const scoreText = data.replacedScore !== null ? data.replacedScore.toFixed(1) : "—";
+  const hasScore = data.replacedScore !== null;
+
+  return `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden;">
+      <div style="background: linear-gradient(135deg, #d97706, #f59e0b); padding: 24px 32px; text-align: center;">
+        <h1 style="color: #ffffff; margin: 0; font-size: 20px;">Falta Justificada Registrada</h1>
+        <p style="color: #fef3c7; margin: 8px 0 0; font-size: 14px;">${data.componentCode} - ${data.componentName}</p>
+      </div>
+      <div style="padding: 24px 32px;">
+        <div style="background: #f8fafc; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+          <p style="margin: 0 0 4px; font-size: 14px; color: #6b7280;">Aluno(a)</p>
+          <p style="margin: 0; font-size: 16px; font-weight: 600; color: #1f2937;">${data.studentName}</p>
+          <p style="margin: 8px 0 0; font-size: 13px; color: #6b7280;">Turma: ${data.className} | ${data.sessionLabel}</p>
+        </div>
+
+        <p style="color: #374151; font-size: 14px; line-height: 1.6; margin: 0 0 16px;">
+          Olá <strong>${data.studentName}</strong>, sua falta na sessão <strong>${data.sessionLabel}</strong> foi registrada como <strong>justificada</strong> pelo professor.
+        </p>
+
+        ${hasScore ? `
+        <div style="background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 16px; margin-bottom: 20px; text-align: center;">
+          <p style="margin: 0 0 4px; font-size: 13px; color: #92400e;">Nota substituída pela média das outras sessões do problema</p>
+          <p style="margin: 0; font-size: 28px; font-weight: 700; color: #d97706;">${scoreText}</p>
+          <p style="margin: 4px 0 0; font-size: 12px; color: #92400e;">Esta nota já está refletida no seu perfil de desempenho.</p>
+        </div>
+        ` : `
+        <div style="background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+          <p style="margin: 0; font-size: 13px; color: #92400e; text-align: center;">A nota substituída será calculada quando houver outras sessões avaliadas no mesmo problema.</p>
+        </div>
+        `}
+
+        <div style="background: #f9fafb; border-radius: 8px; padding: 12px 16px; margin-top: 16px;">
+          <p style="color: #6b7280; font-size: 12px; margin: 0; text-align: center;">
+            Acesse o sistema para visualizar seu histórico de desempenho atualizado.
+          </p>
+        </div>
+      </div>
+    </div>
+  `;
+}
