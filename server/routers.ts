@@ -1186,6 +1186,7 @@ export const appRouter = router({
       const cls = await getClassById(session.classId);
       if (!cls) throw new TRPCError({ code: "NOT_FOUND", message: "Turma não encontrada" });
       await assertClassManager(ctx.user.id, ctx.user.role, cls);
+      if (session.status !== "closed") throw new TRPCError({ code: "BAD_REQUEST", message: "A justificativa só pode ser alterada enquanto a sessão estiver fechada." });
       const result = await setJustifiedAbsent(input.sessionId, input.studentId, input.justified);
       const action = input.justified ? "justificada" : "não justificada";
       await createAuditLog({ action: "session.setJustifiedAbsent", actorUserId: ctx.user.id, details: `Falta do aluno ${input.studentId} marcada como ${action} na sessão ${session.label}` });
