@@ -594,7 +594,7 @@ function SessionsContent() {
 type RoleTypeRow = "COORDENADOR" | "MESA" | "QUADRO" | "PARTICIPANTE";
 
 function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onFinish, onDelete, onViewResults }: {
-  session: { id: number; label: string; problemNumber: number; sessionNumber: number; status: string; accessCode?: string | null };
+  session: { id: number; label: string; problemNumber: number; sessionNumber: number; status: string; accessCode?: string | null; createdAt?: Date | string | null; closedAt?: Date | string | null };
   canManage: boolean;
   isLastSession: boolean;
   onClose: () => void;
@@ -749,6 +749,18 @@ function SessionRow({ session, canManage, isLastSession, onClose, onOpen, onFini
           </Badge>
         </div>
         <div className="flex items-center gap-4 mt-1.5 text-sm text-muted-foreground">
+          {/* Data de realização da sessão */}
+          {(session.closedAt || session.createdAt) && (() => {
+            const rawDate = session.closedAt || session.createdAt;
+            const d = rawDate ? new Date(rawDate) : null;
+            const dateStr = d ? d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : null;
+            return dateStr ? (
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                {dateStr}
+              </span>
+            ) : null;
+          })()}
           <div className="flex items-center gap-2">
             <Users className="h-3.5 w-3.5 shrink-0" />
             <span className={`whitespace-nowrap font-medium ${

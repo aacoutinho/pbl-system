@@ -185,9 +185,18 @@ function ResultsContent() {
 
     const lines: string[] = [];
 
+    // Helper para formatar data da sessão
+    const fmtDate = (raw: Date | string | null | undefined) => {
+      if (!raw) return '';
+      const d = new Date(raw);
+      return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    };
+    const sessionDate = fmtDate(csvSession?.closedAt || csvSession?.createdAt);
+
     // Header section: Session info
     lines.push(`Sessão Tutorial: ${escapeCSV(sessionLabel)}`);
     lines.push(`Problema: ${csvSession?.problemNumber ?? ""},Sessão: ${csvSession?.sessionNumber ?? ""}`);
+    if (sessionDate) lines.push(`Data: ${sessionDate}`);
     lines.push("");
 
     // Tutorial evaluation section
@@ -269,9 +278,16 @@ function ResultsContent() {
       lines.push("ATENÇÃO: Sessões marcadas com (P) contêm notas provisórias.");
       lines.push("");
     }
+    const fmtDateP = (raw: Date | string | null | undefined) => {
+      if (!raw) return '';
+      const d = new Date(raw);
+      return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    };
     const headers = ["Aluno"];
     for (const s of sessionsForProblem) {
-      const label = s.status === "closed" ? `S${s.sessionNumber} (P)` : `S${s.sessionNumber}`;
+      const dateStr = fmtDateP(s.closedAt || s.createdAt);
+      const provisional = s.status === "closed" ? " (P)" : "";
+      const label = `S${s.sessionNumber}${provisional}${dateStr ? ` ${dateStr}` : ''}`;
       headers.push(label);
     }
     headers.push("Média Desempenho");
@@ -297,12 +313,20 @@ function ResultsContent() {
     const autoTable = (await import('jspdf-autotable')).default;
     const pdfSession = activeSessions?.find(s => s.id === parseInt(selectedSessionId));
     const sessionLabel = pdfSession?.label || 'Sessão';
+    const fmtDatePDF = (raw: Date | string | null | undefined) => {
+      if (!raw) return '';
+      return new Date(raw).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    };
+    const sessionDatePDF = fmtDatePDF(pdfSession?.closedAt || pdfSession?.createdAt);
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     doc.setFontSize(14);
     doc.text(`Resultados - ${sessionLabel}`, 14, 18);
     doc.setFontSize(9);
-    doc.text(`Componente: ${selectedComponentFullLabel || ''} | Turma: ${selectedClassCode || ''} | Semestre: ${selectedSemester || ''}`, 14, 26);
+    const infoLine1 = `Componente: ${selectedComponentFullLabel || ''} | Turma: ${selectedClassCode || ''} | Semestre: ${selectedSemester || ''}`;
+    const infoLine2 = sessionDatePDF ? `Data da sessão: ${sessionDatePDF}` : '';
+    doc.text(infoLine1, 14, 26);
     let y = 32;
+    if (infoLine2) { doc.text(infoLine2, 14, 31); y = 37; }
     if (tutorialEval) {
       doc.setFontSize(10);
       doc.text('Avaliação do Tutorial', 14, y + 4);
@@ -345,12 +369,19 @@ function ResultsContent() {
     const { jsPDF } = await import('jspdf');
     const autoTable = (await import('jspdf-autotable')).default;
     const sessionsForProblem = activeSessions?.filter(s => s.problemNumber === parseInt(selectedProblem)).sort((a, b) => a.sessionNumber - b.sessionNumber) ?? [];
+    const fmtDateProbPDF = (raw: Date | string | null | undefined) => {
+      if (!raw) return '';
+      return new Date(raw).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    };
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     doc.setFontSize(14);
     doc.text(`Resultados - Problema ${selectedProblem}`, 14, 18);
     doc.setFontSize(9);
     doc.text(`Componente: ${selectedComponentFullLabel || ''} | Turma: ${selectedClassCode || ''} | Semestre: ${selectedSemester || ''}`, 14, 26);
-    const headers = ['Aluno', ...sessionsForProblem.map(s => `S${s.sessionNumber}`), 'Média Desempenho'];
+    const headers = ['Aluno', ...sessionsForProblem.map(s => {
+      const d = fmtDateProbPDF(s.closedAt || s.createdAt);
+      return d ? `S${s.sessionNumber} (${d})` : `S${s.sessionNumber}`;
+    }), 'Média Desempenho'];
     const body = problemDesempenhoResults.map(r => [
       r.studentName,
       ...sessionsForProblem.map((_, i) => (r.desempenhoScores[i] ?? 0).toFixed(1)),
@@ -391,13 +422,19 @@ function ResultsContent() {
         doc.setFontSize(14);
         doc.text(`Turma ${cls.classCode} — P${pdfSession.problemNumber}S${pdfSession.sessionNumber}`, 14, 18);
         doc.setFontSize(9);
+        const sessionDateAll = (() => {
+          const raw = pdfSession.closedAt || pdfSession.createdAt;
+          return raw ? new Date(raw).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+        })();
         doc.text(`Componente: ${selectedComponentFullLabel || ''} | Semestre: ${selectedSemester || ''}`, 14, 26);
+        if (sessionDateAll) doc.text(`Data da sessão: ${sessionDateAll}`, 14, 31);
+        const startYAll = sessionDateAll ? 37 : 32;
         if (cls.desempenhoScores.length === 0) {
           doc.setFontSize(10);
-          doc.text('Sessão não encontrada para esta turma.', 14, 36);
+          doc.text('Sessão não encontrada para esta turma.', 14, startYAll + 4);
         } else {
           autoTable(doc, {
-            startY: 32,
+            startY: startYAll,
             head: [['Matrícula', 'Papel', 'Nota Desempenho', 'Status']],
             body: cls.desempenhoScores.map((r: any) => [r.studentEnrollment || r.studentName, r.role, r.desempenhoScore.toFixed(1), r.absent ? 'Faltou' : 'Presente']),
             styles: { fontSize: 8 },
@@ -434,7 +471,11 @@ function ResultsContent() {
         doc.text(`Turma ${cls.classCode} — Problema ${selectedProblem}`, 14, 18);
         doc.setFontSize(9);
         doc.text(`Componente: ${selectedComponentFullLabel || ''} | Semestre: ${selectedSemester || ''}`, 14, 26);
-        const headers = ['Matrícula', ...cls.problemSessions.map((s: any) => `S${s.sessionNumber}`), 'Média Desempenho'];
+        const headers = ['Matrícula', ...cls.problemSessions.map((s: any) => {
+          const raw = s.closedAt || s.createdAt;
+          const d = raw ? new Date(raw).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+          return d ? `S${s.sessionNumber} (${d})` : `S${s.sessionNumber}`;
+        }), 'Média Desempenho'];
         const body = cls.problemFinal.map((r: any) => [
           r.studentEnrollment || r.studentName,
           ...cls.problemSessions.map((_: any, i: number) => (r.desempenhoScores[i] ?? 0).toFixed(1)),
@@ -483,10 +524,17 @@ function ResultsContent() {
         }
         const sessions = cls.report[0].sessions;
         const pNums = Array.from(new Set(sessions.map((s: any) => s.problemNumber))).sort((a: any, b: any) => a - b) as number[];
+        const fmtDateCons = (raw: Date | string | null | undefined) => {
+          if (!raw) return '';
+          return new Date(raw).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        };
         const colHeaders: string[] = ['#', 'Matrícula'];
         for (const pNum of pNums) {
           const pSessions = sessions.filter((s: any) => s.problemNumber === pNum);
-          pSessions.forEach((s: any) => colHeaders.push(`P${s.problemNumber}S${s.sessionNumber}`));
+          pSessions.forEach((s: any) => {
+            const d = fmtDateCons(s.closedAt || s.createdAt);
+            colHeaders.push(d ? `P${s.problemNumber}S${s.sessionNumber} (${d})` : `P${s.problemNumber}S${s.sessionNumber}`);
+          });
           colHeaders.push(`MP${pNum}`);
         }
         colHeaders.push('Faltas', 'Média Desempenho');
@@ -906,21 +954,9 @@ function ResultsContent() {
                               </td>
                               {(tutorialEval || isSessionClosed) && (
                                 <td className="py-3 pr-4 text-center">
-                                  <span className={`font-medium inline-flex items-center gap-1 ${r.absent && !(r as any).justifiedAbsent ? "text-muted-foreground" : (r as any).justifiedAbsent ? "text-amber-600" : r.desempenhoScore >= 8 ? "text-emerald-600" : r.desempenhoScore >= 5 ? "text-amber-600" : "text-red-600"}`}>
+                                  <span className={`font-medium inline-flex items-center gap-1 ${r.absent ? "text-muted-foreground" : r.desempenhoScore >= 8 ? "text-emerald-600" : r.desempenhoScore >= 5 ? "text-amber-600" : "text-red-600"}`}>
                                     {r.desempenhoScore.toFixed(1)}
-                                    {(r as any).justifiedAbsent && (
-                                      <TooltipProvider>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <span className="text-amber-500 cursor-help font-bold text-base leading-none">≈</span>
-                                          </TooltipTrigger>
-                                          <TooltipContent>
-                                            <p>Nota substituída — falta justificada. Valor calculado pela média das outras sessões do aluno no mesmo problema.</p>
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      </TooltipProvider>
-                                    )}
-                                    {(r as { provisional?: boolean }).provisional && !(r as any).justifiedAbsent && (
+                                    {(r as { provisional?: boolean }).provisional && (
                                       <TooltipProvider>
                                         <Tooltip>
                                           <TooltipTrigger asChild>
@@ -949,16 +985,9 @@ function ResultsContent() {
                               )}
                               <td className="py-3 text-center">
                                 {r.absent ? (
-                                  <div className="inline-flex flex-col items-center gap-1">
-                                    <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200">
-                                      <UserX className="h-3 w-3 mr-1" />Faltou
-                                    </Badge>
-                                    {(r as any).justifiedAbsent && (
-                                      <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[10px] px-1.5 py-0">
-                                        Justificada
-                                      </Badge>
-                                    )}
-                                  </div>
+                                  <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200">
+                                    <UserX className="h-3 w-3 mr-1" />Faltou
+                                  </Badge>
                                 ) : (
                                   <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200">
                                     Presente
@@ -1359,9 +1388,15 @@ function ConsolidatedStudentReport({ classId, componentLabel, classCode, semeste
     if (!report || report.length === 0) return;
     const sessions = report[0].sessions;
     const hasProvisionalSessions = sessions.some(s => s.status === "closed");
+    const fmtDateCsvCons = (raw: Date | string | null | undefined) => {
+      if (!raw) return '';
+      return new Date(raw).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    };
     const sessionHeaders = sessions.map(s => {
       const abbr = `P${s.problemNumber}S${s.sessionNumber}`;
-      return s.status === "closed" ? `${abbr} (P)` : abbr;
+      const d = fmtDateCsvCons((s as any).closedAt || (s as any).createdAt);
+      const provisional = s.status === "closed" ? " (P)" : "";
+      return d ? `${abbr}${provisional} ${d}` : `${abbr}${provisional}`;
     });
     const header = ["Matrícula", "Aluno", ...sessionHeaders, "Presenças", "Faltas", "Média Desempenho"];
     const extraLines: string[] = [];
@@ -1440,10 +1475,17 @@ function ConsolidatedStudentReport({ classId, componentLabel, classCode, semeste
             const autoTable = (await import('jspdf-autotable')).default;
             const sessions = report[0].sessions;
             const pNums = Array.from(new Set(sessions.map((s: any) => s.problemNumber))).sort((a: any, b: any) => a - b) as number[];
+            const fmtDateConsSingle = (raw: Date | string | null | undefined) => {
+              if (!raw) return '';
+              return new Date(raw).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            };
             const colHeaders: string[] = ['#', 'Matrícula', 'Aluno'];
             for (const pNum of pNums) {
               const pSessions = sessions.filter((s: any) => s.problemNumber === pNum);
-              pSessions.forEach((s: any) => colHeaders.push(`P${s.problemNumber}S${s.sessionNumber}`));
+              pSessions.forEach((s: any) => {
+                const d = fmtDateConsSingle(s.closedAt || s.createdAt);
+                colHeaders.push(d ? `P${s.problemNumber}S${s.sessionNumber} (${d})` : `P${s.problemNumber}S${s.sessionNumber}`);
+              });
               colHeaders.push(`MP${pNum}`);
             }
             colHeaders.push('Presenças', 'Faltas', 'Média Desempenho');

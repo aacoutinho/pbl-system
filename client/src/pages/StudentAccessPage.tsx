@@ -1375,27 +1375,6 @@ function StudentDashboard({ authData, onSelectSession, onOpenBrainstorm, onEditP
                     </table>
                   </div>
 
-                  {/* Legend */}
-                  <div className="mt-3 pt-3 border-t flex flex-wrap gap-x-4 gap-y-1">
-                    <p className="w-full text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">Legenda</p>
-                    <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                      <span className="text-amber-500 font-bold text-sm leading-none">≈</span>
-                      <span>Nota substituída (falta justificada)</span>
-                    </span>
-                    <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                      <span className="inline-flex items-center gap-0.5 bg-red-50 text-red-600 border border-red-200 rounded px-1 py-0 text-[10px]">Faltou</span>
-                      <span>Ausência registrada</span>
-                    </span>
-                    <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                      <span className="inline-flex items-center gap-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded px-1 py-0 text-[10px]">Justificada</span>
-                      <span>Falta com justificativa</span>
-                    </span>
-                    <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                      <span className="text-blue-400 font-medium text-xs">0.0</span>
-                      <span>Nota pendente / sem avaliação</span>
-                    </span>
-                  </div>
-
                   {/* Problem averages */}
                   {comp.problemAverages.length > 0 && (
                     <div>
