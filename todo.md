@@ -849,3 +849,6 @@
 
 ## Rodapé do Formulário de Avaliação dos Pares (Mar 2026)
 - [x] Redesenhar o rodapé (nota máxima, fórmula, penalidade) para ficar visualmente consistente com o design do formulário
+
+## Correção da Fórmula no Rodapé da Prévia (Mar 2026)
+- [x] Verificar fórmula real e corrigir texto do rodapé para refletir os pesos corretos na escala 0–10

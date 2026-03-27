@@ -558,10 +558,10 @@ export function EvaluationPreviewDialog({ open, onOpenChange }: { open: boolean;
                   <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wide">Critérios e pesos</p>
                   <div className="grid grid-cols-2 gap-2">
                     {[
-                      { label: "Pontualidade", weight: 1, color: "bg-sky-100 text-sky-800 border-sky-300" },
-                      { label: "Pesquisa / Metas", weight: 3, color: "bg-violet-100 text-violet-800 border-violet-300" },
-                      { label: "Domínio do Assunto", weight: 3, color: "bg-violet-100 text-violet-800 border-violet-300" },
-                      { label: "Participação", weight: 3, color: "bg-violet-100 text-violet-800 border-violet-300" },
+                      { label: "Pontualidade", weight: "0.1", color: "bg-sky-100 text-sky-800 border-sky-300" },
+                      { label: "Pesquisa / Metas", weight: "0.3", color: "bg-violet-100 text-violet-800 border-violet-300" },
+                      { label: "Domínio do Assunto", weight: "0.3", color: "bg-violet-100 text-violet-800 border-violet-300" },
+                      { label: "Participação", weight: "0.3", color: "bg-violet-100 text-violet-800 border-violet-300" },
                     ].map(({ label, weight, color }) => (
                       <div key={label} className="flex items-center justify-between rounded-md border bg-background px-3 py-2">
                         <span className="text-xs text-foreground">{label}</span>
@@ -579,15 +579,15 @@ export function EvaluationPreviewDialog({ open, onOpenChange }: { open: boolean;
                   <div className="rounded-md bg-background border px-3 py-2.5 font-mono text-xs leading-relaxed text-foreground/80">
                     <span className="font-bold text-emerald-700">Nota</span>
                     {" = "}
-                    <span className="text-sky-700">(Pontualidade × 1)</span>
+                    <span className="text-sky-700">(Pontualidade × 0.1)</span>
                     {" + "}
-                    <span className="text-violet-700">(Pesquisa × 3)</span>
+                    <span className="text-violet-700">(Pesquisa × 0.3)</span>
                     {" + "}
-                    <span className="text-violet-700">(Domínio × 3)</span>
+                    <span className="text-violet-700">(Domínio × 0.3)</span>
                     {" + "}
-                    <span className="text-violet-700">(Participação × 3)</span>
+                    <span className="text-violet-700">(Participação × 0.3)</span>
                     {" − "}
-                    <span className="text-orange-600">(Desempenho Papel × 1)</span>
+                    <span className="text-orange-600">(Desempenho Papel × 0.1)</span>
                   </div>
                   <div className="flex items-center gap-2 rounded-md bg-emerald-50 border border-emerald-200 px-3 py-2">
                     <Trophy className="h-4 w-4 text-emerald-600 shrink-0" />
