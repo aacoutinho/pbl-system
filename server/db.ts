@@ -4795,25 +4795,36 @@ export async function getSessionStudentsWithFallback(sessionId: number): Promise
   absent: boolean;
   justifiedAbsent: boolean;
 }>> {
-  const sessionStudentsList = await getSessionStudents(sessionId);
-
-  // If there are session_students records, return them directly
-  if (sessionStudentsList.length > 0) {
-    return sessionStudentsList;
-  }
-
-  // Fallback: return all students in the class, treating all as present
+  // Always merge session_students with all class students.
+  // Sessions created before the absence feature only stored present students,
+  // so we must include class members who were never inserted into session_students.
   const session = await getSessionById(sessionId);
   if (!session) return [];
-  const classStudentsList = await listStudentsByClass(session.classId);
-  return classStudentsList.map(s => ({
-    studentId: s.id,
-    studentName: s.name,
-    studentEmail: s.email,
-    studentEnrollment: s.enrollment,
-    studentPhotoUrl: s.photoUrl,
-    role: "PARTICIPANTE",
-    absent: false,
-    justifiedAbsent: false,
-  }));
+
+  const [sessionStudentsList, classStudentsList] = await Promise.all([
+    getSessionStudents(sessionId),
+    listStudentsByClass(session.classId),
+  ]);
+
+  // Build a map of existing session_students by studentId for quick lookup
+  const sessionStudentsMap = new Map(
+    sessionStudentsList.map(ss => [ss.studentId, ss])
+  );
+
+  // Return all class students, using session_students data when available,
+  // otherwise treating the student as absent (they were absent at session creation)
+  return classStudentsList.map(s => {
+    const existing = sessionStudentsMap.get(s.id);
+    if (existing) return existing;
+    return {
+      studentId: s.id,
+      studentName: s.name,
+      studentEmail: s.email,
+      studentEnrollment: s.enrollment,
+      studentPhotoUrl: s.photoUrl,
+      role: "PARTICIPANTE",
+      absent: true,
+      justifiedAbsent: false,
+    };
+  });
 }
