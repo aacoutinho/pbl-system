@@ -145,7 +145,7 @@ function createFullTestData(): Record<string, any[]> {
 let capturedExportResult: any = null;
 let capturedImportInput: any = null;
 let capturedImportClearFirst: boolean = true;
-let mockImportResult = { tablesImported: 25, rowsImported: 35 };
+let mockImportResult: { tablesImported: number; rowsImported: number; warnings: string[] } = { tablesImported: 25, rowsImported: 35, warnings: [] };
 let mockStatsResult: Record<string, number> = {};
 
 vi.mock("./db", () => ({
@@ -437,7 +437,7 @@ describe("Backup/Restore - Ciclo completo com 25 tabelas", () => {
   describe("importDatabase - restauração", () => {
     it("deve aceitar backup com todas as 25 tabelas", async () => {
       const testData = createFullTestData();
-      mockImportResult = { tablesImported: 25, rowsImported: 35 };
+      mockImportResult = { tablesImported: 25, rowsImported: 35, warnings: [] };
 
       const caller = appRouter.createCaller(createAdminContext());
       const result = await caller.backup.import({
@@ -455,7 +455,7 @@ describe("Backup/Restore - Ciclo completo com 25 tabelas", () => {
 
     it("deve passar clearFirst=true para importDatabase quando solicitado", async () => {
       const testData = createFullTestData();
-      mockImportResult = { tablesImported: 25, rowsImported: 35 };
+      mockImportResult = { tablesImported: 25, rowsImported: 35, warnings: [] };
 
       const caller = appRouter.createCaller(createAdminContext());
       await caller.backup.import({
@@ -472,7 +472,7 @@ describe("Backup/Restore - Ciclo completo com 25 tabelas", () => {
 
     it("deve passar clearFirst=false para importDatabase quando solicitado", async () => {
       const testData = createFullTestData();
-      mockImportResult = { tablesImported: 25, rowsImported: 35 };
+      mockImportResult = { tablesImported: 25, rowsImported: 35, warnings: [] };
 
       const caller = appRouter.createCaller(createAdminContext());
       await caller.backup.import({
@@ -489,7 +489,7 @@ describe("Backup/Restore - Ciclo completo com 25 tabelas", () => {
 
     it("deve passar os dados do backup corretamente para importDatabase", async () => {
       const testData = createFullTestData();
-      mockImportResult = { tablesImported: 25, rowsImported: 35 };
+      mockImportResult = { tablesImported: 25, rowsImported: 35, warnings: [] };
 
       const caller = appRouter.createCaller(createAdminContext());
       await caller.backup.import({
@@ -526,6 +526,7 @@ describe("Backup/Restore - Ciclo completo com 25 tabelas", () => {
       mockImportResult = {
         tablesImported: Object.entries(backup.tables).filter(([_, rows]) => (rows as any[]).length > 0).length,
         rowsImported: Object.values(backup.tables).reduce((sum, rows) => sum + (rows as any[]).length, 0),
+        warnings: [],
       };
 
       const result = await caller.backup.import({

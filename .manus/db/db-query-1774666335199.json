@@ -1,0 +1,114 @@
+{
+  "query": "SELECT TABLE_NAME, AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND AUTO_INCREMENT IS NOT NULL ORDER BY TABLE_NAME;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user MjHLfrvgeGxPYeK.root --database heFGz3DQxSodUBP4B8NStG --execute SELECT TABLE_NAME, AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND AUTO_INCREMENT IS NOT NULL ORDER BY TABLE_NAME;",
+  "rows": [
+    {
+      "TABLE_NAME": "__drizzle_migrations",
+      "AUTO_INCREMENT": "0"
+    },
+    {
+      "TABLE_NAME": "audit_logs",
+      "AUTO_INCREMENT": "0"
+    },
+    {
+      "TABLE_NAME": "brainstorm_board_send_history",
+      "AUTO_INCREMENT": "0"
+    },
+    {
+      "TABLE_NAME": "brainstorm_boards",
+      "AUTO_INCREMENT": "0"
+    },
+    {
+      "TABLE_NAME": "brainstorm_item_attachments",
+      "AUTO_INCREMENT": "0"
+    },
+    {
+      "TABLE_NAME": "brainstorm_items",
+      "AUTO_INCREMENT": "0"
+    },
+    {
+      "TABLE_NAME": "class_eval_permissions",
+      "AUTO_INCREMENT": "0"
+    },
+    {
+      "TABLE_NAME": "class_students",
+      "AUTO_INCREMENT": "0"
+    },
+    {
+      "TABLE_NAME": "classes",
+      "AUTO_INCREMENT": "0"
+    },
+    {
+      "TABLE_NAME": "components",
+      "AUTO_INCREMENT": "0"
+    },
+    {
+      "TABLE_NAME": "contact_tickets",
+      "AUTO_INCREMENT": "0"
+    },
+    {
+      "TABLE_NAME": "email_verification_codes",
+      "AUTO_INCREMENT": "0"
+    },
+    {
+      "TABLE_NAME": "evaluation_items",
+      "AUTO_INCREMENT": "0"
+    },
+    {
+      "TABLE_NAME": "evaluations",
+      "AUTO_INCREMENT": "0"
+    },
+    {
+      "TABLE_NAME": "notifications",
+      "AUTO_INCREMENT": "0"
+    },
+    {
+      "TABLE_NAME": "password_reset_codes",
+      "AUTO_INCREMENT": "0"
+    },
+    {
+      "TABLE_NAME": "professor_components",
+      "AUTO_INCREMENT": "0"
+    },
+    {
+      "TABLE_NAME": "professor_student_notes",
+      "AUTO_INCREMENT": "0"
+    },
+    {
+      "TABLE_NAME": "session_access_tokens",
+      "AUTO_INCREMENT": "0"
+    },
+    {
+      "TABLE_NAME": "session_students",
+      "AUTO_INCREMENT": "0"
+    },
+    {
+      "TABLE_NAME": "sessions",
+      "AUTO_INCREMENT": "0"
+    },
+    {
+      "TABLE_NAME": "smtp_config",
+      "AUTO_INCREMENT": "0"
+    },
+    {
+      "TABLE_NAME": "students",
+      "AUTO_INCREMENT": "0"
+    },
+    {
+      "TABLE_NAME": "tutorial_eval_drafts",
+      "AUTO_INCREMENT": "0"
+    },
+    {
+      "TABLE_NAME": "tutorial_evaluations",
+      "AUTO_INCREMENT": "0"
+    },
+    {
+      "TABLE_NAME": "users",
+      "AUTO_INCREMENT": "9390219"
+    }
+  ],
+  "messages": [],
+  "stdout": "TABLE_NAME\tAUTO_INCREMENT\n__drizzle_migrations\t0\naudit_logs\t0\nbrainstorm_board_send_history\t0\nbrainstorm_boards\t0\nbrainstorm_item_attachments\t0\nbrainstorm_items\t0\nclass_eval_permissions\t0\nclass_students\t0\nclasses\t0\ncomponents\t0\ncontact_tickets\t0\nemail_verification_codes\t0\nevaluation_items\t0\nevaluations\t0\nnotifications\t0\npassword_reset_codes\t0\nprofessor_components\t0\nprofessor_student_notes\t0\nsession_access_tokens\t0\nsession_students\t0\nsessions\t0\nsmtp_config\t0\nstudents\t0\ntutorial_eval_drafts\t0\ntutorial_evaluations\t0\nusers\t9390219\n",
+  "stderr": "",
+  "execution_time_ms": 361
+}

@@ -2762,6 +2762,7 @@ export const appRouter = router({
       data: z.object({
         version: z.string(),
         exportedAt: z.string(),
+        schemaVersion: z.number().optional(),
         tables: z.record(z.string(), z.array(z.any())),
       }),
       clearFirst: z.boolean().default(true),
@@ -2774,8 +2775,11 @@ export const appRouter = router({
         details: JSON.stringify({
           importedAt: new Date().toISOString(),
           originalExportedAt: input.data.exportedAt,
+          schemaVersion: input.data.schemaVersion,
           clearFirst: input.clearFirst,
-          ...result,
+          tablesImported: result.tablesImported,
+          rowsImported: result.rowsImported,
+          warningCount: result.warnings.length,
         }),
       });
       return result;

@@ -31,7 +31,13 @@ export default function RestorePage() {
 
   const importMutation = trpc.backup.import.useMutation({
     onSuccess: (result) => {
-      toast.success(`Restauração concluída! ${result.tablesImported} tabelas, ${result.rowsImported} registros importados.`);
+      if (result.warnings && result.warnings.length > 0) {
+        // Show warnings as separate toasts
+        result.warnings.forEach((w: string) => toast.warning(w, { duration: 8000 }));
+        toast.success(`Restauração concluída com avisos! ${result.tablesImported} tabelas, ${result.rowsImported} registros importados.`);
+      } else {
+        toast.success(`Restauração concluída! ${result.tablesImported} tabelas, ${result.rowsImported} registros importados.`);
+      }
       setIsImporting(false);
       setShowConfirmImport(false);
       setShowImportDialog(false);
@@ -308,6 +314,12 @@ export default function RestorePage() {
                     <span className="text-muted-foreground">Total:</span>
                     <p className="font-medium">{importRowCount} registros em {importTableCount} tabelas</p>
                   </div>
+                  {importData.schemaVersion !== undefined && (
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Versão do schema:</span>
+                      <p className="font-medium">{importData.schemaVersion} migrations aplicadas</p>
+                    </div>
+                  )}
                 </div>
               </div>
 

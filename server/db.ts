@@ -3388,6 +3388,7 @@ const CLEAR_ORDER = [...BACKUP_TABLES].reverse();
 export interface BackupData {
   version: string;
   exportedAt: string;
+  schemaVersion?: number; // Number of migrations applied at export time
   tables: Record<string, unknown[]>;
 }
 
@@ -3395,9 +3396,19 @@ export async function exportDatabase(): Promise<BackupData> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
+  // Count applied migrations for schema version tracking
+  let schemaVersion = 0;
+  try {
+    const migrations = await db.execute(sql`SELECT COUNT(*) as cnt FROM __drizzle_migrations`);
+    schemaVersion = Number((migrations as any)[0]?.[0]?.cnt ?? (migrations as any)[0]?.cnt ?? 0);
+  } catch {
+    // __drizzle_migrations may not exist in all environments
+  }
+
   const backup: BackupData = {
     version: "1.0",
     exportedAt: new Date().toISOString(),
+    schemaVersion,
     tables: {},
   };
 
@@ -3409,15 +3420,34 @@ export async function exportDatabase(): Promise<BackupData> {
   return backup;
 }
 
-export async function importDatabase(data: BackupData, clearFirst: boolean): Promise<{ tablesImported: number; rowsImported: number }> {
+export async function importDatabase(
+  data: BackupData,
+  clearFirst: boolean
+): Promise<{ tablesImported: number; rowsImported: number; warnings: string[] }> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
   let tablesImported = 0;
   let rowsImported = 0;
+  const warnings: string[] = [];
+
+  // Warn if backup was created with a different schema version
+  if (data.schemaVersion !== undefined) {
+    let currentSchemaVersion = 0;
+    try {
+      const migrations = await db.execute(sql`SELECT COUNT(*) as cnt FROM __drizzle_migrations`);
+      currentSchemaVersion = Number((migrations as any)[0]?.[0]?.cnt ?? (migrations as any)[0]?.cnt ?? 0);
+    } catch { /* ignore */ }
+    if (data.schemaVersion !== currentSchemaVersion) {
+      warnings.push(
+        `Versão do schema no backup (${data.schemaVersion} migrations) difere da versão atual (${currentSchemaVersion} migrations). ` +
+        `A restauração pode falhar ou produzir dados inconsistentes se o schema mudou.`
+      );
+    }
+  }
 
   if (clearFirst) {
-    // Delete all data in reverse order (children first)
+    // Delete all data in reverse order (children first) to avoid FK issues
     for (const { table } of CLEAR_ORDER) {
       await db.delete(table);
     }
@@ -3426,20 +3456,41 @@ export async function importDatabase(data: BackupData, clearFirst: boolean): Pro
   // Insert data in order (parents first)
   for (const { name, table } of BACKUP_TABLES) {
     const rows = data.tables[name];
-    if (!rows || rows.length === 0) continue;
+    if (!rows || rows.length === 0) {
+      if (!data.tables[name]) {
+        warnings.push(`Tabela '${name}' não encontrada no backup — pode ser uma tabela nova adicionada após o backup.`);
+      }
+      continue;
+    }
+
+    // Normalize timestamp strings to Date objects for Drizzle compatibility
+    // (superjson preserves Dates via tRPC, but plain JSON.parse returns strings)
+    const normalizedRows = rows.map((row: any) => {
+      const normalized: Record<string, unknown> = { ...row };
+      for (const [key, value] of Object.entries(normalized)) {
+        if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+          const d = new Date(value);
+          if (!isNaN(d.getTime())) normalized[key] = d;
+        }
+      }
+      return normalized;
+    });
 
     // Insert in batches of 100 to avoid query size limits
     const batchSize = 100;
-    for (let i = 0; i < rows.length; i += batchSize) {
-      const batch = rows.slice(i, i + batchSize);
-      await db.insert(table).values(batch as any[]);
+    try {
+      for (let i = 0; i < normalizedRows.length; i += batchSize) {
+        const batch = normalizedRows.slice(i, i + batchSize);
+        await db.insert(table).values(batch as any[]);
+      }
+      tablesImported++;
+      rowsImported += rows.length;
+    } catch (err: any) {
+      warnings.push(`Erro ao importar tabela '${name}': ${err?.message ?? String(err)}`);
     }
-
-    tablesImported++;
-    rowsImported += rows.length;
   }
 
-  return { tablesImported, rowsImported };
+  return { tablesImported, rowsImported, warnings };
 }
 
 export async function rebuildDatabase(): Promise<{ success: boolean; tablesCreated: number }> {
