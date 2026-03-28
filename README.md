@@ -4,6 +4,10 @@ Sistema web para gerenciamento e avaliação de sessões de **Aprendizado Basead
 
 ---
 
+> Para uma descrição técnica detalhada de todos os modelos de dados, algoritmos, fluxos de interface e regras de negócio, consulte a [**Especificação Técnica Completa (SPEC.md)**](./SPEC.md).
+
+---
+
 ## Visão Geral
 
 O PBL System permite que professores criem e gerenciem sessões de tutorial, atribuam papéis aos alunos, coletem avaliações de pares durante a sessão e calculem automaticamente as notas de desempenho individuais. Alunos acessam o sistema via matrícula para avaliar seus colegas e interagir com o quadro digital de brainstorm.
