@@ -863,7 +863,7 @@ function TutorialEvalContent() {
                     Anotações por Aluno Presente na Sessão
                   </CardTitle>
                   <CardDescription>
-                    Registre pontos positivos e negativos de cada aluno presente durante o tutorial.
+                    Registre perguntas e respostas de cada aluno presente durante o tutorial.
                     As anotações são salvas automaticamente.
                   </CardDescription>
                 </CardHeader>
@@ -889,10 +889,10 @@ function TutorialEvalContent() {
                             <div className="border rounded-lg p-3 bg-emerald-50/50">
                               <div className="flex items-center gap-1.5 mb-2">
                                 <ThumbsUp className="h-4 w-4 text-emerald-600" />
-                                <span className="text-sm font-semibold text-emerald-700">Pontos Positivos</span>
+                                <span className="text-sm font-semibold text-emerald-700">Perguntas</span>
                               </div>
                               <Textarea
-                                placeholder="Anote os pontos positivos deste aluno..."
+                                placeholder="Anote as perguntas deste aluno..."
                                 value={(note.positiveTexts ?? [""])[0] ?? ""}
                                 onChange={(e) => {
                                   handleStudentNoteChange(student.studentId, "positiveTexts", [e.target.value] as any);
@@ -906,10 +906,10 @@ function TutorialEvalContent() {
                             <div className="border rounded-lg p-3 bg-red-50/50">
                               <div className="flex items-center gap-1.5 mb-2">
                                 <ThumbsDown className="h-4 w-4 text-red-600" />
-                                <span className="text-sm font-semibold text-red-700">Pontos Negativos</span>
+                                <span className="text-sm font-semibold text-red-700">Respostas</span>
                               </div>
                               <Textarea
-                                placeholder="Anote os pontos negativos deste aluno..."
+                                placeholder="Anote as respostas deste aluno..."
                                 value={(note.negativeTexts ?? [""])[0] ?? ""}
                                 onChange={(e) => {
                                   handleStudentNoteChange(student.studentId, "negativeTexts", [e.target.value] as any);
