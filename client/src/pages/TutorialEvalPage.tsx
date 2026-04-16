@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { BookOpen, ClipboardCheck, Save, CheckCircle2, Info, ShieldCheck, ShieldAlert, Crown, UserCheck, FileEdit, SendHorizonal, ThumbsUp, ThumbsDown, MessageSquare, User, Lightbulb, ExternalLink, Filter } from "lucide-react";
+import { BookOpen, ClipboardCheck, Save, CheckCircle2, Info, ShieldCheck, ShieldAlert, Crown, UserCheck, FileEdit, SendHorizonal, HelpCircle, Lightbulb, MessageSquare, User, ExternalLink, Filter } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { StudentPhotoAvatar } from "@/components/StudentPhotoModal";
 import { useLocation } from "wouter";
@@ -863,7 +863,7 @@ function TutorialEvalContent() {
                     Anotações por Aluno Presente na Sessão
                   </CardTitle>
                   <CardDescription>
-                    Registre perguntas e respostas de cada aluno presente durante o tutorial.
+                    Registre dúvidas e ideias de cada aluno presente durante o tutorial.
                     As anotações são salvas automaticamente.
                   </CardDescription>
                 </CardHeader>
@@ -888,11 +888,11 @@ function TutorialEvalContent() {
                             {/* Positive annotation */}
                             <div className="border rounded-lg p-3 bg-emerald-50/50">
                               <div className="flex items-center gap-1.5 mb-2">
-                                <ThumbsUp className="h-4 w-4 text-emerald-600" />
-                                <span className="text-sm font-semibold text-emerald-700">Perguntas</span>
+                                <HelpCircle className="h-4 w-4 text-emerald-600" />
+                                <span className="text-sm font-semibold text-emerald-700">Dúvidas</span>
                               </div>
                               <Textarea
-                                placeholder="Anote as perguntas deste aluno..."
+                                placeholder="Anote as dúvidas deste aluno..."
                                 value={(note.positiveTexts ?? [""])[0] ?? ""}
                                 onChange={(e) => {
                                   handleStudentNoteChange(student.studentId, "positiveTexts", [e.target.value] as any);
@@ -903,13 +903,13 @@ function TutorialEvalContent() {
                             </div>
 
                             {/* Negative annotation */}
-                            <div className="border rounded-lg p-3 bg-red-50/50">
+                            <div className="border rounded-lg p-3 bg-amber-50/50">
                               <div className="flex items-center gap-1.5 mb-2">
-                                <ThumbsDown className="h-4 w-4 text-red-600" />
-                                <span className="text-sm font-semibold text-red-700">Respostas</span>
+                                <Lightbulb className="h-4 w-4 text-amber-500" />
+                                <span className="text-sm font-semibold text-amber-700">Ideias</span>
                               </div>
                               <Textarea
-                                placeholder="Anote as respostas deste aluno..."
+                                placeholder="Anote as ideias deste aluno..."
                                 value={(note.negativeTexts ?? [""])[0] ?? ""}
                                 onChange={(e) => {
                                   handleStudentNoteChange(student.studentId, "negativeTexts", [e.target.value] as any);

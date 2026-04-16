@@ -895,3 +895,4 @@
 - [x] Incluir data da sessão no cabeçalho da aba de resultados por sessão na interface web
 - [x] Bug: diálogo "Marcar falta" em sessões encerradas não exibe a lista de alunos da turma (corrigido: getSessionStudentsWithFallback agora sempre faz merge com todos os alunos da turma, adicionando ausentes com absent:true)
 - [x] Renomear campos de anotação por aluno na página de Avaliação: "Pontos Positivos" → "Perguntas" e "Pontos Negativos" → "Respostas"
+- [x] Renomear campos de anotação: "Perguntas" → "Dúvidas" e "Respostas" → "Ideias"; trocar ícones por HelpCircle (dúvidas) e Lightbulb (ideias)
