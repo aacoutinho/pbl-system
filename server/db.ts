@@ -2065,22 +2065,39 @@ export async function getStudentConsolidatedReport(classId: number) {
       };
     });
 
-    // Count sessions by status
+     // Count sessions by status
     const presentSessions = sessionData.filter(s => !s.absent && !s.excluded);
     const absentSessions = sessionData.filter(s => s.absent && !s.excluded);
     const excludedSessions = sessionData.filter(s => s.excluded);
     const allExcluded = excludedSessions.length === sessionData.length;
-
-    // Averages: sum of present-session scores divided by TOTAL sessions (excluded sessions count as 0)
-    const totalSessionCount = sessionData.length;
+    // avgPeer: soma das sessões presentes / total de sessões não excluídas
+    const nonExcludedSessions = sessionData.filter(s => !s.excluded);
+    const totalSessionCount = nonExcludedSessions.length;
     const avgPeer = totalSessionCount > 0
       ? Math.round(presentSessions.reduce((sum, s) => sum + s.peerScore, 0) / totalSessionCount * 10) / 10
       : 0;
-    const rawMediaDesempenho = totalSessionCount > 0
-      ? Math.round(presentSessions.reduce((sum, s) => sum + s.desempenhoScore, 0) / totalSessionCount * 10) / 10
+    // mediaDesempenho: média das médias por problema (cada problema tem peso igual)
+    const problemNumbers = Array.from(new Set(nonExcludedSessions.map(s => s.problemNumber)));
+    const problemAvgs: number[] = problemNumbers.map(pNum => {
+      const problemSessions = nonExcludedSessions.filter(s => s.problemNumber === pNum);
+      const totalInProblem = problemSessions.length;
+      if (totalInProblem === 0) return 0;
+      const sumPresent = problemSessions
+        .filter(s => !s.absent)
+        .reduce((sum, s) => sum + s.desempenhoScore, 0);
+      return sumPresent / totalInProblem;
+    });
+    const rawMediaDesempenho = problemAvgs.length > 0
+      ? problemAvgs.reduce((a, b) => a + b, 0) / problemAvgs.length
       : 0;
-    const mediaDesempenhoCapped = rawMediaDesempenho > 10.0;
-    const mediaDesempenho = mediaDesempenhoCapped ? 10.0 : rawMediaDesempenho;
+    const mediaDesempenhoRounded = Math.round(rawMediaDesempenho * 10) / 10;
+    const mediaDesempenhoCapped = mediaDesempenhoRounded > 10.0;
+    const mediaDesempenho = mediaDesempenhoCapped ? 10.0 : mediaDesempenhoRounded;
+    // Per-problem averages for display
+    const problemAverages: Record<number, number> = {};
+    problemNumbers.forEach((pNum, i) => {
+      problemAverages[pNum] = Math.round(problemAvgs[i] * 10) / 10;
+    });
 
     return {
       studentId: student.studentId,
